@@ -1,7 +1,7 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-10
+> 最后更新：2026-06-10（child chunk 检索粒度 + embedding 范围明确）
 
 ---
 
@@ -194,9 +194,10 @@ HTTP 纯文本
 └──────────────────────────────────────┘
 ```
 
-- **Child Chunk**：小粒度的检索单元，用于与 query 做相似度匹配
-- **Parent Chunk**：大粒度的上下文窗口，检索命中 child 后回表取 parent 获得更完整上下文
+- **Child Chunk**：小粒度的检索单元，用于与 query 做相似度匹配。**Child chunk 是唯一会被 Embedding 向量化的粒度**。
+- **Parent Chunk**：大粒度的上下文窗口，检索命中 child 后回表取 parent 获得更完整上下文。**Parent chunk 不做向量化，只存储纯文本**。
 - 入库时两种 chunk 同时写入 chunk 表，`parent_chunk_id` 建立关联
+- **核心约束**：Sparse（BM25）和 Dense（pgvector）检索均在 child chunk 维度进行。Embedding 只存储 child chunk 的 vector，FTS 索引也只建在 child chunk 上。
 
 ### 5.1.2 Chunk 表结构
 
@@ -217,6 +218,8 @@ CREATE INDEX idx_chunk_status ON chunk(status);
 CREATE INDEX idx_chunk_doc_id ON chunk(doc_id);
 CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 ```
+
+> **Status 语义说明**：`status` 字段仅对 child chunk 有意义（控制 embedding + 双写流程）。Parent chunk 入库时 `status` 可直接设为 `'success'`（无需处理），或新增 `'parent'` 状态以区分。Cron 扫表通过 `parent_chunk_id IS NOT NULL` 确保只处理 child chunk。
 
 ### 5.1.3 Chunk 状态机
 
@@ -240,13 +243,15 @@ CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 ```
 @Scheduled(cron = "*/10 * * * * *")  -- Demo: 每10秒扫一次
 
-1. SELECT * FROM chunk WHERE status IN ('init', 'failed') LIMIT 100
-2. FOR EACH chunk:
+1. SELECT * FROM chunk WHERE status IN ('init', 'failed')
+   AND parent_chunk_id IS NOT NULL  -- 仅处理 child chunk
+   LIMIT 100
+2. FOR EACH child chunk:
      UPDATE status = 'processing'
      TRY:
        vector = embeddingModel.embed(chunk.content)
        INSERT INTO pgvector (chunk_id, embedding) VALUES (?, ?)
-       UPDATE fts_column = to_tsvector('chinese', chunk.content)
+       UPDATE fts_content = to_tsvector('chinese', chunk.content)
        UPDATE status = 'success'
      CATCH:
        UPDATE status = 'failed'
@@ -258,9 +263,13 @@ CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 
 ### 5.1.5 双写目标
 
-每个 chunk embedding 完成后同时写入：
+**仅 child chunk 参与双写**（parent chunk 不做向量化）：
+
+每个 **child chunk** embedding 完成后同时写入：
 - **pgvector 表**：`chunk_id, embedding (vector(1024))`，Dense 稠密向量检索
 - **PostgreSQL FTS**：chunk 表的 `fts_content tsvector` 列 + GIN 索引，Sparse BM25 检索
+
+> Parent chunk 不存储 embedding，不参与 FTS 索引，仅保留纯文本用于回表获取上下文。
 
 ### 5.2 混合检索流程（UserQuery）
 
@@ -278,8 +287,11 @@ CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 │  Dense 查询      │  │  Sparse 查询          │
 │  (pgvector)      │  │  (PostgreSQL FTS)     │
 │  cosine/ip 距离  │  │  ts_rank / BM25 分数  │
-│  → Top-K        │  │  → Top-K             │
+│  → Top-K child  │  │  → Top-K child       │
 └────────┬────────┘  └──────────┬───────────┘
+         │                      │
+         │   两路均在 child       │
+         │   chunk 维度检索      │
          │                      │
          └──────────┬───────────┘
                     ▼
@@ -310,23 +322,23 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 - rank_i(d): 文档 d 在第 i 路检索结果中的排名
 ```
 
-- 两路各自返回 Top-K（如 K=20）
-- RRF 计算每个 chunk 的融合分数
+- 两路各自返回 Top-K **child chunk**（如 K=20）
+- RRF 计算每个 **child chunk** 的融合分数
 - 按 RRF 分数降序排列，取 Top-N（如 N=10）
-- 回表 PostgreSQL 获取这 N 个 chunk 的完整内容
+- 回表 PostgreSQL：通过 `parent_chunk_id` 取这 N 个 child chunk 对应的 parent chunk 完整内容，作为后续 rerank 和 LLM 的输入
 
 ### 5.4 Core 模块职责
 
 | 模块 | 入库职责 | 检索职责 |
 |------|----------|----------|
 | chunk | 文本 → child chunk + parent chunk（TokenTextSplitter） | — |
-| embedding | Cron 扫表 → chunk.embed() → vector | question → vector |
-| sparseQuery | 写入 FTS 索引（tsvector + GIN） | BM25 关键词检索 |
-| denseQuery | 写入 pgvector（embedding vector） | 向量相似度检索 |
-| rrf | — | RRF 融合 + 回表取 parent chunk |
-| rerank | — | 对融合结果语义重排序 |
+| embedding | Cron 扫表 → **仅 child chunk**.embed() → vector | question → vector |
+| sparseQuery | 写入 FTS 索引（tsvector + GIN）→ **仅 child chunk** | BM25 关键词检索 → **child chunk 维度** |
+| denseQuery | 写入 pgvector（embedding vector）→ **仅 child chunk** | 向量相似度检索 → **child chunk 维度** |
+| rrf | — | RRF 融合 child chunk 结果 + 回表取 parent chunk |
+| rerank | — | 对 parent chunk 完整内容语义重排序 |
 
-> **回表策略**：Dense + Sparse 检索返回 child chunk ID → RRF 融合 → 回表时通过 `parent_chunk_id` 取 parent chunk 完整内容，作为 LLM 上下文。
+> **回表策略**：Dense + Sparse 检索均在 child chunk 维度执行，返回 child chunk ID → RRF 融合 → 回表时通过 `parent_chunk_id` 取 parent chunk 完整内容，作为 LLM 上下文。
 
 ---
 
@@ -389,3 +401,5 @@ plan_1 完成项目从零到可运行的 Core 全链路：
 - [x] 文档解析：一期纯文本直传（HTTP body 塞完整文本），不做文件解析 ✅ 已确认
 - [x] Chunk 策略：child chunk（256 token 细粒度检索） + parent chunk（1024 token 大窗口上下文），工具暂定 Spring AI TokenTextSplitter ✅ 已确认
 - [x] 数据库迁移：一期不做，DDL 直接手动管理 / Spring 启动初始化 ✅ 已确认
+- [x] 检索粒度：Sparse 和 Dense 检索均在 child chunk 维度进行 ✅ 已确认
+- [x] Embedding 范围：仅 child chunk 存储向量，parent chunk 不参与向量化和 FTS 索引 ✅ 已确认
