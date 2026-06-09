@@ -1,7 +1,7 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-10（child chunk 检索粒度 + embedding 范围明确）
+> 最后更新：2026-06-10（child chunk 检索粒度 + embedding 范围明确 + chunk_index）
 
 ---
 
@@ -206,6 +206,7 @@ CREATE TABLE chunk (
     chunk_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     doc_id           UUID NOT NULL,              -- 关联文档
     parent_chunk_id  UUID,                        -- NULL=parent, 非NULL=child（指向parent）
+    chunk_index      INTEGER,                     -- child 在 parent 中的序号（从0开始；parent 为 NULL）
     content          TEXT NOT NULL,               -- chunk 文本内容
     token_count      INTEGER,                     -- token 数量
     metadata         JSONB DEFAULT '{}',          -- 扩展元数据 {tags, ...}
@@ -219,6 +220,8 @@ CREATE INDEX idx_chunk_doc_id ON chunk(doc_id);
 CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 ```
 
+> **chunk_index 说明**：`chunk_index` 记录 child chunk 在其 parent chunk 内的顺序位置（从 0 开始递增）。用于回表时保持原文片段顺序、相邻 chunk 扩展上下文等场景。Parent chunk 自身 `chunk_index = NULL`。
+>
 > **Status 语义说明**：`status` 字段仅对 child chunk 有意义（控制 embedding + 双写流程）。Parent chunk 入库时 `status` 可直接设为 `'success'`（无需处理），或新增 `'parent'` 状态以区分。Cron 扫表通过 `parent_chunk_id IS NOT NULL` 确保只处理 child chunk。
 
 ### 5.1.3 Chunk 状态机
