@@ -1,7 +1,7 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-10（child chunk 检索粒度 + embedding 范围明确 + chunk_index）
+> 最后更新：2026-06-10（child chunk 检索粒度 + embedding 范围明确 + chunk_index + 代码规范）
 
 ---
 
@@ -406,3 +406,139 @@ plan_1 完成项目从零到可运行的 Core 全链路：
 - [x] 数据库迁移：一期不做，DDL 直接手动管理 / Spring 启动初始化 ✅ 已确认
 - [x] 检索粒度：Sparse 和 Dense 检索均在 child chunk 维度进行 ✅ 已确认
 - [x] Embedding 范围：仅 child chunk 存储向量，parent chunk 不参与向量化和 FTS 索引 ✅ 已确认
+
+---
+
+## 九、代码规范
+
+> 所有 Java 代码必须遵守以下注释与设计规范。规范本身遵循第一性原理：每一条都是交付可维护代码的**最小必要约束**。
+
+### 9.1 注释规范
+
+#### Class 级别
+
+每个类文件头部必须包含 Javadoc，写明：
+
+```java
+/**
+ * <一句话功能概述>.
+ *
+ * <详细说明，2-3 句，描述该类在整体架构中的角色>
+ *
+ * @since 2026-06-10
+ */
+```
+
+要求：
+
+- `@since` 标注创建日期（YYYY-MM-DD）
+- 必须说清楚该类**对应哪个功能模块**（与分层架构对应）
+
+#### Method 级别
+
+**重要 method**（public / 核心业务逻辑 / 算法步骤）必须写 Javadoc：
+
+```java
+/**
+ * <一句话描述该方法做什么>.
+ *
+ * @param xxx <参数含义>
+ * @return <返回值含义>
+ */
+```
+
+不要求为 getter/setter / 简单委托方法写注释。
+
+#### 行注释
+
+复杂逻辑（>10 行或含多重条件/循环/位运算）必须加行内注释：
+
+```java
+// Step 1: 两路检索并行发出，每路取 Top-K
+// Step 2: RRF 按 1/(k+rank) 融合
+```
+
+注释写**为什么这么做**而不是复述代码。
+
+#### 成员变量
+
+所有成员变量（field）必须注释含义和作用：
+
+```java
+/**
+ * child chunk 在 parent chunk 中的序号，从 0 开始递增.
+ * parent chunk 自身此值为 NULL.
+ */
+private Integer chunkIndex;
+```
+
+### 9.2 设计原则
+
+#### 奥卡姆剃刀 — 如无必要，勿增实体
+
+- 不引入当前不需要的抽象层、接口、工具类
+- Demo 阶段不做"万一以后要用"的预留
+- 一个接口只有一个实现时，不做 Interface → Impl 分离；直接写实现类
+
+#### 第一性原理 — 满足功能的最小逻辑
+
+- 每段代码必须回答：**最少需要做什么？** 只做那件事
+- 拒绝过度工程：无状态 → 不用缓存、单线程够用 → 不加锁、数据量小 → 不做分页
+- Demo 阶段硬编码优于配置文件、同步优于异步、手动优于自动化
+
+### 9.3 示例
+
+```java
+/**
+ * 混合检索融合器 —— 对 Sparse + Dense 两路 child chunk 结果做 RRF 融合并回表.
+ *
+ * 融合后通过 parent_chunk_id 回表获取完整 parent 上下文，交给下游 rerank.
+ *
+ * @since 2026-06-10
+ */
+public class RrfFusionService {
+
+    /**
+     * RRF 常数 k，防止单路 rank=1 导致分母过小.
+     * 业界常用值 60.
+     */
+    private static final int RRF_K = 60;
+
+    private final ChunkDao chunkDao;
+
+    /**
+     * 对两路 child chunk 结果执行 RRF 融合，回表取 parent chunk 内容.
+     *
+     * @param sparseResults BM25 检索结果（child chunk 维度）
+     * @param denseResults  pgvector 检索结果（child chunk 维度）
+     * @param topN          融合后保留数量
+     * @return parent chunk 完整内容列表，按 RRF 分数降序
+     */
+    public List<ChunkContent> fuse(List<SearchHit> sparseResults,
+                                   List<SearchHit> denseResults,
+                                   int topN) {
+        // 1. 以 chunk_id 为 key 计算 RRF 分数
+        Map<UUID, Double> scores = new HashMap<>();
+        for (int rank = 0; rank < sparseResults.size(); rank++) {
+            UUID id = sparseResults.get(rank).chunkId();
+            scores.merge(id, 1.0 / (RRF_K + rank + 1), Double::sum);
+        }
+        for (int rank = 0; rank < denseResults.size(); rank++) {
+            UUID id = denseResults.get(rank).chunkId();
+            scores.merge(id, 1.0 / (RRF_K + rank + 1), Double::sum);
+        }
+
+        // 2. 按 RRF 分数降序取 Top-N child chunk ID
+        List<UUID> topChildIds = scores.entrySet().stream()
+            .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
+            .limit(topN)
+            .map(Map.Entry::getKey)
+            .toList();
+
+        // 3. 回表：取 child → parent chunk 完整内容
+        return chunkDao.findParentContentsByChildIds(topChildIds);
+    }
+}
+```
+
+> 示例展示了规范的全貌：class Javadoc + @since、field 注释、method Javadoc、关键步骤行注释。同时体现了奥卡姆剃刀（无额外抽象）和第一性原理（最小逻辑）。
