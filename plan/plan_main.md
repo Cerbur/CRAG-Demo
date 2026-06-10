@@ -361,7 +361,7 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 
 | Plan | 内容 | 状态 |
 |------|------|------|
-| [plan_1](./plan_1.md) | 项目脚手架 + 基础设施 + Core 全链路 | 🔜 待创建 |
+| [plan_1](./plan_1.md) | 项目脚手架 + 基础设施 + 分包结构 + DAO + Dockerfile | 📋 已创建（2026-06-10） |
 | plan_2 | Integration 层（LLM + Embedding + Rerank） | ⏳ 占位 |
 | plan_3 | Docker Compose 编排 + Sidecar Python + 联调 | ⏳ 占位 |
 
@@ -371,19 +371,15 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 - 每个 plan 内的小任务使用 `plan-id.task-id` 编号，如 `1.1`, `1.2`, `2.1`, `2.2`
 - 每完成一个小任务，更新任务状态并记录对应 commit
 
-### Plan_1 范围（最小 Demo）
+### Plan_1 范围（基础设施）
 
-plan_1 完成项目从零到可运行的 Core 全链路：
-- 1.x 脚手架：Gradle + Spring Boot + PostgreSQL 配置 + schema.sql
-- 2.x Core — chunk：child/parent chunk 分块（TokenTextSplitter）
-- 3.x Core — sparseQuery：PostgreSQL FTS BM25 查询
-- 4.x Core — denseQuery：pgvector 向量查询
-- 5.x Core — rrf：RRF 融合 + 回表
-- 6.x Core — rerank：重排序
-- 7.x Integration 骨架：EmbeddingClient / RerankClient 接口 + Sidecar HTTP 实现
-- 8.x API：UserQuery + AdminRag controller → service → core 串联
+plan_1 完成项目从零到可编译运行的基础骨架：
+- 1.x 脚手架：Gradle + Spring Boot 3.x + application.yml
+- 2.x 分包：controller / service / core / dao / integration 全包结构
+- 3.x DAO 层：Spring Data JPA + Chunk Entity + schema.sql
+- 4.x Docker：Dockerfile（多阶段构建）+ docker-compose.yml
 
-> plan_1 完成后，`POST /api/v1/query` 可返回检索到的 Top-N chunks（不含 LLM 生成），`POST /api/v1/admin/rag` 可完成文档入库全链路。LLM 生成留到 plan_2。
+> plan_1 完成后，项目可编译、启动、连接 PostgreSQL，chunk 表就绪。Core 业务逻辑和 API 实现留到 plan_2+。
 
 ### Plan_2 范围
 - 2.x Integration — llm：ChatClient 接口 + DeepSeek ChatClient 实现 + 提示词管理

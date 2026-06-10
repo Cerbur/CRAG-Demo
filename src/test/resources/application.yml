@@ -1,0 +1,26 @@
+# Test profile — 使用 H2 内存数据库（PostgreSQL 兼容模式），跳过 schema.sql（由 JPA ddl-auto 自动建表）
+spring:
+  datasource:
+    url: jdbc:h2:mem:crag_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  sql:
+    init:
+      mode: never
+
+  # plan_1 脚手架：Spring AI 尚未接入，提供 dummy API key 避免自动配置失败
+  ai:
+    openai:
+      api-key: dummy-plan1-key
+      chat:
+        api-key: dummy-plan1-key

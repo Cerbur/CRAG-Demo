@@ -1,0 +1,52 @@
+# ============================================================
+# CRAG-Demo — Docker Compose 编排
+# 服务: db（PostgreSQL 17 + pgvector）+ app（Spring Boot）
+# 网络: crag-net（bridge）
+# ============================================================
+
+services:
+
+  # --- PostgreSQL 17 + pgvector ---
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: crag-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: crag_demo
+      POSTGRES_USER: crag_user
+      POSTGRES_PASSWORD: crag_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crag_user -d crag_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - crag-net
+
+  # --- Spring Boot 应用 ---
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crag-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/crag_demo
+      SPRING_DATASOURCE_USERNAME: crag_user
+      SPRING_DATASOURCE_PASSWORD: crag_pass
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - crag-net
+
+volumes:
+  pgdata:
+
+networks:
+  crag-net:
+    driver: bridge
