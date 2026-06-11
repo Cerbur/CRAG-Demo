@@ -1,0 +1,17 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Local model cache
+.models/
+
+# Environment
+.env
+
+# Git
+.git/

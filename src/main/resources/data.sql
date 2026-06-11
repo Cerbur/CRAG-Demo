@@ -1,12 +1,2 @@
--- ============================================================
--- CRAG-Demo — 测试种子数据
--- 仅在 chunk 表为空时插入（通过 ON CONFLICT 避免重复）
--- ============================================================
-
--- 说明：测试数据留空，实际数据通过 AdminRag API 写入。
--- 如需测试种子数据，取消下方注释并填入真实 doc_id。
-
--- INSERT INTO chunk (doc_id, parent_chunk_id, chunk_index, content, token_count, metadata, status)
--- VALUES
---     ('00000000-0000-0000-0000-000000000001', NULL, NULL, '这是一段 parent chunk 测试文本，用于验证数据库连接和 chunk 表结构。', 50, '{"tags":["test"]}', 'success'),
---     ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 0, '第一个 child chunk，用于检索匹配。', 15, '{"tags":["test"]}', 'init');
+-- 测试种子数据预留（实际数据通过 AdminRag API 写入）.
+SELECT 1 WHERE FALSE;  -- 无害 no-op，满足 Spring ScriptUtils 非空脚本要求

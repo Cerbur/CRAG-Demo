@@ -1,0 +1,9 @@
+# CRAG-Demo Sidecar — Python dependencies
+# Pin exact versions for reproducible Docker builds.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sentence-transformers==3.3.1
+transformers==4.50.3
+torch==2.5.1
+huggingface-hub==0.27.0
+modelscope==1.23.2

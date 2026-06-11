@@ -7,7 +7,7 @@
 
 ## 范围说明
 
-plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构建、Spring Boot 启动、全部分包结构、PostgreSQL DAO 层（Spring Data JPA + schema.sql）、Dockerfile 基础环境。
+plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构建、Spring Boot 启动、全部分包结构、PostgreSQL DAO 层（Spring Data JPA + schema.sql，含 chunk / chunk_embedding / chunk_fts 三张表）、Dockerfile 基础环境。
 
 **不包含**：Core 业务逻辑实现、Integration 实现、API 实现。这些留到后续 plan。
 
@@ -30,13 +30,17 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
 | 3.3 | 创建 ChunkRepository | ✅ 完成 | `2dd060e` | 2026-06-10 |
 | 3.4 | 编写 schema.sql（chunk 表 DDL） | ✅ 完成 | `2dd060e` | 2026-06-10 |
 | 3.5 | 编写 data.sql（测试种子数据） | ✅ 完成 | `2dd060e` | 2026-06-10 |
+| 3.6 | 新增 chunk_embedding 表（Dense 向量存储，分离表） | ✅ 完成 | `—` | 2026-06-10 |
+| 3.7 | 新增 chunk_fts 表（Sparse 全文检索，分离表） | ✅ 完成 | `—` | 2026-06-10 |
+| 3.8 | 新增 ChunkEmbedding + ChunkFts Entity 及 Repository | ✅ 完成 | `—` | 2026-06-10 |
 | 4.1 | 编写 Dockerfile（多阶段构建） | ✅ 完成 | `2dd060e` | 2026-06-10 |
 | 4.2 | 编写 docker-compose.yml | ✅ 完成 | `2dd060e` | 2026-06-10 |
 | 4.3 | 编写 .dockerignore | ✅ 完成 | `2dd060e` | 2026-06-10 |
+| 4.4 | docker-compose.yml volume 改为本地绑定挂载 | ✅ 完成 | `—` | 2026-06-10 |
 
 > 状态图例：⏳ 待开始 → 🔄 进行中 → ✅ 完成 / ❌ 阻塞
 
-整体进度：**16 / 16（100%）**
+整体进度：**20 / 20（100%）**
 
 ---
 
@@ -151,12 +155,14 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
         content          TEXT NOT NULL,
         token_count      INTEGER,
         metadata         JSONB DEFAULT '{}',
-        status           VARCHAR(16) DEFAULT 'init',
+        dense_status     SMALLINT DEFAULT 0,           -- Dense/Embedding 链路: 0=INIT 1=PROCESSING 2=SUCCESS 3=FAILED 4=SKIPPED
+        sparse_status    SMALLINT DEFAULT 0,           -- Sparse/FTS 链路:   0=INIT 1=PROCESSING 2=SUCCESS 3=FAILED 4=SKIPPED
         created_at       TIMESTAMP DEFAULT NOW(),
         updated_at       TIMESTAMP DEFAULT NOW()
     );
 
-    CREATE INDEX IF NOT EXISTS idx_chunk_status ON chunk(status);
+    CREATE INDEX IF NOT EXISTS idx_chunk_dense_status ON chunk(dense_status);
+    CREATE INDEX IF NOT EXISTS idx_chunk_sparse_status ON chunk(sparse_status);
     CREATE INDEX IF NOT EXISTS idx_chunk_doc_id ON chunk(doc_id);
     CREATE INDEX IF NOT EXISTS idx_chunk_parent ON chunk(parent_chunk_id);
     ```
@@ -167,6 +173,34 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
   - 位置：`src/main/resources/data.sql`
   - 预留文件，可为空，或写 1-2 条测试 chunk
   - Commit: `2dd060e`
+
+- [x] **3.6** — 新增 `chunk_embedding` 表（Dense 向量存储，分离表）
+  - 位置：`src/main/resources/schema.sql`
+  - 表结构：
+    - `chunk_id` UUID PK + FK → chunk(chunk_id) ON DELETE CASCADE
+    - `embedding vector(768)` — gte-chinese-base 输出维度（实际模型，见 plan_2.2）
+    - `created_at` TIMESTAMP
+  - IVFFlat 索引：`vector_cosine_ops`
+  - 设计原则：与 chunk 主表解耦，换模型可 truncate + 重算，不影响 chunk 主表
+  - 一期通过 JdbcTemplate / Native Query 操作 vector 类型
+
+- [x] **3.7** — 新增 `chunk_fts` 表（Sparse 全文检索，分离表）
+  - 位置：`src/main/resources/schema.sql`
+  - 表结构：
+    - `chunk_id` UUID PK + FK → chunk(chunk_id) ON DELETE CASCADE
+    - `fts_content tsvector` — PostgreSQL 原生全文检索类型
+    - `created_at` TIMESTAMP
+  - GIN 索引：支持 `@@` 查询 + `ts_rank` 排序
+  - 设计原则：与 chunk 主表解耦，换分词策略可重建，不影响 chunk 主表
+
+- [x] **3.8** — 新增 ChunkEmbedding + ChunkFts Entity 及 Repository
+  - Entity：
+    - `ChunkEmbedding` — 映射 chunk_embedding 表，`embedding` 字段 columnDefinition = "vector(768)"
+    - `ChunkFts` — 映射 chunk_fts 表，`ftsContent` 字段 columnDefinition = "tsvector"
+  - Repository：
+    - `ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, UUID>`
+    - `ChunkFtsRepository extends JpaRepository<ChunkFts, UUID>`
+  - 均遵循 plan_main 九、代码规范（class Javadoc + @since + field 注释）
 
 ### 4.x Dockerfile + Docker Compose 基础环境
 
@@ -187,8 +221,13 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
   - Commit: `2dd060e`
 
 - [x] **4.3** — 编写 `.dockerignore`
-  - 排除 `.gradle/`、`build/`、`.git/`、`plan/`、`.claude/` 等
+  - 排除 `.gradle/`、`build/`、`.git/`、`plan/`、`.claude/`、`data/` 等
   - Commit: `2dd060e`
+
+- [x] **4.4** — docker-compose.yml 数据卷改为本地绑定挂载
+  - 改前：`pgdata:/var/lib/postgresql/data`（Docker 命名卷，位置不透明）
+  - 改后：`./data/pgdata:/var/lib/postgresql/data`（项目本地目录绑定挂载）
+  - 配套：创建 `data/pgdata/.gitkeep`，更新 `.gitignore`（保留 .gitkeep，忽略数据文件），更新 `.dockerignore`（排除 data/）
 
 ---
 
@@ -222,3 +261,4 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
 | 日期 | 变更 |
 |------|------|
 | 2026-06-10 | 创建 plan_1，定义 4 大任务组共 16 个子任务 |
+| 2026-06-10 | 修订：补全 3.6–3.8（chunk_embedding + chunk_fts 分离表 + Entity + Repository）+ 4.4（volume 本地绑定挂载），总计 20 个子任务 |

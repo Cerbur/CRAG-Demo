@@ -1,6 +1,6 @@
 # ============================================================
 # CRAG-Demo — Docker Compose 编排
-# 服务: db（PostgreSQL 17 + pgvector）+ app（Spring Boot）
+# 服务: db（PostgreSQL 17 + pgvector）+ sidecar（Python 模型服务）+ app（Spring Boot）
 # 网络: crag-net（bridge）
 # ============================================================
 
@@ -17,7 +17,7 @@ services:
       POSTGRES_USER: crag_user
       POSTGRES_PASSWORD: crag_pass
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U crag_user -d crag_demo"]
       interval: 5s
@@ -25,6 +25,49 @@ services:
       retries: 5
     networks:
       - crag-net
+
+  # --- Python Sidecar Model Service ---
+  # 提供 /embed（gte Chinese embedding）和 /rerank（bge-reranker-v2-m3）
+  model-init:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: crag-model-init
+    user: root
+    command: ["python", "-u", "download_models.py"]
+    healthcheck:
+      disable: true
+    environment:
+      MODELSCOPE_CACHE: /models/modelscope
+    volumes:
+      - ./.models/modelscope:/models/modelscope
+    networks:
+      - crag-net
+
+  sidecar:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: crag-sidecar
+    ports:
+      - "8001:8001"
+    environment:
+      MODELSCOPE_CACHE: /models/modelscope
+      EMBEDDING_MODEL_PATH: /models/modelscope/iic__nlp_gte_sentence-embedding_chinese-base
+      RERANK_MODEL_PATH: /models/modelscope/BAAI__bge-reranker-v2-m3
+    volumes:
+      - ./.models/modelscope:/models/modelscope:ro
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    networks:
+      - crag-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
 
   # --- Spring Boot 应用 ---
   app:
@@ -38,14 +81,15 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/crag_demo
       SPRING_DATASOURCE_USERNAME: crag_user
       SPRING_DATASOURCE_PASSWORD: crag_pass
+      CRAG_EMBEDDING_SIDECAR_URL: http://sidecar:8001
+      CRAG_RERANK_SIDECAR_URL: http://sidecar:8001
     depends_on:
       db:
         condition: service_healthy
+      sidecar:
+        condition: service_healthy
     networks:
       - crag-net
-
-volumes:
-  pgdata:
 
 networks:
   crag-net:

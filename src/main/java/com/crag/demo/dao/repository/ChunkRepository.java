@@ -4,6 +4,7 @@ import com.crag.demo.dao.entity.Chunk;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.crag.demo.dao.entity.ChunkStatus;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,13 +19,22 @@ import java.util.UUID;
 public interface ChunkRepository extends JpaRepository<Chunk, UUID> {
 
     /**
-     * Cron 扫表查询 —— 按状态列表查找待处理的 chunk.
-     * 仅 child chunk（parent_chunk_id IS NOT NULL）参与扫表，调用方自行过滤.
+     * Dense Cron 扫表 —— 按 dense_status 查找待处理的 child chunk.
+     * 调用方需额外过滤 parent_chunk_id IS NOT NULL.
      *
      * @param statuses 状态列表，一期为 ['init', 'failed']
      * @return 匹配的 chunk 列表
      */
-    List<Chunk> findByStatusIn(List<String> statuses);
+    List<Chunk> findByDenseStatusIn(List<ChunkStatus> statuses);
+
+    /**
+     * Sparse Cron 扫表 —— 按 sparse_status 查找待处理的 child chunk.
+     * 调用方需额外过滤 parent_chunk_id IS NOT NULL.
+     *
+     * @param statuses 状态列表，一期为 [INIT, FAILED]
+     * @return 匹配的 chunk 列表
+     */
+    List<Chunk> findBySparseStatusIn(List<ChunkStatus> statuses);
 
     /**
      * 按文档 ID 查询所有 chunk（parent + child）.

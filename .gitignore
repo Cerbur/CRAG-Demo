@@ -29,8 +29,22 @@ Thumbs.db
 *.log
 *.tmp
 
+# Data
+data/*
+!data/**/.gitkeep
+
+# Local model cache
+.models/
+
 # Docker
 docker-compose.override.yml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
 
 # Environment
 .env

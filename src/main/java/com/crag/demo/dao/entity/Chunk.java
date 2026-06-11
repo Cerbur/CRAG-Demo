@@ -63,11 +63,24 @@ public class Chunk {
     private String metadata;
 
     /**
-     * Chunk 处理状态: init / processing / success / failed.
-     * 仅对 child chunk 有意义，Cron 扫表时只处理 child chunk.
+     * Dense 链路状态（Embedding 向量化）.
+     * 数据库 SMALLINT: 0=INIT 1=PROCESSING 2=SUCCESS 3=FAILED 4=SKIPPED.
+     * Parent chunk 无需 embedding，设为 SKIPPED.
+     * Dense Cron 扫表条件: dense_status IN (0,3) AND parent_chunk_id IS NOT NULL.
      */
-    @Column(name = "status", length = 16)
-    private String status;
+    @Column(name = "dense_status")
+    @Convert(converter = ChunkStatusConverter.class)
+    private ChunkStatus denseStatus;
+
+    /**
+     * Sparse 链路状态（FTS 全文检索）.
+     * 数据库 SMALLINT: 0=INIT 1=PROCESSING 2=SUCCESS 3=FAILED 4=SKIPPED.
+     * Parent chunk 无需 FTS 分词，设为 SKIPPED.
+     * Sparse Cron 扫表条件: sparse_status IN (0,3) AND parent_chunk_id IS NOT NULL.
+     */
+    @Column(name = "sparse_status")
+    @Convert(converter = ChunkStatusConverter.class)
+    private ChunkStatus sparseStatus;
 
     /**
      * 记录创建时间，数据库默认 NOW().
@@ -80,6 +93,14 @@ public class Chunk {
      */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /**
+     * 乐观锁版本号，每次 UPDATE 自动 +1.
+     * 配合 @Version 实现并发安全的 CAS 更新，后续事件消费者可通过 version 判断是否已处理过该版本.
+     */
+    @Version
+    @Column(name = "version")
+    private Integer version;
 
     // --- Getters / Setters ---
 
@@ -104,12 +125,18 @@ public class Chunk {
     public String getMetadata() { return metadata; }
     public void setMetadata(String metadata) { this.metadata = metadata; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public ChunkStatus getDenseStatus() { return denseStatus; }
+    public void setDenseStatus(ChunkStatus denseStatus) { this.denseStatus = denseStatus; }
+
+    public ChunkStatus getSparseStatus() { return sparseStatus; }
+    public void setSparseStatus(ChunkStatus sparseStatus) { this.sparseStatus = sparseStatus; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 }

@@ -24,7 +24,7 @@
 | 框架 | Spring Boot 3.x + Spring AI | 后端框架 + LLM 接入管理 |
 | 包管理 | Gradle（Kotlin DSL） | 构建工具 |
 | LLM | DeepSeek API（Spring AI 适配） | 一期只接入 DeepSeek，兼容层预留多提供商扩展 |
-| Embedding 模型 | text2vec-large-chinese | Sidecar Python /embed（bi-encoder） |
+| Embedding 模型 | gte-sentence-embedding_chinese-base（768 维） | Sidecar Python /embed（bi-encoder，ModelScope 实际可用模型） |
 | Rerank 模型 | bge-reranker-v2-m3 | Sidecar Python /rerank（cross-encoder） |
 | 容器化 | Docker + Docker Compose | 包含所有中间件 |
 | 数据库初始化 | Spring schema.sql | 一期手动 DDL，不做迁移 |
@@ -210,56 +210,93 @@ CREATE TABLE chunk (
     content          TEXT NOT NULL,               -- chunk 文本内容
     token_count      INTEGER,                     -- token 数量
     metadata         JSONB DEFAULT '{}',          -- 扩展元数据 {tags, ...}
-    status           VARCHAR(16) DEFAULT 'init',  -- init / processing / failed / success
+    dense_status     SMALLINT DEFAULT 0,  -- Dense/Embedding 链路: 0=INIT 1=PROCESSING 2=SUCCESS 3=FAILED 4=SKIPPED
+    sparse_status    SMALLINT DEFAULT 0,  -- Sparse/FTS 链路:   0=INIT 1=PROCESSING 2=SUCCESS 3=FAILED 4=SKIPPED
+    version          INTEGER DEFAULT 0 NOT NULL,  -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
     created_at       TIMESTAMP DEFAULT NOW(),
     updated_at       TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_chunk_status ON chunk(status);
+CREATE INDEX idx_chunk_dense_status ON chunk(dense_status);
+CREATE INDEX idx_chunk_sparse_status ON chunk(sparse_status);
 CREATE INDEX idx_chunk_doc_id ON chunk(doc_id);
 CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 ```
 
 > **chunk_index 说明**：`chunk_index` 记录 child chunk 在其 parent chunk 内的顺序位置（从 0 开始递增）。用于回表时保持原文片段顺序、相邻 chunk 扩展上下文等场景。Parent chunk 自身 `chunk_index = NULL`。
 >
-> **Status 语义说明**：`status` 字段仅对 child chunk 有意义（控制 embedding + 双写流程）。Parent chunk 入库时 `status` 可直接设为 `'success'`（无需处理），或新增 `'parent'` 状态以区分。Cron 扫表通过 `parent_chunk_id IS NOT NULL` 确保只处理 child chunk。
+> **Status 语义说明**：Dense 和 Sparse 两条异步链路各自独立状态机，互不阻塞。
+> - `dense_status`: 控制 Embedding 向量化流程，仅对 child chunk 有意义。Parent chunk 设为 `'skipped'`。
+> - `sparse_status`: 控制 FTS 全文索引流程，仅对 child chunk 有意义。Parent chunk 设为 `'skipped'`。
+> - Cron 扫表各自扫各自的：Dense Cron 扫 `dense_status IN ('init','failed')`，Sparse Cron 扫 `sparse_status IN ('init','failed')`。均通过 `parent_chunk_id IS NOT NULL` 过滤 child chunk。
 
-### 5.1.3 Chunk 状态机
+### 5.1.3 Chunk 双状态机（Dense + Sparse 独立）
+
+Dense 链路（Embedding 向量化）：
 
 ```
   init ──→ processing ──→ success
    │            │
    │            └──────→ failed（标记失败，cron 可重试）
    │
-   └──（cron 跳过 init，等待下次调度）
+   └── skipped（parent chunk 无需 embedding）
+```
+
+Sparse 链路（FTS 全文索引）：
+
+```
+  init ──→ processing ──→ success
+   │            │
+   │            └──────→ failed（标记失败，cron 可重试）
+   │
+   └── skipped（parent chunk 无需 FTS）
 ```
 
 | 状态 | 含义 | 触发 |
 |------|------|------|
-| `init` | 刚分块完成，等待 embedding | AdminRag 写入时设置 |
-| `processing` | 正在 embedding + 写向量库 | Cron 扫到 init/failed 时标记 |
-| `success` | embedding + 双写完成 | Cron 处理成功后标记 |
-| `failed` | embedding 或写入失败 | Cron 处理异常时标记（可被下轮 cron 重试） |
+| `init` | 刚分块完成，等待处理 | AdminRag 写入时设置 |
+| `processing` | 正在处理中 | Cron 扫到 init/failed 时标记 |
+| `success` | 处理完成 | Cron 处理成功后标记 |
+| `failed` | 处理失败 | Cron 处理异常时标记（可被下轮 cron 重试） |
+| `skipped` | 跳过（parent chunk 不需此链路） | AdminRag 写入 parent chunk 时设置 |
 
-### 5.1.4 Cron 异步 Embedding 流程
+> 两条链路独立运作，互不阻塞。两条都 `success`（或 `skipped`）即 chunk 就绪。
+
+### 5.1.4 Cron 异步处理流程（Dense + Sparse 独立 Cron）
 
 ```
-@Scheduled(cron = "*/10 * * * * *")  -- Demo: 每10秒扫一次
+@Scheduled(cron = "*/10 * * * * *")  -- Dense Cron: 每10秒扫一次
 
-1. SELECT * FROM chunk WHERE status IN ('init', 'failed')
+1. SELECT * FROM chunk WHERE dense_status IN ('init', 'failed')
    AND parent_chunk_id IS NOT NULL  -- 仅处理 child chunk
    LIMIT 100
 2. FOR EACH child chunk:
-     UPDATE status = 'processing'
+     UPDATE dense_status = 'processing'
      TRY:
        vector = embeddingModel.embed(chunk.content)
-       INSERT INTO pgvector (chunk_id, embedding) VALUES (?, ?)
-       UPDATE fts_content = to_tsvector('chinese', chunk.content)
-       UPDATE status = 'success'
+       INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?, ?)
+       UPDATE dense_status = 'success'
      CATCH:
-       UPDATE status = 'failed'
+       UPDATE dense_status = 'failed'
+
+---
+
+@Scheduled(cron = "*/10 * * * * *")  -- Sparse Cron: 每10秒扫一次
+
+1. SELECT * FROM chunk WHERE sparse_status IN ('init', 'failed')
+   AND parent_chunk_id IS NOT NULL  -- 仅处理 child chunk
+   LIMIT 100
+2. FOR EACH child chunk:
+     UPDATE sparse_status = 'processing'
+     TRY:
+       fts = to_tsvector('chinese', chunk.content)
+       INSERT INTO chunk_fts (chunk_id, fts_content) VALUES (?, ?)
+       UPDATE sparse_status = 'success'
+     CATCH:
+       UPDATE sparse_status = 'failed'
 ```
 
+- Dense 和 Sparse 各自独立 Cron，互不阻塞
 - 每次只取 100 条，防止一次扫描量过大
 - `failed` 状态的 chunk 会被重新处理，实现自动重试
 - 频率 10s 为 Demo 默认值，生产建议通过配置文件调整
@@ -269,7 +306,7 @@ CREATE INDEX idx_chunk_parent ON chunk(parent_chunk_id);
 **仅 child chunk 参与双写**（parent chunk 不做向量化）：
 
 每个 **child chunk** embedding 完成后同时写入：
-- **pgvector 表**：`chunk_id, embedding (vector(1024))`，Dense 稠密向量检索
+- **pgvector 表**：`chunk_id, embedding (vector(768))`，Dense 稠密向量检索
 - **PostgreSQL FTS**：chunk 表的 `fts_content tsvector` 列 + GIN 索引，Sparse BM25 检索
 
 > Parent chunk 不存储 embedding，不参与 FTS 索引，仅保留纯文本用于回表获取上下文。
@@ -350,10 +387,10 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 | 服务 | 镜像 | 端口 | 说明 |
 |------|------|------|------|
 | PostgreSQL + pgvector | `pgvector/pgvector:pg17` | 5432 | 向量数据库 |
-| Model Service（Sidecar） | Python FastAPI | 8001 | /embed（text2vec）+ /rerank（bge-reranker） |
-| Spring Boot 应用 | 自建 Dockerfile | 8080 | 主服务 |
+| Model Service（Sidecar） | 自建 Dockerfile（Python 3.12 + FastAPI） | 8001 | `/embed`（text2vec-base-chinese，768 维）+ `/rerank`（bge-reranker-v2-m3） |
+| Spring Boot 应用 | 自建 Dockerfile（Java 21 + Spring Boot） | 8080 | 主服务 |
 
-> 注：Embedding 服务化方案已确认（Sidecar Python），见 [八、待决策事项](#八待决策事项)。
+> Sidecar 模型在 Docker build-time 下载并烤进镜像，实现真正的"一键部署"。详见 [plan_2.1](./plan_2.1.md)。
 
 ---
 
@@ -361,9 +398,11 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 
 | Plan | 内容 | 状态 |
 |------|------|------|
-| [plan_1](./plan_1.md) | 项目脚手架 + 基础设施 + 分包结构 + DAO + Dockerfile | 📋 已创建（2026-06-10） |
-| plan_2 | Integration 层（LLM + Embedding + Rerank） | ⏳ 占位 |
-| plan_3 | Docker Compose 编排 + Sidecar Python + 联调 | ⏳ 占位 |
+| [plan_1](./plan_1.md) | 项目脚手架 + 基础设施 + 分包结构 + DAO + Dockerfile | ✅ 全部完成（2026-06-10） |
+| [plan_1.1](./plan_1.1.md) | 冒烟测试 Controller（HTTP + DB 三表联通验证） | ✅ 全部完成（2026-06-10） |
+| [plan_2.1](./plan_2.1.md) | Python Sidecar 模型服务（FastAPI + /embed + /rerank + Docker 化） | ✅ 全部完成（2026-06-10） |
+| [plan_2](./plan_2.md) | AdminRag 写入链路 + Cron Dense 异步处理 | ⏳ 待开始 |
+| plan_3 | RRF 融合 + Rerank + UserQuery 查询链路 + 全链路联调 | ⏳ 占位 |
 
 ### Plan 命名与任务编号规范
 
@@ -381,13 +420,22 @@ plan_1 完成项目从零到可编译运行的基础骨架：
 
 > plan_1 完成后，项目可编译、启动、连接 PostgreSQL，chunk 表就绪。Core 业务逻辑和 API 实现留到 plan_2+。
 
+### Plan_2.1 范围
+
+- 2.1.x Python Sidecar 模型服务：FastAPI + /embed（text2vec-large-chinese）+ /rerank（bge-reranker-v2-m3）+ Docker 化
+- 2.1.x docker-compose.yml 补充 sidecar 服务 + app 依赖 + 环境变量
+
+> plan_2.1 是 plan_2 的前置分支，补齐 plan_2 任务 2.4-2.6 依赖的 Sidecar 服务。Docker Compose 三服务（db + sidecar + app）已就绪。
+
 ### Plan_2 范围
-- 2.x Integration — llm：ChatClient 接口 + DeepSeek ChatClient 实现 + 提示词管理
-- 2.x API — UserQuery 接入 LLM 生成最终回答
+
+- 2.x AdminRag 写入链路：ChunkService 分块 + AdminRagService 编排 + Controller 接线
+- 2.x Cron Dense 异步处理：EmbeddingClient（HTTP 调用 Sidecar）+ EmbeddingService（幂等状态机 + 写 chunk_embedding）
 
 ### Plan_3 范围
-- 3.x Docker Compose：PostgreSQL + Sidecar Python + Spring Boot 一键启动
-- 3.x 联调验证
+
+- 3.x Core 全链路：SparseQuery + DenseQuery + RRF 融合 + Rerank + LLM 生成
+- 3.x UserQuery 查询链路 + 全链路联调验证
 
 ---
 

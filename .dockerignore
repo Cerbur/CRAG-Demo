@@ -24,6 +24,12 @@ build/
 # Docker
 docker-compose.override.yml
 
+# Data
+data/
+
+# Local model cache
+.models/
+
 # Environment
 .env
 .env.local
