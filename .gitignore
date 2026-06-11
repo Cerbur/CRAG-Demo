@@ -14,6 +14,9 @@ build/
 .project
 .classpath
 
+# Local AI tool config
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -21,6 +24,7 @@ Thumbs.db
 # Java
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.log
 *.tmp
