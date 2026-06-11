@@ -399,14 +399,17 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 | Plan | 内容 | 状态 |
 |------|------|------|
 | [plan_1](./plan_1.md) | 项目脚手架 + 基础设施 + 分包结构 + DAO + Dockerfile | ✅ 全部完成（2026-06-10） |
-| [plan_1.1](./plan_1.1.md) | 冒烟测试 Controller（HTTP + DB 三表联通验证） | ✅ 全部完成（2026-06-10） |
-| [plan_2.1](./plan_2.1.md) | Python Sidecar 模型服务（FastAPI + /embed + /rerank + Docker 化） | ✅ 全部完成（2026-06-10） |
+| [plan_1.hotfix_1](./plan_1.hotfix_1.md) | 计划命名约束修正（禁止新增小数 plan，统一 hotfix 规则） | ✅ 完成（2026-06-12） |
 | [plan_2](./plan_2.md) | AdminRag 写入链路 + Cron Dense 异步处理 | ⏳ 待开始 |
 | plan_3 | RRF 融合 + Rerank + UserQuery 查询链路 + 全链路联调 | ⏳ 占位 |
 
 ### Plan 命名与任务编号规范
 
-- Plan 文件使用数字编号：`plan_1.md`, `plan_2.md`, `plan_3.md` ...
+- 主 Plan 文件只使用连续数字编号：`plan_1.md`, `plan_2.md`, `plan_3.md` ...
+- 禁止后续新增小数计划文件：例如 `plan_1.1.md`, `plan_2.1.md`, `plan_2.2.md`
+- 准备执行 `plan_x` 前发现必须先处理前置内容时，归入上一阶段 hotfix：`plan_{x-1}.hotfix_1.md`, `plan_{x-1}.hotfix_2.md`
+- 示例：准备执行 `plan_2` 前发现 Sidecar、schema、ignore 等前置修正，写入 `plan_1.hotfix_1.md`；还需要修复则继续 `plan_1.hotfix_2.md`
+- 历史遗留的 `plan_1.1.md`, `plan_2.1.md`, `plan_2.2.md`, `plan_2.3.md` 暂不强制重命名，但不得作为新计划命名范式继续使用
 - 每个 plan 内的小任务使用 `plan-id.task-id` 编号，如 `1.1`, `1.2`, `2.1`, `2.2`
 - 每完成一个小任务，更新任务状态并记录对应 commit
 
@@ -420,12 +423,9 @@ plan_1 完成项目从零到可编译运行的基础骨架：
 
 > plan_1 完成后，项目可编译、启动、连接 PostgreSQL，chunk 表就绪。Core 业务逻辑和 API 实现留到 plan_2+。
 
-### Plan_2.1 范围
+### 历史前置计划说明
 
-- 2.1.x Python Sidecar 模型服务：FastAPI + /embed（text2vec-large-chinese）+ /rerank（bge-reranker-v2-m3）+ Docker 化
-- 2.1.x docker-compose.yml 补充 sidecar 服务 + app 依赖 + 环境变量
-
-> plan_2.1 是 plan_2 的前置分支，补齐 plan_2 任务 2.4-2.6 依赖的 Sidecar 服务。Docker Compose 三服务（db + sidecar + app）已就绪。
+当前仓库已有 `plan_1.1.md`, `plan_2.1.md`, `plan_2.2.md`, `plan_2.3.md`，属于命名规则修正前的历史遗留文件。本次不强制重命名历史文件，避免扩大引用调整范围；后续前置修正统一使用 `plan_N.hotfix_M.md`。
 
 ### Plan_2 范围
 

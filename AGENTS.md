@@ -9,10 +9,17 @@
 1. **规划优先**：所有代码修改必须先落为 `plan/` 目录下的计划文档，不直接在对话中修改代码。
 2. **计划分层**：
    - `plan/plan_main.md` — 总业务方向，持续迭代。
-   - `plan/plan_X`（plan_1, plan_2, ...）— 具体执行计划，将大任务拆分为小任务，每完成一个小任务更新状态并记录 commit。
+   - `plan/plan_N.md`（plan_1, plan_2, plan_3 ... 数字编号）— 具体执行计划，将大任务拆分为小任务，每完成一个小任务更新状态并记录 commit。
+   - `plan/plan_{N}.hotfix_{M}.md` — 前置修正计划。准备执行 `plan_{N+1}` 前发现必须先处理的内容，归入上一阶段 `plan_N.hotfix_M`。
    - `plan/plan_archive/` — 方向性变更记录，记录 before / after 及时间。
-3. **README.md** — 使用中文维护，随项目目标持续更新。
-4. **开源协议**：MIT。
+3. **计划命名硬约束**：
+   - 主计划只允许连续数字：`plan_1.md` → `plan_2.md` → `plan_3.md`。
+   - 禁止后续新增小数计划文件：例如 `plan_1.1.md`、`plan_2.1.md`、`plan_2.2.md`。
+   - 如果准备执行 `plan_2` 前发现 Sidecar、schema、ignore 等前置修正，写入 `plan_1.hotfix_1.md`；还需要修复则继续 `plan_1.hotfix_2.md`。
+   - 如果准备执行 `plan_3` 前发现 `plan_2` 遗留问题，写入 `plan_2.hotfix_1.md`，以此类推。
+   - 历史遗留的 `plan_1.1.md`、`plan_2.1.md` 等文件暂不强制重命名，但不得作为新计划命名范式继续使用。
+4. **README.md** — 使用中文维护，随项目目标持续更新。
+5. **开源协议**：MIT。
 
 ## 包结构索引
 
@@ -62,5 +69,5 @@ Dockerfile                            — Spring Boot 应用镜像
 ## 对话约定
 
 - 每次对话产出为 plan 文档更新，不直接修改代码。
-- 如有实现过程中的失误，在原 plan 基础上分支新的 plan，然后执行。
-- 所有 plan_X 执行完成后，更新 `plan/plan_main.md` 标记进度。
+- 如有实现过程中的失误或前置修正，不创建小数 plan；按阶段归属创建 `plan_N.hotfix_M.md`。
+- 所有 plan_N / hotfix 执行完成后，更新 `plan/plan_main.md` 标记进度。
