@@ -1,4 +1,4 @@
-package com.crag.demo.core.chunk;
+package com.crag.demo.core.chunk.split;
 
 import java.util.ArrayList;
 import java.util.List;

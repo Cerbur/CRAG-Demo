@@ -17,7 +17,8 @@ com.crag.demo
 │       ├── UserQueryServiceImpl     — 用户查询服务实现
 │       └── AdminRagServiceImpl      — 管理端 RAG 服务实现
 ├── core/                             — RAG 核心逻辑层
-│   ├── chunk/                        — 文档分块（ChunkSplit）
+│   ├── chunk/                        — 文档分块领域
+│   │   └── split/                     — 文档切分（ChunkSplit）
 │   ├── dense/                        — Dense 检索通道（Embedding + Query）
 │   ├── sparse/                       — Sparse 检索通道（BM25/FTS）
 │   ├── rrf/                          — RRF 融合

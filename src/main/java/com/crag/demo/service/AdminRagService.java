@@ -1,8 +1,8 @@
 package com.crag.demo.service;
 
-import com.crag.demo.core.chunk.ChunkSplitGroup;
-import com.crag.demo.core.chunk.ChunkSplitResult;
-import com.crag.demo.core.chunk.ChunkSplitService;
+import com.crag.demo.core.chunk.split.ChunkSplitGroup;
+import com.crag.demo.core.chunk.split.ChunkSplitResult;
+import com.crag.demo.core.chunk.split.ChunkSplitService;
 import com.crag.demo.dao.entity.Chunk;
 import com.crag.demo.dao.repository.ChunkRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,7 +49,7 @@ public class AdminRagService {
      *   <li>生成 docId</li>
      *   <li>构建 metadata JSON（title + 扩展元数据合并）</li>
      *   <li>ChunkSplitService.split 分块</li>
-     *   <li>遍历每个 parent group：先写 parent → 获取 chunkId → 再写 child（关联 parentChunkId）</li>
+     *   <li>遍历 parent group：预生成 parent chunkId → 构造 parent + children（打平到一个 list）→ 一步 saveAll</li>
      *   <li>返回 AdminRagResult(docId, childCount, PENDING)</li>
      * </ol>
      *
@@ -59,7 +58,6 @@ public class AdminRagService {
      * @param metadata 扩展元数据（tags 等），与 title 合并存入 chunk.metadata
      * @return AdminRagResult 含 docId、child chunk 数量、"PENDING" 状态
      */
-    @Transactional
     public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
         String docId = UUID.randomUUID().toString();
         String metadataJson = buildMetadataJson(title, metadata, docId);
@@ -72,32 +70,32 @@ public class AdminRagService {
             return new AdminRagResult(docId, 0, "PENDING");
         }
 
-        List<Chunk> allChildren = new ArrayList<>();
+        List<Chunk> allChunks = new ArrayList<>();
         int childCount = 0;
 
         for (ChunkSplitGroup group : groups) {
+            String parentChunkId = UUID.randomUUID().toString();
             Chunk parent = Chunk.createParent(docId,
                 group.parentChunk().content(),
                 group.parentChunk().tokenCount(),
                 group.parentChunk().chunkIndex(),
                 metadataJson);
-            parent = chunkRepository.save(parent);
+            parent.setChunkId(parentChunkId);
+            allChunks.add(parent);
 
             for (var childData : group.childChunks()) {
                 Chunk child = Chunk.createChild(docId,
-                    parent.getChunkId(),
+                    parentChunkId,
                     childData.content(),
                     childData.tokenCount(),
                     childData.chunkIndex(),
                     metadataJson);
-                allChildren.add(child);
+                allChunks.add(child);
             }
             childCount += group.childChunks().size();
         }
 
-        if (!allChildren.isEmpty()) {
-            chunkRepository.saveAll(allChildren);
-        }
+        chunkRepository.saveAll(allChunks);
 
         log.info("Document ingested: docId={}, title={}, parentGroups={}, childChunks={}, status=PENDING",
             docId, title, groups.size(), childCount);

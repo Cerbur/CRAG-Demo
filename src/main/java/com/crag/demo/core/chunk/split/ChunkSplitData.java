@@ -1,4 +1,4 @@
-package com.crag.demo.core.chunk;
+package com.crag.demo.core.chunk.split;
 
 /**
  * 单个 ChunkSplit 的数据载体 —— 分块后的文本内容及元信息.

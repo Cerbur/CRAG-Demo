@@ -1,4 +1,4 @@
-package com.crag.demo.core.chunk;
+package com.crag.demo.core.chunk.split;
 
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;

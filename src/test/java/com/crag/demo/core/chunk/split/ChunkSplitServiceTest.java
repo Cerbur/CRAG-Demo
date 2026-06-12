@@ -1,4 +1,4 @@
-package com.crag.demo.core.chunk;
+package com.crag.demo.core.chunk.split;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
