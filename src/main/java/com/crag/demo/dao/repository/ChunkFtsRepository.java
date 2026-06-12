@@ -4,8 +4,6 @@ import com.crag.demo.dao.entity.ChunkFts;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
-
 /**
  * Chunk FTS Repository —— chunk_fts 表数据访问.
  *
@@ -15,5 +13,5 @@ import java.util.UUID;
  * @since 2026-06-10
  */
 @Repository
-public interface ChunkFtsRepository extends JpaRepository<ChunkFts, UUID> {
+public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
 }

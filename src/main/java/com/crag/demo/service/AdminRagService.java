@@ -1,25 +1,120 @@
 package com.crag.demo.service;
 
+import com.crag.demo.core.chunk.ChunkSplitGroup;
+import com.crag.demo.core.chunk.ChunkSplitResult;
+import com.crag.demo.core.chunk.ChunkSplitService;
+import com.crag.demo.dao.entity.Chunk;
+import com.crag.demo.dao.repository.ChunkRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 管理端 RAG 服务 —— 知识库入库编排（分块 + 写入 + 异步向量化）.
  *
- * 遵循奥卡姆剃刀：当前只有一个实现，不做 Interface/Impl 分离.
+ * 同步写入链路：接收纯文本 → ChunkSplitService 分块 → Chunk 工厂方法构造实体 → ChunkRepository 批量写入.
+ * Parent chunk 在写入时即设 dense_status=SKIPPED / sparse_status=SKIPPED，不做后续向量化.
+ * Child chunk 设 dense_status=INIT / sparse_status=INIT，等待 Cron 异步处理.
  *
  * @since 2026-06-10
  */
 @Service
 public class AdminRagService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminRagService.class);
+
+    @Autowired
+    private ChunkSplitService chunkSplitService;
+
+    @Autowired
+    private ChunkRepository chunkRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     /**
-     * 知识入库（骨架，plan_2 实现完整分块+入库链路）.
+     * 知识入库 —— 接收纯文本，分块后写入 chunk 表，返回入库结果.
      *
-     * @param title    文档标题
-     * @param content  纯文本内容
-     * @param metadata 扩展元数据
+     * 流程：
+     * <ol>
+     *   <li>生成 docId</li>
+     *   <li>构建 metadata JSON（title + 扩展元数据合并）</li>
+     *   <li>ChunkSplitService.split 分块</li>
+     *   <li>遍历每个 parent group：先写 parent → 获取 chunkId → 再写 child（关联 parentChunkId）</li>
+     *   <li>返回 AdminRagResult(docId, childCount, PENDING)</li>
+     * </ol>
+     *
+     * @param title    文档标题，存入 chunk.metadata JSON
+     * @param content  文档纯文本内容
+     * @param metadata 扩展元数据（tags 等），与 title 合并存入 chunk.metadata
+     * @return AdminRagResult 含 docId、child chunk 数量、"PENDING" 状态
      */
-    public void ingest(String title, String content, String metadata) {
-        // plan_2 实现
+    @Transactional
+    public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
+        String docId = UUID.randomUUID().toString();
+        String metadataJson = buildMetadataJson(title, metadata, docId);
+
+        ChunkSplitResult splitResult = chunkSplitService.split(content);
+        List<ChunkSplitGroup> groups = splitResult.chunkGroups();
+
+        if (groups.isEmpty()) {
+            log.info("No chunks produced for docId={}, title={}", docId, title);
+            return new AdminRagResult(docId, 0, "PENDING");
+        }
+
+        List<Chunk> allChildren = new ArrayList<>();
+        int childCount = 0;
+
+        for (ChunkSplitGroup group : groups) {
+            Chunk parent = Chunk.createParent(docId,
+                group.parentChunk().content(),
+                group.parentChunk().tokenCount(),
+                group.parentChunk().chunkIndex(),
+                metadataJson);
+            parent = chunkRepository.save(parent);
+
+            for (var childData : group.childChunks()) {
+                Chunk child = Chunk.createChild(docId,
+                    parent.getChunkId(),
+                    childData.content(),
+                    childData.tokenCount(),
+                    childData.chunkIndex(),
+                    metadataJson);
+                allChildren.add(child);
+            }
+            childCount += group.childChunks().size();
+        }
+
+        if (!allChildren.isEmpty()) {
+            chunkRepository.saveAll(allChildren);
+        }
+
+        log.info("Document ingested: docId={}, title={}, parentGroups={}, childChunks={}, status=PENDING",
+            docId, title, groups.size(), childCount);
+
+        return new AdminRagResult(docId, childCount, "PENDING");
+    }
+
+    private String buildMetadataJson(String title, Map<String, Object> metadata, String docId) {
+        Map<String, Object> enriched = new LinkedHashMap<>();
+        enriched.put("title", title);
+        if (metadata != null) {
+            enriched.putAll(metadata);
+        }
+        try {
+            return objectMapper.writeValueAsString(enriched);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize chunk metadata for docId=" + docId, e);
+        }
     }
 }

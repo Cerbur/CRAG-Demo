@@ -4,8 +4,6 @@ import com.crag.demo.dao.entity.ChunkEmbedding;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
-
 /**
  * Chunk Embedding Repository —— chunk_embedding 表数据访问.
  *
@@ -15,5 +13,5 @@ import java.util.UUID;
  * @since 2026-06-10
  */
 @Repository
-public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, UUID> {
+public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, String> {
 }

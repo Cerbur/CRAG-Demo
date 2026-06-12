@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 
 import com.crag.demo.dao.entity.ChunkStatus;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Chunk Repository —— 基于 Spring Data JPA 的 chunk 表数据访问.
@@ -16,7 +15,7 @@ import java.util.UUID;
  * @since 2026-06-10
  */
 @Repository
-public interface ChunkRepository extends JpaRepository<Chunk, UUID> {
+public interface ChunkRepository extends JpaRepository<Chunk, String> {
 
     /**
      * Dense Cron 扫表 —— 按 dense_status 查找待处理的 child chunk.
@@ -42,7 +41,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, UUID> {
      * @param docId 文档 ID
      * @return 该文档下的所有 chunk
      */
-    List<Chunk> findByDocId(UUID docId);
+    List<Chunk> findByDocId(String docId);
 
     /**
      * 按 parent chunk ID 查询其下所有 child chunk.
@@ -50,5 +49,5 @@ public interface ChunkRepository extends JpaRepository<Chunk, UUID> {
      * @param parentChunkId parent chunk ID
      * @return 该 parent 下的所有 child chunk
      */
-    List<Chunk> findByParentChunkId(UUID parentChunkId);
+    List<Chunk> findByParentChunkId(String parentChunkId);
 }

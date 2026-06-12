@@ -1,8 +1,11 @@
 package com.crag.demo.dao.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * Chunk Embedding 实体 —— Dense 向量存储，与 chunk 主表解耦.
@@ -21,8 +24,8 @@ public class ChunkEmbedding {
      * Chunk ID，同时是主键和外键，关联 chunk(chunk_id)，级联删除.
      */
     @Id
-    @Column(name = "chunk_id", nullable = false)
-    private UUID chunkId;
+    @Column(name = "chunk_id", nullable = false, length = 36)
+    private String chunkId;
 
     /**
      * Embedding 向量，768 维（text2vec-base-chinese 输出维度）.
@@ -54,8 +57,8 @@ public class ChunkEmbedding {
 
     // --- Getters / Setters ---
 
-    public UUID getChunkId() { return chunkId; }
-    public void setChunkId(UUID chunkId) { this.chunkId = chunkId; }
+    public String getChunkId() { return chunkId; }
+    public void setChunkId(String chunkId) { this.chunkId = chunkId; }
 
     public String getEmbedding() { return embedding; }
     public void setEmbedding(String embedding) { this.embedding = embedding; }
