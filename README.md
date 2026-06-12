@@ -6,6 +6,12 @@
 
 CRAG-Demo 是一个基于 Java 21 + Spring Boot 构建的 RAG 问答系统后端，使用 PostgreSQL + pgvector 作为向量数据库，通过 Docker Compose 一键部署所有依赖服务。
 
+## 全链路架构
+
+![CRAG-Demo 全链路架构](./doc/assets/crag-demo-architecture.svg)
+
+更多项目介绍内容后续沉淀在 [项目介绍文档](./doc/project_intro.md)。
+
 ## 特性
 
 - 🔌 **开箱即用**：Docker Compose 一键启动，包含所有中间件

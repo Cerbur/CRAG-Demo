@@ -1,7 +1,7 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-10（child chunk 检索粒度 + embedding 范围明确 + chunk_index + 代码规范）
+> 最后更新：2026-06-12（新增项目介绍文档与全链路架构 SVG）
 
 ---
 
@@ -401,7 +401,8 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 | [plan_1](./plan_1.md) | 项目脚手架 + 基础设施 + 分包结构 + DAO + Dockerfile | ✅ 全部完成（2026-06-10） |
 | [plan_1.hotfix_1](./plan_1.hotfix_1.md) | 计划命名约束修正（禁止新增小数 plan，统一 hotfix 规则） | ✅ 完成（2026-06-12） |
 | [plan_2](./plan_2.md) | AdminRag 写入链路 + Cron Dense 异步处理 | ⏳ 待开始 |
-| plan_3 | RRF 融合 + Rerank + UserQuery 查询链路 + 全链路联调 | ⏳ 占位 |
+| [plan_3](./plan_3.md) | 项目介绍文档 + 架构 SVG + README 插图 | ✅ 完成（2026-06-12） |
+| plan_4 | RRF 融合 + Rerank + UserQuery 查询链路 + 全链路联调 | ⏳ 占位 |
 
 ### Plan 命名与任务编号规范
 
@@ -434,8 +435,12 @@ plan_1 完成项目从零到可编译运行的基础骨架：
 
 ### Plan_3 范围
 
-- 3.x Core 全链路：SparseQuery + DenseQuery + RRF 融合 + Rerank + LLM 生成
-- 3.x UserQuery 查询链路 + 全链路联调验证
+- 3.x 文档资产：项目介绍文档骨架 + 全链路架构 SVG + README 插图
+
+### Plan_4 范围（占位）
+
+- 4.x Core 全链路：SparseQuery + DenseQuery + RRF 融合 + Rerank + LLM 生成
+- 4.x UserQuery 查询链路 + 全链路联调验证
 
 ---
 
