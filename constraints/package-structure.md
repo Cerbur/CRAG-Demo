@@ -11,11 +11,19 @@ com.crag.demo
 ├── CragDemoApplication              — Spring Boot 启动类
 ├── controller/                       — API 入口层
 │   ├── UserQueryController          — 用户查询接口
-│   └── AdminRagController           — 管理端 RAG 知识库上传接口
-├── service/                          — 业务服务层（接口定义）
-│   └── impl/                         — 业务服务层（实现）
-│       ├── UserQueryServiceImpl     — 用户查询服务实现
-│       └── AdminRagServiceImpl      — 管理端 RAG 服务实现
+│   ├── AdminRagController           — 管理端 RAG 知识库上传接口
+│   └── advice/                       — 全局异常处理（AOP 层）
+│       └── GlobalExceptionHandler   — 统一异常 → Response 转换
+├── dto/                               — 数据传输对象（与 controller/service 同级）
+│   ├── request/                       — 请求 DTO（入参结构）
+│   │   └── AdminRagRequest          — AdminRag 上传请求
+│   └── result/                        — 统一响应封装
+│       ├── Response                 — RESTful 统一响应泛型包装类
+│       └── ResponseCode             — 统一响应码枚举
+├── service/                          — 业务服务层
+│   ├── UserQueryService             — 用户查询服务
+│   ├── AdminRagService              — 管理端 RAG 服务
+│   └── AdminRagResult               — AdminRag 入库结果记录
 ├── core/                             — RAG 核心逻辑层
 │   ├── chunk/                        — 文档分块领域
 │   │   └── split/                     — 文档切分（ChunkSplit）
@@ -27,7 +35,7 @@ com.crag.demo
 └── integration/                      — 外部服务接入层
     ├── llm/                          — LLM 调用（Spring AI，一期 DeepSeek）
     │   └── prompt/                   — 提示词模板管理
-    ├── embedding/                    — Embedding 调用（一期 Sidecar /embed）
+    ├── dense/                        — Dense Embedding 调用（一期 Sidecar /embed）
     └── rerank/                       — Rerank 调用（一期 Sidecar /rerank）
 ```
 

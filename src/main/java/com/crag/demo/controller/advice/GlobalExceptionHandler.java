@@ -1,0 +1,62 @@
+package com.crag.demo.controller.advice;
+
+import com.crag.demo.dto.result.Response;
+import com.crag.demo.dto.result.ResponseCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+/**
+ * 全局异常处理 AOP 层 —— 统一拦截 Controller 层抛出的异常并转换为 Response 格式.
+ *
+ * Controller 方法无需手动 try/catch：校验异常和业务异常自然上抛至此，由对应 @ExceptionHandler 转为统一格式.
+ *
+ * @since 2026-06-13
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * 处理 @Valid 校验失败异常.
+     *
+     * 当 AdminRagRequest 的 @NotBlank 等校验不通过时，Spring 自动抛出此异常.
+     *
+     * @param e 校验异常
+     * @return Response with success=false, code=400
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Response<?> handleValidation(MethodArgumentNotValidException e) {
+        return Response.error(ResponseCode.BAD_REQUEST);
+    }
+
+    /**
+     * 处理程序化参数校验异常.
+     *
+     * Controller 或 Service 层主动抛出的 IllegalArgumentException 在此捕获.
+     *
+     * @param e 参数异常
+     * @return Response with success=false, code=400
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Response<?> handleBadRequest(IllegalArgumentException e) {
+        return Response.error(ResponseCode.BAD_REQUEST);
+    }
+
+    /**
+     * 兜底处理所有未预期的内部异常.
+     *
+     * 记录完整堆栈到日志，返回 500 错误.
+     *
+     * @param e 未预期异常
+     * @return Response with success=false, code=500
+     */
+    @ExceptionHandler(Exception.class)
+    public Response<?> handleInternal(Exception e) {
+        log.error("Unhandled exception", e);
+        return Response.error(ResponseCode.INTERNAL_ERROR);
+    }
+}

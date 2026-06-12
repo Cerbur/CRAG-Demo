@@ -23,7 +23,7 @@ plan_2 实现两条核心链路：
 | 2.0 | Schema 修正：三张表补齐 version + updated_at | ✅ 完成 | `2dd060e` | 2026-06-10 |
 | 2.1 | ChunkService 实现（TokenTextSplitter 分块 → child + parent） | ✅ 完成 | — | 2026-06-12 |
 | 2.2 | AdminRagService 实现（编排分块 + 写表） | ✅ 完成 | `24b54ec` | 2026-06-12 |
-| 2.3 | AdminRagController 接线（去掉骨架，接入真实逻辑） | ⏳ 待开始 | — | — |
+| 2.3 | AdminRagController 接线（去掉骨架，接入真实逻辑） | ✅ 完成 | — | 2026-06-13 |
 | 2.4 | EmbeddingClient 实现（HTTP 调用 Sidecar /embed） | ⏳ 待开始 | — | — |
 | 2.5 | EmbeddingService 实现（Cron 扫表 + 幂等状态机 + 写 chunk_embedding） | ⏳ 待开始 | — | — |
 | 2.6 | 冒烟验证（AdminRag 写入 + Cron Dense 处理） | ⏳ 待开始 | — | — |
@@ -32,7 +32,7 @@ plan_2 实现两条核心链路：
 >
 > 状态图例：⏳ 待开始 / 🔄 进行中 / ✅ 完成 / ❌ 阻塞
 
-整体进度：**3 / 7（43%）**
+整体进度：**4 / 7（57%）**
 
 ---
 
@@ -271,55 +271,61 @@ public class AdminRagService {
 
 ---
 
-### 2.3 — AdminRagController 接线
+### 2.3 — AdminRagController 接线（统一响应封装 + AOP 异常处理）
 
-**目标**：将 `POST /api/v1/admin/rag` 从骨架接入真实逻辑。
+**目标**：将 `POST /api/v1/admin/rag` 从骨架接入真实逻辑，同时引入项目统一响应封装和全局异常 AOP 层。
+
+**设计决策**：不再使用 `ResponseEntity<AdminRagResponse>` 模式，改为项目级统一 `Response<T>` 泛型包装类。所有控制器方法以此作为返回类型，业务成功/失败由响应体 `success` 和 `code` 字段表达。参数校验使用 `@Valid` + Jakarta Bean Validation 声明式完成，异常由 `@RestControllerAdvice` AOP 层统一拦截转换。
+
+**新增基础设施**（本次一同交付）：
+
+1. `com.crag.demo.dto.result.ResponseCode` — 统一响应码枚举（SUCCESS=0, BAD_REQUEST=400, INTERNAL_ERROR=500）
+2. `com.crag.demo.dto.result.Response<T>` — 泛型响应包装类（success, code, result），仅通过静态工厂构造
+3. `com.crag.demo.dto.request.AdminRagRequest` — 请求 DTO record（`@NotBlank` 校验 title/content）
+4. `com.crag.demo.controller.advice.GlobalExceptionHandler` — AOP 层，统一将异常转为 `Response.error(...)`
 
 **实现要点**：
 
 ```java
-/**
- * 管理端 RAG 知识库上传接口.
- *
- * @since 2026-06-10
- */
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminRagController {
 
-    private final AdminRagService adminRagService;
+    @Autowired
+    private AdminRagService adminRagService;
 
     @PostMapping("/rag")
-    public ResponseEntity<AdminRagResponse> upload(@RequestBody AdminRagRequest request) {
-        // 1. 参数校验（title + content 非空）
-        // 2. 调 adminRagService.ingest(...)
-        // 3. 返回 201 + AdminRagResponse
+    public Response<AdminRagResult> upload(@Valid @RequestBody AdminRagRequest request) {
+        AdminRagResult result = adminRagService.ingest(
+            request.title(), request.content(), request.metadata());
+        return Response.success(result);
     }
 }
 ```
 
-**Request DTO**：
+**返回 JSON 示例**（成功）：
 
-```java
-record AdminRagRequest(
-    @NotBlank String title,
-    @NotBlank String content,
-    Map<String, Object> metadata
-) {}
-```
-
-**Response DTO**：
-
-```java
-record AdminRagResponse(
-    UUID docId,
-    int chunks,
-    String status
-) {}
+```json
+{
+  "success": true,
+  "code": 0,
+  "result": {
+    "docId": "550e8400-e29b-41d4-a716-446655440000",
+    "chunks": 15,
+    "status": "PENDING"
+  }
+}
 ```
 
 **涉及文件**：
+- `src/main/java/com/crag/demo/dto/result/ResponseCode.java` — 新增
+- `src/main/java/com/crag/demo/dto/result/Response.java` — 新增
+- `src/main/java/com/crag/demo/dto/request/AdminRagRequest.java` — 新增
+- `src/main/java/com/crag/demo/controller/advice/GlobalExceptionHandler.java` — 新增
 - `src/main/java/com/crag/demo/controller/AdminRagController.java` — 从骨架变为完整实现
+- `build.gradle.kts` — 新增 `spring-boot-starter-validation` 依赖
+- `constraints/package-structure.md` — 新增 dto/request、dto/result、controller/advice 包
+- `constraints/code-style.md` — 新增统一 API 响应规范章节
 
 ---
 
@@ -371,7 +377,7 @@ crag:
 ```
 
 **涉及文件**：
-- `src/main/java/com/crag/demo/integration/embedding/SidecarEmbeddingClient.java` — 新增实现类
+- `src/main/java/com/crag/demo/integration/dense/SidecarEmbeddingClient.java` — 新增实现类
 - `src/main/resources/application.yml` — 添加 embedding 配置
 
 ---
@@ -547,3 +553,4 @@ crag:
 |------|------|
 | 2026-06-10 | 创建 plan_2，6 个子任务：AdminRag 写入链路 + Cron Dense 异步处理 |
 | 2026-06-12 | 2.0 确认完成（schema 三表 version + updated_at 已于 plan_1 阶段补齐）；2.1 ChunkService 完整实现（Spring AI TokenTextSplitter 真实 token 级分块 + JTokkit CL100K_BASE 编码 + child/parent 二级策略 + overlap） |
+| 2026-06-13 | 2.3 设计更新：从 ResponseEntity 改为统一 Response<T> 包装 + ResponseCode 枚举；新增 dto/request、dto/result、controller/advice 子包；新增 GlobalExceptionHandler AOP 层；AdminRagRequest 使用 @Valid + @NotBlank 校验；添加 spring-boot-starter-validation 依赖；同步更新 package-structure 和 code-style 约束 |

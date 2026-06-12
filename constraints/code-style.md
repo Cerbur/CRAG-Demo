@@ -116,3 +116,53 @@ private Integer chunkIndex;
 - 每段代码必须回答：最少需要做什么？只做那件事。
 - 拒绝过度工程：无状态不用缓存，单线程够用不加锁，数据量小不做分页。
 - Demo 阶段硬编码优于配置文件，同步优于异步，手动优于自动化。
+
+---
+
+## 五、统一 API 响应规范
+
+所有 Controller 方法必须遵从此规范。
+
+### 响应类型
+
+- 所有 API 端点必须返回 `Response<T>`（位于 `com.crag.demo.dto.result`）。
+- 禁止直接返回 `Map<String, Object>`、`ResponseEntity<?>` 或原始业务类型。
+- `Response<T>` 包含三个字段：`success` (boolean)、`code` (int)、`result` (T)。
+
+### 构造方式
+
+- 使用静态工厂方法，禁止直接调用构造器：
+  - 成功：`Response.success(result)`
+  - 错误无 payload：`Response.error(ResponseCode.BAD_REQUEST)`
+  - 错误带 payload：`Response.error(ResponseCode.INTERNAL_ERROR, errorDetails)`
+- `code` 值必须来自 `ResponseCode` 枚举，不得传入裸整数字面量。
+
+### 请求 DTO
+
+- 请求体参数必须封装为 DTO 类，置于 `com.crag.demo.dto.request` 包。
+- 优先使用 Java `record` 定义 DTO。
+- 参数校验使用 `@Valid` + Jakarta Bean Validation 注解（`@NotBlank`、`@NotNull` 等），校验失败由 `GlobalExceptionHandler` 统一转为 `Response.error(BAD_REQUEST)`。
+
+### 异常处理
+
+- Controller 方法不写 try/catch —— 异常由 `GlobalExceptionHandler`（`@RestControllerAdvice`）统一拦截转换。
+- `MethodArgumentNotValidException` → 400、`IllegalArgumentException` → 400、`Exception`（兜底）→ 500 + 日志。
+
+### 示例
+
+```java
+@RestController
+@RequestMapping("/api/v1/admin")
+public class AdminRagController {
+
+    @Autowired
+    private AdminRagService adminRagService;
+
+    @PostMapping("/rag")
+    public Response<AdminRagResult> upload(@Valid @RequestBody AdminRagRequest request) {
+        AdminRagResult result = adminRagService.ingest(
+            request.title(), request.content(), request.metadata());
+        return Response.success(result);
+    }
+}
+```

@@ -1,16 +1,21 @@
 package com.crag.demo.controller;
 
+import com.crag.demo.dto.request.AdminRagRequest;
+import com.crag.demo.dto.result.Response;
+import com.crag.demo.service.AdminRagResult;
+import com.crag.demo.service.AdminRagService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
 /**
  * 管理端 RAG 知识库上传接口 —— 接收纯文本内容，分块入库并异步完成向量化.
  *
- * POST /api/v1/admin/rag，接收纯文本 JSON，返回 docId 及分块数量.
+ * POST /api/v1/admin/rag 接收 AdminRagRequest JSON，委托 AdminRagService 执行分块与持久化，
+ * 返回统一 Response 包装的 AdminRagResult.
  *
  * @since 2026-06-10
  */
@@ -19,17 +24,24 @@ import java.util.Map;
 public class AdminRagController {
 
     /**
-     * 知识库上传接口（骨架）.
+     * 管理端 RAG 服务，编排分块 + 写入.
+     */
+    @Autowired
+    private AdminRagService adminRagService;
+
+    /**
+     * 知识库上传 —— 接收文档文本，分块写入 chunk 表，返回 docId 及分块数量.
      *
-     * @param body 包含 "title"、"content"、"metadata" 的 JSON
-     * @return 空 JSON（plan_2 实现完整入库链路）
+     * @param request 文档 title、content 及可选 metadata（@Valid 自动校验 title/content 非空）
+     * @return Response 包装的 AdminRagResult（docId、chunks、status=PENDING）
      */
     @PostMapping("/rag")
-    public Map<String, Object> upload(@RequestBody Map<String, Object> body) {
-        return Map.of(
-            "docId", "00000000-0000-0000-0000-000000000000",
-            "chunks", 0,
-            "status", "OK"
+    public Response<AdminRagResult> upload(@Valid @RequestBody AdminRagRequest request) {
+        AdminRagResult result = adminRagService.ingest(
+            request.title(),
+            request.content(),
+            request.metadata()
         );
+        return Response.success(result);
     }
 }
