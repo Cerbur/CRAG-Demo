@@ -401,17 +401,15 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 | [plan_1.hotfix_1](./plan_1.hotfix_1.md) | 计划命名约束修正（禁止新增小数 plan，统一 hotfix 规则） | ✅ 完成（2026-06-12） |
 | [plan_2](./plan_2.md) | AdminRag 写入链路 + Cron Dense 异步处理 | ⏳ 待开始 |
 | [plan_3](./plan_3.md) | 项目介绍文档 + 架构 SVG + README 插图 | ✅ 完成（2026-06-12） |
+| [plan_3.hotfix_1](./plan_3.hotfix_1.md) | 代码风格约束文档抽取 + Agent 路由 | ✅ 完成（2026-06-12） |
+| [plan_3.hotfix_2](./plan_3.hotfix_2.md) | 约束文档目录收敛 + 包结构抽取 | ✅ 完成（2026-06-12） |
+| [plan_3.hotfix_3](./plan_3.hotfix_3.md) | Docker 部署结构抽取 + Agent 路由 | ✅ 完成（2026-06-13） |
+| [plan_3.hotfix_4](./plan_3.hotfix_4.md) | Plan 工作流约束抽取 + Agent 路由 | ✅ 完成（2026-06-13） |
 | plan_4 | RRF 融合 + Rerank + UserQuery 查询链路 + 全链路联调 | ⏳ 占位 |
 
 ### Plan 命名与任务编号规范
 
-- 主 Plan 文件只使用连续数字编号：`plan_1.md`, `plan_2.md`, `plan_3.md` ...
-- 禁止后续新增小数计划文件：例如 `plan_1.1.md`, `plan_2.1.md`, `plan_2.2.md`
-- 准备执行 `plan_x` 前发现必须先处理前置内容时，归入上一阶段 hotfix：`plan_{x-1}.hotfix_1.md`, `plan_{x-1}.hotfix_2.md`
-- 示例：准备执行 `plan_2` 前发现 Sidecar、schema、ignore 等前置修正，写入 `plan_1.hotfix_1.md`；还需要修复则继续 `plan_1.hotfix_2.md`
-- 历史遗留的 `plan_1.1.md`, `plan_2.1.md`, `plan_2.2.md`, `plan_2.3.md` 暂不强制重命名，但不得作为新计划命名范式继续使用
-- 每个 plan 内的小任务使用 `plan-id.task-id` 编号，如 `1.1`, `1.2`, `2.1`, `2.2`
-- 每完成一个小任务，更新任务状态并记录对应 commit
+Plan 工作流、命名、任务编号和进度追踪约束统一维护在 [constraints/plan-workflow.md](../constraints/plan-workflow.md)。
 
 ### Plan_1 范围（基础设施）
 
@@ -425,7 +423,7 @@ plan_1 完成项目从零到可编译运行的基础骨架：
 
 ### 历史前置计划说明
 
-当前仓库已有 `plan_1.1.md`, `plan_2.1.md`, `plan_2.2.md`, `plan_2.3.md`，属于命名规则修正前的历史遗留文件。本次不强制重命名历史文件，避免扩大引用调整范围；后续前置修正统一使用 `plan_N.hotfix_M.md`。
+历史遗留计划文件与后续 hotfix 归属规则统一维护在 [constraints/plan-workflow.md](../constraints/plan-workflow.md)。
 
 ### Plan_2 范围
 
@@ -459,134 +457,19 @@ plan_1 完成项目从零到可编译运行的基础骨架：
 
 ## 九、代码规范
 
-> 所有 Java 代码必须遵守以下注释与设计规范。规范本身遵循第一性原理：每一条都是交付可维护代码的**最小必要约束**。
+所有 Java 代码风格、注释规范和设计约束统一维护在 [constraints/code-style.md](../constraints/code-style.md)。
 
-### 9.1 注释规范
+当前必须遵守的重点约束包括：
 
-#### Class 级别
+- 禁止出现 `import *` 或任何通配符导入。
+- 优先使用 `@Autowired` 字段注入，不优先使用构造器注入。
+- 保持 class Javadoc、重要 method Javadoc、成员变量注释和必要行注释。
+- 遵循奥卡姆剃刀与第一性原理，避免 Demo 阶段过度抽象。
 
-每个类文件头部必须包含 Javadoc，写明：
+## 十、包结构索引
 
-```java
-/**
- * <一句话功能概述>.
- *
- * <详细说明，2-3 句，描述该类在整体架构中的角色>
- *
- * @since 2026-06-10
- */
-```
+Java 包结构索引统一维护在 [constraints/package-structure.md](../constraints/package-structure.md)。
 
-要求：
+## 十一、Docker 部署结构
 
-- `@since` 标注创建日期（YYYY-MM-DD）
-- 必须说清楚该类**对应哪个功能模块**（与分层架构对应）
-
-#### Method 级别
-
-**重要 method**（public / 核心业务逻辑 / 算法步骤）必须写 Javadoc：
-
-```java
-/**
- * <一句话描述该方法做什么>.
- *
- * @param xxx <参数含义>
- * @return <返回值含义>
- */
-```
-
-不要求为 getter/setter / 简单委托方法写注释。
-
-#### 行注释
-
-复杂逻辑（>10 行或含多重条件/循环/位运算）必须加行内注释：
-
-```java
-// Step 1: 两路检索并行发出，每路取 Top-K
-// Step 2: RRF 按 1/(k+rank) 融合
-```
-
-注释写**为什么这么做**而不是复述代码。
-
-#### 成员变量
-
-所有成员变量（field）必须注释含义和作用：
-
-```java
-/**
- * child chunk 在 parent chunk 中的序号，从 0 开始递增.
- * parent chunk 自身此值为 NULL.
- */
-private Integer chunkIndex;
-```
-
-### 9.2 设计原则
-
-#### 奥卡姆剃刀 — 如无必要，勿增实体
-
-- 不引入当前不需要的抽象层、接口、工具类
-- Demo 阶段不做"万一以后要用"的预留
-- 一个接口只有一个实现时，不做 Interface → Impl 分离；直接写实现类
-
-#### 第一性原理 — 满足功能的最小逻辑
-
-- 每段代码必须回答：**最少需要做什么？** 只做那件事
-- 拒绝过度工程：无状态 → 不用缓存、单线程够用 → 不加锁、数据量小 → 不做分页
-- Demo 阶段硬编码优于配置文件、同步优于异步、手动优于自动化
-
-### 9.3 示例
-
-```java
-/**
- * 混合检索融合器 —— 对 Sparse + Dense 两路 child chunk 结果做 RRF 融合并回表.
- *
- * 融合后通过 parent_chunk_id 回表获取完整 parent 上下文，交给下游 rerank.
- *
- * @since 2026-06-10
- */
-public class RrfFusionService {
-
-    /**
-     * RRF 常数 k，防止单路 rank=1 导致分母过小.
-     * 业界常用值 60.
-     */
-    private static final int RRF_K = 60;
-
-    private final ChunkDao chunkDao;
-
-    /**
-     * 对两路 child chunk 结果执行 RRF 融合，回表取 parent chunk 内容.
-     *
-     * @param sparseResults BM25 检索结果（child chunk 维度）
-     * @param denseResults  pgvector 检索结果（child chunk 维度）
-     * @param topN          融合后保留数量
-     * @return parent chunk 完整内容列表，按 RRF 分数降序
-     */
-    public List<ChunkContent> fuse(List<SearchHit> sparseResults,
-                                   List<SearchHit> denseResults,
-                                   int topN) {
-        // 1. 以 chunk_id 为 key 计算 RRF 分数
-        Map<UUID, Double> scores = new HashMap<>();
-        for (int rank = 0; rank < sparseResults.size(); rank++) {
-            UUID id = sparseResults.get(rank).chunkId();
-            scores.merge(id, 1.0 / (RRF_K + rank + 1), Double::sum);
-        }
-        for (int rank = 0; rank < denseResults.size(); rank++) {
-            UUID id = denseResults.get(rank).chunkId();
-            scores.merge(id, 1.0 / (RRF_K + rank + 1), Double::sum);
-        }
-
-        // 2. 按 RRF 分数降序取 Top-N child chunk ID
-        List<UUID> topChildIds = scores.entrySet().stream()
-            .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
-            .limit(topN)
-            .map(Map.Entry::getKey)
-            .toList();
-
-        // 3. 回表：取 child → parent chunk 完整内容
-        return chunkDao.findParentContentsByChildIds(topChildIds);
-    }
-}
-```
-
-> 示例展示了规范的全貌：class Javadoc + @since、field 注释、method Javadoc、关键步骤行注释。同时体现了奥卡姆剃刀（无额外抽象）和第一性原理（最小逻辑）。
+Docker 部署结构索引统一维护在 [constraints/docker-structure.md](../constraints/docker-structure.md)。
