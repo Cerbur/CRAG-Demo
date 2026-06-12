@@ -102,7 +102,7 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
 - [x] **2.5** — 创建 `integration/` 包（外部服务接入层骨架）
   - `integration/llm/` — 预留 `ChatClient` 接口
   - `integration/llm/prompt/` — 预留提示词模板目录
-  - `integration/embedding/` — 预留 `EmbeddingClient` 接口
+  - `integration/dense/` — 预留 `EmbeddingClient` 接口
   - `integration/rerank/` — 预留 `RerankClient` 接口
   - 每个接口/类：class Javadoc + `@since`
   - Commit: `2dd060e`

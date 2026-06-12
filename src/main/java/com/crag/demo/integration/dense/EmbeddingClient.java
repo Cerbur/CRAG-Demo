@@ -1,4 +1,4 @@
-package com.crag.demo.integration.embedding;
+package com.crag.demo.integration.dense;
 
 /**
  * EmbeddingClient 统一接口 —— 文本向量化.

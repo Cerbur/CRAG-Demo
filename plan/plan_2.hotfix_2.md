@@ -23,7 +23,7 @@
 1. 将 Chunk 分块能力明确命名为 `ChunkSplit`，避免 `ChunkService` 泛化语义。
 2. 将 Dense 作为独立能力包：embedding 入库编排、dense query 查询都归入 `core.dense`。
 3. 将 Sparse 作为独立能力包：后续 FTS/BM25 入库编排、sparse query 查询都归入 `core.sparse`。
-4. 保留 `integration.embedding` 作为外部 Sidecar 接入层，不把外部客户端混入 `core.dense`。
+4. 保留 `integration.dense` 作为外部 Sidecar 接入层，不把外部客户端混入 `core.dense`。
 5. 更新测试包名、引用、计划文档和 README 包结构说明，保持代码与项目索引一致。
 
 ---
@@ -74,7 +74,7 @@ com.crag.demo.core
 说明：
 
 - `core.chunk` 只表达“文档分块领域能力”，当前不再使用泛化的 `ChunkService` 命名。
-- `core.dense` 是 Dense 通道的独立能力包，包含写入侧 embedding 编排与查询侧 dense query；`integration.embedding.EmbeddingClient` 仍表示外部模型服务调用。
+- `core.dense` 是 Dense 通道的独立能力包，包含写入侧 embedding 编排与查询侧 dense query；`integration.dense.EmbeddingClient` 仍表示外部模型服务调用。
 - `core.sparse` 是 Sparse 通道的独立能力包，后续包含写入侧 FTS/BM25 索引编排与查询侧 sparse query。
 - `rrf`、`rerank` 暂不拆，后续如果形成更强领域边界，再单独规划。
 
@@ -107,7 +107,7 @@ com.crag.demo.core
 - 不调整 ChunkSplit 的 token 分块算法。
 - 不改变 `ChunkSplitResult` 的 parent/child group 数据结构语义。
 - 不实现 AdminRagService、Controller 接线、Cron Dense 入库或 DenseQuery 查询逻辑。
-- 不移动 `integration.embedding.EmbeddingClient`；它仍归外部服务接入层。
+- 不移动 `integration.dense.EmbeddingClient`；它仍归外部服务接入层。
 - 不引入 DDD 框架、领域事件或模块化构建，当前只先整理包边界。
 
 ---
@@ -133,7 +133,7 @@ com.crag.demo.core
 - `core.embedding.EmbeddingService` 不再作为核心包存在；embedding 入库编排与 dense query 查询统一位于 `core.dense`。
 - Sparse 相关核心逻辑统一位于 `core.sparse`，后续 FTS/BM25 写入和查询都不再散落到 query-only 包。
 - `ChunkService` 相关命名收敛为 `ChunkSplit*`，语义更贴近“切分能力”。
-- `integration.embedding.EmbeddingClient` 保持不变，外部模型接入层边界清晰。
+- `integration.dense.EmbeddingClient` 保持不变，外部模型接入层边界清晰。
 - `./gradlew test --tests com.crag.demo.core.chunk.ChunkSplitServiceTest` 通过。
 - `./gradlew test` 通过。
 - README / AGENTS / CLAUDE 包结构索引与实际代码一致。
