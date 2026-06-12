@@ -11,20 +11,20 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * ChunkService 单元测试 —— 验证 child/parent 分组、overlap、全文覆盖.
+ * ChunkSplitService 单元测试 —— 验证 child/parent 分组、overlap、全文覆盖.
  *
- * ChunkService 是纯 POJO（不依赖 Spring 容器），使用 JUnit 5 + AssertJ 直接实例化测试.
+ * ChunkSplitService 是纯 POJO（不依赖 Spring 容器），使用 JUnit 5 + AssertJ 直接实例化测试.
  *
  * @since 2026-06-12
  */
-@DisplayName("ChunkService 文档分块服务")
-class ChunkServiceTest {
+@DisplayName("ChunkSplitService 文档分块服务")
+class ChunkSplitServiceTest {
 
-    private ChunkService chunkService;
+    private ChunkSplitService chunkSplitService;
 
     @BeforeEach
     void setUp() {
-        chunkService = new ChunkService();
+        chunkSplitService = new ChunkSplitService();
     }
 
     @Nested
@@ -37,7 +37,7 @@ class ChunkServiceTest {
             // 构造一段足够长的中文文本（> 1024 token 触发 parent 级分块）
             String content = buildChineseText(3000);
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.chunkGroups()).isNotEmpty();
 
@@ -45,16 +45,16 @@ class ChunkServiceTest {
             assertThat(result.parentChunk()).isNotNull();
             assertThat(result.parentChunk().content()).isNotEmpty();
             assertThat(result.parentChunk().tokenCount()).isPositive();
-            // Parent chunkIndex 必须为 null
-            assertThat(result.parentChunk().chunkIndex()).isNull();
+            // Parent chunkIndex 为文档中序号（0-based）
+            assertThat(result.parentChunk().chunkIndex()).isEqualTo(0);
 
             // Child 至少有一个，且每个 parent group 内的 chunkIndex 从 0 开始递增
             assertThat(result.childChunks()).isNotEmpty();
-            for (ChunkGroup group : result.chunkGroups()) {
-                assertThat(group.parentChunk().chunkIndex()).isNull();
+            for (ChunkSplitGroup group : result.chunkGroups()) {
+                assertThat(group.parentChunk().chunkIndex()).isNotNull();
                 assertThat(group.childChunks()).isNotEmpty();
                 for (int i = 0; i < group.childChunks().size(); i++) {
-                    ChunkData child = group.childChunks().get(i);
+                    ChunkSplitData child = group.childChunks().get(i);
                     assertThat(child.chunkIndex()).isEqualTo(i);
                     assertThat(child.content()).isNotEmpty();
                     assertThat(child.tokenCount()).isPositive();
@@ -67,10 +67,10 @@ class ChunkServiceTest {
         void shortTextProducesSingleChild() {
             String content = "这是一段很短的测试文本。";
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.childChunks()).hasSize(1);
-            ChunkData child = result.childChunks().get(0);
+            ChunkSplitData child = result.childChunks().get(0);
             assertThat(child.chunkIndex()).isZero();
             assertThat(child.content()).contains("测试文本");
         }
@@ -81,7 +81,7 @@ class ChunkServiceTest {
             // 2 个中文字符，在 CL100K_BASE 中约 2-4 token
             String content = "你好";
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             // 核心断言：不能因为 minChunkLengthToEmbed 丢弃短文本
             assertThat(result.childChunks()).isNotEmpty();
@@ -93,7 +93,7 @@ class ChunkServiceTest {
         void singleChineseCharIsNotDropped() {
             String content = "测";
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.childChunks()).isNotEmpty();
             assertThat(result.childChunks().get(0).content()).contains("测");
@@ -104,7 +104,7 @@ class ChunkServiceTest {
         void singleEnglishCharIsNotDropped() {
             String content = "A";
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.childChunks()).isNotEmpty();
             assertThat(result.childChunks().get(0).content()).contains("A");
@@ -118,7 +118,7 @@ class ChunkServiceTest {
         @Test
         @DisplayName("null 文本返回空结果")
         void nullContentReturnsEmpty() {
-            ChunkResult result = chunkService.split(null);
+            ChunkSplitResult result = chunkSplitService.split(null);
 
             assertThat(result.parentChunk().content()).isEmpty();
             assertThat(result.parentChunk().tokenCount()).isZero();
@@ -129,7 +129,7 @@ class ChunkServiceTest {
         @Test
         @DisplayName("空字符串返回空结果")
         void emptyContentReturnsEmpty() {
-            ChunkResult result = chunkService.split("");
+            ChunkSplitResult result = chunkSplitService.split("");
 
             assertThat(result.parentChunk().content()).isEmpty();
             assertThat(result.parentChunk().tokenCount()).isZero();
@@ -146,12 +146,12 @@ class ChunkServiceTest {
             }
             String content = sb.toString();
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.parentChunk()).isNotNull();
             assertThat(result.childChunks()).isNotEmpty();
             // 所有 child 都包含英文
-            for (ChunkData child : result.childChunks()) {
+            for (ChunkSplitData child : result.childChunks()) {
                 assertThat(child.tokenCount()).isPositive();
             }
         }
@@ -161,7 +161,7 @@ class ChunkServiceTest {
         void punctuationOnlyText() {
             String content = "!!!???...";
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.childChunks()).isNotEmpty();
             assertThat(result.childChunks().get(0).content()).isNotEmpty();
@@ -177,15 +177,15 @@ class ChunkServiceTest {
         void childrenCoverParentContent() {
             String content = buildChineseText(2000);
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
             // 取第一个 parent chunk，验证该 parent 内部被 child 覆盖
             String parentContent = result.parentChunk().content();
-            List<ChunkData> children = result.childChunks();
+            List<ChunkSplitData> children = result.childChunks();
 
             // 验证：parent content 中的每个字符至少在某个 child 中出现
             // 使用滑动窗口采样（避免逐字符的 O(n^2) 复杂度）
             String allChildText = children.stream()
-                .map(ChunkData::content)
+                .map(ChunkSplitData::content)
                 .collect(Collectors.joining());
 
             // 采样 parent 的前/中/后各一段，确认在 child 联合文本中能找到
@@ -205,12 +205,12 @@ class ChunkServiceTest {
             String tailMarker = "最终尾部标记用于确认长文没有被截断";
             String content = buildChineseText(6000) + tailMarker;
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
             String allParentText = result.chunkGroups().stream()
                 .map(group -> group.parentChunk().content())
                 .collect(Collectors.joining());
             String allChildText = result.childChunks().stream()
-                .map(ChunkData::content)
+                .map(ChunkSplitData::content)
                 .collect(Collectors.joining());
 
             assertThat(result.chunkGroups()).hasSizeGreaterThan(1);
@@ -223,10 +223,10 @@ class ChunkServiceTest {
         void childIndexRestartsWithinEachParentGroup() {
             String content = buildChineseText(6000);
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             assertThat(result.chunkGroups()).hasSizeGreaterThan(1);
-            for (ChunkGroup group : result.chunkGroups()) {
+            for (ChunkSplitGroup group : result.chunkGroups()) {
                 assertThat(group.childChunks()).isNotEmpty();
                 for (int i = 0; i < group.childChunks().size(); i++) {
                     assertThat(group.childChunks().get(i).chunkIndex()).isEqualTo(i);
@@ -239,7 +239,7 @@ class ChunkServiceTest {
         void shortTextParentChildContentMatch() {
             String content = "这是测试文本，用于验证短文本的全覆盖。";
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             // 单个 child 时，content 至少包含原始所有文本
             // （TokenTextSplitter 会 trim/keepSeparator，允许轻微空白差异）
@@ -253,9 +253,9 @@ class ChunkServiceTest {
         void eachChildIsSubstringOfParent() {
             String content = buildChineseText(1500);
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
-            for (ChunkData child : result.childChunks()) {
+            for (ChunkSplitData child : result.childChunks()) {
                 // 由于 overlap，child 可能比 parent 对应位置长，
                 // 但至少 child 中的核心内容应在 parent 中
                 assertThat(child.content()).isNotEmpty();
@@ -277,8 +277,8 @@ class ChunkServiceTest {
             // 使用足够长的文本确保产生 >= 2 个 child
             String content = buildChineseText(1500);
 
-            ChunkResult result = chunkService.split(content);
-            List<ChunkData> children = result.childChunks();
+            ChunkSplitResult result = chunkSplitService.split(content);
+            List<ChunkSplitData> children = result.childChunks();
 
             // 需要 >= 2 个 child 才能验证 overlap
             if (children.size() >= 2) {
@@ -310,10 +310,10 @@ class ChunkServiceTest {
                     .append("人工智能技术正在改变世界。\n");
             }
 
-            ChunkResult result = chunkService.split(sb.toString());
+            ChunkSplitResult result = chunkSplitService.split(sb.toString());
 
             // 所有 child token 计数 > 0
-            for (ChunkData child : result.childChunks()) {
+            for (ChunkSplitData child : result.childChunks()) {
                 assertThat(child.tokenCount())
                     .as("Child %d token count", child.chunkIndex())
                     .isPositive();
@@ -330,7 +330,7 @@ class ChunkServiceTest {
         void parentTokensAreConsistent() {
             String content = buildChineseText(1000);
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
             int parentTokens = result.parentChunk().tokenCount();
 
@@ -345,9 +345,9 @@ class ChunkServiceTest {
         void allChildrenHavePositiveTokenCount() {
             String content = buildChineseText(2000);
 
-            ChunkResult result = chunkService.split(content);
+            ChunkSplitResult result = chunkSplitService.split(content);
 
-            for (ChunkData child : result.childChunks()) {
+            for (ChunkSplitData child : result.childChunks()) {
                 assertThat(child.tokenCount())
                     .as("Child[%d] token count should be positive", child.chunkIndex())
                     .isPositive();

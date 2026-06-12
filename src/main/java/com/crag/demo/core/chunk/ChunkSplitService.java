@@ -20,8 +20,8 @@ import java.util.List;
  *
  * 分块策略：
  * - parent chunk：大窗口（~1024 token），保留完整上下文，不做向量化
- * - child chunk：小粒度（~256 token），用于 Embedding + 检索匹配
- * - child chunk 之间有 overlap（~64 token），减少边界截断损失
+ * - child chunk：小粒度（~256 token 净新增），用于 Embedding + 检索匹配
+ * - child chunk 之间有 overlap（~64 token），实际单 chunk 上限 ~320 token
  *
  * Token 计数使用 JTokkit CL100K_BASE 编码，与 DeepSeek / GPT-4 系列 tokenizer 一致.
  * 分块边界由 TokenTextSplitter 按句末标点（.?!\n）自动选择，语义完整性优于固定窗口.
@@ -29,11 +29,11 @@ import java.util.List;
  * @since 2026-06-10
  */
 @Component
-public class ChunkService {
+public class ChunkSplitService {
 
-    private static final Logger log = LoggerFactory.getLogger(ChunkService.class);
+    private static final Logger log = LoggerFactory.getLogger(ChunkSplitService.class);
 
-    /** Child chunk 目标 token 数. */
+    /** Child chunk 净新增目标 token 数（不含 overlap，实际上限 ~320 token）. */
     private static final int CHILD_SIZE = 256;
 
     /** Parent chunk 目标 token 数. */
@@ -62,7 +62,7 @@ public class ChunkService {
     /** Child 级分块器：按 256 token 切分 parent 内容. */
     private final TokenTextSplitter childSplitter;
 
-    public ChunkService() {
+    public ChunkSplitService() {
         EncodingRegistry registry = Encodings.newLazyEncodingRegistry();
         this.encoding = registry.getEncoding(EncodingType.CL100K_BASE);
 
@@ -89,32 +89,33 @@ public class ChunkService {
      * child 之间通过 JTokkit 添加 ~64 token 重叠.
      *
      * @param content 原始纯文本
-     * @return ChunkResult 含 N 个 parent group，每个 group 下有若干 child
+     * @return ChunkSplitResult 含 N 个 parent group，每个 group 下有若干 child
      */
-    public ChunkResult split(String content) {
+    public ChunkSplitResult split(String content) {
         if (content == null || content.isEmpty()) {
-            log.debug("ChunkService.split called with empty content, returning empty result");
-            return new ChunkResult(
-                new ChunkData("", 0, null),
+            log.debug("ChunkSplitService.split called with empty content, returning empty result");
+            return new ChunkSplitResult(
+                new ChunkSplitData("", 0, null),
                 Collections.emptyList()
             );
         }
 
         // Step 1: Parent 级分块 —— 先使用 TokenTextSplitter，再用 JTokkit 兜底强制 token 上限
-        List<String> parentContents = splitWithTokenLimit(parentSplitter, content, PARENT_SIZE);
+        List<String> parentContents = splitWithTokenLimit(content, PARENT_SIZE);
 
-        List<ChunkGroup> groups = new ArrayList<>();
+        List<ChunkSplitGroup> groups = new ArrayList<>();
         log.debug("Document split into {} parent chunks", parentContents.size());
 
-        for (String parentContent : parentContents) {
+        for (int groupIdx = 0; groupIdx < parentContents.size(); groupIdx++) {
+            String parentContent = parentContents.get(groupIdx);
             int parentTokenCount = encoding.countTokens(parentContent);
 
             // Step 2: Child 级分块 —— 在 parent 内部按 256 token 切分，并兜底强制 token 上限
-            List<String> childContents = splitWithTokenLimit(childSplitter, parentContent, CHILD_SIZE);
-            log.debug("Parent ({} tokens) → {} child chunks", parentTokenCount, childContents.size());
+            List<String> childContents = splitWithTokenLimit(parentContent, CHILD_SIZE);
+            log.debug("Parent[{}] ({} tokens) → {} child chunks", groupIdx, parentTokenCount, childContents.size());
 
             // Step 3: 为同一 parent 内的 child 之间添加 overlap
-            List<ChunkData> children = new ArrayList<>();
+            List<ChunkSplitData> children = new ArrayList<>();
             for (int i = 0; i < childContents.size(); i++) {
                 String childContent = childContents.get(i);
 
@@ -128,21 +129,22 @@ public class ChunkService {
                 }
 
                 int tokenCount = encoding.countTokens(childContent);
-                children.add(new ChunkData(childContent, tokenCount, i));
+                children.add(new ChunkSplitData(childContent, tokenCount, i));
             }
 
-            // Step 4: 构造 parent（chunkIndex = null，不做向量化）
-            ChunkData parent = new ChunkData(parentContent, parentTokenCount, null);
-            groups.add(new ChunkGroup(parent, children));
+            // Step 4: 构造 parent（chunkIndex = groupIdx，不做向量化；保留 index 用于 RAG 上下文窗口扩展）
+            ChunkSplitData parent = new ChunkSplitData(parentContent, parentTokenCount, groupIdx);
+            groups.add(new ChunkSplitGroup(parent, children));
         }
 
-        return new ChunkResult(groups);
+        return new ChunkSplitResult(groups);
     }
 
     /**
      * 先用 TokenTextSplitter 做语义边界切分，再对过长片段用 tokenizer 强制切分.
      */
-    private List<String> splitWithTokenLimit(TokenTextSplitter splitter, String text, int maxTokens) {
+    private List<String> splitWithTokenLimit(String text, int maxTokens) {
+        TokenTextSplitter splitter = (maxTokens == PARENT_SIZE) ? parentSplitter : childSplitter;
         List<Document> docs = splitter.split(new Document(text));
         if (docs.isEmpty()) {
             return List.of(text);

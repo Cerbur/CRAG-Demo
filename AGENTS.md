@@ -34,10 +34,10 @@ com.crag.demo
 │       ├── UserQueryServiceImpl     — 用户查询服务实现
 │       └── AdminRagServiceImpl      — 管理端 RAG 服务实现
 ├── core/                             — RAG 核心逻辑层
-│   ├── chunk/                        — 文档分块
-│   ├── embedding/                    — 向量化
-│   ├── vectorQuery/                  — 向量查询
-│   ├── retrieve/                     — 检索召回
+│   ├── chunk/                        — 文档分块（ChunkSplit）
+│   ├── dense/                        — Dense 检索通道（Embedding + Query）
+│   ├── sparse/                       — Sparse 检索通道（BM25/FTS）
+│   ├── rrf/                          — RRF 融合
 │   └── rerank/                       — 重排序
 ├── dao/                              — 数据访问层（pgvector 向量数据库操作）
 └── integration/                      — 外部服务接入层

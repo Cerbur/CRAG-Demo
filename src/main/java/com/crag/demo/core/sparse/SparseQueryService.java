@@ -1,4 +1,4 @@
-package com.crag.demo.core.sparseQuery;
+package com.crag.demo.core.sparse;
 
 import org.springframework.stereotype.Component;
 

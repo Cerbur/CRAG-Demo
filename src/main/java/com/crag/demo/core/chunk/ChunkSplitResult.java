@@ -12,31 +12,31 @@ import java.util.List;
  * @param chunkGroups parent-child 分组，按原文顺序排列
  * @since 2026-06-12
  */
-public record ChunkResult(
-    List<ChunkGroup> chunkGroups
+public record ChunkSplitResult(
+    List<ChunkSplitGroup> chunkGroups
 ) {
 
-    public ChunkResult {
+    public ChunkSplitResult {
         chunkGroups = List.copyOf(chunkGroups);
     }
 
-    public ChunkResult(ChunkData parentChunk, List<ChunkData> childChunks) {
-        this(List.of(new ChunkGroup(parentChunk, childChunks)));
+    public ChunkSplitResult(ChunkSplitData parentChunk, List<ChunkSplitData> childChunks) {
+        this(List.of(new ChunkSplitGroup(parentChunk, childChunks)));
     }
 
     /**
      * 返回第一个 parent chunk，兼容单 parent 调用场景.
      */
-    public ChunkData parentChunk() {
+    public ChunkSplitData parentChunk() {
         return chunkGroups.get(0).parentChunk();
     }
 
     /**
      * 返回全部 child chunks 的扁平列表，按原文顺序排列.
      */
-    public List<ChunkData> childChunks() {
-        List<ChunkData> children = new ArrayList<>();
-        for (ChunkGroup group : chunkGroups) {
+    public List<ChunkSplitData> childChunks() {
+        List<ChunkSplitData> children = new ArrayList<>();
+        for (ChunkSplitGroup group : chunkGroups) {
             children.addAll(group.childChunks());
         }
         return List.copyOf(children);

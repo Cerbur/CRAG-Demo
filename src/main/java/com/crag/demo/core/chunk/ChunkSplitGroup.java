@@ -9,12 +9,12 @@ import java.util.List;
  * @param childChunks parent 内部切出的 child chunks
  * @since 2026-06-12
  */
-public record ChunkGroup(
-    ChunkData parentChunk,
-    List<ChunkData> childChunks
+public record ChunkSplitGroup(
+    ChunkSplitData parentChunk,
+    List<ChunkSplitData> childChunks
 ) {
 
-    public ChunkGroup {
+    public ChunkSplitGroup {
         childChunks = List.copyOf(childChunks);
     }
 }

@@ -1,4 +1,4 @@
-package com.crag.demo.core.denseQuery;
+package com.crag.demo.core.dense;
 
 import org.springframework.stereotype.Component;
 

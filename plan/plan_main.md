@@ -111,10 +111,9 @@ Response:
 │  - AdminRagService / impl                        │
 ├──────────────────────────────────────────────────┤
 │  core（RAG 核心逻辑）                             │
-│  - chunk        → 文档分块策略（入库时）           │
-│  - embedding    → 向量化（调用 embedding 模型）     │
-│  - sparseQuery  → BM25 稀疏查询（PostgreSQL FTS）  │
-│  - denseQuery   → Dense 稠密查询（pgvector 向量）   │
+│  - chunk        → 文档分块策略（ChunkSplit）       │
+│  - dense        → Dense 检索通道（Embedding + Query）│
+│  - sparse       → Sparse 检索通道（BM25/FTS）      │
 │  - rrf          → RRF 融合双路结果 + 回表          │
 │  - rerank       → 结果重排序                      │
 ├──────────────────────────────────────────────────┤
@@ -430,8 +429,8 @@ plan_1 完成项目从零到可编译运行的基础骨架：
 
 ### Plan_2 范围
 
-- 2.x AdminRag 写入链路：ChunkService 分块 + AdminRagService 编排 + Controller 接线
-- 2.x Cron Dense 异步处理：EmbeddingClient（HTTP 调用 Sidecar）+ EmbeddingService（幂等状态机 + 写 chunk_embedding）
+- 2.x AdminRag 写入链路：ChunkSplitService 分块 + AdminRagService 编排 + Controller 接线
+- 2.x Cron Dense 异步处理：EmbeddingClient（HTTP 调用 Sidecar）+ DenseEmbeddingService（幂等状态机 + 写 chunk_embedding）
 
 ### Plan_3 范围
 
