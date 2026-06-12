@@ -24,7 +24,7 @@ plan_2 实现两条核心链路：
 | 2.1 | ChunkService 实现（TokenTextSplitter 分块 → child + parent） | ✅ 完成 | — | 2026-06-12 |
 | 2.2 | AdminRagService 实现（编排分块 + 写表） | ✅ 完成 | `24b54ec` | 2026-06-12 |
 | 2.3 | AdminRagController 接线（去掉骨架，接入真实逻辑） | ✅ 完成 | — | 2026-06-13 |
-| 2.4 | EmbeddingClient 实现（HTTP 调用 Sidecar /embed） | ⏳ 待开始 | — | — |
+| 2.4 | EmbeddingClient 实现（HTTP 调用 Sidecar /embed） | ✅ 完成 | `258a7c5` | 2026-06-13 |
 | 2.5 | EmbeddingService 实现（Cron 扫表 + 幂等状态机 + 写 chunk_embedding） | ⏳ 待开始 | — | — |
 | 2.6 | 冒烟验证（AdminRag 写入 + Cron Dense 处理） | ⏳ 待开始 | — | — |
 
@@ -32,7 +32,7 @@ plan_2 实现两条核心链路：
 >
 > 状态图例：⏳ 待开始 / 🔄 进行中 / ✅ 完成 / ❌ 阻塞
 
-整体进度：**3 / 7（43%）**
+整体进度：**4 / 7（57%）**
 
 ---
 
