@@ -16,7 +16,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 文档分块服务 —— 基于 Spring AI TokenTextSplitter 将文本拆分为 child chunk + parent chunk.
+ * 文档分块服务 —— 基于 Spring AI TokenTextSplitter 将文本拆分为 parent groups + child chunks.
  *
  * 分块策略：
  * - parent chunk：大窗口（~1024 token），保留完整上下文，不做向量化
@@ -82,14 +82,14 @@ public class ChunkService {
     }
 
     /**
-     * 将文本拆分为 child + parent chunks.
+     * 将文本拆分为 parent groups + child chunks.
      *
-     * Parent 级使用 TokenTextSplitter(chunkSize=1024) 切分，
-     * 取第一个 parent chunk；在其内部使用 TokenTextSplitter(chunkSize=256) 切分 child，
+     * Parent 级使用 TokenTextSplitter(chunkSize=1024) 切分全部 parent chunks；
+     * 在每个 parent 内部使用 TokenTextSplitter(chunkSize=256) 切分 child，
      * child 之间通过 JTokkit 添加 ~64 token 重叠.
      *
      * @param content 原始纯文本
-     * @return ChunkResult 含 1 个 parent + N 个 child（N >= 0）
+     * @return ChunkResult 含 N 个 parent group，每个 group 下有若干 child
      */
     public ChunkResult split(String content) {
         if (content == null || content.isEmpty()) {
@@ -100,44 +100,86 @@ public class ChunkService {
             );
         }
 
-        // Step 1: Parent 级分块 —— TokenTextSplitter 按 1024 token 切分，取第一个 parent
-        List<Document> parentDocs = parentSplitter.split(new Document(content));
-        Document firstParent = parentDocs.isEmpty()
-            ? new Document(content)
-            : parentDocs.get(0);
-        String parentContent = firstParent.getText();
-        int parentTokenCount = encoding.countTokens(parentContent);
+        // Step 1: Parent 级分块 —— 先使用 TokenTextSplitter，再用 JTokkit 兜底强制 token 上限
+        List<String> parentContents = splitWithTokenLimit(parentSplitter, content, PARENT_SIZE);
 
-        if (parentDocs.size() > 1) {
-            log.debug("Document split into {} parent chunks, using first ({} tokens)",
-                parentDocs.size(), parentTokenCount);
-        }
+        List<ChunkGroup> groups = new ArrayList<>();
+        log.debug("Document split into {} parent chunks", parentContents.size());
 
-        // Step 2: Child 级分块 —— 在 parent 内部按 256 token 切分
-        List<Document> childDocs = childSplitter.split(new Document(parentContent));
-        log.debug("Parent ({} tokens) → {} child chunks", parentTokenCount, childDocs.size());
+        for (String parentContent : parentContents) {
+            int parentTokenCount = encoding.countTokens(parentContent);
 
-        // Step 3: 为 child 之间添加 overlap
-        List<ChunkData> children = new ArrayList<>();
-        for (int i = 0; i < childDocs.size(); i++) {
-            String childContent = childDocs.get(i).getText();
+            // Step 2: Child 级分块 —— 在 parent 内部按 256 token 切分，并兜底强制 token 上限
+            List<String> childContents = splitWithTokenLimit(childSplitter, parentContent, CHILD_SIZE);
+            log.debug("Parent ({} tokens) → {} child chunks", parentTokenCount, childContents.size());
 
-            // 为第 2 个及之后的 child 前置前一个 child 的尾部 overlap
-            if (i > 0) {
-                String prevContent = childDocs.get(i - 1).getText();
-                String overlapText = extractLastTokens(prevContent, OVERLAP);
-                if (!overlapText.isEmpty()) {
-                    childContent = overlapText + "\n" + childContent;
+            // Step 3: 为同一 parent 内的 child 之间添加 overlap
+            List<ChunkData> children = new ArrayList<>();
+            for (int i = 0; i < childContents.size(); i++) {
+                String childContent = childContents.get(i);
+
+                // 为第 2 个及之后的 child 前置前一个 child 的尾部 overlap
+                if (i > 0) {
+                    String prevContent = childContents.get(i - 1);
+                    String overlapText = extractLastTokens(prevContent, OVERLAP);
+                    if (!overlapText.isEmpty()) {
+                        childContent = overlapText + "\n" + childContent;
+                    }
                 }
+
+                int tokenCount = encoding.countTokens(childContent);
+                children.add(new ChunkData(childContent, tokenCount, i));
             }
 
-            int tokenCount = encoding.countTokens(childContent);
-            children.add(new ChunkData(childContent, tokenCount, i));
+            // Step 4: 构造 parent（chunkIndex = null，不做向量化）
+            ChunkData parent = new ChunkData(parentContent, parentTokenCount, null);
+            groups.add(new ChunkGroup(parent, children));
         }
 
-        // Step 4: 构造 parent（chunkIndex = null，不做向量化）
-        ChunkData parent = new ChunkData(parentContent, parentTokenCount, null);
-        return new ChunkResult(parent, children);
+        return new ChunkResult(groups);
+    }
+
+    /**
+     * 先用 TokenTextSplitter 做语义边界切分，再对过长片段用 tokenizer 强制切分.
+     */
+    private List<String> splitWithTokenLimit(TokenTextSplitter splitter, String text, int maxTokens) {
+        List<Document> docs = splitter.split(new Document(text));
+        if (docs.isEmpty()) {
+            return List.of(text);
+        }
+
+        List<String> chunks = new ArrayList<>();
+        for (Document doc : docs) {
+            chunks.addAll(splitByTokenLimit(doc.getText(), maxTokens));
+        }
+        return chunks;
+    }
+
+    /**
+     * 按 tokenizer 精确 token 数切分，作为 TokenTextSplitter 未触发时的硬上限兜底.
+     */
+    private List<String> splitByTokenLimit(String text, int maxTokens) {
+        if (text == null || text.isEmpty()) {
+            return Collections.emptyList();
+        }
+        IntArrayList tokens = encoding.encode(text);
+        if (tokens.size() <= maxTokens) {
+            return List.of(text);
+        }
+
+        List<String> chunks = new ArrayList<>();
+        for (int start = 0; start < tokens.size(); start += maxTokens) {
+            int end = Math.min(start + maxTokens, tokens.size());
+            IntArrayList chunkTokens = new IntArrayList(end - start);
+            for (int i = start; i < end; i++) {
+                chunkTokens.add(tokens.get(i));
+            }
+            String chunk = encoding.decode(chunkTokens);
+            if (!chunk.isEmpty()) {
+                chunks.add(chunk);
+            }
+        }
+        return chunks;
     }
 
     /**

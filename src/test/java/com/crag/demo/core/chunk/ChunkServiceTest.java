@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * ChunkService 单元测试 —— 验证 child/parent 分块、overlap、全文覆盖.
+ * ChunkService 单元测试 —— 验证 child/parent 分组、overlap、全文覆盖.
  *
  * ChunkService 是纯 POJO（不依赖 Spring 容器），使用 JUnit 5 + AssertJ 直接实例化测试.
  *
@@ -32,28 +32,33 @@ class ChunkServiceTest {
     class BasicStructure {
 
         @Test
-        @DisplayName("正常文本产生 1 个 parent + N 个 child")
-        void normalTextProducesParentAndChildren() {
+        @DisplayName("正常文本产生 parent group + N 个 child")
+        void normalTextProducesParentGroupsAndChildren() {
             // 构造一段足够长的中文文本（> 1024 token 触发 parent 级分块）
             String content = buildChineseText(3000);
 
             ChunkResult result = chunkService.split(content);
 
-            // Parent 必须存在
+            assertThat(result.chunkGroups()).isNotEmpty();
+
+            // 第一个 parent 必须存在，兼容 parentChunk() 便利方法
             assertThat(result.parentChunk()).isNotNull();
             assertThat(result.parentChunk().content()).isNotEmpty();
             assertThat(result.parentChunk().tokenCount()).isPositive();
             // Parent chunkIndex 必须为 null
             assertThat(result.parentChunk().chunkIndex()).isNull();
 
-            // Child 至少有一个
+            // Child 至少有一个，且每个 parent group 内的 chunkIndex 从 0 开始递增
             assertThat(result.childChunks()).isNotEmpty();
-            // Child 的 chunkIndex 从 0 开始递增
-            for (int i = 0; i < result.childChunks().size(); i++) {
-                ChunkData child = result.childChunks().get(i);
-                assertThat(child.chunkIndex()).isEqualTo(i);
-                assertThat(child.content()).isNotEmpty();
-                assertThat(child.tokenCount()).isPositive();
+            for (ChunkGroup group : result.chunkGroups()) {
+                assertThat(group.parentChunk().chunkIndex()).isNull();
+                assertThat(group.childChunks()).isNotEmpty();
+                for (int i = 0; i < group.childChunks().size(); i++) {
+                    ChunkData child = group.childChunks().get(i);
+                    assertThat(child.chunkIndex()).isEqualTo(i);
+                    assertThat(child.content()).isNotEmpty();
+                    assertThat(child.tokenCount()).isPositive();
+                }
             }
         }
 
@@ -71,7 +76,7 @@ class ChunkServiceTest {
         }
 
         @Test
-        @DisplayName("极短文本（<= 5 字符）不被丢弃 — minChunkLengthToEmbed=1 生效")
+        @DisplayName("极短文本（<= 5 字符）不被丢弃 — minChunkLengthToEmbed=0 生效")
         void veryShortTextIsNotDropped() {
             // 2 个中文字符，在 CL100K_BASE 中约 2-4 token
             String content = "你好";
@@ -173,7 +178,7 @@ class ChunkServiceTest {
             String content = buildChineseText(2000);
 
             ChunkResult result = chunkService.split(content);
-            // Parent 级截断后应 >= 部分原文（取第一个 parent chunk）
+            // 取第一个 parent chunk，验证该 parent 内部被 child 覆盖
             String parentContent = result.parentChunk().content();
             List<ChunkData> children = result.childChunks();
 
@@ -192,6 +197,41 @@ class ChunkServiceTest {
             assertThat(allChildText).contains(sampleStart);
             assertThat(allChildText).contains(sampleMid);
             assertThat(allChildText).contains(sampleEnd);
+        }
+
+        @Test
+        @DisplayName("长文会生成多个 parent group，且尾部内容不会被截断")
+        void longTextProducesMultipleParentsAndKeepsTailContent() {
+            String tailMarker = "最终尾部标记用于确认长文没有被截断";
+            String content = buildChineseText(6000) + tailMarker;
+
+            ChunkResult result = chunkService.split(content);
+            String allParentText = result.chunkGroups().stream()
+                .map(group -> group.parentChunk().content())
+                .collect(Collectors.joining());
+            String allChildText = result.childChunks().stream()
+                .map(ChunkData::content)
+                .collect(Collectors.joining());
+
+            assertThat(result.chunkGroups()).hasSizeGreaterThan(1);
+            assertThat(allParentText).contains(tailMarker);
+            assertThat(allChildText).contains(tailMarker);
+        }
+
+        @Test
+        @DisplayName("多 parent 场景下 child index 在每个 parent 内从 0 重新递增")
+        void childIndexRestartsWithinEachParentGroup() {
+            String content = buildChineseText(6000);
+
+            ChunkResult result = chunkService.split(content);
+
+            assertThat(result.chunkGroups()).hasSizeGreaterThan(1);
+            for (ChunkGroup group : result.chunkGroups()) {
+                assertThat(group.childChunks()).isNotEmpty();
+                for (int i = 0; i < group.childChunks().size(); i++) {
+                    assertThat(group.childChunks().get(i).chunkIndex()).isEqualTo(i);
+                }
+            }
         }
 
         @Test

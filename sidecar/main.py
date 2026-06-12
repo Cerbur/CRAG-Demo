@@ -1,7 +1,7 @@
 """
 CRAG-Demo Sidecar Model Service.
 
-Provides /embed (text2vec-base-chinese, 768-dim) and /rerank (bge-reranker-v2-m3)
+Provides /embed (gte Chinese embedding, 768-dim) and /rerank (bge-reranker-v2-m3)
 endpoints for the Java Spring Boot application.
 
 Run: uvicorn main:app --host 0.0.0.0 --port 8001
@@ -160,7 +160,7 @@ async def health():
 @app.post("/embed", response_model=EmbedResponse)
 async def embed(req: EmbedRequest):
     """
-    Convert text to a dense vector using text2vec-base-chinese.
+    Convert text to a dense vector using gte Chinese embedding.
 
     Returns a 768-dimensional normalized embedding suitable for
     cosine similarity with pgvector.

@@ -164,3 +164,4 @@ curl http://localhost:8080/api/v1/test/smoke
 | 日期 | 变更 |
 |------|------|
 | 2026-06-10 | 创建 plan_2.1，7 个子任务全部完成 |
+| 2026-06-12 | 复核 Sidecar 计划完成情况：`/health`、`/embed`、`/rerank`、Dockerfile、docker-compose、RerankClient 与 application.yml 均已落地；修正 `sidecar/main.py` 中旧 embedding 模型名称的注释漂移 |
