@@ -26,6 +26,8 @@ plan/
 ├── plan_3/
 │   ├── plan_3.md
 │   └── plan_3.hotfix_*.md
+├── plan_4/
+│   └── plan_4.md
 └── plan_archive/
     └── README.md
 ```
@@ -40,7 +42,7 @@ plan/
 | plan_1 | 项目脚手架、基础设施、分包结构、DAO、Docker 基础环境 | ✅ 完成 | [plan_1.md](../plan_1/plan_1.md) |
 | plan_2 | AdminRag 写入链路、Chunk 分块、Dense Embedding Cron、Sidecar 支撑 | ✅ 完成 | [plan_2.md](../plan_2/plan_2.md) |
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
-| plan_4 | Sparse + Dense 查询、RRF 融合、Rerank、UserQuery、LLM 全链路 | ⏳ 未创建 | — |
+| plan_4 | Sparse 落库 + Sparse/Dense 查询 + RRF 融合 | ⏳ 待开始 | [plan_4.md](../plan_4/plan_4.md) |
 
 ---
 

@@ -29,6 +29,7 @@ Thumbs.db
 *.war
 *.log
 *.tmp
+bin/
 
 # Data
 data/*

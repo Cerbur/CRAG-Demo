@@ -35,7 +35,7 @@ plan/
     └── README.md
 ```
 
-- `plan/plan_main.md`：总业务方向，只维护项目定位、技术方向、核心链路方向、架构边界和阶段路线。
+- `plan/plan_main.md`：总业务方向，维护项目定位、产品边界、技术方向、RAG 主链路、关键设计决策、项目拆分责任架构图、架构边界和阶段路线。
 - `plan/index/README.md`：执行计划索引，维护每个 plan 的主要功能、完成状态和入口链接。
 - `plan/plan_N/plan_N.md`：具体主执行计划。
 - `plan/plan_N/plan_N.hotfix_M.md`：归属于 `plan_N` 的前置修正或后置整理。
@@ -47,7 +47,7 @@ plan/
 
 - 执行具体子计划时，优先读取对应目录下的主计划和相关 hotfix，例如执行 `plan_2` 时读取 `plan/plan_2/plan_2.md` 及必要的 `plan/plan_2/plan_2.hotfix_*.md`。
 - 查询计划全局状态时，读取 `plan/index/README.md`。
-- 只有需要确认项目总体方向、技术方向或阶段边界时，才读取 `plan/plan_main.md`。
+- 只有需要确认项目总体方向、产品边界、RAG 主链路、项目拆分责任、技术方向或阶段边界时，才读取 `plan/plan_main.md`。
 - 禁止在 `plan_main` 中维护完整执行计划索引、hotfix 明细或子任务进度，避免执行子 plan 时浪费 context。
 
 ---

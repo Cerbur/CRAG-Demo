@@ -1,229 +1,193 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
-  <title id="title">CRAG-Demo 全链路架构</title>
-  <desc id="desc">CRAG-Demo 从文档输入、分块、Dense 和 Sparse 双路索引、RRF 融合、回表、Rerank 到 LLM 生成回答的全链路架构图。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1440" viewBox="0 0 1440 1440" role="img" aria-labelledby="title desc">
+  <title id="title">CRAG-Demo DDD 领域架构</title>
+  <desc id="desc">CRAG-Demo 当前以单 Spring Boot 服务承载 Access、KnowledgeBase、Ingestion、Retrieval、Query 等 DDD 领域模块，未来可按领域拆为微服务；所有异步监听当前由 Cron 定时扫表实现。</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f5fbff"/>
+      <stop offset="100%" stop-color="#f5f8fb"/>
     </linearGradient>
-    <linearGradient id="blueBox" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="appBg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0%" stop-color="#f8fbff"/>
-      <stop offset="100%" stop-color="#eaf4ff"/>
+      <stop offset="100%" stop-color="#eef7ff"/>
     </linearGradient>
-    <linearGradient id="cyanBox" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#f4fdff"/>
-      <stop offset="100%" stop-color="#e4f8fb"/>
+    <linearGradient id="storageBg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7fffb"/>
+      <stop offset="100%" stop-color="#eaf8f0"/>
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#0b4ca8" flood-opacity="0.14"/>
+    <linearGradient id="cronBg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#fff0d8"/>
+    </linearGradient>
+    <filter id="shadow" x="-8%" y="-10%" width="116%" height="128%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#15345c" flood-opacity="0.13"/>
     </filter>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0b63ce"/>
+    <marker id="blueArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#2463c9"/>
     </marker>
-    <marker id="cyanArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#088ca5"/>
+    <marker id="greenArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#16834a"/>
+    </marker>
+    <marker id="orangeArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#b76b00"/>
     </marker>
     <style>
-      .title { font: 800 38px Arial, "Microsoft YaHei", sans-serif; fill: #070f55; letter-spacing: 0; }
-      .section-title { font: 800 22px Arial, "Microsoft YaHei", sans-serif; fill: #075bd4; }
-      .cyan-title { font: 800 21px Arial, "Microsoft YaHei", sans-serif; fill: #087b96; }
-      .label { font: 600 15px Arial, "Microsoft YaHei", sans-serif; fill: #071339; }
-      .small { font: 500 13px Arial, "Microsoft YaHei", sans-serif; fill: #111827; }
-      .tiny { font: 500 12px Arial, "Microsoft YaHei", sans-serif; fill: #1f2937; }
-      .note { font: 700 13px Arial, "Microsoft YaHei", sans-serif; fill: #087b96; }
-      .status { font: 700 13px Arial, "Microsoft YaHei", sans-serif; fill: #0a7d2b; }
-      .pending { font: 700 13px Arial, "Microsoft YaHei", sans-serif; fill: #705300; }
-      .box { fill: url(#blueBox); stroke: #0b63ce; stroke-width: 2; rx: 8; filter: url(#shadow); }
-      .future { fill: #fbfdff; stroke: #0b63ce; stroke-width: 2; stroke-dasharray: 8 6; rx: 8; }
-      .cyan-box { fill: url(#cyanBox); stroke: #078aa3; stroke-width: 2; rx: 8; filter: url(#shadow); }
-      .mini { fill: rgba(255,255,255,0.82); stroke: #b8c9dc; stroke-width: 1; rx: 2; }
-      .line { stroke: #0b63ce; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
-      .cyan-line { stroke: #088ca5; stroke-width: 2.3; fill: none; marker-end: url(#cyanArrow); }
-      .dash { stroke: #0b63ce; stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
-      .table-line { stroke: #b8c9dc; stroke-width: 1; }
-      .icon-blue { fill: #0b63ce; stroke: #0b63ce; }
-      .icon-cyan { fill: #078aa3; stroke: #078aa3; }
-      .icon-none { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .title { font: 800 38px Arial, "Microsoft YaHei", sans-serif; fill: #0b1742; letter-spacing: 0; }
+      .subtitle { font: 600 17px Arial, "Microsoft YaHei", sans-serif; fill: #445064; letter-spacing: 0; }
+      .area-title { font: 800 22px Arial, "Microsoft YaHei", sans-serif; fill: #17407e; letter-spacing: 0; }
+      .module-title { font: 800 22px Arial, "Microsoft YaHei", sans-serif; fill: #101828; letter-spacing: 0; }
+      .module-subtitle { font: 700 15px Arial, "Microsoft YaHei", sans-serif; fill: #475467; letter-spacing: 0; }
+      .small { font: 500 14px Arial, "Microsoft YaHei", sans-serif; fill: #243044; letter-spacing: 0; }
+      .tiny { font: 500 12px Arial, "Microsoft YaHei", sans-serif; fill: #344054; letter-spacing: 0; }
+      .label { font: 700 13px Arial, "Microsoft YaHei", sans-serif; fill: #2463c9; letter-spacing: 0; }
+      .green-label { font: 700 13px Arial, "Microsoft YaHei", sans-serif; fill: #16834a; letter-spacing: 0; }
+      .orange-label { font: 700 13px Arial, "Microsoft YaHei", sans-serif; fill: #9a5b00; letter-spacing: 0; }
+      .future-badge { font: 800 13px Arial, "Microsoft YaHei", sans-serif; fill: #8a5a00; letter-spacing: 0; }
+      .ready-badge { font: 800 13px Arial, "Microsoft YaHei", sans-serif; fill: #137a42; letter-spacing: 0; }
+      .app-shell { fill: url(#appBg); stroke: #1d5fbf; stroke-width: 2; }
+      .storage-shell { fill: url(#storageBg); stroke: #16834a; stroke-width: 2; }
+      .cron-shell { fill: url(#cronBg); stroke: #c98214; stroke-width: 2; }
+      .future-card { fill: #ffffff; stroke: #b76b00; stroke-width: 2; stroke-dasharray: 8 6; filter: url(#shadow); }
+      .ready-card { fill: #ffffff; stroke: #1d5fbf; stroke-width: 2; filter: url(#shadow); }
+      .query-card { fill: #ffffff; stroke: #6b55c7; stroke-width: 2; filter: url(#shadow); }
+      .mini { fill: #f8fafc; stroke: #d0d7e2; stroke-width: 1; }
+      .line { stroke: #2463c9; stroke-width: 2.6; fill: none; marker-end: url(#blueArrow); }
+      .green-line { stroke: #16834a; stroke-width: 2.6; fill: none; marker-end: url(#greenArrow); }
+      .orange-line { stroke: #b76b00; stroke-width: 2.4; fill: none; marker-end: url(#orangeArrow); }
+      .dash { stroke: #7a8799; stroke-width: 2; stroke-dasharray: 7 6; fill: none; }
+      .divider { stroke: #d6deea; stroke-width: 1.2; }
     </style>
   </defs>
 
-  <rect width="1440" height="820" fill="url(#bg)"/>
-  <text x="720" y="48" text-anchor="middle" class="title">CRAG-Demo 全链路架构</text>
+  <rect width="1440" height="1440" fill="url(#bg)"/>
+  <text x="720" y="48" text-anchor="middle" class="title">CRAG-Demo DDD 领域架构</text>
+  <text x="720" y="78" text-anchor="middle" class="subtitle">当前：单 Spring Boot 服务承载多个领域模块，所有异步监听由 Cron 定时扫表实现</text>
+  <text x="720" y="104" text-anchor="middle" class="subtitle">未来：按 Access / KnowledgeBase / Ingestion / Retrieval / Query 拆分微服务</text>
 
-  <!-- Doc layer -->
-  <rect x="360" y="76" width="720" height="92" class="future"/>
-  <g transform="translate(388 98)">
-    <path d="M6 0h28l16 16v48H6z" fill="#eef7ff" stroke="#0b63ce" stroke-width="3"/>
-    <path d="M34 0v17h16" fill="none" stroke="#0b63ce" stroke-width="3"/>
-    <path d="M17 28h22M17 40h22M17 52h15" stroke="#0b63ce" stroke-width="3" stroke-linecap="round"/>
-  </g>
-  <text x="615" y="108" text-anchor="middle" class="section-title">Doc Layer（未来）</text>
-  <rect x="445" y="124" width="340" height="28" class="mini"/>
-  <text x="615" y="144" text-anchor="middle" class="label">doc_id　|　title　|　raw_content</text>
-  <g transform="translate(824 98)">
-    <circle cx="9" cy="8" r="4" fill="none" stroke="#0b63ce" stroke-width="2"/>
-    <path d="M2 25c2-8 12-8 14 0" fill="none" stroke="#0b63ce" stroke-width="2"/>
-    <text x="32" y="13" class="small">职责：文档级入口，接收原始输入</text>
-    <circle cx="9" cy="40" r="8" fill="none" stroke="#6b7280" stroke-width="2"/>
-    <path d="M9 35v6l4 3" fill="none" stroke="#6b7280" stroke-width="2"/>
-    <text x="32" y="45" class="small">状态：未实现，后续 plan 再定</text>
-  </g>
+  <rect x="56" y="130" width="1328" height="634" rx="12" class="app-shell"/>
+  <text x="92" y="166" class="area-title">CRAG-Demo Application（Modular Monolith）</text>
+  <text x="92" y="192" class="subtitle">模块间通过应用服务与领域接口协作，避免把未来微服务边界写散到 Controller / DAO 细节里</text>
 
-  <path d="M720 168v34" class="line"/>
-  <text x="746" y="192" class="label">1:N 文本分块</text>
+  <!-- Left write side -->
+  <rect x="96" y="204" width="330" height="124" rx="8" class="future-card"/>
+  <text x="124" y="238" class="module-title">Access</text>
+  <rect x="322" y="217" width="76" height="24" rx="12" fill="#fff4d8" stroke="#d69422"/>
+  <text x="360" y="234" text-anchor="middle" class="future-badge">未规划</text>
+  <text x="124" y="266" class="small">用户、多租户、租户成员关系</text>
+  <text x="124" y="291" class="small">鉴权、访问控制、KnowledgeBase keychain</text>
+  <text x="124" y="316" class="small">Query 侧 keychain 校验与 tenant context</text>
 
-  <!-- Chunk table -->
-  <rect x="185" y="206" width="1070" height="124" class="box"/>
-  <g transform="translate(215 238)">
-    <ellipse cx="28" cy="10" rx="25" ry="9" class="icon-blue"/>
-    <path d="M3 10v44c0 5 50 5 50 0V10" fill="#0b63ce" opacity="0.9"/>
-    <path d="M3 25c0 5 50 5 50 0M3 40c0 5 50 5 50 0" fill="none" stroke="#eaf4ff" stroke-width="3"/>
-  </g>
-  <text x="640" y="244" text-anchor="middle" class="section-title">Chunk 元数据表（主表）</text>
-  <rect x="315" y="258" width="620" height="60" class="mini"/>
-  <path d="M315 288h620M430 258v60M545 258v60M690 258v60M830 258v60" class="table-line"/>
-  <text x="370" y="281" text-anchor="middle" class="small">chunk_id</text>
-  <text x="488" y="281" text-anchor="middle" class="small">doc_id</text>
-  <text x="617" y="281" text-anchor="middle" class="small">parent_chunk_id</text>
-  <text x="760" y="281" text-anchor="middle" class="small">chunk_index</text>
-  <text x="883" y="281" text-anchor="middle" class="small">content</text>
-  <text x="370" y="310" text-anchor="middle" class="small">token_count</text>
-  <text x="546" y="310" text-anchor="middle" class="small">metadata(JSONB)</text>
-  <text x="690" y="310" text-anchor="middle" class="small">status</text>
-  <text x="805" y="310" text-anchor="middle" class="small">created_at</text>
-  <text x="900" y="310" text-anchor="middle" class="small">updated_at</text>
-  <g transform="translate(960 226)">
-    <circle cx="8" cy="8" r="4" fill="#0b63ce"/>
-    <path d="M1 25c2-8 12-8 14 0" fill="#0b63ce"/>
-    <text x="30" y="13" class="small">职责：所有 chunk 数据的唯一真实来源</text>
-    <circle cx="8" cy="40" r="8" fill="none" stroke="#6b7280" stroke-width="2"/>
-    <path d="M3 45l10-10" stroke="#6b7280" stroke-width="2"/>
-    <text x="30" y="45" class="small">不做向量运算，不做 FTS 分词</text>
-    <circle cx="8" cy="72" r="8" fill="#18a34a"/>
-    <path d="M4 72l3 4 6-8" fill="none" stroke="white" stroke-width="2"/>
-    <text x="30" y="77" class="status">schema + entity + repository 就绪</text>
-  </g>
+  <rect x="96" y="392" width="330" height="124" rx="8" class="future-card"/>
+  <text x="124" y="426" class="module-title">KnowledgeBase</text>
+  <rect x="322" y="405" width="76" height="24" rx="12" fill="#fff4d8" stroke="#d69422"/>
+  <text x="360" y="422" text-anchor="middle" class="future-badge">未规划</text>
+  <text x="124" y="454" class="small">Tenant - KnowledgeBase 关系维护</text>
+  <text x="124" y="479" class="small">KnowledgeBase - Document 关系维护</text>
+  <text x="124" y="504" class="small">不负责 Chunk、Embedding、检索索引</text>
 
-  <!-- Branching -->
-  <path d="M300 330L215 392" class="line"/>
-  <path d="M1110 330L1190 392" class="line"/>
-  <text x="293" y="362" class="small">异步 Cron</text>
-  <text x="293" y="382" class="small">EmbeddingService.embed()</text>
-  <text x="1018" y="362" class="small">异步 Cron</text>
-  <text x="1018" y="382" class="small">to_tsvector('chinese')</text>
+  <rect x="96" y="580" width="330" height="124" rx="8" class="ready-card"/>
+  <text x="124" y="614" class="module-title">Ingestion</text>
+  <rect x="322" y="593" width="76" height="24" rx="12" fill="#e7f8ef" stroke="#1b9355"/>
+  <text x="360" y="610" text-anchor="middle" class="ready-badge">已规划</text>
+  <text x="124" y="642" class="small">监听 Doc 变更，执行 Doc -&gt; Chunk</text>
+  <text x="124" y="667" class="small">基于 Chunk 变更写 Sparse / Dense 索引</text>
+  <text x="124" y="692" class="small">负责 Chunk、Sparse、Dense 库写入</text>
 
-  <!-- Dense box -->
-  <rect x="60" y="395" width="430" height="168" class="cyan-box"/>
-  <g transform="translate(88 426)">
-    <path d="M18 0l36 18-36 18-36-18z" class="icon-cyan"/>
-    <path d="M18 36v36M-18 18v36l36 18 36-18V18" fill="none" stroke="#c7f3fb" stroke-width="2"/>
-  </g>
-  <text x="225" y="424" text-anchor="middle" class="cyan-title">chunk_embedding</text>
-  <text x="225" y="448" text-anchor="middle" class="cyan-title">(Dense 向量存储)</text>
-  <rect x="78" y="470" width="250" height="76" class="mini"/>
-  <path d="M78 495h250M78 520h250" class="table-line"/>
-  <text x="203" y="489" text-anchor="middle" class="small">chunk_id PK, FK</text>
-  <text x="203" y="514" text-anchor="middle" class="small">embedding vector(768)</text>
-  <text x="203" y="539" text-anchor="middle" class="small">IVFFlat 索引（cosine）</text>
-  <g transform="translate(350 456)">
-    <circle cx="8" cy="8" r="4" fill="#078aa3"/>
-    <path d="M1 25c2-8 12-8 14 0" fill="#078aa3"/>
-    <text x="30" y="13" class="small">职责：child chunk</text>
-    <text x="30" y="34" class="small">向量化结果，独立生命周期</text>
-    <path d="M1 60a8 8 0 0 1 14 0M15 60a8 8 0 0 1-14 0" class="icon-none" stroke="#078aa3"/>
-    <text x="30" y="65" class="small">换模型 → truncate 重算</text>
-    <circle cx="8" cy="90" r="8" fill="#18a34a"/>
-    <path d="M4 90l3 4 6-8" fill="none" stroke="white" stroke-width="2"/>
-    <text x="30" y="95" class="status">schema 就绪</text>
-  </g>
+  <!-- Right read side -->
+  <rect x="1014" y="204" width="330" height="148" rx="8" class="query-card"/>
+  <text x="1042" y="238" class="module-title">Query</text>
+  <rect x="1240" y="217" width="76" height="24" rx="12" fill="#e7f8ef" stroke="#1b9355"/>
+  <text x="1278" y="234" text-anchor="middle" class="ready-badge">已规划</text>
+  <text x="1042" y="266" class="small">UserQuery API</text>
+  <text x="1042" y="291" class="small">Context 工程、Prompt 组装</text>
+  <text x="1042" y="316" class="small">LLM 调用，生成 answer + sources</text>
+  <text x="1042" y="341" class="small">依赖 Retrieval 召回上下文</text>
 
-  <!-- Sparse box -->
-  <rect x="950" y="395" width="430" height="168" class="cyan-box"/>
-  <g transform="translate(976 426)">
-    <circle cx="23" cy="18" r="15" fill="none" stroke="#078aa3" stroke-width="4"/>
-    <path d="M35 30l18 18" stroke="#078aa3" stroke-width="5" stroke-linecap="round"/>
-  </g>
-  <text x="1135" y="424" text-anchor="middle" class="cyan-title">chunk_fts</text>
-  <text x="1135" y="448" text-anchor="middle" class="cyan-title">(Sparse 全文检索)</text>
-  <rect x="968" y="470" width="250" height="76" class="mini"/>
-  <path d="M968 495h250M968 520h250" class="table-line"/>
-  <text x="1093" y="489" text-anchor="middle" class="small">chunk_id PK, FK</text>
-  <text x="1093" y="514" text-anchor="middle" class="small">fts_content tsvector</text>
-  <text x="1093" y="539" text-anchor="middle" class="small">GIN 索引</text>
-  <g transform="translate(1240 456)">
-    <circle cx="8" cy="8" r="4" fill="#078aa3"/>
-    <path d="M1 25c2-8 12-8 14 0" fill="#078aa3"/>
-    <text x="30" y="13" class="small">职责：child chunk</text>
-    <text x="30" y="34" class="small">分词结果，独立生命周期</text>
-    <path d="M1 60a8 8 0 0 1 14 0M15 60a8 8 0 0 1-14 0" class="icon-none" stroke="#078aa3"/>
-    <text x="30" y="65" class="small">换策略 → 重建索引</text>
-    <circle cx="8" cy="90" r="8" fill="#18a34a"/>
-    <path d="M4 90l3 4 6-8" fill="none" stroke="white" stroke-width="2"/>
-    <text x="30" y="95" class="status">schema 就绪</text>
-  </g>
+  <rect x="1014" y="472" width="330" height="148" rx="8" class="ready-card"/>
+  <text x="1042" y="506" class="module-title">Retrieval</text>
+  <rect x="1240" y="485" width="76" height="24" rx="12" fill="#e7f8ef" stroke="#1b9355"/>
+  <text x="1278" y="502" text-anchor="middle" class="ready-badge">已规划</text>
+  <text x="1042" y="534" class="small">查询 Sparse 与 Dense</text>
+  <text x="1042" y="559" class="small">RRF 融合双路召回结果</text>
+  <text x="1042" y="584" class="small">回表召回 Chunk / parent context</text>
+  <text x="1042" y="609" class="small">把候选上下文返回给 Query</text>
 
-  <!-- RRF -->
-  <rect x="520" y="438" width="400" height="112" class="box"/>
-  <text x="625" y="472" class="section-title">RRF 融合</text>
-  <text x="625" y="498" class="label" fill="#0b63ce">RrfFusionService</text>
-  <path d="M535 475c30 0 30 34 0 34M565 475c-30 0-30 34 0 34" class="icon-none" stroke="#0b63ce"/>
-  <rect x="610" y="510" width="170" height="30" class="mini"/>
-  <text x="695" y="531" text-anchor="middle" class="tiny">RRF_score(d)=Σ 1/(60+rankᵢ)</text>
-  <g transform="translate(800 466)">
-    <circle cx="0" cy="0" r="3" fill="#0b63ce"/><text x="16" y="5" class="small">两路 child chunk ID</text>
-    <circle cx="0" cy="24" r="3" fill="#0b63ce"/><text x="16" y="29" class="small">融合分数排序</text>
-    <circle cx="0" cy="48" r="3" fill="#0b63ce"/><text x="16" y="53" class="small">Top-N child ID</text>
-    <circle cx="0" cy="72" r="3" fill="#0b63ce"/><text x="16" y="77" class="pending">plan_2 后续实现</text>
-  </g>
+  <!-- Center orchestration -->
+  <rect x="528" y="224" width="384" height="110" rx="8" class="mini"/>
+  <text x="720" y="258" text-anchor="middle" class="module-title">单服务内的领域协作</text>
+  <text x="720" y="287" text-anchor="middle" class="small">Controller / Service / Core(domain) / DAO / Integration / Cron</text>
+  <text x="720" y="312" text-anchor="middle" class="tiny">每个已实现领域内部仍遵守现有代码分层约束</text>
 
-  <path d="M490 520C525 520 498 488 520 488" class="cyan-line"/>
-  <path d="M950 520C910 520 940 488 920 488" class="cyan-line"/>
-  <rect x="603" y="396" width="234" height="31" class="future"/>
-  <text x="720" y="417" text-anchor="middle" class="small">chunk_id 列表（两路 Top-K）</text>
+  <rect x="528" y="394" width="384" height="130" rx="8" class="mini"/>
+  <text x="720" y="428" text-anchor="middle" class="module-title">RAG 主链路</text>
+  <text x="720" y="457" text-anchor="middle" class="small">写入：Doc -&gt; Chunk -&gt; Sparse / Dense</text>
+  <text x="720" y="482" text-anchor="middle" class="small">查询：Sparse + Dense -&gt; RRF -&gt; Rerank -&gt; LLM</text>
+  <text x="720" y="507" text-anchor="middle" class="tiny">child chunk 检索，parent chunk 提供上下文窗口</text>
 
-  <!-- Query notes -->
-  <text x="245" y="594" class="note">检索时</text>
-  <text x="245" y="615" class="note">ORDER BY embedding &lt;=&gt; $1 LIMIT K</text>
-  <text x="1090" y="594" class="note">检索时</text>
-  <text x="1090" y="615" class="note">WHERE fts_content @@ to_tsquery('chinese', $1)</text>
-  <text x="1090" y="636" class="note">ORDER BY ts_rank LIMIT K</text>
+  <rect x="528" y="584" width="384" height="94" rx="8" class="mini"/>
+  <text x="720" y="618" text-anchor="middle" class="module-title">模型接入</text>
+  <text x="720" y="647" text-anchor="middle" class="small">Python Sidecar：/embed、/rerank</text>
+  <text x="720" y="672" text-anchor="middle" class="small">Spring AI / DeepSeek：LLM 生成</text>
 
-  <!-- Recall table -->
-  <path d="M720 550v42" class="line"/>
-  <text x="742" y="582" class="label">Top-N chunk_id</text>
-  <rect x="470" y="590" width="500" height="72" class="box"/>
-  <g transform="translate(500 608)">
-    <rect x="0" y="0" width="44" height="44" fill="#087b96" rx="3"/>
-    <path d="M14 0v44M30 0v44M0 14h44M0 30h44" stroke="#e6fbff" stroke-width="3"/>
-  </g>
-  <text x="595" y="633" class="section-title">回表 chunk 主表</text>
-  <circle cx="735" cy="614" r="3" fill="#0b63ce"/><text x="750" y="619" class="small">child_id → parent_chunk_id → parent.content</text>
-  <circle cx="735" cy="640" r="3" fill="#0b63ce"/><text x="750" y="645" class="small">补完整上下文窗口</text>
+  <!-- Domain arrows -->
+  <path d="M261 328v58" class="orange-line"/>
+  <text x="284" y="361" class="orange-label">tenant ownership</text>
+  <path d="M261 516v58" class="orange-line"/>
+  <text x="284" y="549" class="orange-label">document changes</text>
 
-  <!-- Rerank and LLM -->
-  <path d="M720 662v38" class="line"/>
-  <rect x="470" y="704" width="500" height="70" class="cyan-box"/>
-  <g transform="translate(502 723)">
-    <rect x="0" y="26" width="9" height="20" fill="#078aa3"/>
-    <rect x="15" y="16" width="9" height="30" fill="#078aa3"/>
-    <rect x="30" y="7" width="9" height="39" fill="#078aa3"/>
-    <path d="M0 12l16-8 11 8 21-18" fill="none" stroke="#078aa3" stroke-width="4"/>
-  </g>
-  <text x="590" y="733" class="cyan-title">Rerank 重排序</text>
-  <text x="590" y="757" class="label">RerankService</text>
-  <circle cx="740" cy="724" r="3" fill="#078aa3"/><text x="755" y="729" class="small">cross-encoder 语义相关度重排</text>
-  <circle cx="740" cy="750" r="3" fill="#078aa3"/><text x="755" y="755" class="pending">plan_2 后续实现</text>
+  <path d="M426 266C610 206 820 206 1014 270" class="line"/>
+  <text x="720" y="220" text-anchor="middle" class="label">keychain / tenant context</text>
 
-  <path d="M720 774v30" class="line"/>
-  <text x="742" y="797" class="label">Top-N 重排后内容</text>
-  <rect x="470" y="810" width="500" height="70" class="cyan-box"/>
-  <g transform="translate(500 827)">
-    <rect x="0" y="0" width="46" height="38" fill="#078aa3" rx="6"/>
-    <path d="M12 12h22M12 24h15" stroke="white" stroke-width="4" stroke-linecap="round"/>
-    <path d="M16 38l-8 10v-10" fill="#078aa3"/>
-  </g>
-  <text x="603" y="839" class="cyan-title">LLM 生成回答</text>
-  <text x="603" y="863" class="label">ChatClient</text>
-  <circle cx="740" cy="830" r="3" fill="#078aa3"/><text x="755" y="835" class="small">DeepSeek API + prompt 模板 + chunks</text>
-  <circle cx="740" cy="856" r="3" fill="#078aa3"/><text x="755" y="861" class="small">输出最终 answer</text>
+  <path d="M1179 352v114" class="line"/>
+  <text x="1202" y="414" class="label">recall request</text>
+
+  <path d="M1014 548C856 548 690 562 426 642" class="dash"/>
+  <text x="725" y="556" text-anchor="middle" class="tiny">Retrieval 与 Ingestion 共用 Chunk / Sparse / Dense 存储</text>
+
+  <!-- Storage -->
+  <rect x="96" y="820" width="1248" height="144" rx="10" class="storage-shell"/>
+  <text x="124" y="858" class="area-title" fill="#137a42">PostgreSQL + pgvector</text>
+  <line x1="390" y1="842" x2="390" y2="938" class="divider"/>
+  <line x1="704" y1="842" x2="704" y2="938" class="divider"/>
+  <line x1="1016" y1="842" x2="1016" y2="938" class="divider"/>
+  <text x="414" y="858" class="small">tenant / user / keychain</text>
+  <text x="414" y="888" class="tiny">未来 Access 数据</text>
+  <text x="414" y="918" class="tiny">当前不实现鉴权与多租户</text>
+  <text x="728" y="858" class="small">knowledge_base / document</text>
+  <text x="728" y="888" class="tiny">未来 KnowledgeBase 数据</text>
+  <text x="728" y="918" class="tiny">维护租户、知识库、文档归属</text>
+  <text x="1040" y="858" class="small">chunk / sparse index / dense embedding</text>
+  <text x="1040" y="888" class="tiny">当前 RAG 主线数据</text>
+  <text x="1040" y="918" class="tiny">Ingestion 写入，Retrieval 查询</text>
+
+  <path d="M261 704v110" class="green-line"/>
+  <text x="284" y="768" class="green-label">write</text>
+  <path d="M1179 620v194" class="green-line"/>
+  <text x="1202" y="724" class="green-label">read</text>
+
+  <!-- Cron -->
+  <rect x="96" y="1002" width="1248" height="118" rx="10" class="cron-shell"/>
+  <text x="124" y="1038" class="area-title" fill="#9a5b00">Cron Listeners</text>
+  <text x="326" y="1038" class="small">当前所有监听统一用 Spring @Scheduled 定时扫表</text>
+  <text x="326" y="1070" class="small">Doc 变更处理、Chunk 变更写 Sparse / Dense、失败重试、状态推进、CAS 抢占</text>
+  <text x="326" y="1100" class="tiny">未来拆微服务后可替换为 MQ / 事件总线；领域边界不随触发方式改变</text>
+
+  <path d="M520 1002C420 940 330 838 300 704" class="orange-line"/>
+  <text x="416" y="930" class="orange-label">scheduled scan</text>
+  <path d="M804 1002C918 940 1080 804 1138 620" class="orange-line"/>
+  <text x="962" y="930" class="orange-label">status retry</text>
+
+  <!-- Future split -->
+  <rect x="96" y="1160" width="1248" height="194" rx="10" fill="#ffffff" stroke="#d0d7e2" stroke-width="2"/>
+  <text x="124" y="1198" class="area-title">未来微服务拆分方向</text>
+  <text x="124" y="1226" class="subtitle">当前先用领域模块保持边界清晰，后续可把每个领域独立部署、独立扩缩容、独立演进。</text>
+  <rect x="128" y="1262" width="210" height="58" rx="8" class="future-card"/>
+  <text x="233" y="1297" text-anchor="middle" class="small">Access Service</text>
+  <rect x="366" y="1262" width="210" height="58" rx="8" class="future-card"/>
+  <text x="471" y="1297" text-anchor="middle" class="small">KnowledgeBase Service</text>
+  <rect x="604" y="1262" width="210" height="58" rx="8" class="ready-card"/>
+  <text x="709" y="1297" text-anchor="middle" class="small">Ingestion Service</text>
+  <rect x="842" y="1262" width="210" height="58" rx="8" class="ready-card"/>
+  <text x="947" y="1297" text-anchor="middle" class="small">Retrieval Service</text>
+  <rect x="1080" y="1262" width="210" height="58" rx="8" class="query-card"/>
+  <text x="1185" y="1297" text-anchor="middle" class="small">Query Service</text>
 </svg>
