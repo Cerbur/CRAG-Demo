@@ -16,7 +16,8 @@ com.crag.demo
 │       └── GlobalExceptionHandler   — 统一异常 → Response 转换
 ├── dto/                               — 数据传输对象（与 controller/service 同级）
 │   ├── request/                       — 请求 DTO（入参结构）
-│   │   └── AdminRagRequest          — AdminRag 上传请求
+│   │   ├── AdminRagRequest          — AdminRag 上传请求
+│   │   └── UserQueryRequest         — 用户查询请求
 │   └── result/                        — 统一响应封装
 │       ├── Response                 — RESTful 统一响应泛型包装类
 │       └── ResponseCode             — 统一响应码枚举
@@ -24,6 +25,8 @@ com.crag.demo
 │   ├── UserQueryService             — 用户查询服务
 │   ├── AdminRagService              — 管理端 RAG 服务
 │   └── AdminRagResult               — AdminRag 入库结果记录
+├── cron/                             — 定时任务触发层（编排层，核心逻辑在 service/core）
+│   └── DenseEmbeddingCron           — Dense Embedding 定时扫表 + CAS 抢占 + 流程编排
 ├── core/                             — RAG 核心逻辑层
 │   ├── chunk/                        — 文档分块领域
 │   │   └── split/                     — 文档切分（ChunkSplit）
@@ -32,6 +35,17 @@ com.crag.demo
 │   ├── rrf/                          — RRF 融合
 │   └── rerank/                       — 重排序
 ├── dao/                              — 数据访问层（pgvector 向量数据库操作）
+│   ├── entity/                       — JPA 实体
+│   │   ├── Chunk / ChunkEmbedding / ChunkFts
+│   │   ├── ChunkStatus              — 异步处理状态枚举
+│   │   └── ChunkStatusConverter     — JPA AttributeConverter
+│   ├── repository/                   — Spring Data JPA Repository（纯 DB 类型映射）
+│   │   ├── ChunkRepository          — chunk 表 CAS 查询 + 更新
+│   │   ├── ChunkEmbeddingRepository  — chunk_embedding 表基础 CRUD + existsByChunkId + native INSERT
+│   │   └── ChunkFtsRepository       — chunk_fts 表
+│   ├── ChunkDao                      — chunk 表业务数据访问（扫表 + CAS 抢占 + saveAll/count），供 Cron/Service 调用
+│   ├── ChunkEmbeddingDao            — chunk_embedding 表业务数据访问（幂等检查 + pgvector 格式转换 + count），供 Cron 调用
+│   └── ChunkFtsDao                   — chunk_fts 表业务数据访问（一期仅 count），供冒烟测试等场景调用
 └── integration/                      — 外部服务接入层
     ├── llm/                          — LLM 调用（Spring AI，一期 DeepSeek）
     │   └── prompt/                   — 提示词模板管理

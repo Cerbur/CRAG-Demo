@@ -1,5 +1,7 @@
 package com.crag.demo.core.sparse;
 
+import java.util.Collections;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,13 +15,13 @@ import org.springframework.stereotype.Component;
 public class SparseQueryService {
 
     /**
-     * BM25 关键词检索（骨架，plan_2 实现）.
+     * BM25 关键词检索（骨架，plan_3 实现）.
      *
      * @param query 用户问题
      * @param topK  返回数量
      * @return 空列表
      */
-    public java.util.List<?> search(String query, int topK) {
-        return java.util.Collections.emptyList();
+    public List<?> search(String query, int topK) {
+        return Collections.emptyList();
     }
 }

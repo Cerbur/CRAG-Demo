@@ -11,8 +11,13 @@ package com.crag.demo.dto.result;
  */
 public class Response<T> {
 
+    /** 是否成功，true=业务处理成功，false=业务处理失败 */
     private final boolean success;
+
+    /** 业务状态码，取自 ResponseCode 枚举 */
     private final int code;
+
+    /** 业务结果 payload，成功时为返回数据，失败时为 null 或错误详情 */
     private final T result;
 
     private Response(boolean success, int code, T result) {

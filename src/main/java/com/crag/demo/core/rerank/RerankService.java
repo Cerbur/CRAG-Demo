@@ -1,5 +1,7 @@
 package com.crag.demo.core.rerank;
 
+import java.util.Collections;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,13 +15,13 @@ import org.springframework.stereotype.Component;
 public class RerankService {
 
     /**
-     * 对 chunk 列表做语义重排序（骨架，plan_2 实现）.
+     * 对 chunk 列表做语义重排序（骨架，plan_3 实现）.
      *
      * @param query     用户问题
      * @param chunks    待排序的 chunk 内容列表
      * @return 空列表
      */
-    public java.util.List<?> rerank(String query, java.util.List<?> chunks) {
-        return java.util.Collections.emptyList();
+    public List<?> rerank(String query, List<?> chunks) {
+        return Collections.emptyList();
     }
 }

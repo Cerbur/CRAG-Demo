@@ -166,3 +166,70 @@ public class AdminRagController {
     }
 }
 ```
+
+---
+
+## 六、DAO CAS 更新规范
+
+所有自定义 `@Modifying` `@Query` 更新方法必须遵守此规范。
+
+### 版本号比对
+
+- 每个 UPDATE 语句的 WHERE 子句必须包含 `AND version = :version`，传入实体当前读到的版本号。
+- 每个 UPDATE 语句的 SET 子句必须包含 `version = version + 1`，在数据库侧原子递增。
+- 调用方在 CAS 成功后必须手动同步版本号：`entity.setVersion(entity.getVersion() + 1)`。
+
+### 合理性
+
+- JPA `@Version` 仅在 `EntityManager.merge()` / `save()` 路径上自动生效。
+- 自定义 `@Query` 绕过 EntityManager，不会自动生成 version 校验。
+- 不加 version 校验时，两个并发操作可能基于同一版本读到的数据各自 UPDATE，后执行的会静默覆盖先执行的，造成丢失更新。
+
+### 示例
+
+```java
+// Repository 侧
+@Modifying
+@Transactional
+@Query("UPDATE Chunk c SET c.denseStatus = :newStatus, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.denseStatus = PROCESSING AND c.version = :version")
+int updateDenseStatus(@Param("chunkId") String chunkId,
+                      @Param("newStatus") ChunkStatus newStatus,
+                      @Param("version") Integer version);
+
+// 调用方
+int affected = chunkRepository.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
+if (affected > 0) {
+    chunk.setVersion(chunk.getVersion() + 1);  // DB 已 +1，本地同步
+}
+```
+
+### 禁止事项
+
+- 禁止在自定义 `@Modifying` `@Query` 中省略 `version` 的 WHERE 比对和 SET 递增。
+- 禁止使用 JPA `@Version` 的自动行为替代自定义查询中的显式 version 控制——两者作用于不同路径，互不替代。
+
+---
+
+## 七、Repository vs Dao 分层规范
+
+项目中存在两种数据访问组件，职责边界如下。
+
+### Repository（Spring Data JPA Interface）
+
+- 纯数据库类型映射：只做列→字段的一一对应。
+- 允许：Spring Data 派生查询（`findByXxx`、`existsByXxx`）、`@Query`（JPQL 或 native SQL）。
+- 禁止：业务判断逻辑、格式转换、编排多个查询。
+- 示例：`ChunkRepository.tryMarkProcessing(...)` — native SQL 做 CAS 更新，WHERE 条件直接对应 DB 列。
+
+### Dao（Component 类）
+
+- 业务数据访问层：包含幂等检查、格式选择、多步查询编排等业务判断。
+- 允许：依赖多个 Repository 完成一次业务操作。
+- 禁止：直接使用 `JdbcTemplate` 或手写 SQL（SQL 一律放在 Repository 的 `@Query` 中）。
+- 禁止：直接依赖 `EntityManager`。
+- 示例：`ChunkEmbeddingDao.insert(chunkId, float[] vector)` — 先做 float[] → pgvector 格式转换（业务判断），再委托 `ChunkEmbeddingRepository.insert(chunkId, vectorString)`。
+
+### Cron / Service 层
+
+- 只依赖 Dao，不直接依赖 Repository。
+- 不感知 SQL、pgvector 格式、JDBC 等持久化细节。

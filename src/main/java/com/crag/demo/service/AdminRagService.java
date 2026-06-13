@@ -4,7 +4,7 @@ import com.crag.demo.core.chunk.split.ChunkSplitGroup;
 import com.crag.demo.core.chunk.split.ChunkSplitResult;
 import com.crag.demo.core.chunk.split.ChunkSplitService;
 import com.crag.demo.dao.entity.Chunk;
-import com.crag.demo.dao.repository.ChunkRepository;
+import com.crag.demo.dao.ChunkDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -32,12 +32,21 @@ public class AdminRagService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminRagService.class);
 
+    /**
+     * 文档分块服务 —— 将纯文本拆分为 parent + child chunks.
+     */
     @Autowired
     private ChunkSplitService chunkSplitService;
 
+    /**
+     * Chunk 表 DAO —— 批量写入 chunk 实体.
+     */
     @Autowired
-    private ChunkRepository chunkRepository;
+    private ChunkDao chunkDao;
 
+    /**
+     * Jackson ObjectMapper —— 序列化 chunk metadata 为 JSON 字符串.
+     */
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -95,7 +104,7 @@ public class AdminRagService {
             childCount += group.childChunks().size();
         }
 
-        chunkRepository.saveAll(allChunks);
+        chunkDao.saveAll(allChunks);
 
         log.info("Document ingested: docId={}, title={}, parentGroups={}, childChunks={}, status=PENDING",
             docId, title, groups.size(), childCount);

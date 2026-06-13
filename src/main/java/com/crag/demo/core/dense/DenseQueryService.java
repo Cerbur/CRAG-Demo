@@ -1,5 +1,7 @@
 package com.crag.demo.core.dense;
 
+import java.util.Collections;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,13 +15,13 @@ import org.springframework.stereotype.Component;
 public class DenseQueryService {
 
     /**
-     * 向量相似度检索（骨架，plan_2 实现）.
+     * 向量相似度检索（骨架，plan_3 实现）.
      *
      * @param queryEmbedding query 向量
      * @param topK            返回数量
      * @return 空列表
      */
-    public java.util.List<?> search(float[] queryEmbedding, int topK) {
-        return java.util.Collections.emptyList();
+    public List<?> search(float[] queryEmbedding, int topK) {
+        return Collections.emptyList();
     }
 }

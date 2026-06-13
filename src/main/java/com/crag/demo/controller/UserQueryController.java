@@ -1,11 +1,14 @@
 package com.crag.demo.controller;
 
+import com.crag.demo.dto.request.UserQueryRequest;
+import com.crag.demo.dto.result.Response;
+import jakarta.validation.Valid;
+import java.util.Collections;
+import java.util.Map;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 /**
  * 用户查询接口 —— 接收用户自然语言问题，返回 RAG 生成的回答.
@@ -19,16 +22,16 @@ import java.util.Map;
 public class UserQueryController {
 
     /**
-     * 用户问答接口（骨架）.
+     * 用户问答接口（骨架，plan_3 实现完整检索+生成链路）.
      *
-     * @param body 包含 "question" 字段的 JSON
-     * @return 空 JSON（plan_2 实现完整检索+生成链路）
+     * @param request 含 question 字段的请求体，@Valid 校验非空
+     * @return 统一响应，result 含 answer 和 sources
      */
     @PostMapping("/query")
-    public Map<String, Object> query(@RequestBody Map<String, Object> body) {
-        return Map.of(
+    public Response<Map<String, Object>> query(@Valid @RequestBody UserQueryRequest request) {
+        return Response.success(Map.of(
             "answer", "OK",
-            "sources", java.util.Collections.emptyList()
-        );
+            "sources", Collections.emptyList()
+        ));
     }
 }

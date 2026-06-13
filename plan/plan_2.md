@@ -386,6 +386,74 @@ crag:
 
 **目标**：定时扫 chunk 表，对 `dense_status` 为 `INIT` 或 `FAILED`（以及超时的 `PROCESSING`）的 child chunk 执行 Embedding，写入 chunk_embedding 表。
 
+#### 设计变更：新增 cron 包
+
+在 `demo` 包下新增 `cron` 包，定时任务统一在此管理：
+
+```
+com.crag.demo
+├── cron/                              — 新增：定时任务触发层
+│   └── DenseEmbeddingCron            — @Scheduled 触发 + 流程编排
+├── core/dense/
+│   └── DenseEmbeddingService         — 核心 Embedding 调用逻辑（已有骨架，本次完整实现）
+├── integration/dense/
+│   ├── EmbeddingClient               — 已有接口
+│   └── SidecarEmbeddingClient        — 已有实现
+└── dao/repository/
+    ├── ChunkRepository               — 新增 CAS 更新方法
+    └── ChunkEmbeddingRepository       — 已有 upsert
+```
+
+**职责划分**：
+
+| 层 | 类 | 职责 |
+|---|---|---|
+| `cron/` | `DenseEmbeddingCron` | `@Scheduled` 定时扫表 → CAS 抢占 → 调 service → 写状态。只做编排，不含核心处理逻辑 |
+| `core/dense/` | `DenseEmbeddingService` | 调用 `EmbeddingClient.embed()` 做向量化，封装重试/异常处理 |
+| `integration/dense/` | `SidecarEmbeddingClient` | HTTP 调用 Sidecar `/embed`（已有，不变） |
+| `dao/` | `ChunkRepository` | 新增 CAS 更新方法（`tryMarkProcessing`、`updateDenseStatus` 等） |
+
+**DenseEmbeddingCron 伪代码**：
+
+```java
+@Component
+public class DenseEmbeddingCron {
+
+    private final ChunkRepository chunkRepository;
+    private final ChunkEmbeddingRepository chunkEmbeddingRepository;
+    private final DenseEmbeddingService denseEmbeddingService;
+
+    @Scheduled(cron = "*/10 * * * * *")
+    void processDenseEmbedding() {
+        // 1. 扫表：找出 INIT/FAILED/超时PROCESSING 候选 chunk
+        List<Chunk> candidates = chunkRepository.findDenseCandidates(...);
+
+        for (Chunk chunk : candidates) {
+            // 2. 根据当前状态 CAS 抢占（T1/T2/T3）
+            int affected = switch (chunk.getDenseStatus()) {
+                case INIT -> chunkRepository.tryMarkProcessing(chunk.getChunkId(), ChunkStatus.INIT);
+                case FAILED -> chunkRepository.tryMarkProcessing(chunk.getChunkId(), ChunkStatus.FAILED);
+                case PROCESSING -> chunkRepository.tryMarkProcessingTimeout(chunk.getChunkId(), ...);
+                default -> 0;
+            };
+            if (affected == 0) continue;
+
+            // 3. 调核心逻辑做 Embedding
+            try {
+                float[] vector = denseEmbeddingService.embed(chunk.getContent());
+                chunkEmbeddingRepository.upsert(chunk.getChunkId(), vector);
+                chunkRepository.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS);   // T4
+            } catch (EmbeddingException e) {
+                log.warn("Dense embedding failed for chunk {}, will retry", chunk.getChunkId(), e);
+                chunkRepository.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED);    // T5
+            }
+        }
+    }
+}
+```
+
+核心处理逻辑（调用 Sidecar、异常处理）在 `DenseEmbeddingService` 中，cron 只做编排。后续新增其他定时任务（如 Sparse 处理），同样放入 `cron` 包。
+
 #### 状态机
 
 ```
@@ -461,11 +529,23 @@ void processDenseEmbedding() {
 
 #### chunk_embedding 写入幂等
 
-```sql
--- 使用 upsert，防止重复 INSERT（极端情况下同一 chunk 被处理两次）
-INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?, ?)
-ON CONFLICT (chunk_id) DO UPDATE SET embedding = EXCLUDED.embedding;
+不使用 upsert（`ON CONFLICT DO UPDATE` 静默覆盖风险过高）。改为先查后插：
+
+```java
+// 幂等检查：如果 embedding 已存在（上次写入成功但状态未更新），直接标记成功
+if (chunkEmbeddingRepository.existsByChunkId(chunk.getChunkId())) {
+    chunkRepository.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS);
+    continue;
+}
+
+// 不存在 → 普通 INSERT
+jdbcTemplate.update(
+    "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?::uuid, ?::vector)",
+    chunkId, toPgVectorString(vector));
 ```
+
+- 极端并发（两个 Cron 实例同时 INSERT 同一 chunkId）→ `DuplicateKeyException` → 标记 FAILED，下轮重试时 `existsByChunkId` 命中直接标记 SUCCESS。
+- embedding 的 update / 定期扫表校验正确性属于独立任务，不在本 Cron 中处理。
 
 #### 并发场景推演
 
@@ -479,7 +559,15 @@ ON CONFLICT (chunk_id) DO UPDATE SET embedding = EXCLUDED.embedding;
 **超时阈值**：一期硬编码 5 分钟，后续可移至配置文件。
 
 **涉及文件**：
-- `src/main/java/com/crag/demo/core/embedding/EmbeddingService.java` — 从骨架变为完整实现
+- `src/main/java/com/crag/demo/cron/DenseEmbeddingCron.java` — 新增：定时扫表 + CAS 抢占 + 流程编排
+- `src/main/java/com/crag/demo/core/dense/DenseEmbeddingService.java` — 从骨架变为完整实现（核心 Embedding 调用逻辑）
+- `src/main/java/com/crag/demo/dao/repository/ChunkRepository.java` — 新增 CAS 更新方法（`findDenseCandidates`、`tryMarkProcessing`、`tryMarkProcessingTimeout`、`updateDenseStatus`），均带 version 乐观锁
+- `src/main/java/com/crag/demo/dao/ChunkEmbeddingDao.java` — 新增：chunk_embedding 表 pgvector 操作（JdbcTemplate + 类型转换），封装 existsByChunkId + insert
+- `src/main/java/com/crag/demo/dao/repository/ChunkEmbeddingRepository.java` — 新增 `existsByChunkId` 方法
+- `src/main/java/com/crag/demo/CragDemoApplication.java` — 开启 `@EnableScheduling`
+- `src/main/resources/application.yml` — 新增 `crag.cron.dense` 配置节
+- `constraints/package-structure.md` — 新增 cron 包 + dao 子包展开
+- `constraints/code-style.md` — 新增「六、DAO CAS 更新规范」章节
 
 ---
 
@@ -554,3 +642,5 @@ crag:
 | 2026-06-10 | 创建 plan_2，6 个子任务：AdminRag 写入链路 + Cron Dense 异步处理 |
 | 2026-06-12 | 2.0 确认完成（schema 三表 version + updated_at 已于 plan_1 阶段补齐）；2.1 ChunkService 完整实现（Spring AI TokenTextSplitter 真实 token 级分块 + JTokkit CL100K_BASE 编码 + child/parent 二级策略 + overlap） |
 | 2026-06-13 | 2.3 设计更新：从 ResponseEntity 改为统一 Response<T> 包装 + ResponseCode 枚举；新增 dto/request、dto/result、controller/advice 子包；新增 GlobalExceptionHandler AOP 层；AdminRagRequest 使用 @Valid + @NotBlank 校验；添加 spring-boot-starter-validation 依赖；同步更新 package-structure 和 code-style 约束 |
+| 2026-06-13 | 2.5 设计更新：新增 cron 包（DenseEmbeddingCron）；ChunkRepository CAS 方法加 version 乐观锁；chunk_embedding 写入从 upsert 改为先查后插；新增 ChunkEmbeddingDao（Repository vs Dao 分层） |
+| 2026-06-13 | [plan_2.hotfix_5](./plan_2.hotfix_5.md)：抽离 ChunkDao，DenseEmbeddingCron 不再直接依赖 ChunkRepository |

@@ -6,7 +6,7 @@ import com.crag.demo.core.chunk.split.ChunkSplitResult;
 import com.crag.demo.core.chunk.split.ChunkSplitService;
 import com.crag.demo.dao.entity.Chunk;
 import com.crag.demo.dao.entity.ChunkStatus;
-import com.crag.demo.dao.repository.ChunkRepository;
+import com.crag.demo.dao.ChunkDao;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 /**
  * AdminRagService 单元测试 —— 验证入库编排逻辑、分块-实体映射、状态设置.
  *
- * 使用 Mockito 隔离 ChunkSplitService / ChunkRepository，聚焦于服务自身的编排逻辑.
+ * 使用 Mockito 隔离 ChunkSplitService / ChunkDao，聚焦于服务自身的编排逻辑.
  * 通过 subclass mock maker 避免 JDK 25 的 inline mock 兼容性问题.
  *
  * @since 2026-06-13
@@ -46,7 +46,7 @@ class AdminRagServiceTest {
     private ChunkSplitService chunkSplitService;
 
     @Mock
-    private ChunkRepository chunkRepository;
+    private ChunkDao chunkDao;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -58,7 +58,7 @@ class AdminRagServiceTest {
     void setUp() {
         // saveAll 返回传入的 list，模拟 JPA 标准行为.
         // 使用 lenient() 避免空 groups 场景下 UnnecessaryStubbingException.
-        lenient().when(chunkRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(chunkDao.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Nested
@@ -273,13 +273,13 @@ class AdminRagServiceTest {
         }
 
         @Test
-        @DisplayName("chunkRepository.saveAll 只调用一次，批量写入所有 chunk")
+        @DisplayName("chunkDao.saveAll 只调用一次，批量写入所有 chunk")
         void saveAllCalledOnceWithAllChunks() {
             stubSplitResult(2, 2);
 
             adminRagService.ingest("文档", "批量写入测试。".repeat(300), null);
 
-            verify(chunkRepository).saveAll(anyList());
+            verify(chunkDao).saveAll(anyList());
             // parent(2) + children(2×2) = 6
             List<Chunk> saved = captureSavedChunks();
             assertThat(saved).hasSize(6);
@@ -302,7 +302,7 @@ class AdminRagServiceTest {
             assertThat(result.chunks()).isZero();
             assertThat(result.status()).isEqualTo("PENDING");
             assertThat(result.docId()).isNotBlank();
-            verify(chunkRepository, never()).saveAll(anyList());
+            verify(chunkDao, never()).saveAll(anyList());
         }
 
         @Test
@@ -428,7 +428,7 @@ class AdminRagServiceTest {
     @SuppressWarnings("unchecked")
     private List<Chunk> captureSavedChunks() {
         ArgumentCaptor<List<Chunk>> captor = ArgumentCaptor.forClass(List.class);
-        verify(chunkRepository).saveAll(captor.capture());
+        verify(chunkDao).saveAll(captor.capture());
         return captor.getValue();
     }
 }
