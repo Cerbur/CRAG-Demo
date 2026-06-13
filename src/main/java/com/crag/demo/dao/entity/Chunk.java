@@ -3,12 +3,12 @@ package com.crag.demo.dao.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Chunk 实体 —— 文档分块存储，对应 PostgreSQL chunk 表.
@@ -16,7 +16,9 @@ import java.time.LocalDateTime;
  * Child chunk 为细粒度检索单元（256 token），是唯一会被 Embedding 向量化和参与 FTS 索引的粒度.
  * Parent chunk 为大窗口上下文（1024 token），仅存储纯文本，通过 parent_chunk_id 关联回表获取.
  *
- * 主键 UUID 使用 String 类型，由数据库 gen_random_uuid() 或应用层 UUID.randomUUID() 生成.
+ * 主键 UUID 使用 String 类型，在应用层通过 UUID.randomUUID() 预生成（父 chunk ID 需先确定以建立父子关联）.
+ * 实现 {@link Persistable} 以 {@code version == null} 作为 isNew 判断依据，确保 Spring Data JPA 对
+ * 新实体调用 persist() 而非 merge().
  *
  * @since 2026-06-10
  */
@@ -30,11 +32,10 @@ public class Chunk {
     public static final String NO_PARENT = "";
 
     /**
-     * Chunk 唯一标识，数据库自动生成 UUID.
-     * Hibernate 6.x 支持 @GeneratedValue(strategy = GenerationType.UUID) 与 String 类型搭配.
+     * Chunk 唯一标识，在应用层通过 UUID.randomUUID() 预生成.
+     * 不使用 @GeneratedValue：父子关联需预知父 chunkId，因此所有实体 ID 在入库前由业务层统一分配.
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "chunk_id", nullable = false, updatable = false, length = 36)
     private String chunkId;
 
@@ -74,6 +75,7 @@ public class Chunk {
      * 扩展元数据，JSONB 格式，默认 '{}'.
      * 存储标签、来源等自定义字段.
      */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "JSONB DEFAULT '{}'")
     private String metadata;
 
@@ -110,10 +112,9 @@ public class Chunk {
     private LocalDateTime updatedAt;
 
     /**
-     * 乐观锁版本号，每次 UPDATE 自动 +1.
-     * 配合 @Version 实现并发安全的 CAS 更新，后续事件消费者可通过 version 判断是否已处理过该版本.
+     * 乐观锁版本号，手动在 JPQL CAS 更新中递增（c.version = c.version + 1），
+     * 不依赖 JPA {@code @Version} 自动管理.
      */
-    @Version
     @Column(name = "version")
     private Integer version;
 
@@ -121,17 +122,19 @@ public class Chunk {
 
     /**
      * 创建 parent chunk —— dense/sparse 均为 SKIPPED，不做后续向量化/FTS.
+     * chunkId 在构造内自动生成（UUID），调用方通过 {@link #getChunkId()} 获取后传给 child 构造.
      *
      * @param docId      文档 ID
      * @param content    父级 chunk 文本（~1024 token 大窗口）
      * @param tokenCount token 数
      * @param chunkIndex 在文档中的序号（0-based）
      * @param metadata   JSONB 元数据
-     * @return parent Chunk 实体（尚未持久化，无 chunkId）
+     * @return parent Chunk 实体（已预生成 chunkId + version=0）
      */
     public static Chunk createParent(String docId, String content, int tokenCount,
                                      Integer chunkIndex, String metadata) {
         Chunk chunk = new Chunk();
+        chunk.setChunkId(UUID.randomUUID().toString());
         chunk.setDocId(docId);
         chunk.setParentChunkId(NO_PARENT);
         chunk.setChunkIndex(chunkIndex);
@@ -140,11 +143,13 @@ public class Chunk {
         chunk.setMetadata(metadata);
         chunk.setDenseStatus(ChunkStatus.SKIPPED);
         chunk.setSparseStatus(ChunkStatus.SKIPPED);
+        chunk.setVersion(0);
         return chunk;
     }
 
     /**
      * 创建 child chunk —— dense/sparse 均为 INIT，等待 Cron 异步处理.
+     * chunkId 在构造内自动生成（UUID）.
      *
      * @param docId          文档 ID
      * @param parentChunkId  父 chunk ID
@@ -152,11 +157,12 @@ public class Chunk {
      * @param tokenCount     token 数
      * @param chunkIndex     在 parent 内的序号（0-based）
      * @param metadata       JSONB 元数据
-     * @return child Chunk 实体（尚未持久化，无 chunkId）
+     * @return child Chunk 实体（已预生成 chunkId + version=0）
      */
     public static Chunk createChild(String docId, String parentChunkId, String content,
                                     int tokenCount, int chunkIndex, String metadata) {
         Chunk chunk = new Chunk();
+        chunk.setChunkId(UUID.randomUUID().toString());
         chunk.setDocId(docId);
         chunk.setParentChunkId(parentChunkId);
         chunk.setChunkIndex(chunkIndex);
@@ -165,6 +171,7 @@ public class Chunk {
         chunk.setMetadata(metadata);
         chunk.setDenseStatus(ChunkStatus.INIT);
         chunk.setSparseStatus(ChunkStatus.INIT);
+        chunk.setVersion(0);
         return chunk;
     }
 

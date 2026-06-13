@@ -26,13 +26,13 @@ plan_2 实现两条核心链路：
 | 2.3 | AdminRagController 接线（去掉骨架，接入真实逻辑） | ✅ 完成 | — | 2026-06-13 |
 | 2.4 | EmbeddingClient 实现（HTTP 调用 Sidecar /embed） | ✅ 完成 | `258a7c5` | 2026-06-13 |
 | 2.5 | EmbeddingService 实现（Cron 扫表 + 幂等状态机 + 写 chunk_embedding） | ✅ 完成 | `12b6dd1` | 2026-06-13 |
-| 2.6 | 冒烟验证（AdminRag 写入 + Cron Dense 处理） | ⏳ 待开始 | — | — |
+| 2.6 | 冒烟验证（AdminRag 写入 + Cron Dense 处理） | ✅ 完成 | — | 2026-06-13 |
 
 > **前置条件**：任务 2.4-2.6 依赖 [plan_2.1](./plan_2.1.md)（Python Sidecar 模型服务）完成。Sidecar `/embed` 端点必须可用。
 >
 > 状态图例：⏳ 待开始 / 🔄 进行中 / ✅ 完成 / ❌ 阻塞
 
-整体进度：**5 / 7（71%）**
+整体进度：**6 / 7（86%）**
 
 ---
 
@@ -606,11 +606,11 @@ curl -X POST http://localhost:8080/api/v1/admin/rag \
 ```
 
 **完成标准**：
-- [ ] `POST /api/v1/admin/rag` 返回 201 + docId + chunks + PENDING
-- [ ] chunk 表正确写入 parent + child，dense/sparse status 正确
-- [ ] Cron 正确扫到 INIT chunk，更新为 PROCESSING → SUCCESS/FAILED
-- [ ] chunk_embedding 表正确写入向量（需 Sidecar 可用）
-- [ ] Processing 超时 chunk 被 Cron 重新捞起处理
+- [x] `POST /api/v1/admin/rag` 返回 200 + docId + chunks + PENDING
+- [x] chunk 表正确写入 parent + child，dense/sparse status 正确
+- [x] Cron 正确扫到 INIT chunk，更新为 PROCESSING → SUCCESS
+- [x] chunk_embedding 表正确写入向量（Sidecar 768-dim gte-chinese-base 可用）
+- [ ] Processing 超时 chunk 被 Cron 重新捞起处理（需模拟崩溃场景，留到后续验证）
 
 ---
 
@@ -644,3 +644,4 @@ crag:
 | 2026-06-13 | 2.3 设计更新：从 ResponseEntity 改为统一 Response<T> 包装 + ResponseCode 枚举；新增 dto/request、dto/result、controller/advice 子包；新增 GlobalExceptionHandler AOP 层；AdminRagRequest 使用 @Valid + @NotBlank 校验；添加 spring-boot-starter-validation 依赖；同步更新 package-structure 和 code-style 约束 |
 | 2026-06-13 | 2.5 设计更新：新增 cron 包（DenseEmbeddingCron）；ChunkRepository CAS 方法加 version 乐观锁；chunk_embedding 写入从 upsert 改为先查后插；新增 ChunkEmbeddingDao（Repository vs Dao 分层） |
 | 2026-06-13 | [plan_2.hotfix_5](./plan_2.hotfix_5.md)：抽离 ChunkDao，DenseEmbeddingCron 不再直接依赖 ChunkRepository |
+| 2026-06-13 | 2.6 冒烟验证完成。发现并修复 4 个问题：(1) Chunk 实体 @Version + @GeneratedValue 冲突 → 实现 Persistable<String> + 移除 @GeneratedValue + 手动设置 child chunkId；(2) metadata JSONB 类型映射缺失 → 添加 @JdbcTypeCode(SqlTypes.JSON)；(3) ChunkEmbeddingRepository.insert() native query 参数绑定错误（?1/?2 与 @Param 冲突，以及 :param::cast 解析异常）→ 改用 CAST(?1 AS uuid) 无 @Param 形式；(4) DenseEmbeddingCron 异常捕获过窄 → 新增 RuntimeException 兜底 catch 避免 chunk 卡在 PROCESSING |

@@ -146,6 +146,12 @@ public class DenseEmbeddingCron {
                     chunk.getChunkId(), e.getMessage());
                 chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
                 failedCount++;
+            } catch (RuntimeException e) {
+                // 未预期的异常（如 DB 类型映射错误），同样标记 FAILED 避免 chunk 卡在 PROCESSING
+                log.error("Unexpected error during dense embedding for chunk {}, marking FAILED",
+                    chunk.getChunkId(), e);
+                chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
+                failedCount++;
             }
         }
 

@@ -83,18 +83,16 @@ public class AdminRagService {
         int childCount = 0;
 
         for (ChunkSplitGroup group : groups) {
-            String parentChunkId = UUID.randomUUID().toString();
             Chunk parent = Chunk.createParent(docId,
                 group.parentChunk().content(),
                 group.parentChunk().tokenCount(),
                 group.parentChunk().chunkIndex(),
                 metadataJson);
-            parent.setChunkId(parentChunkId);
             allChunks.add(parent);
 
             for (var childData : group.childChunks()) {
                 Chunk child = Chunk.createChild(docId,
-                    parentChunkId,
+                    parent.getChunkId(),
                     childData.content(),
                     childData.tokenCount(),
                     childData.chunkIndex(),

@@ -4,7 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 /**
@@ -48,10 +47,8 @@ public class ChunkFts {
     private LocalDateTime updatedAt;
 
     /**
-     * 乐观锁版本号，每次 UPDATE 自动 +1.
-     * 配合 @Version 实现并发安全的 CAS 更新.
+     * 乐观锁版本号，手动管理.
      */
-    @Version
     @Column(name = "version")
     private Integer version;
 

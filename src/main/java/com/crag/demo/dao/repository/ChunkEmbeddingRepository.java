@@ -4,7 +4,6 @@ import com.crag.demo.dao.entity.ChunkEmbedding;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +39,6 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
      */
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?1::uuid, ?2::vector)", nativeQuery = true)
-    void insert(@Param("chunkId") String chunkId, @Param("vectorString") String vectorString);
+    @Query(value = "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (CAST(?1 AS uuid), CAST(?2 AS vector))", nativeQuery = true)
+    void insert(String chunkId, String vectorString);
 }
