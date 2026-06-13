@@ -9,7 +9,7 @@
 
 复核 plan_2 任务 2.1 的完成情况时发现：
 
-- `plan/plan_2.1.md` 是历史遗留的 Sidecar 计划，不是 ChunkService 计划；ChunkService 对应 `plan/plan_2.md` 中的任务 2.1。
+- `plan/plan_2/plan_2.1.md` 是历史遗留的 Sidecar 计划，不是 ChunkService 计划；ChunkService 对应 `plan/plan_2/plan_2.md` 中的任务 2.1。
 - 当前 `ChunkService.split()` 使用 `TokenTextSplitter` 切出多个 parent 后只取第一个 parent，长文超过约 1024 token 的部分不会生成 child chunk，存在知识入库截断风险。
 - 现有单测主要验证第一个 parent 内部覆盖，没有验证原始长文后半段是否进入分块结果，也没有覆盖多 parent 场景下 child `chunkIndex` 在 parent 内递增的语义。
 

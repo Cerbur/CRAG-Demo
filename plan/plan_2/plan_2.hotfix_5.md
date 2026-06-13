@@ -44,7 +44,7 @@ public class ChunkDao {
 - `src/main/java/com/crag/demo/service/AdminRagService.java` — ChunkRepository → ChunkDao
 - `src/main/java/com/crag/demo/controller/TestController.java` — 3 Repository → 3 Dao
 - `constraints/package-structure.md` — 新增 ChunkDao、ChunkFtsDao
-- `plan/plan_2.md` — 记录 hotfix
+- `plan/plan_2/plan_2.md` — 记录 hotfix
 
 ## 进度追踪
 

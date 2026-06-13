@@ -24,16 +24,17 @@
 ## 当前状态
 
 - [x] 项目规划初始化
-- [x] plan_main 细化 — 混合检索流水线（BM25 + pgvector + RRF）
-- [ ] plan_A 执行计划创建（最小 Demo：core 全链路）
-- [ ] 项目脚手架搭建（plan_A 子任务）
-- [ ] 核心功能实现（plan_A 子任务）
-- [ ] LLM 接入（plan_B）
-- [ ] Docker 化部署（plan_C）
+- [x] plan_main 收敛 — 只保留总体方向与阶段边界
+- [x] plan/index 建立 — 统一维护计划主要功能与完成状态
+- [x] plan_1 完成 — 项目脚手架 + 基础设施 + 分包结构
+- [x] plan_2 完成 — AdminRag 写入链路 + Dense Embedding 异步处理
+- [x] plan_3 完成 — 项目介绍文档 + 架构 SVG + 协作约束整理
+- [ ] plan_4 待创建 — Sparse + Dense 查询、RRF、Rerank、UserQuery、LLM 全链路
 
 ## 对话约定
 
 - 涉及计划创建、命名、执行和进度更新时，必须遵守 `constraints/plan-workflow.md`。
+- 查询计划状态时优先查看 `plan/index/README.md`；不要把执行计划索引写回 `plan/plan_main.md`。
 - 涉及 Java 代码时，必须遵守 `constraints/code-style.md`。
 - 涉及 Java 包结构调整时，必须同步更新 `constraints/package-structure.md`。
 - 涉及 Docker 部署结构调整时，必须同步更新 `constraints/docker-structure.md`。

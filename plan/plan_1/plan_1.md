@@ -82,7 +82,7 @@ plan_1 完成项目从零到可编译运行的基础骨架，包括：Gradle 构
   - `UserQueryService` — 直接实现类（不拆 interface/impl），骨架方法
   - `AdminRagService` — 直接实现类（不拆 interface/impl），骨架方法
   - 每个类：class Javadoc + `@since` + `@Service`
-  - 注意：plan_main 包结构索引中 service/impl 目录保留为空（或暂不创建），体现奥卡姆剃刀
+  - 注意：包结构索引中 service/impl 目录保留为空（或暂不创建），体现奥卡姆剃刀
   - Commit: `2dd060e`
 
 - [x] **2.3** — 创建 `core/` 包（RAG 核心逻辑层骨架）

@@ -40,17 +40,17 @@
 主计划只允许使用连续数字：
 
 ```text
-plan/plan_1.md
-plan/plan_2.md
-plan/plan_3.md
+plan/plan_1/plan_1.md
+plan/plan_2/plan_2.md
+plan/plan_3/plan_3.md
 ```
 
 禁止新增：
 
 ```text
-plan/plan_1.1.md
-plan/plan_2.1.md
-plan/plan_2.2.md
+plan/plan_1/plan_1.1.md
+plan/plan_2/plan_2.1.md
+plan/plan_2/plan_2.2.md
 ```
 
 ### Hotfix 计划
@@ -58,8 +58,8 @@ plan/plan_2.2.md
 当准备执行 `plan_x` 时，如果发现必须先处理前置修正，修正计划归属到上一阶段：
 
 ```text
-plan/plan_{x-1}.hotfix_1.md
-plan/plan_{x-1}.hotfix_2.md
+plan/plan_{x-1}/plan_{x-1}.hotfix_1.md
+plan/plan_{x-1}/plan_{x-1}.hotfix_2.md
 ```
 
 示例：
@@ -70,7 +70,7 @@ plan/plan_{x-1}.hotfix_2.md
 
 ### 历史文件处理
 
-当前仓库已有 `plan_1.1.md`、`plan_2.1.md`、`plan_2.2.md`、`plan_2.3.md` 属于历史遗留计划文件。本 hotfix 先不重命名历史文件，避免扩大改动范围；后续不得再新增小数计划文件。
+当前仓库已有 `plan_1.1.md`、`plan_2.1.md`、`plan_2.2.md`、`plan_2.3.md` 属于历史遗留计划文件。后续目录整理已将它们归入对应主计划目录；不得再新增小数计划文件。
 
 ---
 

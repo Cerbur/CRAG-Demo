@@ -39,7 +39,7 @@
 - `constraints/plan-workflow.md` 存在，并包含 Plan 工作流、命名和进度追踪约束。
 - `AGENTS.md` 与 `CLAUDE.md` 不再直接展开计划分层、命名和进度追踪细则。
 - `AGENTS.md` 与 `CLAUDE.md` 的 Plan 约束路由指向 `constraints/plan-workflow.md`。
-- `plan/plan_main.md` 保留计划索引，但计划命名与进度规范细则路由到 `constraints/plan-workflow.md`。
+- `plan/plan_main.md` 后续已收敛为总体方向文档；计划索引统一维护在 `plan/index/README.md`。
 
 ---
 

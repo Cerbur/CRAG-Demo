@@ -89,8 +89,8 @@ docker compose up --build
 
 | 文件 | 变更 |
 |------|------|
-| `plan/plan_2.md` | 2.0 Schema 节 + 2.4 EmbeddingClient 节：`vector(1024)` / `float[1024]` → `vector(768)` / `float[768]` |
-| `plan/plan_2.1.md` | /embed 协议：模型名 `text2vec-large-chinese` → `gte-chinese-base`，维度 `1024` → `768` |
+| `plan/plan_2/plan_2.md` | 2.0 Schema 节 + 2.4 EmbeddingClient 节：`vector(1024)` / `float[1024]` → `vector(768)` / `float[768]` |
+| `plan/plan_2/plan_2.1.md` | /embed 协议：模型名 `text2vec-large-chinese` → `gte-chinese-base`，维度 `1024` → `768` |
 | `plan/plan_main.md` | 5.1.2 Chunk 表：`vector(1024)` → `vector(768)`；技术栈表 + 六中间件：模型名/维度修正 |
 
 ---

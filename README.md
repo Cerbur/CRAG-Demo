@@ -82,7 +82,7 @@ Content-Type: multipart/form-data
 │   │   └── prompt/   # 提示词管理
 │   ├── embedding/    # Embedding 调用（Sidecar /embed）
 │   └── rerank/       # Rerank 调用（Sidecar /rerank）
-└── plan/             # 项目规划文档
+└── plan/             # 项目规划文档（plan_main + index + plan_N 目录）
 ```
 
 ## 开源协议
