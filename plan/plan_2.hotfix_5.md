@@ -50,11 +50,11 @@ public class ChunkDao {
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| H5.1 | 新增 ChunkDao（findDenseCandidates + 3 CAS + saveAll + count） | ✅ 完成 | — | 2026-06-13 |
-| H5.2 | DenseEmbeddingCron 替换依赖 | ✅ 完成 | — | 2026-06-13 |
-| H5.3 | AdminRagService 替换依赖（ChunkRepository → ChunkDao） | ✅ 完成 | — | 2026-06-13 |
-| H5.4 | TestController 替换依赖（3 Repository → 3 Dao） + 新增 ChunkFtsDao | ✅ 完成 | — | 2026-06-13 |
-| H5.5 | ChunkEmbeddingDao 新增 count() 透传 | ✅ 完成 | — | 2026-06-13 |
-| H5.6 | 更新 package-structure + plan_2 | ✅ 完成 | — | 2026-06-13 |
-| H5.7 | 编译验证 | ✅ 完成 | — | 2026-06-13 |
-| H5.8 | 代码风格修复：TestController → `Response<T>` + 去 try/catch；UserQueryController → `Response<T>` + UserQueryRequest DTO；4 个 Service 全限定名 → 显式 import；AdminRagService/DenseEmbeddingCron/Response 成员变量加 Javadoc | ✅ 完成 | — | 2026-06-13 |
+| H5.1 | 新增 ChunkDao（findDenseCandidates + 3 CAS + saveAll + count） | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.2 | DenseEmbeddingCron 替换依赖 | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.3 | AdminRagService 替换依赖（ChunkRepository → ChunkDao） | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.4 | TestController 替换依赖（3 Repository → 3 Dao） + 新增 ChunkFtsDao | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.5 | ChunkEmbeddingDao 新增 count() 透传 | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.6 | 更新 package-structure + plan_2 | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.7 | 编译验证 | ✅ 完成 | `12b6dd1` | 2026-06-13 |
+| H5.8 | 代码风格修复 | ✅ 完成 | `12b6dd1` | 2026-06-13 |
