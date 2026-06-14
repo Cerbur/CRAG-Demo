@@ -21,13 +21,13 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.1 | 通用查询结果类型 ChunkSearchResult | ✅ | — | 2026-06-15 |
-| 6.2 | ChunkEmbeddingRepository — 向量相似度查询 | ✅ | — | 2026-06-15 |
-| 6.3 | ChunkEmbeddingDao — searchSimilar 方法 | ✅ | — | 2026-06-15 |
-| 6.4 | DenseQueryService 实现 | ✅ | — | 2026-06-15 |
-| 6.5 | ChunkFtsRepository — FTS 全文检索查询 | ✅ | — | 2026-06-15 |
-| 6.6 | ChunkFtsDao — searchFts 方法 | ✅ | — | 2026-06-15 |
-| 6.7 | SparseQueryService 实现 | ✅ | — | 2026-06-15 |
+| 6.1 | 通用查询结果类型 ChunkSearchResult | ✅ | `bd34143` | 2026-06-15 |
+| 6.2 | ChunkEmbeddingRepository — 向量相似度查询 | ✅ | `bd34143` | 2026-06-15 |
+| 6.3 | ChunkEmbeddingDao — searchSimilar 方法 | ✅ | `bd34143` | 2026-06-15 |
+| 6.4 | DenseQueryService 实现 | ✅ | `bd34143` | 2026-06-15 |
+| 6.5 | ChunkFtsRepository — FTS 全文检索查询 | ✅ | `bd34143` | 2026-06-15 |
+| 6.6 | ChunkFtsDao — searchFts 方法 | ✅ | `bd34143` | 2026-06-15 |
+| 6.7 | SparseQueryService 实现 | ✅ | `bd34143` | 2026-06-15 |
 | 6.8 | RrfFusionService 实现 | ⏳ | — | — |
 | 6.9 | Retrieval 冒烟验证端点 | ⏳ | — | — |
 | 6.10 | RerankClient / RerankService 接入 | ⏳ | — | — |
