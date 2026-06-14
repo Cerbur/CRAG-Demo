@@ -29,7 +29,8 @@ plan/
 ├── plan_4/
 │   └── plan_4.md
 ├── plan_5/
-│   └── plan_5.md
+│   ├── plan_5.md
+│   └── plan_5.hotfix_1.md
 ├── plan_6/
 │   └── plan_6.md
 └── plan_archive/
@@ -96,6 +97,7 @@ plan/
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_5.md](../plan_5/plan_5.md) | Java module 拆分，包含 `ai.cerbur.crag` 包名迁移、`crag-admin` API service 和 multi-module 迁移 | ✅ 完成 |
+| [plan_5.hotfix_1.md](../plan_5/plan_5.hotfix_1.md) | Gradle 依赖分层整理，消除循环依赖风险并移除非必要依赖 | ✅ 完成 |
 
 ## Plan_6 明细
 

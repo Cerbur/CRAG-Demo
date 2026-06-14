@@ -1,4 +1,4 @@
-package ai.cerbur.crag.admin.controller;
+package ai.cerbur.crag.app.controller;
 
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.storage.ChunkDao;
@@ -80,7 +80,7 @@ public class TestController {
      * @param chunkFts chunk_fts 表记录数
      */
     public record SmokeTableCounts(long chunk,
-                                   @JsonProperty("chunk_embedding") long chunkEmbedding,
-                                   @JsonProperty("chunk_fts") long chunkFts) {
+                                    @JsonProperty("chunk_embedding") long chunkEmbedding,
+                                    @JsonProperty("chunk_fts") long chunkFts) {
     }
 }

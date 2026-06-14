@@ -9,11 +9,9 @@ java {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.1"))
-    api(project(":crag-common"))
-    api(project(":crag-storage"))
-    api(project(":crag-ingestion"))
-    api(project(":crag-retrieval"))
-    api(project(":crag-query"))
+    implementation(project(":crag-common"))
+    implementation(project(":crag-ingestion"))
+    implementation(project(":crag-query"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 }

@@ -9,7 +9,8 @@ java {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.1"))
-    api(project(":crag-common"))
-    api(project(":crag-storage"))
+    implementation(project(":crag-common"))
+    implementation(project(":crag-storage"))
+    implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-web")
 }

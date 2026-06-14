@@ -23,10 +23,10 @@ crag-demo/
 
 ```text
 crag-app ──→ crag-admin, crag-ingestion, crag-retrieval, crag-query, crag-storage, crag-common
-crag-admin ──→ crag-ingestion, crag-retrieval, crag-query, crag-common
+crag-admin ──→ crag-ingestion, crag-query, crag-common
+crag-query ──→ crag-retrieval, crag-common
 crag-ingestion ──→ crag-retrieval, crag-storage, crag-common
 crag-retrieval ──→ crag-storage, crag-common
-crag-query ──→ crag-retrieval, crag-common
 crag-storage ──→ crag-common
 ```
 
@@ -78,7 +78,7 @@ ai.cerbur.crag.ingestion/
 │       ├── ChunkSplitGroup          — parent + children 分组
 │       └── ChunkSplitResult         — 文档分块结果
 └── dense/                            — Dense Embedding 向量化服务
-    └── DenseEmbeddingService        — 调用 EmbeddingClient 做核心向量化
+    └── DenseEmbeddingService        — 调用 retrieval/embedding/EmbeddingClient 做核心向量化
 ```
 
 ### crag-retrieval（`ai.cerbur.crag.retrieval`）
@@ -118,7 +118,6 @@ ai.cerbur.crag.admin/
 ├── controller/                       — API 入口层
 │   ├── AdminRagController           — 管理端 RAG 知识库上传接口
 │   ├── UserQueryController          — 用户查询接口
-│   ├── TestController               — 冒烟测试接口
 │   └── advice/                       — 全局异常处理（AOP 层）
 │       └── GlobalExceptionHandler   — 统一异常 → Response 转换
 └── dto/
@@ -131,7 +130,9 @@ ai.cerbur.crag.admin/
 
 ```text
 ai.cerbur.crag.app/
-└── CragDemoApplication              — Spring Boot 启动类（唯一可启动 jar）
+├── CragDemoApplication              — Spring Boot 启动类（唯一可启动 jar）
+└── controller/
+    └── TestController               — 冒烟测试接口
 ```
 
 ---

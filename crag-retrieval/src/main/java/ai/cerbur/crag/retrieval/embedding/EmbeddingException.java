@@ -4,7 +4,7 @@ package ai.cerbur.crag.retrieval.embedding;
  * Embedding 调用异常 —— 当 Sidecar /embed 端点调用失败时抛出.
  *
  * 上层 Cron（EmbeddingService）捕获此异常后将 chunk dense_status 标记为 FAILED，
- * 下轮 Cron 通过 T2 状态转换自动重试。消息中保留原始错误信息便于日志排查。
+ * 下轮 Cron 通过 T2 状态转换自动重试。消息中保留原始错误信息便于日志排查.
  *
  * @since 2026-06-13
  */
