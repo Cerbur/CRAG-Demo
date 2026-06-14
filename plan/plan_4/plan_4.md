@@ -18,11 +18,11 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 4.1 | ChunkRepository — Sparse CAS 方法补充 | ✅ | — | 2026-06-14 |
-| 4.2 | ChunkFtsRepository — INSERT / existsByChunkId | ✅ | — | 2026-06-14 |
-| 4.3 | ChunkFtsDao — 写入方法补充 | ✅ | — | 2026-06-14 |
-| 4.4 | ChunkDao — Sparse 读写方法透传 | ✅ | — | 2026-06-14 |
-| 4.5 | SparseEmbeddingCron — 定时任务 | ✅ | — | 2026-06-14 |
+| 4.1 | ChunkRepository — Sparse CAS 方法补充 | ✅ | 80150f6 | 2026-06-14 |
+| 4.2 | ChunkFtsRepository — INSERT / existsByChunkId | ✅ | 80150f6 | 2026-06-14 |
+| 4.3 | ChunkFtsDao — 写入方法补充 | ✅ | 80150f6 | 2026-06-14 |
+| 4.4 | ChunkDao — Sparse 读写方法透传 | ✅ | 80150f6 | 2026-06-14 |
+| 4.5 | SparseEmbeddingCron — 定时任务 | ✅ | 80150f6 | 2026-06-14 |
 | 4.6 | 通用查询结果类型 ChunkSearchResult | ⏳ | — | — |
 | 4.7 | ChunkEmbeddingRepository — 向量相似度查询 | ⏳ | — | — |
 | 4.8 | ChunkEmbeddingDao — searchSimilar 方法 | ⏳ | — | — |
