@@ -26,7 +26,8 @@ com.crag.demo
 │   ├── AdminRagService              — 管理端 RAG 服务
 │   └── AdminRagResult               — AdminRag 入库结果记录
 ├── cron/                             — 定时任务触发层（编排层，核心逻辑在 service/core）
-│   └── DenseEmbeddingCron           — Dense Embedding 定时扫表 + CAS 抢占 + 流程编排
+│   ├── DenseEmbeddingCron           — Dense Embedding 定时扫表 + CAS 抢占 + 流程编排
+│   └── SparseEmbeddingCron          — Sparse Embedding 定时扫表 + CAS 抢占 + FTS 写入
 ├── core/                             — RAG 核心逻辑层
 │   ├── chunk/                        — 文档分块领域
 │   │   └── split/                     — 文档切分（ChunkSplit）
@@ -45,7 +46,7 @@ com.crag.demo
 │   │   └── ChunkFtsRepository       — chunk_fts 表
 │   ├── ChunkDao                      — chunk 表业务数据访问（扫表 + CAS 抢占 + saveAll/count），供 Cron/Service 调用
 │   ├── ChunkEmbeddingDao            — chunk_embedding 表业务数据访问（幂等检查 + pgvector 格式转换 + count），供 Cron 调用
-│   └── ChunkFtsDao                   — chunk_fts 表业务数据访问（一期仅 count），供冒烟测试等场景调用
+│   └── ChunkFtsDao                   — chunk_fts 表业务数据访问（幂等检查 + FTS 记录写入 + count），供 Cron 调用
 └── integration/                      — 外部服务接入层
     ├── llm/                          — LLM 调用（Spring AI，一期 DeepSeek）
     │   └── prompt/                   — 提示词模板管理

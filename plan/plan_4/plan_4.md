@@ -1,7 +1,7 @@
 # plan_4 — Sparse 落库 + Sparse/Dense 查询 + RRF 融合
 
 > 创建日期：2026-06-14  
-> 状态：⏳ 待开始  
+> 状态：🔄 进行中
 
 ## 范围
 
@@ -18,11 +18,11 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 4.1 | ChunkRepository — Sparse CAS 方法补充 | ⏳ | — | — |
-| 4.2 | ChunkFtsRepository — INSERT / existsByChunkId | ⏳ | — | — |
-| 4.3 | ChunkFtsDao — 写入方法补充 | ⏳ | — | — |
-| 4.4 | ChunkDao — Sparse 读写方法透传 | ⏳ | — | — |
-| 4.5 | SparseEmbeddingCron — 定时任务 | ⏳ | — | — |
+| 4.1 | ChunkRepository — Sparse CAS 方法补充 | ✅ | — | 2026-06-14 |
+| 4.2 | ChunkFtsRepository — INSERT / existsByChunkId | ✅ | — | 2026-06-14 |
+| 4.3 | ChunkFtsDao — 写入方法补充 | ✅ | — | 2026-06-14 |
+| 4.4 | ChunkDao — Sparse 读写方法透传 | ✅ | — | 2026-06-14 |
+| 4.5 | SparseEmbeddingCron — 定时任务 | ✅ | — | 2026-06-14 |
 | 4.6 | 通用查询结果类型 ChunkSearchResult | ⏳ | — | — |
 | 4.7 | ChunkEmbeddingRepository — 向量相似度查询 | ⏳ | — | — |
 | 4.8 | ChunkEmbeddingDao — searchSimilar 方法 | ⏳ | — | — |
@@ -33,7 +33,7 @@
 | 4.13 | RrfFusionService 实现 | ⏳ | — | — |
 | 4.14 | TestController — 查询冒烟验证 | ⏳ | — | — |
 
-整体进度：0 / 14（0%）
+整体进度：5 / 14（36%）
 
 ---
 

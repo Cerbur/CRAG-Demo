@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # ============================================================
 # CRAG-Demo — 多阶段 Docker 构建
 # Stage 1: 编译打包（JDK 21）
@@ -14,11 +16,13 @@ COPY gradlew .
 COPY gradle/ gradle/
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
+RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
+    chmod +x gradlew && ./gradlew dependencies --no-daemon
 
 # 复制源码并构建
 COPY src/ src/
-RUN ./gradlew bootJar --no-daemon
+RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
+    ./gradlew bootJar --no-daemon
 
 # --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre-alpine AS runtime

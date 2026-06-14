@@ -74,6 +74,56 @@ public class ChunkDao {
     }
 
     /**
+     * Sparse Cron 扫表 —— 找出所有待处理的 child chunk.
+     *
+     * @param statuses         状态列表 [INIT, FAILED]
+     * @param timeoutThreshold 超时阈值
+     * @param pageable         分页限制
+     * @return 候选 chunk 列表
+     */
+    public List<Chunk> findSparseCandidates(List<ChunkStatus> statuses,
+                                             LocalDateTime timeoutThreshold,
+                                             Pageable pageable) {
+        return chunkRepository.findSparseCandidates(statuses, timeoutThreshold, pageable);
+    }
+
+    /**
+     * CAS 抢占 —— 将 chunk 的 sparse_status 从 expectedStatus 改为 PROCESSING.
+     *
+     * @param chunkId         chunk ID
+     * @param expectedStatus  期望的当前状态
+     * @param version         版本号
+     * @return affected rows
+     */
+    public int tryMarkSparseProcessing(String chunkId, ChunkStatus expectedStatus, Integer version) {
+        return chunkRepository.tryMarkSparseProcessing(chunkId, expectedStatus, version);
+    }
+
+    /**
+     * CAS 超时抢占 —— 将超时的 PROCESSING chunk 重新抢占.
+     *
+     * @param chunkId          chunk ID
+     * @param timeoutThreshold 超时阈值
+     * @param version          版本号
+     * @return affected rows
+     */
+    public int tryMarkSparseProcessingTimeout(String chunkId, LocalDateTime timeoutThreshold, Integer version) {
+        return chunkRepository.tryMarkSparseProcessingTimeout(chunkId, timeoutThreshold, version);
+    }
+
+    /**
+     * 终态更新 —— 将 PROCESSING chunk 改为 SUCCESS 或 FAILED.
+     *
+     * @param chunkId   chunk ID
+     * @param newStatus 目标状态
+     * @param version   版本号
+     * @return affected rows
+     */
+    public int updateSparseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
+        return chunkRepository.updateSparseStatus(chunkId, newStatus, version);
+    }
+
+    /**
      * 批量写入 chunk.
      *
      * @param chunks chunk 实体列表

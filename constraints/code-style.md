@@ -91,7 +91,14 @@ public class AdminRagService {
 
 ### 成员变量
 
-所有成员变量必须注释含义和作用。
+有业务语义的成员变量必须注释含义和作用，例如实体字段、算法参数、状态缓存、业务配置值等。
+
+以下基础设施型成员变量不强制写注释，避免产生重复代码本身的噪音：
+
+- `Logger` / `log` 等日志记录器。
+- `@Autowired` 注入的 Spring Bean / Dao / Service / Repository / Client。
+- `static final` 常量，若命名已清楚表达含义且值本身直观。
+- 纯框架适配字段，且字段名与类型已能清晰表达用途。
 
 ```java
 /**

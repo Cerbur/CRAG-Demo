@@ -109,3 +109,4 @@ plan/
 - Java 代码风格：`constraints/code-style.md`
 - Java 包结构：`constraints/package-structure.md`
 - Docker 部署结构：`constraints/docker-structure.md`
+- 测试工作流：`constraints/test-workflow.md`
