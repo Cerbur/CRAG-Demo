@@ -1,6 +1,9 @@
 package ai.cerbur.crag.storage;
 
 import ai.cerbur.crag.storage.repository.ChunkFtsRepository;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,5 +68,35 @@ public class ChunkFtsDao {
      */
     public long count() {
         return chunkFtsRepository.count();
+    }
+
+    /**
+     * FTS 全文检索查询 —— 委托 Repository 执行 ts_rank 排序检索，并映射为 ChunkSearchResult.
+     *
+     * 流程：
+     * 1. 空查询保护：query 为 null 或空白时返回空列表
+     * 2. 委托 ChunkFtsRepository 执行 native SQL（CJK 预处理在 DB 侧完成）
+     * 3. Object[] 列映射为 ChunkSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=score, 3=content）
+     *
+     * @param query 用户查询文本
+     * @param limit 返回数量上限
+     * @return 按 ts_rank 降序排列的 ChunkSearchResult 列表
+     */
+    public List<ChunkSearchResult> searchFts(String query, int limit) {
+        if (query == null || query.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        List<Object[]> rows = chunkFtsRepository.searchFts(query, limit);
+
+        List<ChunkSearchResult> results = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            String chunkId = (String) row[0];
+            String parentChunkId = (String) row[1];
+            double score = ((Number) row[2]).doubleValue();
+            String content = (String) row[3];
+            results.add(new ChunkSearchResult(chunkId, parentChunkId, score, content));
+        }
+        return results;
     }
 }

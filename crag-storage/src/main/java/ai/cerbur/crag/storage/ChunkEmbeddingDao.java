@@ -1,6 +1,9 @@
 package ai.cerbur.crag.storage;
 
 import ai.cerbur.crag.storage.repository.ChunkEmbeddingRepository;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +49,11 @@ public class ChunkEmbeddingDao {
      * @param vector  768 维稠密向量
      * @throws DuplicateKeyException 同一 chunkId 已被其他实例写入
      */
+    public void insert(String chunkId, float[] vector) {
+        chunkEmbeddingRepository.insert(chunkId, toPgVectorString(vector));
+        log.debug("Embedding inserted — chunkId={}", chunkId);
+    }
+
     /**
      * chunk_embedding 表记录总数（供冒烟测试等场景用）.
      *
@@ -55,9 +63,36 @@ public class ChunkEmbeddingDao {
         return chunkEmbeddingRepository.count();
     }
 
-    public void insert(String chunkId, float[] vector) {
-        chunkEmbeddingRepository.insert(chunkId, toPgVectorString(vector));
-        log.debug("Embedding inserted — chunkId={}", chunkId);
+    /**
+     * 向量相似度检索 —— 基于 pgvector 余弦距离查询 top-k 相似 child chunk，并映射为 ChunkSearchResult.
+     *
+     * 流程：
+     * 1. 空向量保护：vector 为 null 或长度为 0 时返回空列表
+     * 2. float[] → pgvector 数组字面量转换（复用 {@link #toPgVectorString}）
+     * 3. 委托 ChunkEmbeddingRepository 执行 native SQL 查询
+     * 4. Object[] 列映射为 ChunkSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=score, 3=content）
+     *
+     * @param vector query embedding 向量（768 维）
+     * @param limit  返回数量上限
+     * @return 按相似度降序排列的 ChunkSearchResult 列表
+     */
+    public List<ChunkSearchResult> searchSimilar(float[] vector, int limit) {
+        if (vector == null || vector.length == 0) {
+            return Collections.emptyList();
+        }
+
+        String vectorLiteral = toPgVectorString(vector);
+        List<Object[]> rows = chunkEmbeddingRepository.searchSimilar(vectorLiteral, limit);
+
+        List<ChunkSearchResult> results = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            String chunkId = (String) row[0];
+            String parentChunkId = (String) row[1];
+            double score = ((Number) row[2]).doubleValue();
+            String content = (String) row[3];
+            results.add(new ChunkSearchResult(chunkId, parentChunkId, score, content));
+        }
+        return results;
     }
 
     /**

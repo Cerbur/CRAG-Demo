@@ -1,9 +1,11 @@
 package ai.cerbur.crag.storage.repository;
 
 import ai.cerbur.crag.storage.entity.ChunkFts;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,4 +46,33 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
                     regexp_replace(?2, '([一-龥])', '\\1 ', 'g')))
         """, nativeQuery = true)
     void insert(String chunkId, String rawContent);
+
+    /**
+     * FTS 全文检索查询 —— 使用 ts_rank 排序，JOIN chunk 表获取 child content 和 parent chunk ID.
+     *
+     * 查询侧 CJK 预处理与写入侧保持一致：每个 CJK 字符后插入空格，使单字作为 token 参与匹配.
+     * 匹配运算符 {@code @@}，分数为 ts_rank（归一化排名）.
+     *
+     * 返回列顺序：[chunk_id, parent_chunk_id, score, content]，由 ChunkFtsDao 负责映射.
+     *
+     * @param query 用户查询文本
+     * @param limit 返回数量上限
+     * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, score, content]
+     */
+    @Query(value = """
+        SELECT c.chunk_id,
+               c.parent_chunk_id,
+               ts_rank(cf.fts_content,
+                       plainto_tsquery('simple',
+                           regexp_replace(:query, '([一-龥])', '\\1 ', 'g'))) AS score,
+               c.content
+          FROM chunk_fts cf
+          JOIN chunk c ON c.chunk_id = cf.chunk_id
+         WHERE cf.fts_content @@
+               plainto_tsquery('simple',
+                   regexp_replace(:query, '([一-龥])', '\\1 ', 'g'))
+         ORDER BY score DESC
+         LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> searchFts(@Param("query") String query, @Param("limit") int limit);
 }

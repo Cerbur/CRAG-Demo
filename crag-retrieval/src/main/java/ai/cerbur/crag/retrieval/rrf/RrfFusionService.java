@@ -1,5 +1,6 @@
 package ai.cerbur.crag.retrieval.rrf;
 
+import ai.cerbur.crag.storage.ChunkSearchResult;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -20,14 +21,16 @@ public class RrfFusionService {
     private static final int RRF_K = 60;
 
     /**
-     * 对两路 child chunk 结果执行 RRF 融合，回表取 parent chunk（骨架，plan_3 实现）.
+     * 对两路 child chunk 结果执行 RRF 融合，回表取 parent chunk（骨架，plan_6 6.8 实现）.
      *
-     * @param sparseResults BM25 检索结果（child chunk 维度）
-     * @param denseResults  pgvector 检索结果（child chunk 维度）
+     * @param sparseResults Sparse 检索结果（child chunk 维度）
+     * @param denseResults  Dense 检索结果（child chunk 维度）
      * @param topN          融合后保留数量
-     * @return 空列表
+     * @return 空列表（6.8 实现后返回 RRF 融合结果）
      */
-    public List<?> fuse(List<?> sparseResults, List<?> denseResults, int topN) {
+    public List<ChunkSearchResult> fuse(List<ChunkSearchResult> sparseResults,
+                                         List<ChunkSearchResult> denseResults,
+                                         int topN) {
         return Collections.emptyList();
     }
 }

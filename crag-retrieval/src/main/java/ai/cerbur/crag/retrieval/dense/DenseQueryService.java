@@ -1,7 +1,10 @@
 package ai.cerbur.crag.retrieval.dense;
 
+import ai.cerbur.crag.storage.ChunkEmbeddingDao;
+import ai.cerbur.crag.storage.ChunkSearchResult;
 import java.util.Collections;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,14 +17,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class DenseQueryService {
 
+    @Autowired
+    private ChunkEmbeddingDao chunkEmbeddingDao;
+
     /**
-     * 向量相似度检索（骨架，plan_3 实现）.
+     * 向量相似度检索.
      *
-     * @param queryEmbedding query 向量
-     * @param topK            返回数量
-     * @return 空列表
+     * 委托 ChunkEmbeddingDao.searchSimilar 执行 pgvector {@code <=>} 余弦相似度查询，
+     * topK 控制返回数量，空向量时返回空列表.
+     *
+     * @param queryEmbedding query 向量（768 维）
+     * @param topK           返回数量
+     * @return 按余弦相似度降序排列的 ChunkSearchResult 列表
      */
-    public List<?> search(float[] queryEmbedding, int topK) {
-        return Collections.emptyList();
+    public List<ChunkSearchResult> search(float[] queryEmbedding, int topK) {
+        if (queryEmbedding == null || queryEmbedding.length == 0 || topK <= 0) {
+            return Collections.emptyList();
+        }
+        return chunkEmbeddingDao.searchSimilar(queryEmbedding, topK);
     }
 }

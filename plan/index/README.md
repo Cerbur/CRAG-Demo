@@ -49,7 +49,7 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval + Query 全链路，承接原 plan_4 未执行查询任务并补充 Rerank/LLM | ⏳ 待开始 | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval + Query 全链路，承接原 plan_4 未执行查询任务并补充 Rerank/LLM | 🔄 进行中 (7/14) | [plan_6.md](../plan_6/plan_6.md) |
 
 ---
 

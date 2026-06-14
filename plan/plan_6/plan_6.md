@@ -1,7 +1,7 @@
 # plan_6 — Retrieval + Query 全链路
 
 > 创建日期：2026-06-14  
-> 状态：⏳ 待开始  
+> 状态：🔄 进行中
 > 来源：承接原 `plan_4` 中未执行的 4.6-4.14，并补充 Rerank、UserQuery、LLM 全链路范围。
 
 ## 范围
@@ -21,13 +21,13 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.1 | 通用查询结果类型 ChunkSearchResult | ⏳ | — | — |
-| 6.2 | ChunkEmbeddingRepository — 向量相似度查询 | ⏳ | — | — |
-| 6.3 | ChunkEmbeddingDao — searchSimilar 方法 | ⏳ | — | — |
-| 6.4 | DenseQueryService 实现 | ⏳ | — | — |
-| 6.5 | ChunkFtsRepository — FTS 全文检索查询 | ⏳ | — | — |
-| 6.6 | ChunkFtsDao — searchFts 方法 | ⏳ | — | — |
-| 6.7 | SparseQueryService 实现 | ⏳ | — | — |
+| 6.1 | 通用查询结果类型 ChunkSearchResult | ✅ | — | 2026-06-15 |
+| 6.2 | ChunkEmbeddingRepository — 向量相似度查询 | ✅ | — | 2026-06-15 |
+| 6.3 | ChunkEmbeddingDao — searchSimilar 方法 | ✅ | — | 2026-06-15 |
+| 6.4 | DenseQueryService 实现 | ✅ | — | 2026-06-15 |
+| 6.5 | ChunkFtsRepository — FTS 全文检索查询 | ✅ | — | 2026-06-15 |
+| 6.6 | ChunkFtsDao — searchFts 方法 | ✅ | — | 2026-06-15 |
+| 6.7 | SparseQueryService 实现 | ✅ | — | 2026-06-15 |
 | 6.8 | RrfFusionService 实现 | ⏳ | — | — |
 | 6.9 | Retrieval 冒烟验证端点 | ⏳ | — | — |
 | 6.10 | RerankClient / RerankService 接入 | ⏳ | — | — |
@@ -36,7 +36,7 @@
 | 6.13 | UserQueryController 实现 | ⏳ | — | — |
 | 6.14 | 单元测试与端到端冒烟测试 | ⏳ | — | — |
 
-整体进度：0 / 14（0%）
+整体进度：7 / 14（50%）
 
 ## 6.1 通用查询结果类型 ChunkSearchResult
 

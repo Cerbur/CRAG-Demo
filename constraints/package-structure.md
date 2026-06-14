@@ -54,11 +54,12 @@ ai.cerbur.crag.storage/
 │   └── ChunkStatusConverter         — JPA AttributeConverter
 ├── repository/                       — Spring Data JPA Repository（纯 DB 类型映射）
 │   ├── ChunkRepository              — chunk 表 CAS 查询 + 更新
-│   ├── ChunkEmbeddingRepository     — chunk_embedding 表基础 CRUD + existsByChunkId + native INSERT
-│   └── ChunkFtsRepository           — chunk_fts 表
+│   ├── ChunkEmbeddingRepository     — chunk_embedding 表基础 CRUD + native INSERT + 向量相似度查询
+│   └── ChunkFtsRepository           — chunk_fts 表基础 CRUD + native INSERT + FTS 全文检索查询
 ├── ChunkDao                          — chunk 表业务数据访问（扫表 + CAS 抢占 + saveAll/count）
-├── ChunkEmbeddingDao                — chunk_embedding 表业务数据访问（幂等检查 + pgvector 格式转换 + count）
-└── ChunkFtsDao                       — chunk_fts 表业务数据访问（幂等检查 + FTS 记录写入 + count）
+├── ChunkEmbeddingDao                — chunk_embedding 表业务数据访问（幂等检查 + pgvector 格式转换 + 向量相似度检索 + count）
+├── ChunkFtsDao                       — chunk_fts 表业务数据访问（幂等检查 + FTS 记录写入 + FTS 全文检索 + count）
+└── ChunkSearchResult                 — Sparse/Dense/RRF 统一检索结果类型
 ```
 
 ### crag-ingestion（`ai.cerbur.crag.ingestion`）

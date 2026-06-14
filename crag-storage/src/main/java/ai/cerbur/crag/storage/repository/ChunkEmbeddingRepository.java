@@ -1,9 +1,11 @@
 package ai.cerbur.crag.storage.repository;
 
 import ai.cerbur.crag.storage.entity.ChunkEmbedding;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +32,7 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
     /**
      * 写入 embedding 向量 —— native SQL 处理 pgvector 类型转换.
      *
-     * ?1::uuid 将 String 转 PostgreSQL UUID 类型.
+     * chunk_id 为 VARCHAR(36)，直接传入 String 即可.
      * ?2::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转 vector(768) 类型.
      * 调用方应先通过 existsByChunkId 做幂等检查，极端并发下 DuplicateKeyException 向上传播.
      *
@@ -39,6 +41,29 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
      */
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (CAST(?1 AS uuid), CAST(?2 AS vector))", nativeQuery = true)
+    @Query(value = "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?1, CAST(?2 AS vector))", nativeQuery = true)
     void insert(String chunkId, String vectorString);
+
+    /**
+     * 向量相似度检索 —— 使用 pgvector {@code <=>} 余弦距离排序，JOIN chunk 表获取 child content 和 parent chunk ID.
+     *
+     * 返回列顺序：[chunk_id, parent_chunk_id, score, content]，由 ChunkEmbeddingDao 负责映射.
+     * {@code CAST(?1 AS vector)} 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转为向量类型.
+     * 分数 = 1 - 余弦距离，值域 [0, 2]，越大越相似.
+     *
+     * @param vectorLiteral pgvector 数组字面量，由 ChunkEmbeddingDao 做 float[] → String 转换
+     * @param limit         返回数量上限
+     * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, score, content]
+     */
+    @Query(value = """
+        SELECT c.chunk_id,
+               c.parent_chunk_id,
+               1 - (ce.embedding <=> CAST(:vectorLiteral AS vector)) AS score,
+               c.content
+          FROM chunk_embedding ce
+          JOIN chunk c ON c.chunk_id = ce.chunk_id
+         ORDER BY ce.embedding <=> CAST(:vectorLiteral AS vector) ASC
+         LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> searchSimilar(@Param("vectorLiteral") String vectorLiteral, @Param("limit") int limit);
 }
