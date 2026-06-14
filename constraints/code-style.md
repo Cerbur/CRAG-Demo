@@ -132,7 +132,7 @@ private Integer chunkIndex;
 
 ### 响应类型
 
-- 所有 API 端点必须返回 `Response<T>`（位于 `com.crag.demo.dto.result`）。
+- 所有 API 端点必须返回 `Response<T>`（位于 `ai.cerbur.crag.common.dto.result`）。
 - 禁止直接返回 `Map<String, Object>`、`ResponseEntity<?>` 或原始业务类型。
 - `Response<T>` 包含三个字段：`success` (boolean)、`code` (int)、`result` (T)。
 
@@ -146,7 +146,7 @@ private Integer chunkIndex;
 
 ### 请求 DTO
 
-- 请求体参数必须封装为 DTO 类，置于 `com.crag.demo.dto.request` 包。
+- 请求体参数必须封装为 DTO 类，置于 `ai.cerbur.crag.admin.dto.request` 包。
 - 优先使用 Java `record` 定义 DTO。
 - 参数校验使用 `@Valid` + Jakarta Bean Validation 注解（`@NotBlank`、`@NotNull` 等），校验失败由 `GlobalExceptionHandler` 统一转为 `Response.error(BAD_REQUEST)`。
 

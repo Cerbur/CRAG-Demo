@@ -1,7 +1,0 @@
-# 提示词模板目录（按模型+场景分目录管理）
-
-# 目录结构（plan_2 填充）：
-# ├── deepseek/
-# │   ├── rag-answer.md      — 用户问答场景系统提示词
-# │   └── chunk-summary.md   — chunk 摘要场景系统提示词
-# └── openai/                 — 预留多提供商兼容

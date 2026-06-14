@@ -34,6 +34,7 @@
 - [x] plan_1 完成 — 项目脚手架 + 基础设施 + 分包结构
 - [x] plan_2 完成 — AdminRag 写入链路 + Dense Embedding 异步处理
 - [x] plan_3 完成 — 项目介绍文档 + 架构 SVG + 协作约束整理
+- [x] plan_5 完成 — Java Module 拆分（7 modules, base package → `ai.cerbur.crag`）
 - [ ] plan_4 待创建 — Sparse + Dense 查询、RRF、Rerank、UserQuery、LLM 全链路
 
 ## 对话约定

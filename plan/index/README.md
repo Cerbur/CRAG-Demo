@@ -47,7 +47,7 @@ plan/
 | plan_2 | AdminRag 写入链路、Chunk 分块、Dense Embedding Cron、Sidecar 支撑 | ✅ 完成 | [plan_2.md](../plan_2/plan_2.md) |
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | [plan_4.md](../plan_4/plan_4.md) |
-| plan_5 | Java module 拆分，已确认 module 边界、共享 entity 策略和 Gradle 迁移步骤 | ⏳ 待执行 | [plan_5.md](../plan_5/plan_5.md) |
+| plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval + Query 全链路，承接原 plan_4 未执行查询任务并补充 Rerank/LLM | ⏳ 待开始 | [plan_6.md](../plan_6/plan_6.md) |
 
 ---
@@ -95,7 +95,7 @@ plan/
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_5.md](../plan_5/plan_5.md) | Java module 拆分，包含 `ai.cerbur.crag` 包名迁移、`crag-admin` API service 和 multi-module 迁移 | ⏳ 待执行 |
+| [plan_5.md](../plan_5/plan_5.md) | Java module 拆分，包含 `ai.cerbur.crag` 包名迁移、`crag-admin` API service 和 multi-module 迁移 | ✅ 完成 |
 
 ## Plan_6 明细
 

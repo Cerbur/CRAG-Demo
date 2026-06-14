@@ -16,13 +16,26 @@ COPY gradlew .
 COPY gradle/ gradle/
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
+COPY crag-common/build.gradle.kts crag-common/build.gradle.kts
+COPY crag-storage/build.gradle.kts crag-storage/build.gradle.kts
+COPY crag-retrieval/build.gradle.kts crag-retrieval/build.gradle.kts
+COPY crag-ingestion/build.gradle.kts crag-ingestion/build.gradle.kts
+COPY crag-query/build.gradle.kts crag-query/build.gradle.kts
+COPY crag-admin/build.gradle.kts crag-admin/build.gradle.kts
+COPY crag-app/build.gradle.kts crag-app/build.gradle.kts
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
-    chmod +x gradlew && ./gradlew dependencies --no-daemon
+    chmod +x gradlew && ./gradlew :crag-app:dependencies --no-daemon
 
 # 复制源码并构建
-COPY src/ src/
+COPY crag-common/src/ crag-common/src/
+COPY crag-storage/src/ crag-storage/src/
+COPY crag-retrieval/src/ crag-retrieval/src/
+COPY crag-ingestion/src/ crag-ingestion/src/
+COPY crag-query/src/ crag-query/src/
+COPY crag-admin/src/ crag-admin/src/
+COPY crag-app/src/ crag-app/src/
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
-    ./gradlew bootJar --no-daemon
+    ./gradlew :crag-app:bootJar --no-daemon
 
 # --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre-alpine AS runtime
@@ -33,7 +46,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 
 # 复制构建产物
-COPY --from=builder /workspace/build/libs/*.jar app.jar
+COPY --from=builder /workspace/crag-app/build/libs/*.jar app.jar
 
 # 非 root 运行
 USER appuser

@@ -18,7 +18,7 @@ CRAG-Demo 是一个基于 Java 21 + Spring Boot 构建的 RAG 问答系统后端
 - 🧠 **RAG 架构**：文档分块 → 向量化 → 语义检索 → 重排序 → LLM 生成
 - 📦 **全容器化**：PostgreSQL + pgvector + Spring Boot 全部 Docker 化
 - 🔗 **统一 LLM 接口**：磨平不同 LLM 提供商差异，可灵活切换
-- 📐 **清晰分层**：Controller → Service → Core → DAO → Integration，职责分明
+- 📐 **清晰分层**：`crag-app` 统一启动，`crag-admin` 承载 HTTP 入口，领域能力按 module 隔离
 
 ## 技术栈
 
@@ -30,18 +30,16 @@ CRAG-Demo 是一个基于 Java 21 + Spring Boot 构建的 RAG 问答系统后端
 
 ## 快速开始
 
-> 待 plan_1 执行完成后补充具体步骤。
-
 ```bash
 # 克隆项目
 git clone <repo-url>
 cd CRAG-Demo
 
 # 一键启动
-docker-compose up -d
+docker compose up -d --build
 
 # 验证服务
-curl http://localhost:8080/actuator/health
+curl http://localhost:8080/api/v1/test/smoke
 ```
 
 ## API 接口
@@ -67,21 +65,13 @@ Content-Type: multipart/form-data
 ## 项目结构
 
 ```
-├── controller/       # API 入口层
-├── service/          # 业务服务层
-│   └── impl/         # 服务实现
-├── core/             # RAG 核心逻辑
-│   ├── chunk/        # 文档分块（ChunkSplit）
-│   ├── dense/        # Dense 检索通道（Embedding + Query）
-│   ├── sparse/       # Sparse 检索通道（BM25/FTS）
-│   ├── rrf/          # RRF 融合
-│   └── rerank/       # 重排序
-├── dao/              # 数据访问层
-├── integration/      # 外部服务接入层
-│   ├── llm/          # LLM 调用（Spring AI）
-│   │   └── prompt/   # 提示词管理
-│   ├── embedding/    # Embedding 调用（Sidecar /embed）
-│   └── rerank/       # Rerank 调用（Sidecar /rerank）
+├── crag-common/      # 跨模块共享的基础类型、统一响应结构
+├── crag-storage/     # JPA entity、repository、dao
+├── crag-ingestion/   # AdminRag 写入链路、ChunkSplit、Dense/Sparse 索引写入 Cron
+├── crag-retrieval/   # Sparse/Dense 查询召回、RRF、Embedding client
+├── crag-query/       # UserQuery 编排、Rerank、LLM 调用
+├── crag-admin/       # HTTP API service：Controller、请求 DTO、异常处理
+├── crag-app/         # 唯一 Spring Boot 启动模块，承载 application.yml/schema.sql/data.sql
 └── plan/             # 项目规划文档（plan_main + index + plan_N 目录）
 ```
 

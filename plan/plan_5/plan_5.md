@@ -1,8 +1,8 @@
 # plan_5 — Java Module 拆分
 
 > 创建日期：2026-06-14  
-> 状态：⏳ 待执行  
-> 当前阶段：module 边界、entity / dao 维护方式、Gradle 迁移步骤已确认；后续进入编码阶段。
+> 状态：✅ 已完成  
+> 当前阶段：所有 module 拆分完毕，Gradle 编译与 37 个单元测试全部通过。
 
 ## 范围
 
@@ -23,12 +23,12 @@
 | 5.1 | 讨论并确定 module 边界和依赖方向 | ✅ | — | 2026-06-14 |
 | 5.2 | 讨论并确定共享库表 entity / dao 维护方式 | ✅ | — | 2026-06-14 |
 | 5.3 | 制定 Gradle multi-module 结构迁移步骤 | ✅ | — | 2026-06-14 |
-| 5.4 | Java base package 迁移到 `ai.cerbur.crag` | ⏳ | — | — |
-| 5.5 | 迁移 ingestion 代码到 ingestion module | ⏳ | — | — |
-| 5.6 | 为 retrieval / query module 预留接口与包结构 | ⏳ | — | — |
-| 5.7 | 更新包结构、测试工作流和 README 相关说明 | ⏳ | — | — |
+| 5.4 | Java base package 迁移到 `ai.cerbur.crag` | ✅ | — | 2026-06-14 |
+| 5.5 | 迁移 ingestion 代码到 ingestion module | ✅ | — | 2026-06-14 |
+| 5.6 | 为 retrieval / query module 预留接口与包结构 | ✅ | — | 2026-06-14 |
+| 5.7 | 更新包结构、测试工作流和 README 相关说明 | ✅ | — | 2026-06-14 |
 
-整体进度：3 / 7（43%）
+整体进度：7 / 7（100%）
 
 ## 初始拆分方向
 
