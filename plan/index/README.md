@@ -28,6 +28,10 @@ plan/
 │   └── plan_3.hotfix_*.md
 ├── plan_4/
 │   └── plan_4.md
+├── plan_5/
+│   └── plan_5.md
+├── plan_6/
+│   └── plan_6.md
 └── plan_archive/
     └── README.md
 ```
@@ -42,7 +46,9 @@ plan/
 | plan_1 | 项目脚手架、基础设施、分包结构、DAO、Docker 基础环境 | ✅ 完成 | [plan_1.md](../plan_1/plan_1.md) |
 | plan_2 | AdminRag 写入链路、Chunk 分块、Dense Embedding Cron、Sidecar 支撑 | ✅ 完成 | [plan_2.md](../plan_2/plan_2.md) |
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
-| plan_4 | Sparse 落库 + Sparse/Dense 查询 + RRF 融合 | 🔄 进行中 | [plan_4.md](../plan_4/plan_4.md) |
+| plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | [plan_4.md](../plan_4/plan_4.md) |
+| plan_5 | Java module 拆分，已确认 module 边界、共享 entity 策略和 Gradle 迁移步骤 | ⏳ 待执行 | [plan_5.md](../plan_5/plan_5.md) |
+| plan_6 | Retrieval + Query 全链路，承接原 plan_4 未执行查询任务并补充 Rerank/LLM | ⏳ 待开始 | [plan_6.md](../plan_6/plan_6.md) |
 
 ---
 
@@ -78,6 +84,24 @@ plan/
 | [plan_3.hotfix_3.md](../plan_3/plan_3.hotfix_3.md) | Docker 部署结构抽取 | ✅ 完成 |
 | [plan_3.hotfix_4.md](../plan_3/plan_3.hotfix_4.md) | Plan 工作流约束抽取 | ✅ 完成 |
 | [plan_3.hotfix_5.md](../plan_3/plan_3.hotfix_5.md) | Plan 目录整理、索引抽取、plan_main 收敛和工作流约束更新 | ✅ 完成 |
+
+## Plan_4 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_4.md](../plan_4/plan_4.md) | Sparse CAS 状态推进、chunk_fts 幂等写入、SparseEmbeddingCron 定时构建 FTS 索引 | ✅ 完成 |
+
+## Plan_5 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_5.md](../plan_5/plan_5.md) | Java module 拆分，包含 `ai.cerbur.crag` 包名迁移、`crag-admin` API service 和 multi-module 迁移 | ⏳ 待执行 |
+
+## Plan_6 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_6.md](../plan_6/plan_6.md) | Sparse/Dense 查询、RRF、Rerank、UserQuery、LLM 全链路 | ⏳ 待开始 |
 
 ---
 
