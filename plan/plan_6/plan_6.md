@@ -27,9 +27,9 @@
 | 6.5 | ChunkFtsRepository — FTS 全文检索查询 | ✅ | `bd34143` | 2026-06-15 |
 | 6.6 | ChunkFtsDao — searchFts 方法 | ✅ | `bd34143` | 2026-06-15 |
 | 6.7 | SparseQueryService 实现 | ✅ | `bd34143` | 2026-06-15 |
-| 6.8 | RrfFusionService 实现 | ✅ | — | 2026-06-15 |
-| 6.9 | Retrieval 冒烟验证端点 | ✅ | — | 2026-06-15 |
-| 6.10 | Retrieval 内部 RerankClient / RerankService 接入 | ✅ | — | 2026-06-15 |
+| 6.8 | RrfFusionService 实现 | ✅ | `e8ea240` | 2026-06-15 |
+| 6.9 | Retrieval 冒烟验证端点 | ✅ | `e8ea240` | 2026-06-15 |
+| 6.10 | Retrieval 内部 RerankClient / RerankService 接入 | ✅ | `e8ea240` | 2026-06-15 |
 | 6.11 | Query 侧 Context 工程与 sources 结构 | ⏳ | — | — |
 | 6.12 | LLM Client 接入与 UserQueryService 编排 | ⏳ | — | — |
 | 6.13 | UserQueryController 实现 | ⏳ | — | — |

@@ -8,10 +8,10 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_1.1 | 建立 benchmark 目录与任务链路索引 | ✅ | — | 2026-06-17 |
-| 6.hotfix_1.2 | Retrieval benchmark runner 从一次性脚本升级为长期资产 | ✅ | — | 2026-06-17 |
-| 6.hotfix_1.3 | Benchmark report 输出迁移到 build 目录，避免 git trace | ✅ | — | 2026-06-17 |
-| 6.hotfix_1.4 | 记录 benchmark 评分口径与后续迭代方向 | ✅ | — | 2026-06-17 |
+| 6.hotfix_1.1 | 建立 benchmark 目录与任务链路索引 | ✅ | `e8ea240` | 2026-06-17 |
+| 6.hotfix_1.2 | Retrieval benchmark runner 从一次性脚本升级为长期资产 | ✅ | `e8ea240` | 2026-06-17 |
+| 6.hotfix_1.3 | Benchmark report 输出迁移到 build 目录，避免 git trace | ✅ | `e8ea240` | 2026-06-17 |
+| 6.hotfix_1.4 | 记录 benchmark 评分口径与后续迭代方向 | ✅ | `e8ea240` | 2026-06-17 |
 
 整体进度：4 / 4（100%）
 
