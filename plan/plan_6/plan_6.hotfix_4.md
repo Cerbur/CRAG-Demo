@@ -8,9 +8,9 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_4.1 | 在测试工作流约束中补充 benchmark skill 触发路由 | ✅ | — | 2026-06-18 |
-| 6.hotfix_4.2 | 在 skill 索引补充任务路由表 | ✅ | — | 2026-06-18 |
-| 6.hotfix_4.3 | 验证路由文本、skill 校验和测试 | ✅ | — | 2026-06-18 |
+| 6.hotfix_4.1 | 在测试工作流约束中补充 benchmark skill 触发路由 | ✅ | `d9f4285` | 2026-06-18 |
+| 6.hotfix_4.2 | 在 skill 索引补充任务路由表 | ✅ | `d9f4285` | 2026-06-18 |
+| 6.hotfix_4.3 | 验证路由文本、skill 校验和测试 | ✅ | `d9f4285` | 2026-06-18 |
 
 整体进度：3 / 3（100%）
 
@@ -60,3 +60,4 @@
   - `python3 skill/crag-benchmark/scripts/generate_cases.py --self-test` 通过。
   - `python3 skill/crag-benchmark/scripts/score_report.py --self-test` 通过。
   - `./gradlew test` 通过。
+- 2026-06-18：实现提交 hash 回填为 `d9f4285`。
