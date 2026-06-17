@@ -34,7 +34,8 @@ plan/
 ├── plan_6/
 │   ├── plan_6.md
 │   ├── plan_6.hotfix_1.md
-│   └── plan_6.hotfix_2.md
+│   ├── plan_6.hotfix_2.md
+│   └── plan_6.hotfix_3.md
 └── plan_archive/
     └── README.md
 ```
@@ -108,6 +109,7 @@ plan/
 | [plan_6.md](../plan_6/plan_6.md) | Retrieval 内部完成 Sparse/Dense 查询、RRF、Rerank；Query 编排 UserQuery、Prompt、LLM | 🔄 进行中 (10/14) |
 | [plan_6.hotfix_1.md](../plan_6/plan_6.hotfix_1.md) | Retrieval benchmark 长期化，建立 benchmark 目录、任务链路索引和 build 报告输出 | ✅ 完成 |
 | [plan_6.hotfix_2.md](../plan_6/plan_6.hotfix_2.md) | Benchmark skill 化，沉淀随机测试数据生成、评分流程和项目内 skill 任务索引 | ✅ 完成 |
+| [plan_6.hotfix_3.md](../plan_6/plan_6.hotfix_3.md) | Benchmark skill 评估集标准优化，补充黄金/对抗/分布样本、置信区间和回归检测能力 | ✅ 完成 |
 
 ---
 

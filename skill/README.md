@@ -14,13 +14,17 @@
 | 任务 | 模式 | 说明 | 推荐命令 |
 | --- | --- | --- | --- |
 | 固定 Retrieval 回归 | baseline | 使用 `benchmark/retrieval_benchmark_runner.py` 的静态 case，观察版本间稳定性 | `python3 benchmark/retrieval_benchmark_runner.py` |
-| 随机 Retrieval 数据生成 | randomized | 用 seed 生成目标文档、相似噪声文档、sentinel 和查询变体 | `python3 skill/crag-benchmark/scripts/generate_cases.py --seed 20260618` |
+| 快速随机数据生成 | quick | 生成 6 个 case，只用于本地流程自检 | `python3 skill/crag-benchmark/scripts/generate_cases.py --profile quick --seed 20260618` |
+| 部署决策评估集 | decision | 生成 200 个 case，包含 golden/adversarial/distribution 三层样本 | `python3 skill/crag-benchmark/scripts/generate_cases.py --profile decision --seed 20260618` |
+| 发布对比评估集 | release | 生成 500 个 case，用于质量相近系统比较 | `python3 skill/crag-benchmark/scripts/generate_cases.py --profile release --seed 20260618` |
 | 混合 benchmark 准备 | mixed | 固定 baseline 加随机噪声，降低题库化风险 | `python3 skill/crag-benchmark/scripts/generate_cases.py --mode mixed` |
-| 报告评分摘要 | report | 汇总 Top1 / TopK / 平均分和缺失 score 字段 | `python3 skill/crag-benchmark/scripts/score_report.py --input build/benchmark/retrieval_benchmark_report.json` |
+| 报告评分摘要 | report | 汇总 Top1 / TopK / 95% CI / 回归检测能力和缺失 score 字段 | `python3 skill/crag-benchmark/scripts/score_report.py --input build/benchmark/retrieval_benchmark_report.json` |
 
 ## 使用约束
 
 - 涉及真实 Spring Boot、PostgreSQL、pgvector 或 sidecar 的 benchmark 必须通过 Docker Compose 运行。
 - 随机数据必须记录 seed，便于复现失败 case。
+- 部署决策至少使用 200 个 case；比较质量相近系统建议 500+。
+- Prompt、retrieval 参数或 rerank 策略变化必须用同一 seed 做前后回归对比。
 - 运行产物输出到 `build/benchmark/`，不进入 git trace。
 - benchmark 范围变更必须同步更新对应 `plan/plan_*/` hotfix 和 `plan/index/README.md`。

@@ -7,7 +7,7 @@ description: "Use this skill when working on CRAG-Demo benchmark workflows: gene
 
 ## Overview
 
-This skill turns CRAG-Demo benchmark work into a repeatable workflow: generate seeded random test cases, run the Docker-only benchmark path, score retrieval quality, and keep project task indexes current.
+This skill turns CRAG-Demo benchmark work into a repeatable evaluation workflow: build layered datasets, generate seeded random test cases, run the Docker-only benchmark path, score retrieval quality with confidence intervals, and keep project task indexes current.
 
 Use it for Retrieval, Query, or RAG validation work where static benchmark data is not enough.
 
@@ -22,11 +22,29 @@ Use it for Retrieval, Query, or RAG validation work where static benchmark data 
    - `baseline`: reuse stable checked-in cases such as `benchmark/retrieval_benchmark_runner.py`.
    - `randomized`: generate new seeded cases and distractors for a fresh validation pass.
    - `mixed`: run stable baseline plus seeded randomized noise.
-4. Generate cases with `scripts/generate_cases.py` when randomized data is needed.
-5. Run real Retrieval or Query benchmark checks only through Docker Compose.
-6. Score or summarize reports with `scripts/score_report.py`.
-7. Save generated reports under `build/benchmark/`; keep source scripts and task indexes tracked.
-8. Record validation results and commit hashes in the relevant plan hotfix.
+4. Choose evaluation size:
+   - `quick`: 6 cases, only for local smoke checks.
+   - `decision`: 200 cases, minimum for deployment decisions.
+   - `release`: 500 cases, for comparing similar systems or higher-confidence release checks.
+5. Generate cases with `scripts/generate_cases.py` when randomized data is needed.
+6. Run real Retrieval or Query benchmark checks only through Docker Compose.
+7. Score or summarize reports with `scripts/score_report.py`, including 95% CI and regression-detection guidance.
+8. Save generated reports under `build/benchmark/`; keep source scripts and task indexes tracked.
+9. Record validation results and commit hashes in the relevant plan hotfix.
+
+## Dataset Standard
+
+Good benchmark quality depends on use cases, not just a runnable script.
+
+| Type | Count | Purpose |
+| --- | ---: | --- |
+| Golden tests | 50-100 | Curated core scenarios that must pass on every change |
+| Adversarial examples | 20-50 | Prompt injection, edge cases, ambiguous queries, out-of-domain and unsafe requests |
+| Distribution samples | 100-200 | Random samples shaped like real production traffic |
+
+50 cases are not enough for deployment decisions. At 90% observed accuracy, 50 cases still leave a very wide 95% confidence interval, so it cannot distinguish an 80% system from a 96% system. Use at least 200 cases for deployment decisions, and 500+ when comparing two systems with close quality.
+
+Every prompt, retrieval-parameter, rerank, or LLM behavior change needs a before/after regression run on the same seed and dataset profile.
 
 ## Resource Routing
 
@@ -41,7 +59,13 @@ Use it for Retrieval, Query, or RAG validation work where static benchmark data 
 Generate randomized cases:
 
 ```bash
-python3 skill/crag-benchmark/scripts/generate_cases.py --seed 20260618 --case-count 6 --noise-per-case 3 --output build/benchmark/generated_cases.json
+python3 skill/crag-benchmark/scripts/generate_cases.py --seed 20260618 --profile decision --output build/benchmark/generated_cases.json
+```
+
+Generate a custom 200-case evaluation set:
+
+```bash
+python3 skill/crag-benchmark/scripts/generate_cases.py --golden-count 60 --adversarial-count 30 --distribution-count 110 --seed 20260618
 ```
 
 Self-test case generation:
@@ -69,5 +93,6 @@ python3 benchmark/retrieval_benchmark_runner.py
 - Keep randomized benchmark data reproducible with an explicit seed.
 - Include at least one unique sentinel per case so expected targets are unambiguous.
 - Include distractors that share vocabulary with the target; pure random filler is too easy.
+- Separate golden, adversarial, and distribution results in reports.
 - Preserve static baseline cases when adding randomized flows, so regressions remain comparable.
 - Do not commit generated reports from `build/benchmark/`.

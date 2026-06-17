@@ -21,6 +21,8 @@ Benchmark 用于持续评估 plan_6 Retrieval 链路质量，不替代单元测�
 
 当需要生成随机测试数据、混合 baseline 与噪声文档、总结 benchmark report 或扩展 Query / LLM 链路验证时，优先使用该 skill，并从 [`skill/README.md`](../skill/README.md) 查看任务索引。
 
+当前 `retrieval_benchmark_runner.py` 的 10 个静态 case 只作为 baseline smoke，不足以支撑部署决策。按 skill 标准，部署决策至少使用 200 个分层 case，包含 golden、adversarial 和 distribution 样本；质量相近系统比较建议 500+。
+
 ## 任务链路
 
 ```text
