@@ -8,10 +8,10 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_3.1 | 将评估集分层标准写入 `crag-benchmark` skill | ✅ | — | 2026-06-18 |
-| 6.hotfix_3.2 | 扩展随机 case 生成脚本，支持 golden/adversarial/distribution 样本 | ✅ | — | 2026-06-18 |
-| 6.hotfix_3.3 | 扩展评分脚本，输出 95% CI 与回归检测能力 | ✅ | — | 2026-06-18 |
-| 6.hotfix_3.4 | 完成 skill 官方校验、脚本自检和单元测试回归 | ✅ | — | 2026-06-18 |
+| 6.hotfix_3.1 | 将评估集分层标准写入 `crag-benchmark` skill | ✅ | `6532585` | 2026-06-18 |
+| 6.hotfix_3.2 | 扩展随机 case 生成脚本，支持 golden/adversarial/distribution 样本 | ✅ | `6532585` | 2026-06-18 |
+| 6.hotfix_3.3 | 扩展评分脚本，输出 95% CI 与回归检测能力 | ✅ | `6532585` | 2026-06-18 |
+| 6.hotfix_3.4 | 完成 skill 官方校验、脚本自检和单元测试回归 | ✅ | `6532585` | 2026-06-18 |
 
 整体进度：4 / 4（100%）
 
@@ -87,3 +87,4 @@
   - `python3 skill/crag-benchmark/scripts/generate_cases.py --profile decision --seed 20260618 --output build/benchmark/generated_cases_decision_smoke.json` 通过，输出 200 个 case：golden 60、adversarial 30、distribution 110。
   - `python3 skill/crag-benchmark/scripts/score_report.py --input build/benchmark/retrieval_benchmark_report.json` 通过，旧 10-case benchmark 的 Top1 95% CI 宽度为 27.8 个百分点，回归检测能力为 `no`。
   - `./gradlew test` 通过。
+- 2026-06-18：实现提交 hash 回填为 `6532585`。
