@@ -53,15 +53,16 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
      * 查询侧 CJK 预处理与写入侧保持一致：每个 CJK 字符后插入空格，使单字作为 token 参与匹配.
      * 匹配运算符 {@code @@}，分数为 ts_rank（归一化排名）.
      *
-     * 返回列顺序：[chunk_id, parent_chunk_id, score, content]，由 ChunkFtsDao 负责映射.
+     * 返回列顺序：[chunk_id, parent_chunk_id, chunk_index, score, content]，由 ChunkFtsDao 负责映射.
      *
      * @param query 用户查询文本
      * @param limit 返回数量上限
-     * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, score, content]
+     * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, chunk_index, score, content]
      */
     @Query(value = """
         SELECT c.chunk_id,
                c.parent_chunk_id,
+               c.chunk_index,
                ts_rank(cf.fts_content,
                        plainto_tsquery('simple',
                            regexp_replace(:query, '([一-龥])', '\\1 ', 'g'))) AS score,

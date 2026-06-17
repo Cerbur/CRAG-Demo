@@ -6,6 +6,7 @@ import ai.cerbur.crag.storage.repository.ChunkRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
@@ -64,13 +65,22 @@ public class ChunkDao {
     /**
      * 终态更新 —— 将 PROCESSING chunk 改为 SUCCESS 或 FAILED.
      *
+     * CAS 带 version 条件更新，若 affected == 0 表示版本已被其他实例变更，
+     * 此时抛出 DuplicateKeyException 由调用方统一处理.
+     *
      * @param chunkId   chunk ID
      * @param newStatus 目标状态
      * @param version   版本号
-     * @return affected rows
+     * @return affected rows（始终 ≥ 1）
+     * @throws DuplicateKeyException 当 affected == 0（版本冲突，另一实例已接管）
      */
     public int updateDenseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
-        return chunkRepository.updateDenseStatus(chunkId, newStatus, version);
+        int affected = chunkRepository.updateDenseStatus(chunkId, newStatus, version);
+        if (affected == 0) {
+            throw new DuplicateKeyException(
+                "CAS updateDenseStatus failed: chunk " + chunkId + " version " + version + " already stale");
+        }
+        return affected;
     }
 
     /**
@@ -114,13 +124,22 @@ public class ChunkDao {
     /**
      * 终态更新 —— 将 PROCESSING chunk 改为 SUCCESS 或 FAILED.
      *
+     * CAS 带 version 条件更新，若 affected == 0 表示版本已被其他实例变更，
+     * 此时抛出 DuplicateKeyException 由调用方统一处理.
+     *
      * @param chunkId   chunk ID
      * @param newStatus 目标状态
      * @param version   版本号
-     * @return affected rows
+     * @return affected rows（始终 ≥ 1）
+     * @throws DuplicateKeyException 当 affected == 0（版本冲突，另一实例已接管）
      */
     public int updateSparseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
-        return chunkRepository.updateSparseStatus(chunkId, newStatus, version);
+        int affected = chunkRepository.updateSparseStatus(chunkId, newStatus, version);
+        if (affected == 0) {
+            throw new DuplicateKeyException(
+                "CAS updateSparseStatus failed: chunk " + chunkId + " version " + version + " already stale");
+        }
+        return affected;
     }
 
     /**
@@ -140,5 +159,46 @@ public class ChunkDao {
      */
     public long count() {
         return chunkRepository.count();
+    }
+
+    /**
+     * 按 chunk ID 查询单个 chunk（供检索回表等场景用）.
+     *
+     * @param chunkId chunk ID
+     * @return chunk 实体，不存在时返回 null
+     */
+    public Chunk findByChunkId(String chunkId) {
+        return chunkRepository.findById(chunkId).orElse(null);
+    }
+
+    /**
+     * 按 chunk ID 列表批量查询 chunk（供检索回表等场景用）.
+     *
+     * @param chunkIds chunk ID 列表
+     * @return chunk 实体列表，不存在的 ID 不会出现在结果中
+     */
+    public List<Chunk> findByChunkIds(List<String> chunkIds) {
+        return chunkRepository.findAllById(chunkIds);
+    }
+
+    /**
+     * 按 parent chunk ID 查询其下所有 child chunk（供 rerank 邻接窗口扩展使用）.
+     *
+     * @param parentChunkId parent chunk ID
+     * @return 该 parent 下的 child chunk 列表
+     */
+    public List<Chunk> findByParentChunkId(String parentChunkId) {
+        return chunkRepository.findByParentChunkId(parentChunkId);
+    }
+
+    /**
+     * 按 parent chunk ID 与 child index 批量查询 child chunk（供 rerank 邻接窗口扩展使用）.
+     *
+     * @param parentChunkIds parent chunk ID 列表
+     * @param chunkIndexes   child chunk index 列表
+     * @return 命中 parent/index 集合的 child chunk 列表
+     */
+    public List<Chunk> findByParentChunkIdsAndChunkIndexes(List<String> parentChunkIds, List<Integer> chunkIndexes) {
+        return chunkRepository.findByParentChunkIdInAndChunkIndexIn(parentChunkIds, chunkIndexes);
     }
 }

@@ -47,17 +47,18 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
     /**
      * 向量相似度检索 —— 使用 pgvector {@code <=>} 余弦距离排序，JOIN chunk 表获取 child content 和 parent chunk ID.
      *
-     * 返回列顺序：[chunk_id, parent_chunk_id, score, content]，由 ChunkEmbeddingDao 负责映射.
+     * 返回列顺序：[chunk_id, parent_chunk_id, chunk_index, score, content]，由 ChunkEmbeddingDao 负责映射.
      * {@code CAST(?1 AS vector)} 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转为向量类型.
      * 分数 = 1 - 余弦距离，值域 [0, 2]，越大越相似.
      *
      * @param vectorLiteral pgvector 数组字面量，由 ChunkEmbeddingDao 做 float[] → String 转换
      * @param limit         返回数量上限
-     * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, score, content]
+     * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, chunk_index, score, content]
      */
     @Query(value = """
         SELECT c.chunk_id,
                c.parent_chunk_id,
+               c.chunk_index,
                1 - (ce.embedding <=> CAST(:vectorLiteral AS vector)) AS score,
                c.content
           FROM chunk_embedding ce

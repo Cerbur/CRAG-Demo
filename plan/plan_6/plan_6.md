@@ -8,9 +8,8 @@
 
 本计划覆盖读链路和问答链路：
 
-1. **Retrieval**：Sparse/Dense 查询、RRF 融合、回表 parent chunk。
-2. **Rerank**：调用 sidecar `/rerank` 对候选上下文重新排序。
-3. **Query**：实现 UserQuery API、Context 工程、LLM 调用、answer + sources 返回。
+1. **Retrieval**：Sparse/Dense 查询、child chunk 维度 RRF 融合、相邻 child 扩展，并在 retrieval 模块内部完成 Rerank。
+2. **Query**：实现 UserQuery API、调用 `RetrievalService` 获取 chunks、Context 工程、LLM 调用、answer + sources 返回。
 
 **前置依赖**：
 
@@ -28,21 +27,21 @@
 | 6.5 | ChunkFtsRepository — FTS 全文检索查询 | ✅ | `bd34143` | 2026-06-15 |
 | 6.6 | ChunkFtsDao — searchFts 方法 | ✅ | `bd34143` | 2026-06-15 |
 | 6.7 | SparseQueryService 实现 | ✅ | `bd34143` | 2026-06-15 |
-| 6.8 | RrfFusionService 实现 | ⏳ | — | — |
-| 6.9 | Retrieval 冒烟验证端点 | ⏳ | — | — |
-| 6.10 | RerankClient / RerankService 接入 | ⏳ | — | — |
-| 6.11 | Context 工程与 sources 结构 | ⏳ | — | — |
-| 6.12 | LLM Client 接入与 QueryService 编排 | ⏳ | — | — |
+| 6.8 | RrfFusionService 实现 | ✅ | — | 2026-06-15 |
+| 6.9 | Retrieval 冒烟验证端点 | ✅ | — | 2026-06-15 |
+| 6.10 | Retrieval 内部 RerankClient / RerankService 接入 | ✅ | — | 2026-06-15 |
+| 6.11 | Query 侧 Context 工程与 sources 结构 | ⏳ | — | — |
+| 6.12 | LLM Client 接入与 UserQueryService 编排 | ⏳ | — | — |
 | 6.13 | UserQueryController 实现 | ⏳ | — | — |
 | 6.14 | 单元测试与端到端冒烟测试 | ⏳ | — | — |
 
-整体进度：7 / 14（50%）
+整体进度：10 / 14（71%）
 
 ## 6.1 通用查询结果类型 ChunkSearchResult
 
 定义 Sparse / Dense / RRF 统一检索结果类型，字段包含：
 
-- `chunkId`：child chunk ID；RRF parent 回表后可为 parent chunk ID。
+- `chunkId`：child chunk ID；RRF 与 Rerank 均保持 child chunk 维度。
 - `parentChunkId`：父 chunk ID。
 - `score`：当前阶段相关性分数。
 - `content`：chunk 文本内容。
@@ -91,11 +90,11 @@
 
 - 按每路结果排名计算 `1 / (60 + rank)`。
 - 同一 child 在多路出现时累加分数。
-- 回表 parent chunk。
-- 同一 parent 下多个 child 命中时取最高 RRF 分数去重。
-- 返回按融合分数降序排列的 parent chunk 结果。
+- 保留 child chunk 内容和 sparse / dense 原始得分。
+- 同一 parent 下多个 child 命中时分别保留，不做 parent 去重。
+- 返回按融合分数降序排列的 child chunk 结果。
 
-**验收**：RRF 计算正确，parent 去重正确，结果排序稳定。
+**验收**：RRF 计算正确，child 维度保留正确，结果排序稳定。
 
 ## 6.9 Retrieval 冒烟验证端点
 
@@ -103,21 +102,27 @@
 
 **验收**：返回 query、sparseCount、denseCount、fusedCount 和 fusedResults。
 
-## 6.10 RerankClient / RerankService 接入
+## 6.10 Retrieval 内部 RerankClient / RerankService 接入
 
-对接 sidecar `/rerank`，将 RRF 候选上下文重新排序。
+在 `crag-retrieval` 内对接 sidecar `/rerank`，将 RRF 候选 chunk 重新排序。Rerank 属于 retrieval 内部实现细节，`crag-query` 不直接依赖 RerankClient 或 RerankService。
 
 **验收**：sidecar 不可用时错误可观测；返回结果顺序与 rerank score 对齐。
 
-## 6.11 Context 工程与 sources 结构
+**2026-06-17 修正**：
 
-将 rerank 后的 parent chunks 组装为 LLM prompt context，并保留 sources。
+- `RetrievalService` 内部 RRF 以 child chunk 为融合粒度，不再在编排层提前漂移到 parent chunk。
+- Rerank 候选集由 top RRF child chunk 及其同 parent 下前后相邻 child chunk 组成，最终结果仍按 rerank 分数截断为 `topN`。
+- 相邻 child 仅参与 rerank 候选扩展，不伪造 sparse / dense 原始召回分数。
+
+## 6.11 Query 侧 Context 工程与 sources 结构
+
+`crag-query` 调用 `RetrievalService` 获取已经完成召回、融合和重排的 chunks，将其组装为 LLM prompt context，并保留 sources。
 
 **验收**：sources 可追溯到 chunk/document 元信息；context 长度有上限保护。
 
 ## 6.12 LLM Client 接入与 QueryService 编排
 
-接入 DeepSeek / Spring AI，并在 QueryService 中串联 embedding、retrieval、rerank、LLM 生成。
+接入 DeepSeek / Spring AI，并在 UserQueryService 中串联 retrieval、context、LLM 生成。UserQueryService 只调用 retrieval 门面方法获取 chunks，不感知 Sparse/Dense/RRF/Rerank 的内部步骤。
 
 **验收**：正常返回 answer；LLM 失败时返回可理解错误。
 

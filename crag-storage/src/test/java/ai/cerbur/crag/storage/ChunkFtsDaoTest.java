@@ -1,6 +1,7 @@
 package ai.cerbur.crag.storage;
 
 import ai.cerbur.crag.storage.repository.ChunkFtsRepository;
+import ai.cerbur.crag.storage.result.SparseSearchResult;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,9 +22,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * ChunkFtsDao 单元测试 —— 验证 searchFts 的空查询保护、列映射和参数透传.
+ * ChunkFtsDao 单元测试 —— 验证 searchFts 的空查询保护、列映射到 SparseSearchResult 和参数透传.
  *
- * Repository 层通过 Mockito 隔离，聚焦 Dao 层的业务判断逻辑和 Object[] → ChunkSearchResult 映射.
+ * Repository 层通过 Mockito 隔离，聚焦 Dao 层的业务判断逻辑和 Object[] → SparseSearchResult 映射.
  *
  * @since 2026-06-15
  */
@@ -44,7 +45,7 @@ class ChunkFtsDaoTest {
         @Test
         @DisplayName("query 为 null → 返回空列表，不调用 Repository")
         void nullQueryReturnsEmpty() {
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts(null, 10);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts(null, 10);
 
             assertThat(results).isEmpty();
             verifyNoInteractions(chunkFtsRepository);
@@ -53,7 +54,7 @@ class ChunkFtsDaoTest {
         @Test
         @DisplayName("query 为空字符串 → 返回空列表，不调用 Repository")
         void emptyStringReturnsEmpty() {
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts("", 10);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts("", 10);
 
             assertThat(results).isEmpty();
             verifyNoInteractions(chunkFtsRepository);
@@ -62,7 +63,7 @@ class ChunkFtsDaoTest {
         @Test
         @DisplayName("query 为纯空白字符 → 返回空列表，不调用 Repository")
         void blankStringReturnsEmpty() {
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts("   \t\n  ", 10);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts("   \t\n  ", 10);
 
             assertThat(results).isEmpty();
             verifyNoInteractions(chunkFtsRepository);
@@ -84,38 +85,39 @@ class ChunkFtsDaoTest {
             when(chunkFtsRepository.searchFts(anyString(), anyInt()))
                 .thenReturn(Collections.emptyList());
 
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts("测试", 5);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts("测试", 5);
 
             assertThat(results).isEmpty();
         }
 
         @Test
-        @DisplayName("单条结果 → 列 0=chunkId, 1=parentChunkId, 2=score, 3=content 正确映射")
+        @DisplayName("单条结果 → chunkId/parentChunkId/chunkIndex/score/content 正确映射")
         void singleRowMapsCorrectly() {
-            Object[] row = {"chunk-abc", "parent-xyz", 0.75, "全文检索匹配内容"};
+            Object[] row = {"chunk-abc", "parent-xyz", 3, 0.75, "全文检索匹配内容"};
             when(chunkFtsRepository.searchFts(anyString(), anyInt()))
                 .thenReturn(List.<Object[]>of(row));
 
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts("关键词", 3);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts("关键词", 3);
 
             assertThat(results).hasSize(1);
-            ChunkSearchResult r = results.get(0);
+            SparseSearchResult r = results.get(0);
             assertThat(r.getChunkId()).isEqualTo("chunk-abc");
             assertThat(r.getParentChunkId()).isEqualTo("parent-xyz");
-            assertThat(r.getScore()).isEqualTo(0.75);
+            assertThat(r.getChunkIndex()).isEqualTo(3);
+            assertThat(r.getSparseScore()).isEqualTo(0.75);
             assertThat(r.getContent()).isEqualTo("全文检索匹配内容");
         }
 
         @Test
         @DisplayName("多条结果 → 按 Repository 返回顺序映射，数量一致")
         void multipleRowsMapCorrectly() {
-            Object[] row1 = {"c1", "p1", 0.90, "第一个匹配"};
-            Object[] row2 = {"c2", "p2", 0.70, "第二个匹配"};
-            Object[] row3 = {"c3", "p3", 0.50, "第三个匹配"};
+            Object[] row1 = {"c1", "p1", 0, 0.90, "第一个匹配"};
+            Object[] row2 = {"c2", "p2", 1, 0.70, "第二个匹配"};
+            Object[] row3 = {"c3", "p3", 2, 0.50, "第三个匹配"};
             when(chunkFtsRepository.searchFts(anyString(), anyInt()))
                 .thenReturn(List.<Object[]>of(row1, row2, row3));
 
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts("关键词", 10);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts("关键词", 10);
 
             assertThat(results).hasSize(3);
             assertThat(results.get(0).getChunkId()).isEqualTo("c1");
@@ -124,16 +126,16 @@ class ChunkFtsDaoTest {
         }
 
         @Test
-        @DisplayName("score 为 Float → ((Number) row[2]).doubleValue() 转换正确")
+        @DisplayName("score 为 Float → doubleValue() 转换正确")
         void floatScoreConvertsToDouble() {
-            Object[] row = {"c1", "p1", 0.123f, "内容"};
+            Object[] row = {"c1", "p1", 0, 0.123f, "内容"};
             when(chunkFtsRepository.searchFts(anyString(), anyInt()))
                 .thenReturn(List.<Object[]>of(row));
 
-            List<ChunkSearchResult> results = chunkFtsDao.searchFts("q", 1);
+            List<SparseSearchResult> results = chunkFtsDao.searchFts("q", 1);
 
             assertThat(results).hasSize(1);
-            assertThat(results.get(0).getScore()).isCloseTo(0.123, org.assertj.core.data.Offset.offset(0.001));
+            assertThat(results.get(0).getSparseScore()).isCloseTo(0.123, org.assertj.core.data.Offset.offset(0.001));
         }
     }
 

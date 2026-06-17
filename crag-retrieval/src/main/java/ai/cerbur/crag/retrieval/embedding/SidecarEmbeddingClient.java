@@ -45,6 +45,12 @@ public class SidecarEmbeddingClient implements EmbeddingClient {
     private Duration readTimeout;
 
     /**
+     * Embedding 请求路径，默认 /embed.
+     */
+    @Value("${crag.embedding.embed-path:/embed}")
+    private String embedPath;
+
+    /**
      * RestClient 实例，@PostConstruct 时构造.
      */
     private RestClient restClient;
@@ -81,7 +87,7 @@ public class SidecarEmbeddingClient implements EmbeddingClient {
         try {
             // POST {sidecarUrl}/embed，body: {"text": text}
             EmbedResponse response = restClient.post()
-                .uri("/embed")
+                .uri(embedPath)
                 .body(Map.of("text", text))
                 .retrieve()
                 .body(EmbedResponse.class);

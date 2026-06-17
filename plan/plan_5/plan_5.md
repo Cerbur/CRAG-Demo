@@ -37,8 +37,8 @@
 - `crag-common`：跨模块共享的基础类型、异常、响应结构、少量工具。
 - `crag-storage`：数据库 entity、repository、dao、schema 访问适配。
 - `crag-ingestion`：AdminRag 写入链路、ChunkSplit、Dense/Sparse 索引写入状态推进、Cron 编排。
-- `crag-retrieval`：Sparse/Dense 查询召回、RRF 融合、parent chunk 回表。
-- `crag-query`：UserQuery 应用编排、Context 工程、Rerank、LLM 调用和 answer/sources 组装。
+- `crag-retrieval`：Sparse/Dense 查询召回、child chunk 维度 RRF、相邻 child 扩展、Rerank，对外提供问题到 chunks 的检索门面。
+- `crag-query`：UserQuery 应用编排、调用 RetrievalService 获取 chunks、Context 工程、LLM 调用和 answer/sources 组装。
 - `crag-admin`：五大领域之外的更高一层 API service，承载当前 Admin/Test HTTP 入口和跨领域编排入口。
 - `crag-app`：Spring Boot 启动模块，负责装配各业务 module。
 
@@ -128,7 +128,7 @@ ai.cerbur.crag
 背景：
 
 - ingestion module 会写 `chunk`、`chunk_embedding`、`chunk_fts`。
-- retrieval module 会读同一组表，召回 child chunk 并回表 parent chunk。
+- retrieval module 会读同一组表，召回 child chunk，并在 Rerank 前扩展同 parent 下的相邻 child chunk。
 - 两个 module 读写的是同一套数据库模型，但职责不同：ingestion 是写模型与状态推进，retrieval 是读模型与排序召回。
 
 已讨论问题：

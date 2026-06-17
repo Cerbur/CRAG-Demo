@@ -1,6 +1,7 @@
 package ai.cerbur.crag.storage;
 
 import ai.cerbur.crag.storage.repository.ChunkEmbeddingRepository;
+import ai.cerbur.crag.storage.result.DenseSearchResult;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
  * - float[] → pgvector 字面量格式转换在此层完成（format 选择是业务判断）
  * - 底层 SQL 全部委托给 ChunkEmbeddingRepository（纯 DB 类型映射）
  * - 不使用 JdbcTemplate，不直接手写 SQL
+ * - 返回窄类型 {@link DenseSearchResult}，仅承载 Dense 阶段的字段
  *
  * @since 2026-06-13
  */
@@ -64,19 +66,19 @@ public class ChunkEmbeddingDao {
     }
 
     /**
-     * 向量相似度检索 —— 基于 pgvector 余弦距离查询 top-k 相似 child chunk，并映射为 ChunkSearchResult.
+     * 向量相似度检索 —— 基于 pgvector 余弦距离查询 top-k 相似 child chunk，映射为 {@link DenseSearchResult}.
      *
      * 流程：
      * 1. 空向量保护：vector 为 null 或长度为 0 时返回空列表
      * 2. float[] → pgvector 数组字面量转换（复用 {@link #toPgVectorString}）
      * 3. 委托 ChunkEmbeddingRepository 执行 native SQL 查询
-     * 4. Object[] 列映射为 ChunkSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=score, 3=content）
+     * 4. Object[] 列映射为 DenseSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=chunkIndex, 3=score, 4=content）
      *
      * @param vector query embedding 向量（768 维）
      * @param limit  返回数量上限
-     * @return 按相似度降序排列的 ChunkSearchResult 列表
+     * @return 按相似度降序排列的 DenseSearchResult 列表
      */
-    public List<ChunkSearchResult> searchSimilar(float[] vector, int limit) {
+    public List<DenseSearchResult> searchSimilar(float[] vector, int limit) {
         if (vector == null || vector.length == 0) {
             return Collections.emptyList();
         }
@@ -84,13 +86,14 @@ public class ChunkEmbeddingDao {
         String vectorLiteral = toPgVectorString(vector);
         List<Object[]> rows = chunkEmbeddingRepository.searchSimilar(vectorLiteral, limit);
 
-        List<ChunkSearchResult> results = new ArrayList<>(rows.size());
+        List<DenseSearchResult> results = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
             String chunkId = (String) row[0];
             String parentChunkId = (String) row[1];
-            double score = ((Number) row[2]).doubleValue();
-            String content = (String) row[3];
-            results.add(new ChunkSearchResult(chunkId, parentChunkId, score, content));
+            Integer chunkIndex = row[2] == null ? null : ((Number) row[2]).intValue();
+            double score = ((Number) row[3]).doubleValue();
+            String content = (String) row[4];
+            results.add(new DenseSearchResult(chunkId, parentChunkId, chunkIndex, score, content));
         }
         return results;
     }

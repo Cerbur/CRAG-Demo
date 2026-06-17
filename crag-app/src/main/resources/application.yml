@@ -35,10 +35,12 @@ spring:
 crag:
   embedding:
     sidecar-url: http://localhost:8001    # Docker Compose 通过环境变量 CRAG_EMBEDDING_SIDECAR_URL 覆盖为 http://sidecar:8001
+    embed-path: /embed
     connect-timeout: 5s
     read-timeout: 30s
   rerank:
     sidecar-url: http://localhost:8001    # 同上，通过 CRAG_RERANK_SIDECAR_URL 覆盖
+    rerank-path: /rerank
     connect-timeout: 5s
     read-timeout: 30s
   cron:

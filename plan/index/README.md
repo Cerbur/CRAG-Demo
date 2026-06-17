@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-14
+> 最后更新：2026-06-17
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -32,7 +32,8 @@ plan/
 │   ├── plan_5.md
 │   └── plan_5.hotfix_1.md
 ├── plan_6/
-│   └── plan_6.md
+│   ├── plan_6.md
+│   └── plan_6.hotfix_1.md
 └── plan_archive/
     └── README.md
 ```
@@ -49,7 +50,7 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval + Query 全链路，承接原 plan_4 未执行查询任务并补充 Rerank/LLM | 🔄 进行中 (7/14) | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval + Query 全链路，Retrieval 内部完成 Sparse/Dense/RRF/Rerank，Query 负责编排 Prompt/LLM | 🔄 进行中 (10/14) | [plan_6.md](../plan_6/plan_6.md) |
 
 ---
 
@@ -103,7 +104,8 @@ plan/
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_6.md](../plan_6/plan_6.md) | Sparse/Dense 查询、RRF、Rerank、UserQuery、LLM 全链路 | ⏳ 待开始 |
+| [plan_6.md](../plan_6/plan_6.md) | Retrieval 内部完成 Sparse/Dense 查询、RRF、Rerank；Query 编排 UserQuery、Prompt、LLM | 🔄 进行中 (10/14) |
+| [plan_6.hotfix_1.md](../plan_6/plan_6.hotfix_1.md) | Retrieval benchmark 长期化，建立 benchmark 目录、任务链路索引和 build 报告输出 | ✅ 完成 |
 
 ---
 

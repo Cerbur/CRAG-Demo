@@ -13,8 +13,8 @@ crag-demo/
 ├── crag-common/       — 跨模块共享的基础类型、响应结构
 ├── crag-storage/       — 数据库 entity、repository、dao
 ├── crag-ingestion/     — AdminRag 写入链路、ChunkSplit、Cron 编排
-├── crag-retrieval/     — Sparse/Dense 查询召回、RRF 融合、Embedding client
-├── crag-query/         — UserQuery 编排、Rerank、LLM 调用
+├── crag-retrieval/     — Sparse/Dense 查询召回、RRF 融合、Rerank、Embedding client
+├── crag-query/         — UserQuery 编排、Prompt 组装、LLM 调用
 ├── crag-admin/         — HTTP API service（Controller + 跨领域编排入口）
 └── crag-app/           — Spring Boot 启动模块（唯一可启动 jar）
 ```
@@ -59,7 +59,9 @@ ai.cerbur.crag.storage/
 ├── ChunkDao                          — chunk 表业务数据访问（扫表 + CAS 抢占 + saveAll/count）
 ├── ChunkEmbeddingDao                — chunk_embedding 表业务数据访问（幂等检查 + pgvector 格式转换 + 向量相似度检索 + count）
 ├── ChunkFtsDao                       — chunk_fts 表业务数据访问（幂等检查 + FTS 记录写入 + FTS 全文检索 + count）
-└── ChunkSearchResult                 — Sparse/Dense/RRF 统一检索结果类型
+└── result/                             — storage DAO 投影类型
+    ├── SparseSearchResult              — Sparse FTS DAO 投影（chunk 原始字段 + sparseScore）
+    └── DenseSearchResult               — Dense 向量 DAO 投影（chunk 原始字段 + denseScore）
 ```
 
 ### crag-ingestion（`ai.cerbur.crag.ingestion`）
@@ -84,14 +86,29 @@ ai.cerbur.crag.ingestion/
 
 ### crag-retrieval（`ai.cerbur.crag.retrieval`）
 
+`crag-retrieval` 是检索能力的边界模块。外部模块不感知 Sparse、Dense、RRF、Rerank 的内部实现细节，只通过 `RetrievalService` 提交用户问题并获取符合要求的检索结果列表。
+
 ```text
 ai.cerbur.crag.retrieval/
+├── bo/                               — retrieval 业务对象
+│   └── ChunkBO                       — 查询链路使用的 chunk 业务对象
 ├── dense/                            — Dense 稠密查询
 │   └── DenseQueryService            — 基于 pgvector 向量相似度语义检索
 ├── sparse/                           — Sparse 稀疏查询
 │   └── SparseQueryService           — 基于 PostgreSQL FTS 关键词检索
 ├── rrf/                              — RRF 融合
 │   └── RrfFusionService             — Reciprocal Rank Fusion 两路融合
+├── rerank/                           — 重排序
+│   ├── RerankService                — 对融合后的候选 chunk 做语义重排
+│   └── client/
+│       └── RerankClient              — Rerank 接口定义（Sidecar /rerank）
+├── service/                          — 检索编排
+│   └── RetrievalService             — 检索门面（问题 → Embed → Sparse+Dense → child RRF → 相邻 child 扩展 → Rerank → ChunkSearchResult）
+├── result/                           — retrieval 检索结果类型（窄→宽分层）
+│   ├── SparseSearchResult            — Sparse 检索结果（ChunkBO + sparseScore）
+│   ├── DenseSearchResult             — Dense 检索结果（ChunkBO + denseScore）
+│   ├── RrfFusionResult               — RRF 融合结果（ChunkBO + rrfScore + best sparse/dense）
+│   └── ChunkSearchResult             — 最终宽类型（ChunkBO + 全部四路得分）
 └── embedding/                        — Embedding HTTP 客户端
     ├── EmbeddingClient               — Embedding 接口定义
     ├── SidecarEmbeddingClient        — Sidecar /embed 端点实现
@@ -103,11 +120,7 @@ ai.cerbur.crag.retrieval/
 ```text
 ai.cerbur.crag.query/
 ├── service/                          — 用户查询服务
-│   └── UserQueryService             — 用户查询应答编排
-├── rerank/                           — 重排序
-│   ├── RerankService                — 语义重排序服务
-│   └── client/
-│       └── RerankClient              — Rerank 接口定义（Sidecar /rerank）
+│   └── UserQueryService             — 调用 RetrievalService 获取检索结果，并编排 Prompt + LLM 应答
 └── llm/                              — LLM 调用
     └── ChatClient                    — LLM Chat 接口定义
 ```

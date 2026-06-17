@@ -1,4 +1,4 @@
-package ai.cerbur.crag.query.rerank.client;
+package ai.cerbur.crag.retrieval.rerank.client;
 
 import java.util.List;
 

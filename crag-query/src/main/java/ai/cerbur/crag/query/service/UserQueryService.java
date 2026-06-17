@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class UserQueryService {
 
     /**
-     * 执行用户查询（骨架，plan_2 实现完整流水线）.
+     * 执行用户查询（骨架，plan_6.12 实现完整流水线）.
      *
      * @param question 用户问题文本
      * @return 空字符串

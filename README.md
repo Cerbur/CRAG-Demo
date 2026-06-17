@@ -68,8 +68,8 @@ Content-Type: multipart/form-data
 ├── crag-common/      # 跨模块共享的基础类型、统一响应结构
 ├── crag-storage/     # JPA entity、repository、dao
 ├── crag-ingestion/   # AdminRag 写入链路、ChunkSplit、Dense/Sparse 索引写入 Cron
-├── crag-retrieval/   # Sparse/Dense 查询召回、RRF、Embedding client
-├── crag-query/       # UserQuery 编排、Rerank、LLM 调用
+├── crag-retrieval/   # Sparse/Dense 查询召回、RRF、Rerank、Embedding client
+├── crag-query/       # UserQuery 编排、Prompt 组装、LLM 调用
 ├── crag-admin/       # HTTP API service：Controller、请求 DTO、异常处理
 ├── crag-app/         # 唯一 Spring Boot 启动模块，承载 application.yml/schema.sql/data.sql
 └── plan/             # 项目规划文档（plan_main + index + plan_N 目录）

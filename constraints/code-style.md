@@ -118,6 +118,56 @@ private Integer chunkIndex;
 - Demo 阶段不做“万一以后要用”的预留。
 - 一个接口只有一个实现时，不做 Interface -> Impl 分离，直接写实现类。
 
+### 多阶段得分类字段规范
+
+当数据对象通过多个处理阶段时，每个阶段应使用独立结果类型表达本阶段的业务语义。类型可以组合上游业务载体，并只新增当前阶段自己产出的字段。
+
+- 禁止同一字段在不同阶段承载不同含义；例如一个 `score` 字段不能先后表示召回分、融合分、重排分。
+- 禁止内层返回大而全的外层类型，导致大量字段为 null 或语义未产生。
+- 内层结果类型只表达当前阶段已经确定的业务信息；外层通过组合、包装或工厂方法逐步扩展。
+- 管道方向应保持“内层窄 → 外层宽”：越外层可以携带越多阶段结果，反向依赖不允许。
+- 业务载体字段（如文档、chunk、商品、用户等）可以用 BO/DTO/投影对象组合传递，但不应强迫所有阶段复用持久化 Entity。
+
+反例：
+
+```java
+// 不允许：内层阶段返回外层大类型，其中大部分字段尚未产生
+public class RecallDao {
+    public List<FinalSearchResult> search(...) { ... }
+}
+
+// 不允许：score 字段含义随管道变化
+public class SearchResult {
+    private final double score; // recall / fusion / rerank 混用
+}
+```
+
+正例：
+
+```java
+// 允许：每层返回自己权责范围内的结果类型
+public class DenseQueryService {
+    public List<DenseSearchResult> search(...) { ... }
+}
+public class SparseQueryService {
+    public List<SparseSearchResult> search(...) { ... }
+}
+public class RrfFusionService {
+    public List<RrfFusionResult> fuse(...) { ... }
+}
+public class RerankService {
+    public List<ChunkSearchResult> rerank(...) { ... }
+}
+```
+
+当前 retrieval 链路示例：
+```
+SparseSearchResult  (ChunkBO, sparseScore)      ← SparseQueryService
+DenseSearchResult   (ChunkBO, denseScore)       ← DenseQueryService
+RrfFusionResult     (ChunkBO, rrfScore + best)  ← RRF 融合
+ChunkSearchResult   (ChunkBO, 全部四路得分)     ← Rerank 组装，最外层
+```
+
 ### 第一性原理：满足功能的最小逻辑
 
 - 每段代码必须回答：最少需要做什么？只做那件事。
@@ -192,10 +242,17 @@ public class AdminRagController {
 - 自定义 `@Query` 绕过 EntityManager，不会自动生成 version 校验。
 - 不加 version 校验时，两个并发操作可能基于同一版本读到的数据各自 UPDATE，后执行的会静默覆盖先执行的，造成丢失更新。
 
+### Dao 层 CAS 异常规范
+
+- Dao 层 CAS 更新方法（`updateXxxStatus` 等）**必须**在 `affected == 0` 时抛出 `DuplicateKeyException`。
+- **禁止**将 `affected` 返回值透传给调用方，让调用方自行判断 —— 这会导致调用方遗漏检查而静默丢失更新。
+- Repository 层仍返回 `int`（纯 DB 操作），业务判断（affected == 0 → 异常）在 Dao 层完成。
+- 调用方（Cron / Service）通过 `catch (DuplicateKeyException)` 统一处理版本冲突，包括级联的 FAILED 标记更新。
+
 ### 示例
 
 ```java
-// Repository 侧
+// Repository 侧 —— 纯 DB 操作，返回 affected rows
 @Modifying
 @Transactional
 @Query("UPDATE Chunk c SET c.denseStatus = :newStatus, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.denseStatus = PROCESSING AND c.version = :version")
@@ -203,10 +260,23 @@ int updateDenseStatus(@Param("chunkId") String chunkId,
                       @Param("newStatus") ChunkStatus newStatus,
                       @Param("version") Integer version);
 
-// 调用方
-int affected = chunkRepository.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
-if (affected > 0) {
-    chunk.setVersion(chunk.getVersion() + 1);  // DB 已 +1，本地同步
+// Dao 侧 —— 业务判断：affected == 0 → 抛异常
+public int updateDenseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
+    int affected = chunkRepository.updateDenseStatus(chunkId, newStatus, version);
+    if (affected == 0) {
+        throw new DuplicateKeyException(
+            "CAS updateDenseStatus failed: chunk " + chunkId + " version " + version + " already stale");
+    }
+    return affected;
+}
+
+// Cron 调用方 —— catch DuplicateKeyException 统一处理版本冲突
+try {
+    chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
+    successCount++;
+} catch (DuplicateKeyException e) {
+    // 版本冲突，另一实例已接管
+    log.warn("CAS SUCCESS update conflicted for chunk {}", chunk.getChunkId());
 }
 ```
 
@@ -214,10 +284,70 @@ if (affected > 0) {
 
 - 禁止在自定义 `@Modifying` `@Query` 中省略 `version` 的 WHERE 比对和 SET 递增。
 - 禁止使用 JPA `@Version` 的自动行为替代自定义查询中的显式 version 控制——两者作用于不同路径，互不替代。
+- 禁止 Dao 层将 CAS 更新的 `affected` 返回值透传给调用方判断——必须在 Dao 层 `affected == 0` 时抛出 `DuplicateKeyException`。
 
 ---
 
-## 七、Repository vs Dao 分层规范
+## 七、SQL 批量操作规范
+
+在保证逻辑清晰的前提下，SQL 操作应优先整理为一次批量查询或批量写入。
+
+- 禁止在循环或 `forEach` 中对每条数据逐个执行 SQL 查询、INSERT 或 UPDATE。
+- 查询场景：先整理本轮需要查询的 ID / 条件集合，再通过批量查询一次取回数据，并在内存中按业务顺序组装结果。
+- 写入场景：先整理本轮需要写入或更新的数据集合，再使用批量 insert / update / saveAll 一次提交。
+- 只有 CAS 抢占、逐条幂等状态推进、单条失败隔离等确实需要逐条判断并发结果的场景，才允许逐条 SQL 操作；调用处必须通过注释说明原因。
+
+反例：
+
+```java
+for (String chunkId : chunkIds) {
+    Chunk chunk = chunkDao.findByChunkId(chunkId); // 不允许：N 次 SQL 查询
+}
+```
+
+正例：
+
+```java
+List<Chunk> chunks = chunkDao.findByChunkIds(chunkIds);
+Map<String, Chunk> chunkById = chunks.stream()
+    .collect(Collectors.toMap(Chunk::getChunkId, Function.identity()));
+```
+
+---
+
+## 八、查询链路 BO 组合规范
+
+查询链路（retrieval / query）不得把 `ai.cerbur.crag.storage.entity` 下的 JPA Entity 作为裸返回类型继续透传；retrieval 业务结果类型应组合 `ai.cerbur.crag.retrieval.bo.ChunkBO`。
+
+- Repository / Dao 层可以返回 Entity，因为这是持久化边界内的数据访问模型。
+- Storage Dao 可以返回 storage 投影类型；进入 retrieval 业务链路时必须转换为 `ChunkBO`。
+- Service 编排层如需对外传递查询结果，必须使用 `retrieval.result` 下的窄类型或宽结果类型，例如 `SparseSearchResult`、`DenseSearchResult`、`RrfFusionResult`、`ChunkSearchResult`。
+- 这些结果类型应直接持有 `ChunkBO` 成员，例如 `private final ChunkBO chunk`，让原始 `chunkId`、`parentChunkId`、`chunkIndex`、`content` 沿链路完整传递。
+- 禁止把 `List<Chunk>` 作为 retrieval/query 链路的对外返回值；裸 Entity 会让调用方误以为这是完整 DB 查询结果，而不是某一阶段的检索载体。
+- 如果第一次查询已经拿到 chunk 原始信息，应沿结果类型继续传递 `ChunkBO`，不要只传 `chunkId` 后再回表补齐。
+- 相邻 child 扩展可在 Retrieval 内部调用 Dao 查询 `Chunk`，但必须转换为 `ChunkBO` 并包装为结果类型后再进入 rerank/query 链路。
+
+反例：
+
+```java
+Chunk chunk = new Chunk();
+chunk.setChunkId(result.getChunkId());
+chunk.setContent(result.getContent());
+return List.of(chunk); // 不允许：查询链路裸透传 JPA Entity
+```
+
+正例：
+
+```java
+public class RrfFusionResult {
+    private final ChunkBO chunk;
+    private final double rrfScore;
+}
+```
+
+---
+
+## 九、Repository vs Dao 分层规范
 
 项目中存在两种数据访问组件，职责边界如下。
 

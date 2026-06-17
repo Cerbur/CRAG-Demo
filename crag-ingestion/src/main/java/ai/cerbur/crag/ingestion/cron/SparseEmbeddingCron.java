@@ -133,16 +133,29 @@ public class SparseEmbeddingCron {
                 log.debug("Sparse FTS success — chunkId={}", chunk.getChunkId());
             } catch (DuplicateKeyException e) {
                 // 极端并发下另一实例已写入，下轮 existsByChunkId 命中直接标记成功
+                // 也可能是 updateSparseStatus(SUCCESS) 的 CAS 版本冲突，同样标记 FAILED 等重试
                 log.warn("Sparse FTS duplicate for chunk {}, will retry next round: {}",
                     chunk.getChunkId(), e.getMessage());
-                chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
-                failedCount++;
+                try {
+                    chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
+                    failedCount++;
+                } catch (DuplicateKeyException dke) {
+                    // FAILED 更新也 CAS 冲突 → 另一实例已接管此 chunk，无需再标记
+                    log.debug("CAS FAILED update also conflicted for chunk {}, another instance took over",
+                        chunk.getChunkId());
+                }
             } catch (RuntimeException e) {
                 // 未预期的异常（如 DB 类型映射错误），同样标记 FAILED 避免 chunk 卡在 PROCESSING
                 log.error("Unexpected error during sparse FTS for chunk {}, marking FAILED",
                     chunk.getChunkId(), e);
-                chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
-                failedCount++;
+                try {
+                    chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
+                    failedCount++;
+                } catch (DuplicateKeyException dke) {
+                    // FAILED 更新也 CAS 冲突 → 另一实例已接管此 chunk，无需再标记
+                    log.debug("CAS FAILED update also conflicted for chunk {}, another instance took over",
+                        chunk.getChunkId());
+                }
             }
         }
 

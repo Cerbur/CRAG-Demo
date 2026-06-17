@@ -1,6 +1,7 @@
 package ai.cerbur.crag.storage;
 
 import ai.cerbur.crag.storage.repository.ChunkFtsRepository;
+import ai.cerbur.crag.storage.result.SparseSearchResult;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
  * - 业务判断逻辑（如幂等检查）在此层完成
  * - CJK 分词和 tsvector 格式转换在 Repository 层 native SQL 完成
  * - 不使用 JdbcTemplate，不直接手写 SQL
+ * - 返回窄类型 {@link SparseSearchResult}，仅承载 FTS 阶段的字段
  *
  * @since 2026-06-13
  */
@@ -71,31 +73,32 @@ public class ChunkFtsDao {
     }
 
     /**
-     * FTS 全文检索查询 —— 委托 Repository 执行 ts_rank 排序检索，并映射为 ChunkSearchResult.
+     * FTS 全文检索查询 —— 委托 Repository 执行 ts_rank 排序检索，映射为 {@link SparseSearchResult}.
      *
      * 流程：
      * 1. 空查询保护：query 为 null 或空白时返回空列表
      * 2. 委托 ChunkFtsRepository 执行 native SQL（CJK 预处理在 DB 侧完成）
-     * 3. Object[] 列映射为 ChunkSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=score, 3=content）
+     * 3. Object[] 列映射为 SparseSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=chunkIndex, 3=score, 4=content）
      *
      * @param query 用户查询文本
      * @param limit 返回数量上限
-     * @return 按 ts_rank 降序排列的 ChunkSearchResult 列表
+     * @return 按 ts_rank 降序排列的 SparseSearchResult 列表
      */
-    public List<ChunkSearchResult> searchFts(String query, int limit) {
+    public List<SparseSearchResult> searchFts(String query, int limit) {
         if (query == null || query.isBlank()) {
             return Collections.emptyList();
         }
 
         List<Object[]> rows = chunkFtsRepository.searchFts(query, limit);
 
-        List<ChunkSearchResult> results = new ArrayList<>(rows.size());
+        List<SparseSearchResult> results = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
             String chunkId = (String) row[0];
             String parentChunkId = (String) row[1];
-            double score = ((Number) row[2]).doubleValue();
-            String content = (String) row[3];
-            results.add(new ChunkSearchResult(chunkId, parentChunkId, score, content));
+            Integer chunkIndex = row[2] == null ? null : ((Number) row[2]).intValue();
+            double score = ((Number) row[3]).doubleValue();
+            String content = (String) row[4];
+            results.add(new SparseSearchResult(chunkId, parentChunkId, chunkIndex, score, content));
         }
         return results;
     }

@@ -193,4 +193,13 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
      * @return 该 parent 下的所有 child chunk
      */
     List<Chunk> findByParentChunkId(String parentChunkId);
+
+    /**
+     * 按 parent chunk ID 与 child index 批量查询候选 child chunk.
+     *
+     * @param parentChunkIds parent chunk ID 列表
+     * @param chunkIndexes   child chunk index 列表
+     * @return 命中 parent/index 集合的 child chunk 列表
+     */
+    List<Chunk> findByParentChunkIdInAndChunkIndexIn(List<String> parentChunkIds, List<Integer> chunkIndexes);
 }

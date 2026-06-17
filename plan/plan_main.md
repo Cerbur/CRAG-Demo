@@ -97,9 +97,9 @@ UserQuery HTTP
   -> question embedding
   -> Dense Query(pgvector, child chunk)
   -> Sparse Query(PostgreSQL FTS, child chunk)
-  -> RRF 融合
-  -> 回表 parent chunk
-  -> Rerank
+  -> RRF 融合(child chunk)
+  -> top RRF child + 相邻 child 扩展
+  -> Rerank(child chunk candidates)
   -> LLM 生成
   -> answer + sources
 ```
@@ -107,9 +107,9 @@ UserQuery HTTP
 方向约束：
 
 - Dense 检索与 Sparse 检索都以 child chunk 为命中粒度。
-- RRF 只负责融合双路检索排名，不直接做语义判断。
-- 回表获取 parent chunk 上下文，避免只把过短 child chunk 交给 LLM。
-- Rerank 对候选上下文重新排序后，再交给 LLM 生成答案。
+- RRF 保持 child chunk 维度，只负责融合双路检索排名，不直接做语义判断。
+- Rerank 候选由 top RRF child chunk 及其同 parent 下相邻 child chunk 组成，避免孤立 child 截断上下文。
+- Rerank 对 child chunk 候选重新排序后，再交给 LLM 生成答案。
 - Demo 阶段不做流式返回和用户鉴权。
 
 ---
@@ -191,8 +191,8 @@ UserQuery HTTP
 - `Access` 管理用户、多租户、鉴权、租户成员关系，以及访问 KnowledgeBase 的 keychain。
 - `KnowledgeBase` 管理租户与知识库关系、知识库与文档关系，不负责 Chunk、Embedding、检索索引。
 - `Ingestion` 负责写链路：Doc 变更监听、Doc -> Chunk、Chunk -> Sparse/Dense 写入，以及 Chunk/Sparse/Dense 存储的写入状态推进。
-- `Retrieval` 负责读链路：查询 Sparse/Dense、RRF 融合、召回 Chunk，不负责生成最终回答。
-- `Query` 负责问答链路：接收 UserQuery、组织 context、调用 LLM、生成 answer 与 sources。
+- `Retrieval` 负责读链路：查询 Sparse/Dense、RRF 融合、召回 Chunk、Rerank，对外提供问题到 chunks 的检索门面，不负责生成最终回答。
+- `Query` 负责问答链路：接收 UserQuery、调用 Retrieval 获取 chunks、组织 context、调用 LLM、生成 answer 与 sources。
 - `Cron` 是当前阶段的事件监听实现方式；未来拆微服务后可以替换为 MQ/事件总线，但领域边界不随触发方式改变。
 
 ### 6.2 领域职责表
@@ -202,8 +202,8 @@ UserQuery HTTP
 | Access | 未规划 | 用户、多租户、租户成员、鉴权、KnowledgeBase keychain |
 | KnowledgeBase | 未规划 | Tenant 与 KnowledgeBase 关系、KnowledgeBase 与 Document 关系 |
 | Ingestion | 已规划 | Doc -> Chunk，Chunk 生成 Sparse/Dense 索引，维护写入状态 |
-| Retrieval | 已规划 | 查询 Sparse/Dense，RRF 融合，召回 Chunk 给 Query |
-| Query | 已规划 | UserQuery、Context 工程、LLM 调用、答案生成 |
+| Retrieval | 已规划 | 查询 Sparse/Dense，RRF 融合，召回 Chunk，Rerank 后返回 chunks 给 Query |
+| Query | 已规划 | UserQuery、调用 Retrieval 获取 chunks、Context 工程、LLM 调用、答案生成 |
 | Cron Listeners | 已规划 | 当前阶段所有监听、异步任务和状态推进的实现方式 |
 
 ### 6.3 代码分层约束

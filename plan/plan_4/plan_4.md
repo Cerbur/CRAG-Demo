@@ -14,7 +14,7 @@
 
 **不包含**：
 
-- Sparse/Dense 查询召回、RRF 融合、parent 回表：已迁移到 `plan_6`。
+- Sparse/Dense 查询召回、child chunk 维度 RRF、Rerank 候选扩展：已迁移到 `plan_6`。
 - Rerank、UserQuery、LLM 调用：已迁移到 `plan_6`。
 - Java module 拆分：作为 `plan_5` 独立讨论和规划。
 

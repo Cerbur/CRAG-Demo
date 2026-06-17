@@ -142,16 +142,29 @@ public class DenseEmbeddingCron {
             } catch (EmbeddingException | DuplicateKeyException e) {
                 // Step 5: 标记 FAILED（T5），下轮 Cron 通过 T2 自动重试
                 // DuplicateKeyException：极端并发下另一实例已写入，下轮 existsByChunkId 命中直接标记成功
+                // 也可能是 updateDenseStatus(SUCCESS) 的 CAS 版本冲突，同样标记 FAILED 等重试
                 log.warn("Dense embedding failed for chunk {}, will retry next round: {}",
                     chunk.getChunkId(), e.getMessage());
-                chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
-                failedCount++;
+                try {
+                    chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
+                    failedCount++;
+                } catch (DuplicateKeyException dke) {
+                    // FAILED 更新也 CAS 冲突 → 另一实例已接管此 chunk，无需再标记
+                    log.debug("CAS FAILED update also conflicted for chunk {}, another instance took over",
+                        chunk.getChunkId());
+                }
             } catch (RuntimeException e) {
                 // 未预期的异常（如 DB 类型映射错误），同样标记 FAILED 避免 chunk 卡在 PROCESSING
                 log.error("Unexpected error during dense embedding for chunk {}, marking FAILED",
                     chunk.getChunkId(), e);
-                chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
-                failedCount++;
+                try {
+                    chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.FAILED, chunk.getVersion());
+                    failedCount++;
+                } catch (DuplicateKeyException dke) {
+                    // FAILED 更新也 CAS 冲突 → 另一实例已接管此 chunk，无需再标记
+                    log.debug("CAS FAILED update also conflicted for chunk {}, another instance took over",
+                        chunk.getChunkId());
+                }
             }
         }
 
