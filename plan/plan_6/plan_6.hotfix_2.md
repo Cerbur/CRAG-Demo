@@ -8,10 +8,10 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_2.1 | 建立项目内 `skill/crag-benchmark` skill 结构 | ✅ | — | 2026-06-18 |
-| 6.hotfix_2.2 | 沉淀 benchmark 随机数据生成、运行和评分流程 | ✅ | — | 2026-06-18 |
-| 6.hotfix_2.3 | 建立项目内 skill 使用任务索引 | ✅ | — | 2026-06-18 |
-| 6.hotfix_2.4 | 完成 skill 结构校验与脚本级验证 | ✅ | — | 2026-06-18 |
+| 6.hotfix_2.1 | 建立项目内 `skill/crag-benchmark` skill 结构 | ✅ | `b24fbb1` | 2026-06-18 |
+| 6.hotfix_2.2 | 沉淀 benchmark 随机数据生成、运行和评分流程 | ✅ | `b24fbb1` | 2026-06-18 |
+| 6.hotfix_2.3 | 建立项目内 skill 使用任务索引 | ✅ | `b24fbb1` | 2026-06-18 |
+| 6.hotfix_2.4 | 完成 skill 结构校验与脚本级验证 | ✅ | `b24fbb1` | 2026-06-18 |
 
 整体进度：4 / 4（100%）
 
@@ -84,3 +84,4 @@ skill/crag-benchmark/
   - `python3 skill/crag-benchmark/scripts/generate_cases.py --seed 20260618 --case-count 2 --noise-per-case 2 --output build/benchmark/generated_cases_smoke.json` 通过，产物位于 git 忽略的 `build/benchmark/`。
   - `./gradlew test` 通过。
 - 2026-06-18：尝试执行 skill-creator 官方 `quick_validate.py`，但当前 Python 运行时缺少 `yaml` 模块，脚本无法启动；本 hotfix 使用零依赖 `validate_skill.py` 覆盖本 skill 的 frontmatter、UI metadata、references 和 scripts 结构校验。
+- 2026-06-18：实现提交 hash 回填为 `b24fbb1`。
