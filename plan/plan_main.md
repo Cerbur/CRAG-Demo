@@ -230,7 +230,10 @@ UserQuery HTTP
 | plan_1 | 项目脚手架、基础设施、DAO、Docker 基础环境 | ✅ 完成 |
 | plan_2 | AdminRag 写入链路、Dense Embedding 异步处理、sidecar 支撑 | ✅ 完成 |
 | plan_3 | 项目介绍文档、架构图、协作约束整理 | ✅ 完成 |
-| plan_4 | Sparse + Dense 查询、RRF、Rerank、UserQuery、LLM 全链路 | ⏳ 未创建 |
+| plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 |
+| plan_5 | Java module 拆分，完成 multi-module 迁移和启动模块收敛 | ✅ 完成 |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 |
+| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 |
 
 执行计划详情、历史小数计划、hotfix 状态和完成记录统一查看 [`plan/index/README.md`](./index/README.md)。
 

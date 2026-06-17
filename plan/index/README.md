@@ -37,6 +37,8 @@ plan/
 │   ├── plan_6.hotfix_2.md
 │   ├── plan_6.hotfix_3.md
 │   └── plan_6.hotfix_4.md
+├── plan_7/
+│   └── plan_7.md
 └── plan_archive/
     └── README.md
 ```
@@ -53,7 +55,8 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval + Query 全链路，Retrieval 内部完成 Sparse/Dense/RRF/Rerank，Query 负责编排 Prompt/LLM | 🔄 进行中 (10/14) | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.md](../plan_6/plan_6.md) |
+| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 (0/4) | [plan_7.md](../plan_7/plan_7.md) |
 
 ---
 
@@ -107,11 +110,17 @@ plan/
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_6.md](../plan_6/plan_6.md) | Retrieval 内部完成 Sparse/Dense 查询、RRF、Rerank；Query 编排 UserQuery、Prompt、LLM | 🔄 进行中 (10/14) |
+| [plan_6.md](../plan_6/plan_6.md) | Retrieval 内部完成 Sparse/Dense 查询、RRF、Rerank | ✅ 完成 |
 | [plan_6.hotfix_1.md](../plan_6/plan_6.hotfix_1.md) | Retrieval benchmark 长期化，建立 benchmark 目录、任务链路索引和 build 报告输出 | ✅ 完成 |
 | [plan_6.hotfix_2.md](../plan_6/plan_6.hotfix_2.md) | Benchmark skill 化，沉淀随机测试数据生成、评分流程和项目内 skill 任务索引 | ✅ 完成 |
 | [plan_6.hotfix_3.md](../plan_6/plan_6.hotfix_3.md) | Benchmark skill 评估集标准优化，补充黄金/对抗/分布样本、置信区间和回归检测能力 | ✅ 完成 |
 | [plan_6.hotfix_4.md](../plan_6/plan_6.hotfix_4.md) | Benchmark skill 任务路由补齐，确保 benchmark / evaluation / 回归测试意图索引到 `crag-benchmark` | ✅ 完成 |
+
+## Plan_7 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、Prompt 拼接、LLM 接入、UserQuery API 和冒烟验证 | ⏳ 待开始 (0/4) |
 
 ---
 

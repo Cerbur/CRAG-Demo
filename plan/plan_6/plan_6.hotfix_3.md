@@ -2,7 +2,7 @@
 
 > 创建日期：2026-06-18  
 > 状态：✅ 完成  
-> 归属：`plan_6` Retrieval + Query 全链路
+> 归属：`plan_6` Retrieval 查询链路
 
 ## 进度追踪
 

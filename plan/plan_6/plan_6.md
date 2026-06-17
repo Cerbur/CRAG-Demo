@@ -1,20 +1,24 @@
-# plan_6 — Retrieval + Query 全链路
+# plan_6 — Retrieval 查询链路
 
 > 创建日期：2026-06-14  
-> 状态：🔄 进行中
-> 来源：承接原 `plan_4` 中未执行的 4.6-4.14，并补充 Rerank、UserQuery、LLM 全链路范围。
+> 状态：✅ 完成
+> 来源：承接原 `plan_4` 中未执行的 Retrieval 查询能力，并补充 Rerank 接入。
 
 ## 范围
 
-本计划覆盖读链路和问答链路：
+本计划覆盖 Retrieval 读链路：
 
-1. **Retrieval**：Sparse/Dense 查询、child chunk 维度 RRF 融合、相邻 child 扩展，并在 retrieval 模块内部完成 Rerank。
-2. **Query**：实现 UserQuery API、调用 `RetrievalService` 获取 chunks、Context 工程、LLM 调用、answer + sources 返回。
+1. Sparse/Dense 查询。
+2. child chunk 维度 RRF 融合。
+3. 相邻 child 扩展。
+4. Retrieval 模块内部 Rerank。
+
+Query 侧 UserQuery API、Prompt 拼接、LLM 接入、answer + sources 返回迁移到 `plan_7`。
 
 **前置依赖**：
 
 - `plan_4` 已完成 ingestion 侧 Sparse 索引写入。
-- `plan_5` 需要先确定 module 拆分边界，避免 Retrieval / Query 新代码落入马上要迁移的位置。
+- `plan_5` 已确定 module 拆分边界。
 
 ## 进度追踪
 
@@ -30,12 +34,8 @@
 | 6.8 | RrfFusionService 实现 | ✅ | `e8ea240` | 2026-06-15 |
 | 6.9 | Retrieval 冒烟验证端点 | ✅ | `e8ea240` | 2026-06-15 |
 | 6.10 | Retrieval 内部 RerankClient / RerankService 接入 | ✅ | `e8ea240` | 2026-06-15 |
-| 6.11 | Query 侧 Context 工程与 sources 结构 | ⏳ | — | — |
-| 6.12 | LLM Client 接入与 UserQueryService 编排 | ⏳ | — | — |
-| 6.13 | UserQueryController 实现 | ⏳ | — | — |
-| 6.14 | 单元测试与端到端冒烟测试 | ⏳ | — | — |
 
-整体进度：10 / 14（71%）
+整体进度：10 / 10（100%）
 
 ## 6.1 通用查询结果类型 ChunkSearchResult
 
@@ -113,27 +113,3 @@
 - `RetrievalService` 内部 RRF 以 child chunk 为融合粒度，不再在编排层提前漂移到 parent chunk。
 - Rerank 候选集由 top RRF child chunk 及其同 parent 下前后相邻 child chunk 组成，最终结果仍按 rerank 分数截断为 `topN`。
 - 相邻 child 仅参与 rerank 候选扩展，不伪造 sparse / dense 原始召回分数。
-
-## 6.11 Query 侧 Context 工程与 sources 结构
-
-`crag-query` 调用 `RetrievalService` 获取已经完成召回、融合和重排的 chunks，将其组装为 LLM prompt context，并保留 sources。
-
-**验收**：sources 可追溯到 chunk/document 元信息；context 长度有上限保护。
-
-## 6.12 LLM Client 接入与 QueryService 编排
-
-接入 DeepSeek / Spring AI，并在 UserQueryService 中串联 retrieval、context、LLM 生成。UserQueryService 只调用 retrieval 门面方法获取 chunks，不感知 Sparse/Dense/RRF/Rerank 的内部步骤。
-
-**验收**：正常返回 answer；LLM 失败时返回可理解错误。
-
-## 6.13 UserQueryController 实现
-
-实现 `POST /api/v1/query`。
-
-**验收**：请求校验、响应结构和错误响应与现有 API 风格一致。
-
-## 6.14 单元测试与端到端冒烟测试
-
-补充核心服务单测，并通过 Docker Compose 或本地依赖完成端到端冒烟验证。
-
-**验收**：遵守 `constraints/test-workflow.md`；测试结果回填本计划。
