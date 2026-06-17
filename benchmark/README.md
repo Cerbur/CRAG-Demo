@@ -15,6 +15,12 @@ Benchmark 用于持续评估 plan_6 Retrieval 链路质量，不替代单元测�
 - 调用 `/api/v1/test/retrieval` 验证 Embed → Sparse + Dense → RRF → 邻接扩展 → Rerank。
 - 对目标 chunk 的召回、排序和四路分数完整性打分。
 
+## Skill 入口
+
+项目内 benchmark 流程化能力维护在 [`skill/crag-benchmark`](../skill/crag-benchmark/SKILL.md)。
+
+当需要生成随机测试数据、混合 baseline 与噪声文档、总结 benchmark report 或扩展 Query / LLM 链路验证时，优先使用该 skill，并从 [`skill/README.md`](../skill/README.md) 查看任务索引。
+
 ## 任务链路
 
 ```text

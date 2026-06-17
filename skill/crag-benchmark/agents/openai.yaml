@@ -1,0 +1,4 @@
+interface:
+  display_name: "CRAG Benchmark"
+  short_description: "Generate and score randomized CRAG benchmarks"
+  default_prompt: "Use $crag-benchmark to generate randomized CRAG retrieval benchmark cases and validate the report."

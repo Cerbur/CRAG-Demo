@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-17
+> 最后更新：2026-06-18
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -33,7 +33,8 @@ plan/
 │   └── plan_5.hotfix_1.md
 ├── plan_6/
 │   ├── plan_6.md
-│   └── plan_6.hotfix_1.md
+│   ├── plan_6.hotfix_1.md
+│   └── plan_6.hotfix_2.md
 └── plan_archive/
     └── README.md
 ```
@@ -106,6 +107,7 @@ plan/
 | --- | --- | --- |
 | [plan_6.md](../plan_6/plan_6.md) | Retrieval 内部完成 Sparse/Dense 查询、RRF、Rerank；Query 编排 UserQuery、Prompt、LLM | 🔄 进行中 (10/14) |
 | [plan_6.hotfix_1.md](../plan_6/plan_6.hotfix_1.md) | Retrieval benchmark 长期化，建立 benchmark 目录、任务链路索引和 build 报告输出 | ✅ 完成 |
+| [plan_6.hotfix_2.md](../plan_6/plan_6.hotfix_2.md) | Benchmark skill 化，沉淀随机测试数据生成、评分流程和项目内 skill 任务索引 | ✅ 完成 |
 
 ---
 
