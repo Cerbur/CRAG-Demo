@@ -87,7 +87,21 @@ docker compose logs -f
 
 ---
 
-## 七、维护规则
+## 七、Benchmark / Evaluation Skill 路由
+
+涉及以下测试意图时，必须先查看 `skill/README.md`，并按 `skill/crag-benchmark/SKILL.md` 的工作流执行：
+
+- benchmark、评估、evaluation、评估集、质量评估、链路质量。
+- 随机测试数据、golden tests、adversarial examples、distribution samples、对抗性示例、分布样本。
+- Retrieval / Query / RAG 的回归测试、前后对比、prompt 变更评估、rerank 参数评估。
+- Top1、TopK、命中率、95% CI、置信区间、5 个百分点回归检测、样本量判断。
+- 生成或分析 `build/benchmark/` 下的 report。
+
+普通 Java 单元测试仍按本文档单元测试规则执行；涉及真实 Spring Boot、PostgreSQL、pgvector 或 Sidecar 的 benchmark 必须同时遵守 Docker-only 约束。
+
+---
+
+## 八、维护规则
 
 - 新增或修改核心逻辑的 plan 任务，验收标准必须包含对应单元测试要求。
 - 新增测试脚本、测试文档或计划验收标准时，必须区分“单元测试”和“非单元测试”。

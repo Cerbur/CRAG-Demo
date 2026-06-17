@@ -11,6 +11,18 @@
 
 ## crag-benchmark 任务入口
 
+### 触发路由
+
+当用户请求包含以下意图时，必须路由到 [`crag-benchmark/SKILL.md`](crag-benchmark/SKILL.md)：
+
+- benchmark、评估、evaluation、评估集、质量评估、链路质量。
+- 随机测试数据、golden tests、adversarial examples、distribution samples、对抗性示例、分布样本。
+- Retrieval / Query / RAG 的回归测试、前后对比、prompt 变更评估、rerank 参数评估。
+- Top1、TopK、命中率、95% CI、置信区间、5 个百分点回归检测、样本量判断。
+- 需要生成或分析 `build/benchmark/` 下的 report。
+
+普通 Java 单元测试仍按 `constraints/test-workflow.md` 执行；涉及真实 Spring Boot、PostgreSQL、pgvector 或 sidecar 的 benchmark 必须同时遵守 Docker-only 约束。
+
 | 任务 | 模式 | 说明 | 推荐命令 |
 | --- | --- | --- | --- |
 | 固定 Retrieval 回归 | baseline | 使用 `benchmark/retrieval_benchmark_runner.py` 的静态 case，观察版本间稳定性 | `python3 benchmark/retrieval_benchmark_runner.py` |
