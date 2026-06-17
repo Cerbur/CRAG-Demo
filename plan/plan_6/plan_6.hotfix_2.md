@@ -78,10 +78,11 @@ skill/crag-benchmark/
 - 2026-06-18：新增 `skill/crag-benchmark`，包含 `SKILL.md`、`agents/openai.yaml`、3 份 reference 和 3 个辅助脚本。
 - 2026-06-18：新增 `skill/README.md` 作为项目内 skill 使用任务索引，并从 `benchmark/README.md` 建立路由。
 - 2026-06-18：完成验证：
+  - `.venv/bin/python -m pip install PyYAML` 完成，PyYAML 安装在项目 `.venv/` 中，`.venv/` 已被 `.gitignore` 忽略。
+  - `.venv/bin/python /Users/yuancheng/.codex/skills/.system/skill-creator/scripts/quick_validate.py skill/crag-benchmark` 通过，输出 `Skill is valid!`。
   - `python3 skill/crag-benchmark/scripts/validate_skill.py` 通过。
   - `python3 skill/crag-benchmark/scripts/generate_cases.py --self-test` 通过。
   - `python3 skill/crag-benchmark/scripts/score_report.py --self-test` 通过。
   - `python3 skill/crag-benchmark/scripts/generate_cases.py --seed 20260618 --case-count 2 --noise-per-case 2 --output build/benchmark/generated_cases_smoke.json` 通过，产物位于 git 忽略的 `build/benchmark/`。
   - `./gradlew test` 通过。
-- 2026-06-18：尝试执行 skill-creator 官方 `quick_validate.py`，但当前 Python 运行时缺少 `yaml` 模块，脚本无法启动；本 hotfix 使用零依赖 `validate_skill.py` 覆盖本 skill 的 frontmatter、UI metadata、references 和 scripts 结构校验。
 - 2026-06-18：实现提交 hash 回填为 `b24fbb1`。

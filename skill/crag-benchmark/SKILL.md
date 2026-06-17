@@ -1,6 +1,6 @@
 ---
 name: crag-benchmark
-description: Use this skill when working on CRAG-Demo benchmark workflows: generating randomized Retrieval or Query test data, running Docker-only benchmark checks, scoring Sparse/Dense/RRF/Rerank results, updating benchmark task indexes, or turning one-off benchmark experiments into repeatable validation assets.
+description: "Use this skill when working on CRAG-Demo benchmark workflows: generating randomized Retrieval or Query test data, running Docker-only benchmark checks, scoring Sparse/Dense/RRF/Rerank results, updating benchmark task indexes, or turning one-off benchmark experiments into repeatable validation assets."
 ---
 
 # CRAG Benchmark
