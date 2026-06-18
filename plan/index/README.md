@@ -44,6 +44,8 @@ plan/
 │   └── plan_8.md
 ├── plan_9/
 │   └── plan_9.md
+├── plan_10/
+│   └── plan_10.md
 └── plan_archive/
     └── README.md
 ```
@@ -64,6 +66,7 @@ plan/
 | plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ❌ 阻塞 (0/4)，等待 plan_9 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ⏳ 待开始 (0/6) | — | [plan_9.md](../plan_9/plan_9.md) |
+| plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9 | — | [plan_10.md](../plan_10/plan_10.md) |
 
 ---
 
@@ -142,6 +145,12 @@ plan/
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_9.md](../plan_9/plan_9.md) | Java 模块边界收紧，包含 crag-api 重命名、公开 API 包、Embedding 契约、crag-smoke 和 ArchUnit | ⏳ 待开始 (0/6) |
+
+## Plan_10 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_10.md](../plan_10/plan_10.md) | Docker 部署契约升级与实现对齐，包含正式健康检查、单 Compose Smoke 切换、构建约束和全量验收 | 📝 草稿 (0/4)，等待 plan_9 |
 
 ---
 
