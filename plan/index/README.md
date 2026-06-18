@@ -42,6 +42,8 @@ plan/
 │   └── plan_7.md
 ├── plan_8/
 │   └── plan_8.md
+├── plan_9/
+│   └── plan_9.md
 └── plan_archive/
     └── README.md
 ```
@@ -59,8 +61,9 @@ plan/
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 (0/4) | — | [plan_7.md](../plan_7/plan_7.md) |
+| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ❌ 阻塞 (0/4)，等待 plan_9 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
+| plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ⏳ 待开始 (0/6) | — | [plan_9.md](../plan_9/plan_9.md) |
 
 ---
 
@@ -126,13 +129,19 @@ plan/
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、Prompt 拼接、LLM 接入、UserQuery API 和冒烟验证 | ⏳ 待开始 (0/4) |
+| [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、Prompt 拼接、LLM 接入、UserQuery API 和冒烟验证 | ❌ 阻塞 (0/4)，等待 plan_9 |
 
 ## Plan_8 明细
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_8.md](../plan_8/plan_8.md) | Plan 工作流 v2 工程治理，包含约束、模板、静态校验、Gradle 接入和 plan_7 迁移 | ✅ 完成 (6/6) |
+
+## Plan_9 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_9.md](../plan_9/plan_9.md) | Java 模块边界收紧，包含 crag-api 重命名、公开 API 包、Embedding 契约、crag-smoke 和 ArchUnit | ⏳ 待开始 (0/6) |
 
 ---
 

@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_7
 type: main
-status: ready
+status: blocked
 owner: parent-agent
 created: 2026-06-18
 updated: 2026-06-19
@@ -31,16 +31,19 @@ updated: 2026-06-19
 
 - `plan_6` 已完成 Retrieval 查询链路，Query 只依赖 retrieval 门面能力。
 - `plan_5` 已完成 Java module 拆分，Query 新代码落入 `crag-query` 模块。
+- `plan_9` 必须先完成模块边界迁移；本计划随后使用 `crag-api`、各领域 `api` 包和 `crag-smoke` 目标结构执行。
 - DeepSeek API 凭据与 Spring AI 具体配置在执行前确认，不写入仓库。
 
 ## 文件边界
 
 - `crag-query/src/**`
-- `crag-admin/src/**`（仅 UserQuery HTTP 入口与 DTO）
+- `crag-api/src/**`（仅 UserQuery HTTP 入口与 DTO；由 plan_9 建立）
+- `crag-smoke/src/**`（仅 Query 冒烟诊断；由 plan_9 建立）
 - `crag-app/src/**`（仅运行时配置与装配）
 - `build.gradle.kts`
 - `crag-query/build.gradle.kts`
-- `crag-admin/build.gradle.kts`
+- `crag-api/build.gradle.kts`
+- `crag-smoke/build.gradle.kts`
 - `crag-app/build.gradle.kts`
 - `docker-compose.yml`
 - `.env.example`
@@ -71,7 +74,7 @@ updated: 2026-06-19
 
 ## 测试与验证计划
 
-- 单元测试：`./gradlew :crag-query:test :crag-admin:test`，覆盖 context、sources、服务编排、请求校验和外部依赖失败。
+- 单元测试：`./gradlew :crag-query:test :crag-api:test`，覆盖 context、sources、服务编排、请求校验和外部依赖失败。
 - 全量回归：`./gradlew test`。
 - 非单元测试：使用 `docker compose up -d --build` 启动完整依赖，通过 Compose 暴露端口调用 `POST /api/v1/query`。
 - 最终执行 `python3 scripts/validate_plans.py --strict --verify-git plan/plan_7/plan_7.md`。
@@ -131,9 +134,9 @@ updated: 2026-06-19
 
 **验收标准**：合法请求返回 answer 与 sources；空问题和非法输入被拒绝；错误响应与现有 API 风格一致。
 
-**验证方式**：运行 `./gradlew :crag-admin:test`，覆盖成功、校验失败和服务异常转换。
+**验证方式**：运行 `./gradlew :crag-api:test`，覆盖成功、校验失败和服务异常转换。
 
-**涉及文件**：`crag-admin/src/main/**`、`crag-admin/src/test/**`、`crag-admin/build.gradle.kts`
+**涉及文件**：`crag-api/src/main/**`、`crag-api/src/test/**`、`crag-api/build.gradle.kts`
 
 ## 7.4 单元测试与端到端冒烟测试
 
@@ -149,7 +152,7 @@ updated: 2026-06-19
 
 **验证方式**：运行 `./gradlew test`；使用 `docker compose up -d --build` 后调用 `POST /api/v1/query`；完成后检查 Compose 日志并清理环境。
 
-**涉及文件**：`crag-query/src/test/**`、`crag-admin/src/test/**`、`docker-compose.yml`、`README.md`、`plan/plan_7/plan_7.md`
+**涉及文件**：`crag-query/src/test/**`、`crag-api/src/test/**`、`crag-smoke/src/**`、`docker-compose.yml`、`README.md`、`plan/plan_7/plan_7.md`
 
 ## 验收记录
 
@@ -158,7 +161,12 @@ updated: 2026-06-19
 
 ## 阻塞记录
 
-无。
+- **日期**：2026-06-19
+- **原因**：`plan_9` 将先完成 `crag-admin → crag-api`、公开 API 包和 `crag-smoke` 迁移，避免本计划向旧边界继续新增代码后再次搬迁。
+- **当前进度**：4 个任务均未开始，无需回滚实现。
+- **解除条件**：`plan_9` 完成并通过架构、单元测试及默认/smoke Docker 验收。
+- **解除方**：`plan_9` owner。
+- **恢复后的下一步**：重新读取迁移后的公开 API 和模块路径，从 7.1 开始执行。
 
 ## 废弃任务记录
 
@@ -170,3 +178,4 @@ updated: 2026-06-19
 | --- | --- | --- | --- |
 | 2026-06-18 | 创建 plan_7 | 从 plan_6 拆分 Query 链路 | 建立 4 项业务任务 |
 | 2026-06-19 | 迁移为 workflow v2，状态为待开始 | plan_8 工作流治理 | 补齐元信息、边界、固定任务结构与验证计划；业务范围不变 |
+| 2026-06-19 | 状态调整为阻塞并增加 plan_9 前置依赖 | 避免 Query 功能继续写入即将废弃的模块与包边界 | 业务目标不变；执行路径切换到 crag-api、公开 api 包与 crag-smoke |

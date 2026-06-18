@@ -1,159 +1,236 @@
-# CRAG-Demo 包结构约束
+# CRAG-Demo Java 模块与包结构约束
 
-> 本文档是 CRAG-Demo Java 包结构索引的唯一维护入口。`AGENTS.md`、`CLAUDE.md` 和计划文档只保留到本文档的路由。
+> 本文档是 CRAG-Demo Java 模块职责、依赖方向、跨模块公开 API 和包语义的唯一维护入口。`AGENTS.md`、`CLAUDE.md`、计划文档和实现代码不得另行定义冲突规则。
 
----
+## 一、文档定位
 
-## 一、项目模块结构
+本文档包含三类信息，效力不同：
 
-项目采用 Gradle multi-module 架构，base package 为 `ai.cerbur.crag`，`crag-app` 为唯一 Spring Boot 启动模块。
+1. **架构硬约束**：规定目标模块职责、依赖白名单、公开 API 和禁止事项，新增代码必须遵守。
+2. **当前实现索引**：只描述仓库中已经存在的模块、包和关键实现，用于导航，不构成未来设计承诺。
+3. **已知偏差**：记录当前实现与目标约束之间尚未消除的差异，并关联负责迁移的 Plan。
 
-```text
-crag-demo/
-├── crag-common/       — 跨模块共享的基础类型、响应结构
-├── crag-storage/       — 数据库 entity、repository、dao
-├── crag-ingestion/     — AdminRag 写入链路、ChunkSplit、Cron 编排
-├── crag-retrieval/     — Sparse/Dense 查询召回、RRF 融合、Rerank、Embedding client
-├── crag-query/         — UserQuery 编排、Prompt 组装、LLM 调用
-├── crag-admin/         — HTTP API service（Controller + 跨领域编排入口）
-└── crag-app/           — Spring Boot 启动模块（唯一可启动 jar）
-```
+尚未实现的类、包或模块不得写入“当前实现索引”。未来设计统一写入对应 Plan；只有已经确定为项目级架构规则的内容才进入本文档正文。
 
-依赖方向：
+## 二、术语
 
-```text
-crag-app ──→ crag-admin, crag-ingestion, crag-retrieval, crag-query, crag-storage, crag-common
-crag-admin ──→ crag-ingestion, crag-query, crag-common
-crag-query ──→ crag-retrieval, crag-common
-crag-ingestion ──→ crag-retrieval, crag-storage, crag-common
-crag-retrieval ──→ crag-storage, crag-common
-crag-storage ──→ crag-common
-```
+- **模块**：`settings.gradle.kts` 中声明的 Gradle subproject。
+- **公开 API**：普通业务模块允许跨模块引用的 Java 类型，统一位于被依赖模块的 `api` 包及其子包。
+- **内部实现**：不属于公开 API 的类型。即使 Java 可见性为 `public`，也不得被普通业务模块跨模块引用。
+- **组合根**：负责组装 Spring Bean 和生成唯一可启动 jar 的 `crag-app`。
+- **诊断例外**：`crag-smoke` 为分阶段冒烟诊断而获得的受控跨层访问权限。
+- **普通业务模块**：除 `crag-app` 和 `crag-smoke` 外的模块。
 
----
+`api` 表示跨模块可见边界，不表示其中的类型必须是 Java `interface`。只有存在替换实现、远程调用或第三方适配边界时才抽象接口；禁止为单一实现机械创建 `XxxService` / `XxxServiceImpl`。
 
-## 二、包结构索引
+## 三、目标模块职责
 
-### crag-common（`ai.cerbur.crag.common`）
+Base package 统一为 `ai.cerbur.crag`。
 
-```text
-ai.cerbur.crag.common/
-└── dto/
-    └── result/                       — 统一响应封装
-        ├── Response                 — RESTful 统一响应泛型包装类
-        └── ResponseCode             — 统一响应码枚举
-```
+| 模块 | 职责 | 禁止事项 |
+| --- | --- | --- |
+| `crag-common` | 真正跨多个模块、无明确业务归属的稳定基础类型 | 禁止收纳业务 DTO、Entity、Service、Client、单模块工具或为绕开依赖环而搬入的类型 |
+| `crag-storage` | JPA Entity、Repository、DAO 和数据库投影 | Repository 禁止被模块外调用；禁止承载检索、入库或问答业务编排 |
+| `crag-ingestion` | AdminRag 写入、ChunkSplit、Sparse/Dense 索引构建和 Cron 编排 | 禁止暴露 HTTP Controller；禁止依赖 Retrieval 内部实现 |
+| `crag-retrieval` | Embedding、Sparse/Dense 召回、RRF、Rerank 和检索门面 | 禁止生成最终回答；禁止让普通调用方感知内部检索阶段 |
+| `crag-query` | UserQuery、Context、Prompt、LLM 调用和回答编排 | 禁止直接访问 Storage 或 Retrieval 内部阶段 |
+| `crag-api` | 正式 HTTP Controller、请求 DTO、校验与统一异常转换 | 禁止承载业务逻辑、直接访问 DAO 或检索内部组件 |
+| `crag-smoke` | 仅在 `smoke` Profile 下启用的冒烟与分阶段诊断端点 | 禁止承载正式业务能力、默认启用、被业务模块依赖或生成独立启动 jar |
+| `crag-app` | Spring Boot 组合根、运行时装配、配置和健康检查 | 禁止业务 Controller、业务编排、直接调用 DAO 或业务组件 |
 
-### crag-storage（`ai.cerbur.crag.storage`）
+`crag-app` 是唯一 Spring Boot 启动模块和唯一可启动 jar。其他模块均为 library module。
 
-```text
-ai.cerbur.crag.storage/
-├── entity/                           — JPA 实体
-│   ├── Chunk / ChunkEmbedding / ChunkFts
-│   ├── ChunkStatus                  — 异步处理状态枚举
-│   └── ChunkStatusConverter         — JPA AttributeConverter
-├── repository/                       — Spring Data JPA Repository（纯 DB 类型映射）
-│   ├── ChunkRepository              — chunk 表 CAS 查询 + 更新
-│   ├── ChunkEmbeddingRepository     — chunk_embedding 表基础 CRUD + native INSERT + 向量相似度查询
-│   └── ChunkFtsRepository           — chunk_fts 表基础 CRUD + native INSERT + FTS 全文检索查询
-├── ChunkDao                          — chunk 表业务数据访问（扫表 + CAS 抢占 + saveAll/count）
-├── ChunkEmbeddingDao                — chunk_embedding 表业务数据访问（幂等检查 + pgvector 格式转换 + 向量相似度检索 + count）
-├── ChunkFtsDao                       — chunk_fts 表业务数据访问（幂等检查 + FTS 记录写入 + FTS 全文检索 + count）
-└── result/                             — storage DAO 投影类型
-    ├── SparseSearchResult              — Sparse FTS DAO 投影（chunk 原始字段 + sparseScore）
-    └── DenseSearchResult               — Dense 向量 DAO 投影（chunk 原始字段 + denseScore）
-```
+## 四、模块依赖白名单
 
-### crag-ingestion（`ai.cerbur.crag.ingestion`）
+模块依赖采用“默认禁止、显式放行”。每个模块只允许声明下表中的直接项目依赖；未列出的依赖一律禁止，不得借助传递依赖越界访问。
 
-```text
-ai.cerbur.crag.ingestion/
-├── service/                          — 入库业务服务
-│   ├── AdminRagService              — 管理端 RAG 服务（入库编排）
-│   └── AdminRagResult               — AdminRag 入库结果记录
-├── cron/                             — 定时任务触发层
-│   ├── DenseEmbeddingCron           — Dense Embedding 定时扫表 + CAS 抢占 + 流程编排
-│   └── SparseEmbeddingCron          — Sparse Embedding 定时扫表 + CAS 抢占 + FTS 写入
-├── chunk/
-│   └── split/                        — 文档切分
-│       ├── ChunkSplitService        — 基于 TokenTextSplitter 的分块服务
-│       ├── ChunkSplitData           — 单个 chunk 数据载体
-│       ├── ChunkSplitGroup          — parent + children 分组
-│       └── ChunkSplitResult         — 文档分块结果
-└── dense/                            — Dense Embedding 向量化服务
-    └── DenseEmbeddingService        — 调用 retrieval/embedding/EmbeddingClient 做核心向量化
-```
+| 调用模块 | 允许直接依赖 |
+| --- | --- |
+| `crag-common` | 无 |
+| `crag-storage` | `crag-common` |
+| `crag-retrieval` | `crag-storage`、`crag-common` |
+| `crag-ingestion` | `crag-retrieval`、`crag-storage`、`crag-common` |
+| `crag-query` | `crag-retrieval`、`crag-common` |
+| `crag-api` | `crag-ingestion`、`crag-query`、`crag-common` |
+| `crag-smoke` | `crag-api`、`crag-ingestion`、`crag-query`、`crag-retrieval`、`crag-storage`、`crag-common` |
+| `crag-app` | 为运行时装配依赖全部应用模块；不得据此在 Java 代码中调用业务类型 |
 
-### crag-retrieval（`ai.cerbur.crag.retrieval`）
+附加硬约束：
 
-`crag-retrieval` 是检索能力的边界模块。外部模块不感知 Sparse、Dense、RRF、Rerank 的内部实现细节，只通过 `RetrievalService` 提交用户问题并获取符合要求的检索结果列表。
+- 禁止任何模块循环依赖。
+- `crag-app` 的装配依赖不授予业务调用权限。
+- `crag-smoke` 的诊断依赖是唯一跨层例外，不得作为其他模块越界调用的依据。
+- 新增或调整项目依赖时，必须先更新对应 Plan 和本文档，再修改 `settings.gradle.kts` 或模块 `build.gradle.kts`。
+
+## 五、跨模块公开 API
+
+### 5.1 通用规则
+
+- 普通业务模块只能引用被依赖模块的 `ai.cerbur.crag.<module>.api` 包及其子包类型。
+- 非 `api` 包默认属于模块内部；Java `public` 只表示语言可见性，不等于架构公开。
+- 公开 API 必须保持窄边界，只暴露调用方完成业务所需的门面、契约、请求和结果类型。
+- 外部协议或供应商 SDK 类型不得穿透公开 API。
+- 跨模块结果优先使用所属模块的 API DTO、业务对象或结果类型，不新增 Entity 泄漏。
+
+目标公开入口：
 
 ```text
-ai.cerbur.crag.retrieval/
-├── bo/                               — retrieval 业务对象
-│   └── ChunkBO                       — 查询链路使用的 chunk 业务对象
-├── dense/                            — Dense 稠密查询
-│   └── DenseQueryService            — 基于 pgvector 向量相似度语义检索
-├── sparse/                           — Sparse 稀疏查询
-│   └── SparseQueryService           — 基于 PostgreSQL FTS 关键词检索
-├── rrf/                              — RRF 融合
-│   └── RrfFusionService             — Reciprocal Rank Fusion 两路融合
-├── rerank/                           — 重排序
-│   ├── RerankService                — 对融合后的候选 chunk 做语义重排
-│   └── client/
-│       └── RerankClient              — Rerank 接口定义（Sidecar /rerank）
-├── service/                          — 检索编排
-│   └── RetrievalService             — 检索门面（问题 → Embed → Sparse+Dense → child RRF → 相邻 child 扩展 → Rerank → ChunkSearchResult）
-├── result/                           — retrieval 检索结果类型（窄→宽分层）
-│   ├── SparseSearchResult            — Sparse 检索结果（ChunkBO + sparseScore）
-│   ├── DenseSearchResult             — Dense 检索结果（ChunkBO + denseScore）
-│   ├── RrfFusionResult               — RRF 融合结果（ChunkBO + rrfScore + best sparse/dense）
-│   └── ChunkSearchResult             — 最终宽类型（ChunkBO + 全部四路得分）
-└── embedding/                        — Embedding HTTP 客户端
-    ├── EmbeddingClient               — Embedding 接口定义
-    ├── SidecarEmbeddingClient        — Sidecar /embed 端点实现
-    └── EmbeddingException            — Embedding 调用异常
+ai.cerbur.crag.ingestion.api
+├── AdminRagService
+└── AdminRagResult
+
+ai.cerbur.crag.retrieval.api
+├── RetrievalService
+├── result/
+│   └── ChunkSearchResult
+└── embedding/
+    ├── EmbeddingClient
+    └── EmbeddingException
+
+ai.cerbur.crag.query.api
+├── UserQueryService
+└── result/                            — Query 对外回答与 sources 类型
 ```
 
-### crag-query（`ai.cerbur.crag.query`）
+`EmbeddingClient` 是 Retrieval 对外提供的能力契约。当前实现可以调用 HTTP Sidecar；未来可迁移为 RPC 或独立 SDK，但 `crag-ingestion` 只能依赖 `retrieval.api.embedding`，不得依赖具体传输实现。
+
+### 5.2 Storage 的暂时例外
+
+`crag-storage` 尚未建立完整 `api` 包，迁移期间允许上层通过根包 DAO 和必要的 `storage.result` / `storage.entity` 类型访问存储能力，但必须满足：
+
+- `storage.repository` 永远只允许 Storage 内部访问。
+- 上层不得修改 Entity 后自行持久化；状态变化必须通过 DAO 方法完成。
+- 新增跨模块返回类型优先使用投影或结果类型，不得扩大 Entity 传播范围。
+- 是否收口 Storage API 由实际耦合问题驱动，不为形式统一提前增加映射层。
+
+## 六、固定包语义
+
+项目只统一有明确架构含义的包名，不要求每个模块机械套用相同目录模板。
+
+| 包名 | 语义 |
+| --- | --- |
+| `api` | 跨模块公开契约、门面及其输入输出 |
+| `controller` | HTTP 入口；仅允许存在于 `crag-api` 和 `crag-smoke` |
+| `repository` | Spring Data 数据映射；仅允许存在于 `crag-storage` |
+| `entity` | 持久化模型；仅允许由 `crag-storage` 定义 |
+| `result` | 某处理阶段已经产生的结果，不得复用尚未产生语义的外层大类型 |
+| `internal` | 显式隐藏的实现；普通包即使未命名为 `internal` 也默认模块内部 |
+
+禁止新增语义含混的 `util`、`helper`、`manager`、`misc` 包。通用代码应优先归入拥有该行为的业务模块；无法明确归属时先重新检查抽象是否必要，而不是直接放入 `crag-common`。
+
+## 七、`crag-common` 收纳门槛
+
+新增类型进入 `crag-common` 前必须同时满足：
+
+- 至少有两个实际消费模块，而非假设中的未来调用方。
+- 类型没有合理的业务模块归属。
+- 类型稳定、无业务流程含义，且不会引入反向依赖。
+
+不满足以上条件的类型留在其业务模块。禁止以“避免循环依赖”为理由把领域类型移动到 `crag-common`；应修正依赖方向或公开 API。
+
+## 八、`crag-smoke` 诊断例外
+
+`crag-smoke` 用于保留现有冒烟流程和内部阶段诊断能力，规则如下：
+
+- Controller 和相关 Bean 必须统一受 `@Profile("smoke")` 限制。
+- 默认应用启动不得暴露 `/api/v1/test/**`。
+- 只允许通过显式 smoke Docker Compose 启动方式激活，例如设置 `SPRING_PROFILES_ACTIVE=smoke`。
+- 允许直接调用 DAO、Sparse/Dense/RRF/Rerank 等内部组件，但每个端点必须明确标注验证阶段。
+- 禁止在冒烟端点中实现正式业务规则，禁止被正式 API 复用。
+- `crag-smoke` 不生成独立可启动 jar；由 `crag-app` 作为可选运行时依赖装配。
+- 单元测试仍保留在各业务模块；`crag-smoke` 不替代单元测试或正式 API 的端到端测试。
+
+## 九、当前实现索引
+
+本节只反映当前源码事实。完整文件列表以源码为准；这里只列包职责、公开调用点和有架构意义的关键实现。
+
+### `crag-common`
 
 ```text
-ai.cerbur.crag.query/
-├── service/                          — 用户查询服务
-│   └── UserQueryService             — 调用 RetrievalService 获取检索结果，并编排 Prompt + LLM 应答
-└── llm/                              — LLM 调用
-    └── ChatClient                    — LLM Chat 接口定义
+ai.cerbur.crag.common.dto.result
+├── Response
+└── ResponseCode
 ```
 
-### crag-admin（`ai.cerbur.crag.admin`）
+### `crag-storage`
 
 ```text
-ai.cerbur.crag.admin/
-├── controller/                       — API 入口层
-│   ├── AdminRagController           — 管理端 RAG 知识库上传接口
-│   ├── UserQueryController          — 用户查询接口
-│   └── advice/                       — 全局异常处理（AOP 层）
-│       └── GlobalExceptionHandler   — 统一异常 → Response 转换
-└── dto/
-    └── request/                       — 请求 DTO（入参结构）
-        ├── AdminRagRequest           — AdminRag 上传请求
-        └── UserQueryRequest          — 用户查询请求
+ai.cerbur.crag.storage
+├── ChunkDao / ChunkEmbeddingDao / ChunkFtsDao
+├── entity/                            — Chunk、索引实体、状态与 Converter
+├── repository/                        — Spring Data Repository
+└── result/                            — Dense / Sparse DAO 投影
 ```
 
-### crag-app（`ai.cerbur.crag.app`）
+### `crag-ingestion`
 
 ```text
-ai.cerbur.crag.app/
-├── CragDemoApplication              — Spring Boot 启动类（唯一可启动 jar）
-└── controller/
-    └── TestController               — 冒烟测试接口
+ai.cerbur.crag.ingestion
+├── service/                           — AdminRagService / AdminRagResult
+├── chunk.split/                       — ChunkSplit 能力与数据类型
+├── dense/                             — DenseEmbeddingService
+└── cron/                              — Dense / Sparse 定时编排
 ```
 
----
+### `crag-retrieval`
 
-## 三、维护规则
+```text
+ai.cerbur.crag.retrieval
+├── service/                           — RetrievalService 门面
+├── embedding/                         — Embedding 契约、Sidecar 实现与异常
+├── sparse/ / dense/                   — 双路召回
+├── rrf/ / rerank/                     — 融合与重排
+├── bo/                                — ChunkBO
+└── result/                            — 各检索阶段结果
+```
 
-- 新增、移动或重命名 Java 包时，必须同步更新本文档。
-- `AGENTS.md` 与 `CLAUDE.md` 不直接展开包结构树，只链接到本文档。
-- 包结构变更如果会影响计划范围，必须同步更新对应 `plan_N.md` 或 `plan_N.hotfix_M.md`。
-- Module 边界变更必须同步更新 Gradle `settings.gradle.kts` 和各模块 `build.gradle.kts` 依赖关系。
+### `crag-query`
+
+```text
+ai.cerbur.crag.query
+├── service/                           — UserQueryService 骨架
+└── llm/                               — ChatClient 契约骨架
+```
+
+### `crag-admin`
+
+```text
+ai.cerbur.crag.admin
+├── controller/                        — AdminRagController / UserQueryController
+├── controller.advice/                 — GlobalExceptionHandler
+└── dto.request/                       — HTTP 请求 DTO
+```
+
+### `crag-app`
+
+```text
+ai.cerbur.crag.app
+├── CragDemoApplication
+└── controller.TestController          — 当前冒烟与分阶段诊断入口
+```
+
+当前尚不存在 `crag-api` 和 `crag-smoke` module；公开入口也尚未统一迁入 `api` 包。
+
+## 十、已知偏差
+
+以下偏差统一由 [`plan_9`](../plan/plan_9/plan_9.md) 消除：
+
+| 偏差 | 当前状态 | 目标 |
+| --- | --- | --- |
+| 正式 HTTP 模块命名失真 | `crag-admin` 同时承载 AdminRag 与 UserQuery | 重命名为 `crag-api`，按业务入口分包 |
+| 组合根承载诊断 Controller | `TestController` 位于 `crag-app` 并直接调用内部组件 | 迁移到仅在 `smoke` Profile 启用的 `crag-smoke` |
+| 跨模块入口没有统一边界 | Service、Result、Client 分散在普通实现包 | 迁入各模块 `api` 包 |
+| Embedding 契约与实现混放 | Ingestion 直接依赖 `retrieval.embedding` | 契约迁入 `retrieval.api.embedding`，Sidecar 实现保留内部 |
+| 架构规则只靠文档记忆 | 尚无自动模块与包边界校验 | 增加 ArchUnit 规则并清理迁移期例外 |
+
+在 `plan_9` 完成前，新增代码不得扩大以上偏差。偏差完成迁移后必须从本节删除，并把实际结构同步到“当前实现索引”。
+
+## 十一、维护与自动校验
+
+- 新增、移动或重命名模块和公开 API 时，必须同步更新本文档。
+- 内部实现类的普通增删无需逐项更新；只有包职责或关键架构实现变化时才更新索引。
+- 模块边界变化必须同步更新 `settings.gradle.kts`、相关 `build.gradle.kts`、Plan 和必要的架构决策记录。
+- `crag-api` / `crag-smoke` 的 Controller 位置、Repository 内聚、跨模块 `api` 访问、代码依赖无环和 smoke Profile 必须由 ArchUnit 验证。
+- Gradle project dependency 声明白名单必须由独立轻量校验器验证；不得假设 ArchUnit 能发现未被代码引用的多余 Gradle 依赖。
+- 架构测试中的临时例外必须关联未完成任务；禁止无期限保留宽泛豁免。
+- 涉及测试运行方式时同时遵守 [`test-workflow.md`](./test-workflow.md)；涉及 Java 代码写法时同时遵守 [`code-style.md`](./code-style.md)。
