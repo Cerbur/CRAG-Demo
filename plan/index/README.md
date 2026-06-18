@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-18
+> 最后更新：2026-06-19
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -36,7 +36,8 @@ plan/
 │   ├── plan_6.hotfix_1.md
 │   ├── plan_6.hotfix_2.md
 │   ├── plan_6.hotfix_3.md
-│   └── plan_6.hotfix_4.md
+│   ├── plan_6.hotfix_4.md
+│   └── plan_6.hotfix_5.md
 ├── plan_7/
 │   └── plan_7.md
 └── plan_archive/
@@ -115,6 +116,7 @@ plan/
 | [plan_6.hotfix_2.md](../plan_6/plan_6.hotfix_2.md) | Benchmark skill 化，沉淀随机测试数据生成、评分流程和项目内 skill 任务索引 | ✅ 完成 |
 | [plan_6.hotfix_3.md](../plan_6/plan_6.hotfix_3.md) | Benchmark skill 评估集标准优化，补充黄金/对抗/分布样本、置信区间和回归检测能力 | ✅ 完成 |
 | [plan_6.hotfix_4.md](../plan_6/plan_6.hotfix_4.md) | Benchmark skill 任务路由补齐，确保 benchmark / evaluation / 回归测试意图索引到 `crag-benchmark` | ✅ 完成 |
+| [plan_6.hotfix_5.md](../plan_6/plan_6.hotfix_5.md) | 项目级 OpenCode Plan 执行 Skill，固化 Plan 完整度、SubAgent 实现、Review、测试与验收闭环 | ✅ 完成 |
 
 ## Plan_7 明细
 

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Execute Plan with OpenCode"
+  short_description: "Execute CRAG plans through reviewed OpenCode workers"
+  default_prompt: "Use $execute-plan-with-opencode to execute plan/plan_7/plan_7.md."
+
+policy:
+  allow_implicit_invocation: false

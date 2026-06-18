@@ -8,6 +8,17 @@
 | Skill | 作用 | 状态 | 入口 |
 | --- | --- | --- | --- |
 | crag-benchmark | 生成随机 benchmark 数据、运行 Docker-only Retrieval / Query 验证、评分并维护报告 | ✅ 可用 | [crag-benchmark/SKILL.md](crag-benchmark/SKILL.md) |
+| execute-plan-with-opencode | 通过隔离 SubAgent 驱动 OpenCode，按任务执行、Review、测试并验收指定 Plan | ✅ 可用 | [execute-plan-with-opencode/SKILL.md](execute-plan-with-opencode/SKILL.md) |
+
+## execute-plan-with-opencode 显式调用
+
+该 Skill 是本项目维护工具，不配置关键词自动触发。只有显式调用时才使用：
+
+```text
+使用 $execute-plan-with-opencode 执行 plan/plan_7/plan_7.md
+```
+
+调用后由 ParentAgent 负责 Plan 完整度检查、模型选择、Review、测试执行、Plan 进度和最终验收；隔离 SubAgent 负责驱动外部 OpenCode CLI 修改代码。
 
 ## crag-benchmark 任务入口
 
