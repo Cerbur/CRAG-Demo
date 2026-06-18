@@ -40,6 +40,8 @@ plan/
 │   └── plan_6.hotfix_5.md
 ├── plan_7/
 │   └── plan_7.md
+├── plan_8/
+│   └── plan_8.md
 └── plan_archive/
     └── README.md
 ```
@@ -58,6 +60,7 @@ plan/
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 (0/4) | [plan_7.md](../plan_7/plan_7.md) |
+| plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ⏳ 待开始 (0/6) | [plan_8.md](../plan_8/plan_8.md) |
 
 ---
 
@@ -123,6 +126,12 @@ plan/
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、Prompt 拼接、LLM 接入、UserQuery API 和冒烟验证 | ⏳ 待开始 (0/4) |
+
+## Plan_8 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_8.md](../plan_8/plan_8.md) | Plan 工作流 v2 工程治理，包含约束、模板、静态校验、Gradle 接入和 plan_7 迁移 | ⏳ 待开始 (0/6) |
 
 ---
 
