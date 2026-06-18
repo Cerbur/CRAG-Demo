@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_8.hotfix_1
 type: hotfix
 parent_plan: plan_8
-status: in_progress
+status: blocked
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -90,12 +90,12 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 8.hotfix_1.1 | 收敛工作流状态机、专项约束与项目方向 | ⏳ 待验收 | pending | — |
-| 8.hotfix_1.2 | 校准活跃 Plan、任务顺序与索引执行队列 | ⏳ 待验收 | pending | — |
-| 8.hotfix_1.3 | 增强 Plan 静态校验器及单元测试 | ⏳ 待验收 | pending | — |
-| 8.hotfix_1.4 | 完成全量校验与 Hotfix 验收 | 🔄 进行中 | — | — |
+| 8.hotfix_1.1 | 收敛工作流状态机、专项约束与项目方向 | ✅ 完成 | 4b2cf50 | 2026-06-19 |
+| 8.hotfix_1.2 | 校准活跃 Plan、任务顺序与索引执行队列 | ✅ 完成 | 4b2cf50 | 2026-06-19 |
+| 8.hotfix_1.3 | 增强 Plan 静态校验器及单元测试 | ✅ 完成 | 4b2cf50 | 2026-06-19 |
+| 8.hotfix_1.4 | 完成全量校验与 Hotfix 验收 | ❌ 阻塞 | — | — |
 
-整体进度：0 / 4（0%）
+整体进度：3 / 4（75%）
 
 ## 8.hotfix_1.1 收敛工作流状态机、专项约束与项目方向
 
@@ -148,7 +148,12 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 
 ## 阻塞记录
 
-无。
+- **日期**：2026-06-19
+- **原因**：`./gradlew check` 在沙箱内因 Gradle 文件锁通信触发 `java.net.SocketException: Operation not permitted`；请求沙箱外执行时又因当前工具额度限制被系统拒绝。
+- **当前进度**：8.hotfix_1.1 至 8.hotfix_1.3 已由提交 `4b2cf50` 完成；Python 单元测试、严格 Plan 校验和 diff 检查通过，仅全量 Gradle 验收未执行。
+- **解除条件**：在允许 Gradle 文件锁通信的环境运行 `./gradlew check` 并通过，再执行 `python3 scripts/validate_plans.py --strict --verify-git`。
+- **解除方**：具备可运行 Gradle 环境的开发者或后续 Agent。
+- **恢复后的下一步**：回填 Gradle 验收记录，将 8.hotfix_1.4 与本 Hotfix 标记完成，从执行队列移除本 Hotfix，并允许 `plan_11` 进入执行。
 
 ## 废弃任务记录
 
@@ -160,3 +165,4 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 Hotfix 并设为待开始 | Plan 与约束交叉审计确认多处状态、依赖和职责冲突 | 建立 4 项治理任务；先完成本 Hotfix 再执行 plan_11 |
 | 2026-06-19 | 开始执行 8.hotfix_1.1 至 8.hotfix_1.3 | Plan 与索引基线已提交 | 状态转为进行中，开始规则、活跃 Plan 与校验器修改 |
+| 2026-06-19 | 完成前三项并阻塞最终验收 | 实现提交 `4b2cf50` 已创建，但环境无法运行必需的 Gradle check | 整体进度 75%；plan_11 继续等待 |
