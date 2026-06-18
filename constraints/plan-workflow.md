@@ -1,110 +1,291 @@
 # CRAG-Demo Plan 工作流约束
 
-> 本文档是 CRAG-Demo 计划工作流、计划目录、计划命名和进度追踪约束的唯一维护入口。`AGENTS.md`、`CLAUDE.md` 和其他计划文档只保留到本文档的路由。
+> 本文档是计划分级、目录、状态、执行、提交和进度追踪的唯一权威。其他文档与 Skill 只能路由或实现本文规则，不得另行定义完成标准。
+> workflow v2 自 `plan_8` 完成提交后生效；缺少 `workflow_version` 的已完成历史 Plan 按兼容模式保留。
 
----
+## 一、变更分级与规划门槛
 
-## 一、规划优先
+### 1.1 必须创建主 Plan
 
-- 所有代码修改必须先落为 `plan/` 目录下的计划文档，不直接在对话中跳过计划修改代码。
-- 每次涉及执行计划、命名、状态或范围调整的对话，优先产出 plan 文档更新。
-- 所有 `plan_N` / hotfix 执行完成后，必须更新对应计划文档的进度表。
-- 新增、完成、迁移或废弃计划后，必须同步更新 `plan/index/README.md`。
+- 新增业务能力、领域边界或公共接口。
+- 跨模块架构调整、全局工程治理或显著扩大既有目标。
+- 无法合理归属于已完成 Plan 的独立工作。
 
----
+### 1.2 必须创建 Hotfix
 
-## 二、计划目录结构
+- 修复已完成主 Plan 引入的明确缺陷、遗漏或技术债。
+- Hotfix 按被修正对象归属；跨 Plan 时归入主要责任 Plan并注明关联范围。
+- 主 Plan 尚在执行时，范围内修正直接更新主 Plan；只有需要独立提交与回滚边界的已完成任务问题才可创建 Hotfix，并记录中断关系。
+- Hotfix 原则上不超过 5 个有效任务或 3 个业务模块；超过时默认升级为主 Plan，例外必须说明理由。
+
+### 1.3 免建计划
+
+仅当变更同时满足以下条件时可以免建 Plan：
+
+- 不改变运行时行为、公共接口、依赖、配置、数据或测试逻辑。
+- 不涉及约束、Plan、架构或部署文档。
+- 仅修正错别字、排版、无语义注释或失效链接。
+- 可在一个小提交内完成。
+
+提交主题必须包含 `no-plan` 并说明原因。不确定是否改变语义时必须创建 Plan。紧急修复没有“先改后补”例外，至少先创建最小 Hotfix。
+
+## 二、目录、命名与编号
 
 ```text
 plan/
 ├── plan_main.md
-├── index/
-│   └── README.md
-├── plan_1/
-│   ├── plan_1.md
-│   ├── plan_1.1.md          # 历史遗留，仅保留，不再新增同类文件
-│   └── plan_1.hotfix_1.md
-├── plan_2/
-│   ├── plan_2.md
-│   ├── plan_2.1.md          # 历史遗留，仅保留，不再新增同类文件
-│   └── plan_2.hotfix_*.md
-├── plan_3/
-│   ├── plan_3.md
-│   └── plan_3.hotfix_*.md
+├── index/README.md
+├── templates/
+│   ├── main-plan-template.md
+│   ├── hotfix-template.md
+│   └── archive-decision-template.md
+├── plan_N/
+│   ├── plan_N.md
+│   └── plan_N.hotfix_M.md
 └── plan_archive/
-    └── README.md
 ```
 
-- `plan/plan_main.md`：总业务方向，维护项目定位、产品边界、技术方向、RAG 主链路、关键设计决策、项目拆分责任架构图、架构边界和阶段路线。
-- `plan/index/README.md`：执行计划索引，维护每个 plan 的主要功能、完成状态和入口链接。
-- `plan/plan_N/plan_N.md`：具体主执行计划。
-- `plan/plan_N/plan_N.hotfix_M.md`：归属于 `plan_N` 的前置修正或后置整理。
-- `plan/plan_archive/`：方向性变更记录，记录 before / after 及时间。
+- 主 Plan 使用仓库已出现最大编号加一；编号一经创建永久占用，不插号、复用或重排。
+- 禁止新增 `plan_1.1.md` 一类小数计划；历史文件仅保留。
+- Hotfix 在所属主 Plan 内从 `hotfix_1` 连续递增。
+- 主任务编号为 `N.1`、`N.2`；Hotfix 任务编号统一为 `N.hotfix_M.1`。
+- Plan 进入 `in_progress` 前可重排编号；之后已有编号永久稳定，新任务只能追加。废弃任务保留原编号。
+- 执行依赖写入任务详情的“前置任务”，不依靠编号暗示。
 
+## 三、文档职责与上下文读取
+
+- `plan_main.md`：只维护当前有效的项目定位、产品边界、技术方向、架构职责与阶段路线。
+- `plan/index/README.md`：人工维护的计划汇总视图，包含摘要、状态、进度、入口及活跃 Hotfix。
+- `plan_N.md` / `plan_N.hotfix_M.md`：范围、任务、验收和证据的事实来源。
+- 执行具体计划时读取目标 Plan、相关 Hotfix、索引及相关约束；仅在确认总体方向时读取 `plan_main.md`。
+- 禁止在 `plan_main.md` 维护任务表、Hotfix 明细或执行索引。
+
+## 四、workflow v2 元信息
+
+workflow v2 文件必须在 Markdown 标题前使用受限 YAML front matter，只允许简单 `key: value` 标量，不允许数组、嵌套、多行值或 YAML 高级语法。
+
+主 Plan：
+
+```yaml
 ---
-
-## 三、上下文读取约束
-
-- 执行具体子计划时，优先读取对应目录下的主计划和相关 hotfix，例如执行 `plan_2` 时读取 `plan/plan_2/plan_2.md` 及必要的 `plan/plan_2/plan_2.hotfix_*.md`。
-- 查询计划全局状态时，读取 `plan/index/README.md`。
-- 只有需要确认项目总体方向、产品边界、RAG 主链路、项目拆分责任、技术方向或阶段边界时，才读取 `plan/plan_main.md`。
-- 禁止在 `plan_main` 中维护完整执行计划索引、hotfix 明细或子任务进度，避免执行子 plan 时浪费 context。
-
+workflow_version: 2
+plan_id: plan_9
+type: main
+status: draft
+owner: parent-agent
+created: 2026-06-19
+updated: 2026-06-19
 ---
+```
 
-## 四、计划命名硬约束
+Hotfix 额外包含：
 
-- 主 Plan 目录和文件只允许连续数字：`plan/plan_1/plan_1.md` -> `plan/plan_2/plan_2.md` -> `plan/plan_3/plan_3.md`。
-- 禁止后续新增小数计划文件，例如 `plan_1.1.md`、`plan_2.1.md`、`plan_2.2.md`。
-- 历史遗留的 `plan_1.1.md`、`plan_2.1.md`、`plan_2.2.md`、`plan_2.3.md` 只保留在对应主计划目录下，不作为新计划命名范式继续使用。
-- 如果准备执行 `plan_{N+1}` 前发现必须先处理 `plan_N` 遗留问题，写入 `plan/plan_N/plan_N.hotfix_M.md`。
-- 同一主计划下 hotfix 编号必须从 `hotfix_1` 连续递增，不跳号。
+```yaml
+parent_plan: plan_9
+```
 
----
+约束：
 
-## 五、任务编号规范
+- `type` 只能是 `main` 或 `hotfix`。
+- `owner` 只能是 `parent-agent` 或 `developer`；SubAgent 不得成为 owner。
+- `created`、`updated` 使用 `YYYY-MM-DD`。
+- 状态、任务、范围、验收、风险、依赖、验证证据或 commit hash 变化时更新 `updated`；纯排版修正无需更新。
+- YAML 不保存任务或整体进度，避免重复事实来源。
 
-- 每个主 plan 内小任务使用 `plan-id.task-id` 编号，如 `1.1`、`1.2`、`2.1`。
-- 每个 hotfix 内任务使用能体现 hotfix 归属的编号，如 `3.hotfix_5.1` 或 `H5.1`，同一文件内保持一致。
-- 每完成一个子任务，更新 plan 文档中的 `[ ]` -> `[x]` 或进度表状态，记录对应 commit hash。
-- 如果未产生 commit，提交字段可暂记为 `—`，但后续提交后应回填。
+## 五、状态机
 
----
+### 5.1 Plan 状态
 
-## 六、Plan 进度追踪表规范
+| YAML | 中文展示 |
+| --- | --- |
+| `draft` | 草稿 |
+| `ready` | 待开始 |
+| `in_progress` | 进行中 |
+| `blocked` | 阻塞 |
+| `completed` | 完成 |
+| `abandoned` | 废弃 |
 
-每个 `plan_N.md` 和 `plan_N.hotfix_M.md` 必须在任务详情之前放置进度追踪表：
+合法转换：
+
+- `draft → ready → in_progress → completed`
+- `in_progress ↔ blocked`
+- `draft / ready / in_progress / blocked → abandoned`
+
+`ready` 表示所有执行决策已解决且至少有一个有效任务。首次开始任务时转为 `in_progress`。Plan 不设置 `verifying`；存在待验收任务时仍为 `in_progress`。
+
+### 5.2 任务状态
+
+| 规范值 | 中文展示 |
+| --- | --- |
+| `pending` | 待开始 |
+| `in_progress` | 进行中 |
+| `verifying` | 待验收 |
+| `blocked` | 阻塞 |
+| `completed` | 完成 |
+| `abandoned` | 废弃 |
+
+合法转换：
+
+- `待开始 → 进行中 → 待验收 → 完成`
+- `进行中 ↔ 阻塞`
+- `待验收 → 进行中`（审查或测试失败）
+- 未完成任务可转为废弃；完成任务不得回退或废弃。
+
+发现已完成任务存在问题时新增修复任务或 Hotfix，不改写历史完成状态。Emoji 只用于展示，不参与逻辑判断。
+
+## 六、进入执行的完整度门槛
+
+`draft` 可以不完整；转为 `ready` 前必须包含：
+
+1. 背景与目标。
+2. 范围与非目标。
+3. 前置依赖。
+4. 文件或模块边界。
+5. 任务拆分、顺序及每项前置任务。
+6. 每项任务的目标、范围、非目标、验收标准、验证方式和涉及文件。
+7. 测试与验证计划。
+8. 关键决策与已处理的未决问题。
+9. 风险与回滚策略。
+10. 进度追踪表、验收记录和只追加的变更记录。
+
+不得包含阻塞执行的 TODO、占位符、矛盾或未决问题。风险与回滚不得只写“无”；须说明可回滚步骤、不需要运行时回滚的撤销方式，或不可逆变更的处置。
+
+达到 `ready` 后，必须先提交 Plan 与索引，再开始编码。修改范围或关键决策时，先更新并提交 Plan。
+
+## 七、任务结构、进度与完成
+
+每项任务详情使用固定字段：
+
+```markdown
+## 9.1 任务名称
+
+**目标**：
+**前置任务**：无
+**范围**：
+**非目标**：
+**验收标准**：
+**验证方式**：
+**涉及文件**：
+```
+
+进度表固定为：
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 
-状态图例：
+- 实现、测试、Review 和验收标准均有证据，并已创建实现提交时，任务进入“待验收”，提交栏填 `pending`。
+- 回填真实短 hash（至少 7 位）后才能标记“完成”；多个提交按时间顺序用逗号分隔。
+- 完成任务必须有完成日期；未完成任务不得填写完成日期。
+- 回填提交自身不写入任务提交栏，也不得充当实现证据。
+- 验收者通过 `git show --stat <hash>` 核对提交确实服务任务。
+- 废弃任务必须记录原因、日期及替代任务或决策，不计入有效任务分母。
 
-- ⏳ 待开始
-- 🔄 进行中
-- ✅ 完成
-- ❌ 阻塞
-
-表格下方标注整体进度：
+整体进度：
 
 ```text
-整体进度：X / N（Y%）
+整体进度：完成任务数 / 有效任务数（四舍五入整数%），废弃：N
 ```
 
-每完成一个子任务，同步更新进度表中的状态、提交和完成时间。
+待验收计入分母、不计入完成数；没有废弃任务时可省略“废弃：0”。没有有效任务时为 `0 / 0（0%）`，且 Plan 不得完成。
 
----
+## 八、提交协议
 
-## 七、索引维护规范
+- 一个提交原则上只对应一个 Plan/Hotfix；一个任务优先对应一个实现提交。
+- 紧密耦合任务可共享提交，但必须在 Plan 中说明并共同引用 hash。
+- 禁止混入其他 Plan 或无关工作区改动。
+- 执行 ready Plan 即授权创建必要本地提交；不包含 push、PR、合并或改写历史。
+- 用户要求不提交时，任务最多停留在“待验收”，Plan 不得完成。
+- 实现提交先让任务进入“待验收”；独立计划回填提交写入 hash 并转为完成，避免 commit 自引用循环。
 
-- `plan/index/README.md` 必须包含主计划索引，说明每个主 plan 的主要功能、状态和入口。
-- `plan/index/README.md` 必须包含各主计划目录下的小数历史计划和 hotfix 明细。
-- 新增、移动、完成或废弃计划文件时，必须同步更新索引。
-- 索引只写摘要、状态和链接；具体任务、验收标准和变更记录保留在对应计划文件中。
+建议提交主题：
 
----
+```text
+plan(plan_9): create feature plan
+feat(plan_9/9.2): implement feature
+docs(plan_9): backfill implementation commits
+docs(no-plan): fix broken link
+```
 
-## 八、相关约束文档路由
+## 九、执行、并行、中断与权限
+
+- 默认只有一个主 Plan 处于进行中。
+- 任务互不依赖、文件边界不重叠且可独立验证时可并行；两份 Plan 必须记录原因、执行者和文件边界。
+- Hotfix 可打断主 Plan；记录中断和恢复点，完成后恢复主 Plan。
+- Parent Agent 或开发者 owner 独占 Plan、索引和任务状态更新权。SubAgent 与外部编码工具只能报告结果。
+- 恢复执行时重新读取 Plan、索引和约束，检查 Git 状态、提交和 diff；根据代码与验证证据重建进度，不能只信状态标记。
+- 出现共享文件或架构决策冲突时停止并行，先确定归属。
+
+阻塞必须记录原因、当前进度、解除条件、解除方或外部事件、恢复后的下一步及日期；解除时记录结果。测试失败或尚未做完不等于阻塞。
+
+## 十、范围变化、废弃与归档
+
+- 不改变目标、验收或模块边界的小调整可更新原 Plan并记录原因。
+- 服务原目标的新增任务追加到原 Plan；改变目标、关键架构或显著扩大范围时拆出新主 Plan。
+- 已完成 Plan 不改写历史范围，后续修正使用 Hotfix。
+- 删除或迁移任务必须保留去向；计划文件原则上不删除。
+- Plan 废弃时记录原因、已完成影响及替代计划。
+- 已完成 Plan 保留原路径，不搬入归档。
+
+产品边界、技术方向、架构职责或阶段路线变化时，先在 `plan_archive/` 创建决策记录，再同步更新 `plan_main.md`、受影响 Plan 与索引。归档只记录 before / after、原因、影响、迁移和回滚可能性，不复制完整计划正文。
+
+## 十一、索引维护
+
+- 创建 Plan 时立即登记；状态变化时同步更新。
+- 索引只展示 Plan 状态和整体进度，不复制任务明细。
+- 主计划表只列主 Plan；Hotfix 位于所属 Plan 明细。
+- 主计划表包含“活跃修正”列：已完成主 Plan 有进行中或阻塞 Hotfix 时显示其链接、状态和进度，主 Plan 本身仍保持完成。
+- Plan YAML/任务表是事实来源；索引不一致时校验失败。
+- 新增、移动、完成、废弃计划或 Hotfix 时，在同一提交同步索引。
+
+## 十二、验证证据与完成门槛
+
+验收记录至少包含：
+
+- 验证日期和环境。
+- 实际执行命令。
+- 每项结果为通过、失败或未执行。
+- 关键结果摘要。
+- 未执行项的原因、风险和后续动作。
+
+自动化测试、Docker 冒烟与人工检查分别记录，不粘贴大段终端输出。大型报告保存在既有 `build/` 路径并记录链接或摘要。
+
+Plan 只有同时满足以下条件才能完成：
+
+- 所有有效任务均完成，废弃任务有原因。
+- 所有验收标准有证据，必需测试全部通过且无跳过项。
+- 实现 commit hash 全部回填并核对范围。
+- Plan 严格静态校验通过。
+- 索引状态和进度同步。
+- 工作区不存在属于该 Plan 的未提交变更。
+- 无未解除阻塞或未记录风险。
+
+## 十三、静态校验
+
+- 入口：`python3 scripts/validate_plans.py`。
+- 修改 Plan、索引、模板或本约束时必须执行。
+- workflow v2 使用严格校验；历史 Plan 使用兼容检查。
+- `--strict` 将 workflow v2 规则作为错误；`--verify-git` 额外检查 commit hash 存在且唯一。
+- Plan 完成前必须运行 `python3 scripts/validate_plans.py --strict --verify-git`。
+- 根 Gradle `check` 依赖 `validatePlans`；暂不引入 Git hook。
+- `ERROR` 阻断检查；`WARNING` 不阻断，但完成前必须处理或在验收记录解释。
+
+校验范围：
+
+- `plan_main.md`：检查职责边界，不按执行 Plan 校验。
+- `plan/index/README.md`：检查链接、登记及状态/进度一致性。
+- `plan/templates/`：检查占位结构，不要求真实 ID、日期或 commit。
+- `plan_archive/`：按方向变更结构检查，不要求任务表。
+- `plan_N.md` 与 `plan_N.hotfix_M.md`：执行 Plan 状态校验。
+
+## 十四、历史兼容与生效
+
+- 缺少 `workflow_version` 的已完成历史 Plan 不全面重写，不补造证据。
+- 新建 Plan 和仍未完成的 Plan 必须使用当前 workflow 版本。
+- `plan_7` 由 `plan_8` 迁移为首个 workflow v2 Plan。
+- 工作流发生不兼容变化时递增 `workflow_version`。
+- 修改全局约束必须创建工程治理主 Plan，并按修改前的现行规则创建；新规则从治理 Plan 完成提交后生效，不追溯约束该 Plan 自身。
+
+## 十五、相关约束路由
 
 - Java 代码风格：`constraints/code-style.md`
 - Java 包结构：`constraints/package-structure.md`

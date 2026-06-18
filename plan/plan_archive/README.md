@@ -8,22 +8,6 @@
 
 ## 模板
 
-```markdown
-# 变更标题
+创建记录时复制 [`plan/templates/archive-decision-template.md`](../templates/archive-decision-template.md)。
 
-- **时间**：YYYY-MM-DD
-- **触发原因**：简述为什么需要变更
-
-## Before（变更前）
-
-> 原有方向/决策描述
-
-## After（变更后）
-
-> 新方向/决策描述
-
-## 影响
-
-- 受影响的 plan：plan_X, plan_Y
-- 需要调整的模块：xxx
-```
+归档记录必须包含日期、变更原因、Before、After、影响范围、迁移与兼容、回滚可能性及关联提交。归档不使用 Plan 状态机或任务表。
