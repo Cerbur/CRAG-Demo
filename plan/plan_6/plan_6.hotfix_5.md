@@ -8,10 +8,10 @@
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_5.1 | 建立项目内 `execute-plan-with-opencode` Skill 结构 | ✅ | — | 2026-06-19 |
-| 6.hotfix_5.2 | 固化 ParentAgent、SubAgent 与 OpenCode 的执行状态机 | ✅ | — | 2026-06-19 |
-| 6.hotfix_5.3 | 固化实现与 Review 修复提示词 | ✅ | — | 2026-06-19 |
-| 6.hotfix_5.4 | 更新项目 Skill 索引并完成静态校验 | ✅ | — | 2026-06-19 |
+| 6.hotfix_5.1 | 建立项目内 `execute-plan-with-opencode` Skill 结构 | ✅ | `a9ddc3c` | 2026-06-19 |
+| 6.hotfix_5.2 | 固化 ParentAgent、SubAgent 与 OpenCode 的执行状态机 | ✅ | `a9ddc3c` | 2026-06-19 |
+| 6.hotfix_5.3 | 固化实现与 Review 修复提示词 | ✅ | `a9ddc3c` | 2026-06-19 |
+| 6.hotfix_5.4 | 更新项目 Skill 索引并完成静态校验 | ✅ | `a9ddc3c` | 2026-06-19 |
 
 整体进度：4 / 4（100%）
 
@@ -91,3 +91,4 @@ skill/execute-plan-with-opencode/
   - 关键规则检索命中 OpenCode 双重检查、模型选择、九项 Plan 门槛、同会话补测、新会话修复、三轮上限、权限协议、Docker-only 测试和结构化回传。
   - `git diff --check` 通过。
   - 未执行真实业务 Plan，符合本 hotfix 验证边界。
+- 2026-06-19：实现提交 hash 回填为 `a9ddc3c`。
