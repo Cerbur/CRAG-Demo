@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_3.hotfix_6
 type: hotfix
 parent_plan: plan_3
-status: in_progress
+status: completed
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -83,12 +83,12 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 3.hotfix_6.1 | 拆分并重写工程规范文档 | 🧪 待验收 | pending | — |
-| 3.hotfix_6.2 | 更新项目约束路由 | 🧪 待验收 | pending | — |
-| 3.hotfix_6.3 | 接入 Spotless 并首次格式化 Java | 🧪 待验收 | pending | — |
-| 3.hotfix_6.4 | 完成计划、格式与测试验收 | 🧪 待验收 | pending | — |
+| 3.hotfix_6.1 | 拆分并重写工程规范文档 | ✅ 完成 | e3ca3b9 | 2026-06-19 |
+| 3.hotfix_6.2 | 更新项目约束路由 | ✅ 完成 | e3ca3b9 | 2026-06-19 |
+| 3.hotfix_6.3 | 接入 Spotless 并首次格式化 Java | ✅ 完成 | e3ca3b9 | 2026-06-19 |
+| 3.hotfix_6.4 | 完成计划、格式与测试验收 | ✅ 完成 | e3ca3b9 | 2026-06-19 |
 
-整体进度：0 / 4（0%）
+整体进度：4 / 4（100%）
 
 ## 3.hotfix_6.1 拆分并重写工程规范文档
 
@@ -161,6 +161,7 @@ updated: 2026-06-19
 | 2026-06-19 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew spotlessApply` | 通过 | 7 个模块共 14 个 Spotless apply 任务成功 |
 | 2026-06-19 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew check` | 通过 | 41 个任务成功；覆盖严格 Plan 校验、Spotless、编译与模块单元测试 |
 | 2026-06-19 | ParentAgent 独立验收 | 逐项核对 24 项 grilling 决策并重新执行 `./gradlew check` | 通过 | 规范内容、文档职责、路由、Gradle 接入与存量迁移边界符合已确认决策；无阻塞问题 |
+| 2026-06-19 | Git | 实现提交 `e3ca3b9` | 通过 | 69 个文件纳入实现提交，供任务状态与验收证据回填 |
 
 ## 阻塞记录
 
@@ -177,3 +178,4 @@ updated: 2026-06-19
 | 2026-06-19 | 创建 `plan_3.hotfix_6` 并开始执行 | grilling 已完成 24 项工程规范决策 | 建立规范拆分、路由、格式化和验收边界 |
 | 2026-06-19 | 完成规范拆分、路由更新、Spotless 接入与首次格式化 | 按已确认范围执行 | 等待提交后回填 commit hash 并转为完成状态 |
 | 2026-06-19 | ParentAgent 独立验收通过 | 24 项决策均已覆盖，完整 Gradle check 再次通过 | 因尚无实现提交，任务按工作流继续保持待验收 |
+| 2026-06-19 | 回填实现提交并完成 hotfix | 实现提交 `e3ca3b9` 已创建且验收通过 | 四项任务与 Plan 状态转为完成 |
