@@ -98,10 +98,11 @@ ai.cerbur.crag.query.api
 
 `crag-storage` 尚未建立完整 `api` 包，迁移期间允许上层通过根包 DAO 和必要的 `storage.result` / `storage.entity` 类型访问存储能力，但必须满足：
 
+- 例外只覆盖 `plan_9` 开始时已经存在并可通过架构测试列举的调用；禁止新增 Entity 跨模块传播。
 - `storage.repository` 永远只允许 Storage 内部访问。
 - 上层不得修改 Entity 后自行持久化；状态变化必须通过 DAO 方法完成。
 - 新增跨模块返回类型优先使用投影或结果类型，不得扩大 Entity 传播范围。
-- 是否收口 Storage API 由实际耦合问题驱动，不为形式统一提前增加映射层。
+- 是否收口 Storage API 由实际耦合问题驱动，不为形式统一提前增加映射层；新增需求不得借迁移例外扩大白名单。
 
 ## 六、固定包语义
 

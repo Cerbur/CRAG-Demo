@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_8.hotfix_1
 type: hotfix
 parent_plan: plan_8
-status: ready
+status: in_progress
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -37,6 +37,7 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 
 ## 前置依赖
 
+- **执行前置 Plan**：`plan_8`
 - `plan_8` 已完成 workflow v2。
 - `plan_7`、`plan_9`、`plan_10`、`plan_11` 均未开始实现，可安全调整执行边界。
 
@@ -89,10 +90,10 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 8.hotfix_1.1 | 收敛工作流状态机、专项约束与项目方向 | ⏳ 待开始 | — | — |
-| 8.hotfix_1.2 | 校准活跃 Plan、任务顺序与索引执行队列 | ⏳ 待开始 | — | — |
-| 8.hotfix_1.3 | 增强 Plan 静态校验器及单元测试 | ⏳ 待开始 | — | — |
-| 8.hotfix_1.4 | 完成全量校验与 Hotfix 验收 | ⏳ 待开始 | — | — |
+| 8.hotfix_1.1 | 收敛工作流状态机、专项约束与项目方向 | ⏳ 待验收 | pending | — |
+| 8.hotfix_1.2 | 校准活跃 Plan、任务顺序与索引执行队列 | ⏳ 待验收 | pending | — |
+| 8.hotfix_1.3 | 增强 Plan 静态校验器及单元测试 | ⏳ 待验收 | pending | — |
+| 8.hotfix_1.4 | 完成全量校验与 Hotfix 验收 | 🔄 进行中 | — | — |
 
 整体进度：0 / 4（0%）
 
@@ -140,6 +141,10 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | macOS / Python 3 | `python3 -m unittest scripts.tests.test_validate_plans -v` | 通过 | 12 个校验器测试通过；新增测试已先确认红灯再完成 green |
+| 2026-06-19 | macOS / Git repository | `python3 scripts/validate_plans.py --strict` | 通过 | 0 error；24 个 warning 均为历史 Plan 兼容提示 |
+| 2026-06-19 | sandbox / Gradle | `./gradlew check` | 未执行 | 沙箱禁止 Gradle 文件锁通信；沙箱外执行因当前工具额度限制被拒绝，未将其记为通过 |
+| 2026-06-19 | Git working tree | `git diff --check` 与冲突关键词检索 | 通过 | 无 whitespace error；活动约束和 Plan 未发现新的职责或顺序冲突 |
 
 ## 阻塞记录
 
@@ -154,3 +159,4 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 Hotfix 并设为待开始 | Plan 与约束交叉审计确认多处状态、依赖和职责冲突 | 建立 4 项治理任务；先完成本 Hotfix 再执行 plan_11 |
+| 2026-06-19 | 开始执行 8.hotfix_1.1 至 8.hotfix_1.3 | Plan 与索引基线已提交 | 状态转为进行中，开始规则、活跃 Plan 与校验器修改 |

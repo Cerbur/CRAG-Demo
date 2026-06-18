@@ -35,6 +35,7 @@ updated: 2026-06-19
 
 ## 前置依赖
 
+- **执行前置 Plan**：`plan_11`
 - `plan_5` 已完成 Gradle multi-module 拆分。
 - `plan_6` 已完成 Retrieval 查询链路。
 - `plan_8` 已启用 workflow v2 和计划静态校验。
@@ -62,8 +63,6 @@ updated: 2026-06-19
 - `scripts/validate_module_dependencies.py`
 - `scripts/tests/test_validate_module_dependencies.py`
 - `constraints/package-structure.md`
-- `constraints/test-workflow.md`
-- `constraints/docker-structure.md`
 - `constraints/api-style.md`
 - `plan/plan_main.md`
 - `plan/plan_7/plan_7.md`
@@ -106,6 +105,7 @@ updated: 2026-06-19
 - 全量工程检查：`./gradlew check`，确认 Spotless、单元测试、架构规则和 Plan 校验全部通过。
 - 默认 Docker 验证：`docker compose up -d --build` 后确认正式 API 可用且 `/api/v1/test/**` 不存在。
 - Smoke Docker 验证：显式设置 `SPRING_PROFILES_ACTIVE=smoke` 启动 Compose，回归现有 smoke、chunk、indexes、rrf、rerank 和 retrieval 诊断端点。
+- Smoke HTTP 回归必须沉淀为 `scripts/tests/http/` 自动化脚本；本计划只建立最小可用的显式启用机制，不治理健康检查、镜像、安全或持久化契约。
 - 最终完成前执行 `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check` 并核对任务提交。
 
 ## 进度追踪
@@ -165,21 +165,21 @@ updated: 2026-06-19
 
 **目标**：保留现有冒烟和内部阶段诊断能力，同时让默认应用与业务模块不承载测试后门。  
 **前置任务**：9.4  
-**范围**：新增 library module `crag-smoke`；迁移 `TestController` 及相关响应类型；统一添加 `@Profile("smoke")`；由 `crag-app` 以可选运行时方式装配；为 Docker Compose 增加显式 smoke 启动方式；更新 README、benchmark 和测试端点参考。  
+**范围**：新增 library module `crag-smoke`；迁移 `TestController` 及相关响应类型；统一添加 `@Profile("smoke")`；由 `crag-app` 以可选运行时方式装配；为 Docker Compose 增加最小显式 smoke 启动方式；新增稳定诊断 HTTP 回归脚本；更新 README、benchmark 和测试端点参考。
 **非目标**：不把 smoke 端点改造成正式 API，不允许业务模块依赖 `crag-smoke`，不生成独立 bootJar。  
-**验收标准**：默认启动访问 `/api/v1/test/**` 返回不存在；显式 smoke 启动后现有诊断端点可用；`crag-app` 不再包含 Controller 或直接业务 import；`crag-smoke` 是唯一允许跨层诊断访问的模块。  
-**验证方式**：运行 `./gradlew :crag-smoke:test :crag-app:test`；使用默认 Compose 和 smoke Compose/Profile 分别验证端点不可见与可见；回归 smoke、chunk、indexes、rrf、rerank、retrieval 端点。  
-**涉及文件**：`settings.gradle.kts`、`crag-smoke/**`、`crag-app/**`、`docker-compose.yml`、`Dockerfile`、`README.md`、`benchmark/**`、`skill/crag-benchmark/**`、`constraints/test-workflow.md`、`constraints/docker-structure.md`
+**验收标准**：默认启动访问 `/api/v1/test/**` 返回不存在；显式 smoke 启动后现有诊断端点可用；自动化脚本对端点和退出码做明确断言；`crag-app` 不再包含 Controller 或直接业务 import；`crag-smoke` 是唯一允许跨层诊断访问的模块。
+**验证方式**：运行 `./gradlew :crag-smoke:test :crag-app:test`；使用默认 Compose 验证端点不可见；显式 smoke Profile 启动后执行 `scripts/tests/http/` 的诊断回归脚本。
+**涉及文件**：`settings.gradle.kts`、`crag-smoke/**`、`crag-app/**`、`docker-compose.yml`、`Dockerfile`、`README.md`、`benchmark/**`、`skill/crag-benchmark/**`、`scripts/tests/http/**`
 
 ## 9.6 收紧架构规则并完成全量验收
 
 **目标**：删除迁移期例外，使文档、代码、构建和自动化规则共同表达同一套最终模块边界。  
 **前置任务**：9.1、9.2、9.3、9.4、9.5  
-**范围**：删除已解决的 ArchUnit 例外；由依赖校验器覆盖 Gradle 声明白名单与依赖环，由 ArchUnit 覆盖公开 API、代码依赖环、Repository、Controller、App 和 Smoke Profile 规则；更新当前实现索引、`plan_main`、`plan_7` 目标路径、决策归档、索引与验收证据。  
+**范围**：删除已解决的 ArchUnit 例外；由依赖校验器覆盖 Gradle 声明白名单与依赖环，由 ArchUnit 覆盖公开 API、代码依赖环、Repository、Controller、App 和 Smoke Profile 规则；更新当前实现索引、`plan_main`、`plan_7` 目标路径、决策归档、索引与验收证据。只对 Docker 文档做必要路由修正，不重写测试分类或部署契约。
 **非目标**：不开始执行 `plan_7`，不扩展 Storage API 重构，不增加本计划外的新架构目标。  
-**验收标准**：所有目标架构规则无迁移期豁免通过；默认与 smoke Docker 验证均符合预期；`package-structure.md` 不再保留已解决偏差；`plan_7` 恢复为可执行状态并使用新路径；所有提交 hash 和验证证据回填。  
+**验收标准**：所有目标架构规则无迁移期豁免通过；默认与 smoke Docker 验证均符合预期；`package-structure.md` 不再保留已解决偏差；`plan_7` 解除架构阻塞并转为 `draft` 等待 Spring AI、Stub 与凭据校准；所有提交 hash 和验证证据回填。
 **验证方式**：运行 `python3 scripts/validate_module_dependencies.py`、`./gradlew test`、`./gradlew check`、默认与 smoke Docker 冒烟、`python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`；使用 `git show --stat <hash>` 核对每项任务提交范围。  
-**涉及文件**：`crag-app/src/test/**`、`constraints/**`、`plan/plan_main.md`、`plan/plan_7/plan_7.md`、`plan/plan_9/plan_9.md`、`plan/plan_archive/2026-06-19-java-module-boundary-hardening.md`、`plan/index/README.md`
+**涉及文件**：`crag-app/src/test/**`、`constraints/package-structure.md`、`constraints/api-style.md`、`plan/plan_main.md`、`plan/plan_7/plan_7.md`、`plan/plan_9/plan_9.md`、`plan/plan_archive/2026-06-19-java-module-boundary-hardening.md`、`plan/index/README.md`
 
 ## 验收记录
 
@@ -205,3 +205,4 @@ updated: 2026-06-19
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 plan_9 并设为待开始 | 完成包结构约束 grilling，迁移决策已全部收敛 | 建立 6 项顺序执行任务；plan_7 在本计划完成前阻塞 |
 | 2026-06-19 | 状态调整为阻塞并增加 plan_11 前置依赖 | 测试分层必须先于 ArchUnit、Spring Context 和 Smoke 回归落地 | 架构目标不变；执行顺序调整为 plan_11 → plan_9 |
+| 2026-06-19 | 收窄 Smoke、测试与 Docker 职责 | 避免与 plan_10 重复设计部署机制，并落实自动化 HTTP 回归 | plan_9 只交付最小 Smoke 隔离；完成后 plan_7 转 draft 校准 |

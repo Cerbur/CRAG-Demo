@@ -29,22 +29,23 @@ updated: 2026-06-19
 
 ## 前置依赖
 
+- **执行前置 Plan**：`plan_9`
 - `plan_6` 已完成 Retrieval 查询链路，Query 只依赖 retrieval 门面能力。
 - `plan_5` 已完成 Java module 拆分，Query 新代码落入 `crag-query` 模块。
-- `plan_9` 必须先完成模块边界迁移；本计划随后使用 `crag-api`、各领域 `api` 包和 `crag-smoke` 目标结构执行。
-- DeepSeek API 凭据与 Spring AI 具体配置在执行前确认，不写入仓库。
+- `plan_9` 必须先完成模块边界迁移；本计划随后使用 `crag-api` 和各领域 `api` 包执行，`crag-smoke` 仅保留内部诊断职责。
+- `plan_9` 完成后本计划先转为 `draft`，校准 Spring AI 版本、配置属性、确定性 LLM Stub、文件边界与验收命令。
+- DeepSeek API 凭据可用是本计划从 `draft` 转为 `ready` 的前提，凭据不得写入仓库。
 
 ## 文件边界
 
 - `crag-query/src/**`
 - `crag-api/src/**`（仅 UserQuery HTTP 入口与 DTO；由 plan_9 建立）
-- `crag-smoke/src/**`（仅 Query 冒烟诊断；由 plan_9 建立）
 - `crag-app/src/**`（仅运行时配置与装配）
 - `build.gradle.kts`
 - `crag-query/build.gradle.kts`
 - `crag-api/build.gradle.kts`
-- `crag-smoke/build.gradle.kts`
 - `crag-app/build.gradle.kts`
+- `scripts/tests/http/**`
 - `docker-compose.yml`
 - `.env.example`
 - `constraints/package-structure.md`
@@ -59,11 +60,13 @@ updated: 2026-06-19
 - Context 由排序后的 child chunks 组装，必须有长度上限并保留稳定 sources 映射。
 - LLM 接入位于 integration 边界；业务编排不直接依赖供应商 SDK 类型。
 - 一期使用 DeepSeek API + Spring AI；密钥仅通过环境变量注入。
-- 非单元验证遵守 `constraints/test-workflow.md`，统一使用 Docker Compose。
+- Query 必跑回归使用确定性 LLM Stub，并从正式 `POST /api/v1/query` 入口执行自动化 Docker HTTP 回归。
+- 真实 DeepSeek 调用是完成门槛；缺少凭据不得静默跳过或把 Plan 标记为完成。
+- `crag-smoke` 只诊断内部阶段，本计划不新增 Query Smoke Controller。
 
 ## 未决问题
 
-- 非阻塞：执行 7.2 时根据当前 Spring AI 版本确认 DeepSeek ChatClient 配置属性名称；由 Plan owner 在修改构建或配置前记录最终选择，不改变既定供应商与边界。
+- 阻塞解除后、转为 `ready` 前确认当前 Spring AI 版本、DeepSeek ChatClient 配置属性、Stub 激活方式和凭据可用性；确认结果写入关键决策与变更记录。
 
 ## 风险与回滚
 
@@ -74,9 +77,10 @@ updated: 2026-06-19
 
 ## 测试与验证计划
 
-- 单元测试：`./gradlew :crag-query:test :crag-api:test`，覆盖 context、sources、服务编排、请求校验和外部依赖失败。
+- 纯单元与轻量组件测试：按 `plan_11` 完成后的分类执行 `./gradlew :crag-query:test :crag-api:test`，覆盖 context、sources、服务编排、请求校验和外部依赖失败。
 - 全量回归：`./gradlew test`。
-- 非单元测试：使用 `docker compose up -d --build` 启动完整依赖，通过 Compose 暴露端口调用 `POST /api/v1/query`。
+- Docker HTTP 回归：使用 `docker compose up -d --build` 启动完整依赖，运行 `scripts/tests/http/` 中基于确定性 Stub 的 Query 脚本。
+- 条件验收：使用真实 DeepSeek 凭据调用正式 Query API，验证供应商配置与协议。
 - 最终执行 `python3 scripts/validate_plans.py --strict --verify-git plan/plan_7/plan_7.md`。
 
 ## 进度追踪
@@ -84,11 +88,12 @@ updated: 2026-06-19
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 7.1 | Query 侧 Context 工程与 sources 结构 | ⏳ 待开始 | — | — |
-| 7.2 | LLM Client 接入与 UserQueryService 编排 | ⏳ 待开始 | — | — |
-| 7.3 | UserQueryController 实现 | ⏳ 待开始 | — | — |
-| 7.4 | 单元测试与端到端冒烟测试 | ⏳ 待开始 | — | — |
+| 7.2 | 建立 LLM 契约与确定性 Stub | ⏳ 待开始 | — | — |
+| 7.3 | 接入 DeepSeek Adapter 并实现 UserQueryService | ⏳ 待开始 | — | — |
+| 7.4 | UserQueryController 实现 | ⏳ 待开始 | — | — |
+| 7.5 | 自动化 Query HTTP 回归与真实 DeepSeek 验收 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 4（0%）
+整体进度：0 / 5（0%）
 
 ## 7.1 Query 侧 Context 工程与 sources 结构
 
@@ -106,31 +111,47 @@ updated: 2026-06-19
 
 **涉及文件**：`crag-query/src/main/**`、`crag-query/src/test/**`
 
-## 7.2 LLM Client 接入与 UserQueryService 编排
+## 7.2 建立 LLM 契约与确定性 Stub
 
-**目标**：通过供应商无关边界接入 DeepSeek，并在 UserQueryService 串联 Retrieval、Context 与 LLM。
+**目标**：先建立供应商无关的 LLM 契约和可重复的确定性 Stub，为业务编排与 HTTP 回归提供稳定依赖。
 
 **前置任务**：7.1
 
-**范围**：Spring AI 依赖与配置、LLM integration adapter、UserQueryService、失败映射及单元测试。
+**范围**：LLM 请求/结果契约、失败语义、确定性 Stub、Profile 或配置切换及单元测试。
 
-**非目标**：不实现流式生成、重试框架、对话记忆或多供应商动态切换。
+**非目标**：不接入真实 DeepSeek，不实现 UserQueryService、流式生成或多供应商动态切换。
 
-**验收标准**：正常返回 answer 与 sources；Retrieval 空结果和 LLM 失败返回明确行为；Query 不依赖 Retrieval 内部组件或供应商 SDK 类型。
+**验收标准**：Stub 对固定输入产生确定输出；失败模式可控；业务契约不暴露 Spring AI 或供应商 SDK 类型。
 
-**验证方式**：运行 `./gradlew :crag-query:test`，检查模块依赖并通过服务编排测试覆盖成功与失败路径。
+**验证方式**：运行 `./gradlew :crag-query:test`，覆盖确定输出、空输入和失败模式。
 
-**涉及文件**：`crag-query/**`、`crag-app/src/**`、`crag-query/build.gradle.kts`、`crag-app/build.gradle.kts`、`.env.example`
+**涉及文件**：`crag-query/src/**`、`crag-app/src/**`
 
-## 7.3 UserQueryController 实现
+## 7.3 接入 DeepSeek Adapter 并实现 UserQueryService
 
-**目标**：提供 `POST /api/v1/query` 的稳定请求与响应契约。
+**目标**：通过 Spring AI 接入真实 DeepSeek，并在 UserQueryService 串联 Retrieval、Context 与 LLM。
 
 **前置任务**：7.2
 
-**范围**：请求校验、Controller、DTO、错误响应转换和 HTTP 层单元测试。
+**范围**：Spring AI 依赖与配置、DeepSeek adapter、UserQueryService、失败映射及单元测试。
 
-**非目标**：不增加鉴权、流式接口或第二套 Query API。
+**非目标**：不实现流式生成、重试框架、对话记忆或第二供应商。
+
+**验收标准**：正常返回 answer 与 sources；Retrieval 空结果和 LLM 失败行为明确；Query 不依赖 Retrieval 内部组件或供应商 SDK 类型。
+
+**验证方式**：运行 `./gradlew :crag-query:test`，检查模块依赖并覆盖成功与失败路径。
+
+**涉及文件**：`crag-query/**`、`crag-app/src/**`、`crag-query/build.gradle.kts`、`crag-app/build.gradle.kts`、`.env.example`
+
+## 7.4 UserQueryController 实现
+
+**目标**：提供 `POST /api/v1/query` 的稳定请求与响应契约。
+
+**前置任务**：7.3
+
+**范围**：请求校验、Controller、DTO、错误响应转换和 HTTP 层轻量组件测试。
+
+**非目标**：不增加鉴权、流式接口、Smoke Controller 或第二套 Query API。
 
 **验收标准**：合法请求返回 answer 与 sources；空问题和非法输入被拒绝；错误响应与现有 API 风格一致。
 
@@ -138,21 +159,21 @@ updated: 2026-06-19
 
 **涉及文件**：`crag-api/src/main/**`、`crag-api/src/test/**`、`crag-api/build.gradle.kts`
 
-## 7.4 单元测试与端到端冒烟测试
+## 7.5 自动化 Query HTTP 回归与真实 DeepSeek 验收
 
-**目标**：完成 Query 链路回归并证明 Docker Compose 环境可从 HTTP 问题得到 answer 与 sources。
+**目标**：从正式 HTTP 入口证明 Stub 模式可重复回归，并验证真实 DeepSeek 配置与协议可用。
 
-**前置任务**：7.1、7.2、7.3
+**前置任务**：7.1、7.2、7.3、7.4
 
-**范围**：补齐缺失单元测试、Compose 配置、端到端请求和验收证据。
+**范围**：补齐缺失测试、Compose 配置、确定性 Stub HTTP 脚本、真实供应商调用和验收证据。
 
-**非目标**：不以宿主机直接启动服务替代 Docker，不把 benchmark 扩展为本任务内容。
+**非目标**：不新增 Query Smoke Controller，不以手工 curl 作为唯一证据，不扩展 benchmark。
 
-**验收标准**：核心正常、边界与失败路径单测通过；Docker Compose 中接口返回可理解答案和可追溯 sources；所有命令与摘要回填。
+**验收标准**：核心正常、边界与失败路径测试通过；自动化脚本通过正式 API 返回确定 answer 与可追溯 sources；真实 DeepSeek 调用通过；所有命令与摘要回填。
 
-**验证方式**：运行 `./gradlew test`；使用 `docker compose up -d --build` 后调用 `POST /api/v1/query`；完成后检查 Compose 日志并清理环境。
+**验证方式**：运行 `./gradlew test`；使用 Docker Compose 后执行 `scripts/tests/http/` Query 回归；使用真实凭据调用 `POST /api/v1/query`；检查日志并清理本次 runId 数据。
 
-**涉及文件**：`crag-query/src/test/**`、`crag-api/src/test/**`、`crag-smoke/src/**`、`docker-compose.yml`、`README.md`、`plan/plan_7/plan_7.md`
+**涉及文件**：`crag-query/src/test/**`、`crag-api/src/test/**`、`scripts/tests/http/**`、`docker-compose.yml`、`.env.example`、`README.md`、`plan/plan_7/plan_7.md`
 
 ## 验收记录
 
@@ -163,10 +184,10 @@ updated: 2026-06-19
 
 - **日期**：2026-06-19
 - **原因**：`plan_9` 将先完成 `crag-admin → crag-api`、公开 API 包和 `crag-smoke` 迁移，避免本计划向旧边界继续新增代码后再次搬迁。
-- **当前进度**：4 个任务均未开始，无需回滚实现。
+- **当前进度**：5 个任务均未开始，无需回滚实现。
 - **解除条件**：`plan_9` 完成并通过架构、单元测试及默认/smoke Docker 验收。
 - **解除方**：`plan_9` owner。
-- **恢复后的下一步**：重新读取迁移后的公开 API 和模块路径，从 7.1 开始执行。
+- **恢复后的下一步**：转为 `draft`，重新读取迁移后的公开 API，确认 Spring AI、LLM Stub、DeepSeek 凭据与文件边界；提交校准后的 Plan 和索引，再转为 `ready`。
 
 ## 废弃任务记录
 
@@ -179,3 +200,4 @@ updated: 2026-06-19
 | 2026-06-18 | 创建 plan_7 | 从 plan_6 拆分 Query 链路 | 建立 4 项业务任务 |
 | 2026-06-19 | 迁移为 workflow v2，状态为待开始 | plan_8 工作流治理 | 补齐元信息、边界、固定任务结构与验证计划；业务范围不变 |
 | 2026-06-19 | 状态调整为阻塞并增加 plan_9 前置依赖 | 避免 Query 功能继续写入即将废弃的模块与包边界 | 业务目标不变；执行路径切换到 crag-api、公开 api 包与 crag-smoke |
+| 2026-06-19 | 重拆为 5 项串行任务并收紧完成门槛 | 先建立 Stub，正式 API 回归不得混入 Smoke，真实 DeepSeek 必须验收 | plan_9 完成后先回 draft 校准，不直接恢复 ready |

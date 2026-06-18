@@ -206,36 +206,22 @@ UserQuery HTTP
 | Query | 已规划 | UserQuery、调用 Retrieval 获取 chunks、Context 工程、LLM 调用、答案生成 |
 | Cron Listeners | 已规划 | 当前阶段所有监听、异步任务和状态推进的实现方式 |
 
-### 6.3 代码分层约束
+### 6.3 模块职责约束
 
-每个已实现领域内部仍遵守当前代码分层：
+- 正式 HTTP Controller、请求 DTO、校验和异常转换统一属于 API 边界模块。
+- Repository、Entity 与数据库投影统一属于 Storage；业务模块通过受控 DAO 或公开结果访问持久化能力。
+- Ingestion、Retrieval 与 Query 只拥有各自业务编排、领域能力和外部适配，不机械复制 Controller、DAO 等横向分层。
+- App 仅作为组合根；Smoke 仅作为显式启用的诊断例外。
 
-| 层级 | 职责 |
-| --- | --- |
-| controller | HTTP API 入口、请求校验、响应封装 |
-| service | 应用编排，不直接依赖 Repository |
-| core/domain | 领域能力，如 chunk、dense、sparse、rrf、rerank |
-| dao | 数据访问入口，封装 Repository |
-| integration | 外部服务接入，如 LLM、Embedding、Rerank |
-| cron | 定时任务编排，调用 service/core/dao 完成异步处理 |
-
-详细包结构维护在 [`constraints/package-structure.md`](../constraints/package-structure.md)。
+模块职责、依赖白名单、公开 API 和迁移期偏差以 [`constraints/package-structure.md`](../constraints/package-structure.md) 为唯一事实来源。
 
 ---
 
 ## 七、阶段路线
 
-| 阶段 | 目标 | 当前状态 |
-| --- | --- | --- |
-| plan_1 | 项目脚手架、基础设施、DAO、Docker 基础环境 | ✅ 完成 |
-| plan_2 | AdminRag 写入链路、Dense Embedding 异步处理、sidecar 支撑 | ✅ 完成 |
-| plan_3 | 项目介绍文档、架构图、协作约束整理 | ✅ 完成 |
-| plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 |
-| plan_5 | Java module 拆分，完成 multi-module 迁移和启动模块收敛 | ✅ 完成 |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 |
-| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 |
+产品主线按“入库 → 检索 → 问答 → 部署体验收口”推进。工程治理、模块迁移和测试工作流是服务产品主线的前置工作，不在这里复制执行状态。
 
-执行计划详情、历史小数计划、hotfix 状态和完成记录统一查看 [`plan/index/README.md`](./index/README.md)。
+当前唯一执行队列、计划状态、历史小数计划和 Hotfix 统一查看 [`plan/index/README.md`](./index/README.md)。
 
 ---
 

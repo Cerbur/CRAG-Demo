@@ -34,6 +34,7 @@ Scope.
 ## 非目标
 No.
 ## 前置依赖
+- **执行前置 Plan**：无
 None.
 ## 文件边界
 `scripts/**`
@@ -70,6 +71,15 @@ None.
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | Create | Need | Initial |
+"""
+
+BLOCKED_RECORD = """\
+- **日期**：2026-06-19
+- **原因**：等待前置计划。
+- **当前进度**：任务尚未开始。
+- **解除条件**：前置计划完成。
+- **解除方**：前置计划 owner。
+- **恢复后的下一步**：重新校准后继续。
 """
 
 
@@ -134,6 +144,122 @@ class ValidatePlansTest(unittest.TestCase):
             (root / "plan/index/README.md").write_text("# Index\n", encoding="utf-8")
             diagnostics = self.validator.validate_repository(root, [], strict=True, verify_git=False)
         self.assertIn("P401", {item.rule for item in diagnostics})
+
+    def test_blocked_plan_requires_complete_block_record(self):
+        content = VALID_PLAN.replace("status: ready", "status: blocked").replace(
+            "## 阻塞记录\nNone.",
+            "## 阻塞记录\n- **原因**：等待前置计划。",
+        )
+        diagnostics = self.validate(content)
+        self.assertIn("P222", {item.rule for item in diagnostics})
+
+    def test_blocked_plan_accepts_complete_block_record(self):
+        content = VALID_PLAN.replace("status: ready", "status: blocked").replace(
+            "## 阻塞记录\nNone.",
+            f"## 阻塞记录\n{BLOCKED_RECORD}",
+        )
+        diagnostics = self.validate(content)
+        self.assertNotIn("P222", {item.rule for item in diagnostics})
+
+    def test_repository_rejects_plan_dependency_cycle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_9 = self.write_plan(
+                root,
+                "plan_9",
+                VALID_PLAN.replace("None.", "- **执行前置 Plan**：`plan_10`", 1),
+            )
+            plan_10_content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_10").replace(
+                "# plan_9", "# plan_10"
+            ).replace("| 9.1 |", "| 10.1 |").replace("## 9.1", "## 10.1").replace(
+                "None.", "- **执行前置 Plan**：`plan_9`", 1
+            )
+            plan_10 = self.write_plan(root, "plan_10", plan_10_content)
+            self.write_index(
+                root,
+                [("plan_9", "待开始", "0/1"), ("plan_10", "待开始", "0/1")],
+                "plan_9 → plan_10",
+            )
+            diagnostics = self.validator.validate_dependencies(root, [plan_9, plan_10])
+        self.assertIn("P305", {item.rule for item in diagnostics})
+
+    def test_index_rejects_execution_queue_that_violates_dependencies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_9 = self.write_plan(root, "plan_9", VALID_PLAN)
+            plan_10_content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_10").replace(
+                "# plan_9", "# plan_10"
+            ).replace("| 9.1 |", "| 10.1 |").replace("## 9.1", "## 10.1").replace(
+                "None.", "- **执行前置 Plan**：`plan_9`", 1
+            )
+            plan_10 = self.write_plan(root, "plan_10", plan_10_content)
+            self.write_index(
+                root,
+                [("plan_9", "待开始", "0/1"), ("plan_10", "待开始", "0/1")],
+                "plan_10 → plan_9",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
+        self.assertIn("P306", {item.rule for item in diagnostics})
+
+    def test_index_rejects_missing_active_plan_from_execution_queue(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_9 = self.write_plan(root, "plan_9", VALID_PLAN)
+            plan_10_content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_10").replace(
+                "# plan_9", "# plan_10"
+            ).replace("| 9.1 |", "| 10.1 |").replace("## 9.1", "## 10.1")
+            plan_10 = self.write_plan(root, "plan_10", plan_10_content)
+            self.write_index(
+                root,
+                [("plan_9", "待开始", "0/1"), ("plan_10", "待开始", "0/1")],
+                "plan_9",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
+        self.assertIn("P306", {item.rule for item in diagnostics})
+
+    def test_index_rejects_hotfix_status_or_progress_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_8.hotfix_1").replace(
+                "type: main", "type: hotfix\nparent_plan: plan_8"
+            ).replace("# plan_9", "# plan_8.hotfix_1").replace(
+                "| 9.1 |", "| 8.hotfix_1.1 |"
+            ).replace("## 9.1", "## 8.hotfix_1.1")
+            plan_path = root / "plan/plan_8/plan_8.hotfix_1.md"
+            plan_path.parent.mkdir(parents=True)
+            plan_path.write_text(content, encoding="utf-8")
+            self.write_index(
+                root,
+                [("plan_8.hotfix_1", "完成", "1/1")],
+                "plan_8.hotfix_1",
+                hotfix=True,
+            )
+            diagnostics = self.validator.validate_index(root, [plan_path])
+        self.assertIn("P304", {item.rule for item in diagnostics})
+
+    def write_plan(self, root, plan_id, content):
+        path = root / f"plan/{plan_id}/{plan_id}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    def write_index(self, root, rows, queue, hotfix=False):
+        index_path = root / "plan/index/README.md"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        table_rows = []
+        for plan_id, status, progress in rows:
+            link = f"../{plan_id}/{plan_id}.md"
+            table_rows.append(f"| {plan_id} | Test | {status} ({progress}) | — | [{plan_id}.md]({link}) |")
+        heading = "Plan_8 明细" if hotfix else "主计划索引"
+        index_path.write_text(
+            f"## {heading}\n\n"
+            "| Plan | 主要功能 | 状态 | 活跃修正 | 入口 |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            + "\n".join(table_rows)
+            + "\n\n## 当前执行队列\n\n"
+            + f"```text\n{queue}\n```\n",
+            encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":

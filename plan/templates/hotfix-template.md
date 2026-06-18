@@ -25,6 +25,7 @@ updated: YYYY-MM-DD
 
 ## 前置依赖
 
+- **执行前置 Plan**：`plan_N`
 - 所属主 Plan 已完成。
 
 ## 文件边界

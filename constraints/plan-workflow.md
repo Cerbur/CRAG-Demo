@@ -108,10 +108,20 @@ parent_plan: plan_9
 合法转换：
 
 - `draft → ready → in_progress → completed`
+- `ready ↔ blocked`
 - `in_progress ↔ blocked`
+- `blocked → draft`
 - `draft / ready / in_progress / blocked → abandoned`
 
 `ready` 表示所有执行决策已解决且至少有一个有效任务。首次开始任务时转为 `in_progress`。Plan 不设置 `verifying`；存在待验收任务时仍为 `in_progress`。
+
+阻塞解除后的目标状态按事实选择：
+
+- 尚未开工且内容仍完整：`blocked → ready`。
+- 尚未开工但依赖完成后需要重新决策、校准版本、凭据或文件边界：`blocked → draft`。
+- 已执行一部分且可从恢复点继续：`blocked → in_progress`。
+
+每次阻塞与解除都必须在阻塞记录或变更记录中说明转换原因；不得为了绕过 `ready` 完整度门槛直接恢复执行。
 
 ### 5.2 任务状态
 
@@ -217,6 +227,8 @@ docs(no-plan): fix broken link
 
 阻塞必须记录原因、当前进度、解除条件、解除方或外部事件、恢复后的下一步及日期；解除时记录结果。测试失败或尚未做完不等于阻塞。
 
+Plan 间执行依赖必须在“前置依赖”章节使用 `- **执行前置 Plan**：` 标记和规范 Plan ID（例如 `plan_9`、`plan_8.hotfix_1`）显式写明；多个依赖可写在同一标记行。不得只通过编号、索引顺序或其他自然语言暗示依赖；显式依赖不得形成环。
+
 ## 十、范围变化、废弃与归档
 
 - 不改变目标、验收或模块边界的小调整可更新原 Plan并记录原因。
@@ -236,6 +248,8 @@ docs(no-plan): fix broken link
 - 主计划表包含“活跃修正”列：已完成主 Plan 有进行中或阻塞 Hotfix 时显示其链接、状态和进度，主 Plan 本身仍保持完成。
 - Plan YAML/任务表是事实来源；索引不一致时校验失败。
 - 新增、移动、完成、废弃计划或 Hotfix 时，在同一提交同步索引。
+- 索引必须维护唯一“当前执行队列”，列出全部未完成且未废弃的 workflow v2 Plan/Hotfix，每项恰好一次。
+- 执行队列必须满足所有显式前置依赖；队列用于展示当前串行顺序，不替代 Plan 内的前置依赖事实。
 
 ## 十二、验证证据与完成门槛
 
@@ -276,6 +290,13 @@ Plan 只有同时满足以下条件才能完成：
 - `plan/templates/`：检查占位结构，不要求真实 ID、日期或 commit。
 - `plan_archive/`：按方向变更结构检查，不要求任务表。
 - `plan_N.md` 与 `plan_N.hotfix_M.md`：执行 Plan 状态校验。
+
+校验器还必须检查：
+
+- `blocked` Plan 的阻塞记录字段完整。
+- workflow v2 Plan/Hotfix 的显式前置依赖不存在环。
+- 当前执行队列包含全部活跃 Plan/Hotfix 且顺序满足依赖。
+- 主 Plan 与 Hotfix 的索引状态、进度均与文件事实一致。
 
 ## 十四、历史兼容与生效
 

@@ -12,6 +12,7 @@ from typing import NamedTuple
 
 
 PLAN_FILE_RE = re.compile(r"plan_(\d+)(?:\.hotfix_(\d+))?\.md$")
+PLAN_ID_RE = re.compile(r"plan_\d+(?:\.hotfix_\d+)?")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 HASH_RE = re.compile(r"[0-9a-f]{7,40}$")
 PROGRESS_RE = re.compile(r"整体进度：(\d+) / (\d+)（(\d+)%）(?:，废弃：(\d+))?")
@@ -53,6 +54,7 @@ REQUIRED_SECTIONS = [
     "变更记录",
 ]
 TASK_FIELDS = ["目标", "前置任务", "范围", "非目标", "验收标准", "验证方式", "涉及文件"]
+BLOCK_RECORD_FIELDS = ["日期", "原因", "当前进度", "解除条件", "解除方", "恢复后的下一步"]
 
 
 class Diagnostic(NamedTuple):
@@ -116,6 +118,29 @@ def parse_tasks(body: str) -> list[Task]:
     return tasks
 
 
+def section_content(body: str, heading: str) -> str:
+    match = re.search(
+        rf"^##\s+{re.escape(heading)}\s*$\n(.*?)(?=^##\s+|\Z)",
+        body,
+        re.MULTILINE | re.DOTALL,
+    )
+    return match.group(1).strip() if match else ""
+
+
+def parse_plan_dependencies(body: str) -> set[str]:
+    dependencies: set[str] = set()
+    for line in section_content(body, "前置依赖").splitlines():
+        if "**执行前置 Plan**：" in line:
+            dependencies.update(PLAN_ID_RE.findall(line))
+    return dependencies
+
+
+def parse_execution_queue(index_text: str) -> list[str]:
+    section = section_content(index_text, "当前执行队列")
+    code_block = re.search(r"```text\s*(.*?)```", section, re.DOTALL)
+    return PLAN_ID_RE.findall(code_block.group(1)) if code_block else []
+
+
 def git_hash_exists(repo_root: Path, value: str) -> bool:
     result = subprocess.run(
         ["git", "cat-file", "-e", f"{value}^{{commit}}"],
@@ -164,6 +189,11 @@ def validate_plan_file(path: Path, strict: bool = False, verify_git: bool = Fals
     for section in REQUIRED_SECTIONS:
         if not re.search(rf"^##\s+{re.escape(section)}\s*$", body, re.MULTILINE):
             issues.append(diagnostic("ERROR", "P210", path, f"缺少章节：{section}"))
+    if (
+        metadata.get("status") not in {"completed", "abandoned"}
+        and "**执行前置 Plan**：" not in section_content(body, "前置依赖")
+    ):
+        issues.append(diagnostic("ERROR", "P223", path, "前置依赖缺少“执行前置 Plan”标记"))
 
     tasks = parse_tasks(body)
     if metadata.get("status") != "draft" and not tasks:
@@ -232,6 +262,21 @@ def validate_plan_file(path: Path, strict: bool = False, verify_git: bool = Fals
         if unfinished or not tasks or completed == 0:
             issues.append(diagnostic("ERROR", "P221", path, "完成 Plan 仍有未完成任务或没有有效任务"))
 
+    if metadata.get("status") == "blocked":
+        blocked = section_content(body, "阻塞记录")
+        missing_fields = [
+            field for field in BLOCK_RECORD_FIELDS if f"**{field}**：" not in blocked
+        ]
+        if missing_fields:
+            issues.append(
+                diagnostic(
+                    "ERROR",
+                    "P222",
+                    path,
+                    f"阻塞记录缺少字段：{'、'.join(missing_fields)}",
+                )
+            )
+
     return issues
 
 
@@ -251,6 +296,47 @@ def discover_plan_files(repo_root: Path) -> list[Path]:
     )
 
 
+def load_v2_plans(plan_files: list[Path]) -> dict[str, tuple[Path, dict[str, str], str]]:
+    plans: dict[str, tuple[Path, dict[str, str], str]] = {}
+    for path in plan_files:
+        metadata, body, _ = parse_front_matter(path.read_text(encoding="utf-8"), path)
+        if metadata.get("workflow_version") == "2" and metadata.get("plan_id"):
+            plans[metadata["plan_id"]] = (path, metadata, body)
+    return plans
+
+
+def validate_dependencies(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
+    plans = load_v2_plans(plan_files)
+    graph = {
+        plan_id: {dependency for dependency in parse_plan_dependencies(body) if dependency in plans}
+        for plan_id, (_, _, body) in plans.items()
+    }
+    issues: list[Diagnostic] = []
+    visiting: list[str] = []
+    visited: set[str] = set()
+
+    def visit(plan_id: str) -> None:
+        if plan_id in visiting:
+            start = visiting.index(plan_id)
+            cycle = visiting[start:] + [plan_id]
+            path = plans[plan_id][0]
+            issues.append(
+                diagnostic("ERROR", "P305", path, f"Plan 前置依赖形成环：{' → '.join(cycle)}")
+            )
+            return
+        if plan_id in visited:
+            return
+        visiting.append(plan_id)
+        for dependency in sorted(graph[plan_id]):
+            visit(dependency)
+        visiting.pop()
+        visited.add(plan_id)
+
+    for plan_id in sorted(graph):
+        visit(plan_id)
+    return issues
+
+
 def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
     index_path = repo_root / "plan/index/README.md"
     if not index_path.exists():
@@ -263,11 +349,21 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
         if expected_link not in text:
             issues.append(diagnostic("ERROR", "P302", index_path, f"索引未登记：{relative}"))
         metadata, body, _ = parse_front_matter(path.read_text(encoding="utf-8"), path)
-        if metadata.get("workflow_version") == "2" and metadata.get("type") == "main":
-            row = next(
-                (line for line in text.splitlines() if line.startswith(f"| {metadata['plan_id']} |")),
-                "",
-            )
+        if metadata.get("workflow_version") == "2":
+            if metadata.get("type") == "hotfix":
+                row = next(
+                    (
+                        line
+                        for line in text.splitlines()
+                        if f"[{path.name}]" in line
+                    ),
+                    "",
+                )
+            else:
+                row = next(
+                    (line for line in text.splitlines() if line.startswith(f"| {metadata['plan_id']} |")),
+                    "",
+                )
             progress = PROGRESS_RE.search(body)
             expected_progress = f"{progress.group(1)}/{progress.group(2)}" if progress else ""
             expected_status = PLAN_STATUS_LABELS.get(metadata.get("status", ""), "")
@@ -280,6 +376,47 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
                         f"{metadata['plan_id']} 的状态或进度与 Plan 不一致",
                     )
                 )
+    plans = load_v2_plans(plan_files)
+    active_ids = {
+        plan_id
+        for plan_id, (_, metadata, _) in plans.items()
+        if metadata.get("status") not in {"completed", "abandoned"}
+    }
+    queue = parse_execution_queue(text)
+    queue_set = set(queue)
+    if len(queue) != len(queue_set) or queue_set != active_ids:
+        missing = sorted(active_ids - queue_set)
+        extra = sorted(queue_set - active_ids)
+        details = []
+        if missing:
+            details.append(f"缺少：{', '.join(missing)}")
+        if extra:
+            details.append(f"多余：{', '.join(extra)}")
+        if len(queue) != len(queue_set):
+            details.append("存在重复项")
+        issues.append(
+            diagnostic(
+                "ERROR",
+                "P306",
+                index_path,
+                f"当前执行队列与活跃 Plan 不一致（{'；'.join(details)}）",
+            )
+        )
+    else:
+        positions = {plan_id: index for index, plan_id in enumerate(queue)}
+        for plan_id, (_, _, body) in plans.items():
+            if plan_id not in active_ids:
+                continue
+            for dependency in parse_plan_dependencies(body):
+                if dependency in active_ids and positions[dependency] > positions[plan_id]:
+                    issues.append(
+                        diagnostic(
+                            "ERROR",
+                            "P306",
+                            index_path,
+                            f"执行队列逆序：{dependency} 必须位于 {plan_id} 之前",
+                        )
+                    )
     for target in re.findall(r"\]\((\.\./[^)]+\.md)\)", text):
         resolved = (index_path.parent / target).resolve()
         if not resolved.exists():
@@ -316,9 +453,11 @@ def validate_repository(
         issues.extend(validate_plan_file(path, strict=strict, verify_git=verify_git))
     if paths is None:
         issues.extend(validate_index(repo_root, plan_files))
+        issues.extend(validate_dependencies(repo_root, plan_files))
         issues.extend(validate_templates(repo_root))
     elif paths == []:
         issues.extend(validate_index(repo_root, plan_files))
+        issues.extend(validate_dependencies(repo_root, plan_files))
         issues.extend(validate_templates(repo_root))
     return issues
 
