@@ -11,6 +11,8 @@ Execute one CRAG-Demo Plan as a controlled state machine. Keep planning, Review,
 
 Never invoke this Skill implicitly.
 
+`constraints/plan-workflow.md` is the highest authority for Plan states, commits, completion, index updates, and validation. If this Skill conflicts with that document, stop and follow the constraint document.
+
 ## Required Inputs
 
 Require one Plan directory or one Plan file under `plan/`.
@@ -72,17 +74,19 @@ Read:
 
 ## Phase 2: Plan Gate
 
-Require all nine conditions:
+Require the target Plan to use the current workflow version and be `ready` before implementation. Require all conditions:
 
-1. Goals and non-goals are explicit.
-2. Tasks and execution order are explicit.
-3. Affected modules, interfaces, and data structures are identified.
-4. Every task has acceptance criteria.
-5. Test scope and recommended commands are defined.
+1. The workflow v2 front matter is valid.
+2. Goals, scope, and non-goals are explicit.
+3. Tasks, prerequisites, execution order, and file boundaries are explicit.
+4. Every task has the required fixed fields and acceptance criteria.
+5. Test scope and reproducible commands are defined.
 6. Effects on project constraint documents are addressed.
-7. Risks, compatibility concerns, and decisions are resolved.
-8. The required CRAG-Demo progress table exists.
+7. Risks, rollback, compatibility concerns, and decisions are resolved.
+8. The required progress, acceptance, blocking, abandonment, and change records exist.
 9. No blocking TODO, unresolved decision, or contradiction remains.
+10. `python3 scripts/validate_plans.py --strict <plan-path>` succeeds.
+11. The ready Plan and index have already been committed.
 
 If any condition fails:
 
@@ -182,7 +186,14 @@ A failed test returns the task to code Review. Treat the failure as a new findin
 
 ### Accept the task
 
-Mark a task complete only when its acceptance criteria, Review, and required tests have evidence. The ParentAgent alone updates the Plan progress table. Use commit hash `—` until a real commit exists.
+After acceptance criteria, Review, and required tests have evidence:
+
+1. The ParentAgent creates the task implementation commit.
+2. The ParentAgent marks the task `verifying / 待验收` with commit field `pending`.
+3. In a separate Plan bookkeeping commit, the ParentAgent backfills the implementation short hash and marks the task `completed / 完成`.
+4. The bookkeeping commit itself is not task implementation evidence.
+
+Do not use `—`, an empty value, or an uncommitted workspace to mark a task complete. If the user explicitly prohibits commits, stop at `verifying`; the task and Plan cannot be completed.
 
 Then start the next task with a fresh implementation SubAgent and fresh OpenCode session.
 
@@ -258,12 +269,15 @@ Declare the Plan complete only when:
 - the ParentAgent has run all required tests successfully;
 - non-unit validation used Docker Compose;
 - no required test is skipped and no blocker remains;
+- every completed task has one or more real implementation commit hashes;
+- `python3 scripts/validate_plans.py --strict --verify-git <plan-path>` succeeds;
 - the Plan progress table and `plan/index/README.md` are current;
+- the workspace has no uncommitted changes owned by the Plan;
 - the final report maps every acceptance criterion to code and test evidence.
 
 Otherwise report partial completion or blocked status and do not mark the Plan complete.
 
-Do not commit unless the user separately requests a commit.
+An explicit request to execute a `ready` Plan authorizes necessary local Plan-scoped commits. It does not authorize push, PR creation, merge, history rewriting, or unrelated changes. If the user explicitly requests no commits, the Plan cannot reach `completed`.
 
 ## Recovery
 

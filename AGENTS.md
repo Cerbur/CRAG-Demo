@@ -26,16 +26,9 @@
 
 详见 `constraints/test-workflow.md`。
 
-## 当前状态
+## 计划状态
 
-- [x] 项目规划初始化
-- [x] plan_main 收敛 — 只保留总体方向与阶段边界
-- [x] plan/index 建立 — 统一维护计划主要功能与完成状态
-- [x] plan_1 完成 — 项目脚手架 + 基础设施 + 分包结构
-- [x] plan_2 完成 — AdminRag 写入链路 + Dense Embedding 异步处理
-- [x] plan_3 完成 — 项目介绍文档 + 架构 SVG + 协作约束整理
-- [x] plan_5 完成 — Java Module 拆分（7 modules, base package → `ai.cerbur.crag`）
-- [ ] plan_4 待创建 — Sparse + Dense 查询、RRF、Rerank、UserQuery、LLM 全链路
+计划状态只在 `plan/index/README.md` 与对应 Plan 文件中维护；本文件不保存状态副本。
 
 ## 对话约定
 
