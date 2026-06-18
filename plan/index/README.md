@@ -96,6 +96,7 @@ plan/
 | [plan_3.hotfix_3.md](../plan_3/plan_3.hotfix_3.md) | Docker 部署结构抽取 | ✅ 完成 |
 | [plan_3.hotfix_4.md](../plan_3/plan_3.hotfix_4.md) | Plan 工作流约束抽取 | ✅ 完成 |
 | [plan_3.hotfix_5.md](../plan_3/plan_3.hotfix_5.md) | Plan 目录整理、索引抽取、plan_main 收敛和工作流约束更新 | ✅ 完成 |
+| [plan_3.hotfix_6.md](../plan_3/plan_3.hotfix_6.md) | Java 工程规范分层、约束路由更新与 Spotless 自动格式化 | 🧪 待验收 (0/4) |
 
 ## Plan_4 明细
 

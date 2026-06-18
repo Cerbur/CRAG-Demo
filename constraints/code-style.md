@@ -1,372 +1,226 @@
-# CRAG-Demo 代码风格约束
+# CRAG-Demo Java 代码风格约束
 
-> 本文档是 CRAG-Demo 的代码风格约束唯一维护入口。`AGENTS.md`、`CLAUDE.md` 和计划文档只保留到本文档的路由。
-
----
-
-## 一、Java Import 规范
-
-- 禁止使用通配符导入：不得出现 `import *`、`import java.util.*`、`import static ...*`。
-- 所有依赖必须显式导入到具体类、接口、枚举或静态成员。
-- 如果 IDE 自动折叠 import，提交前必须展开为显式 import。
-
-示例：
-
-```java
-// 不允许
-import java.util.*;
-
-// 允许
-import java.util.List;
-import java.util.Map;
-```
+> 本文档是通用 Java 编码约束的唯一维护入口。HTTP API、持久化和 Retrieval 专项规则分别维护在 `api-style.md`、`persistence-style.md` 和 `retrieval-style.md`。
 
 ---
 
-## 二、Spring 依赖注入规范
+## 一、规则等级
 
-- 优先使用 `@Autowired` 字段注入。
-- 不优先在构造器中做依赖注入。
-- 除非框架限制、测试构造便利性或不可变性收益明确大于一致性成本，否则不要新增构造器注入。
+- **必须 / 禁止**：可客观审查的硬约束，违反时阻塞合并。
+- **推荐**：默认选择；偏离时应能说明与当前需求直接相关的理由。
+- **说明**：解释背景或提供示例，不构成额外约束。
 
-示例：
+规则冲突时，专项约束优先于通用约束。确有技术限制需要违反硬约束时，必须在代码附近说明原因；影响模块设计时同步记录到对应 Plan 或 ADR。临时例外必须关联后续任务。
 
-```java
-@Service
-public class AdminRagService {
-
-    @Autowired
-    private ChunkSplitService chunkSplitService;
-}
-```
+不接受“旧代码如此”或“以后可能需要”作为新增例外的理由。同类例外反复出现时，应重新审视规则。
 
 ---
 
-## 三、注释规范
+## 二、自动格式化与 Import
 
-### Class 级别
+### 必须
 
-每个类文件头部必须包含 Javadoc，写明：
+- Java 文件统一由 Spotless + google-java-format 格式化。
+- 提交前运行 `./gradlew spotlessCheck`；需要自动修复时运行 `./gradlew spotlessApply`。
+- 禁止通配符 import，包括普通和 static import。
+- 禁止为迎合个人偏好手工调整格式化器输出。
 
-```java
-/**
- * <一句话功能概述>.
- *
- * <详细说明，2-3 句，描述该类在整体架构中的角色>
- *
- * @since 2026-06-10
- */
-```
+### 说明
 
-要求：
-
-- `@since` 标注创建日期，格式为 `YYYY-MM-DD`。
-- 必须说清楚该类对应哪个功能模块，与分层架构对应。
-
-### Method 级别
-
-重要 method 必须写 Javadoc，包括 public 方法、核心业务逻辑和算法步骤。
-
-```java
-/**
- * <一句话描述该方法做什么>.
- *
- * @param xxx <参数含义>
- * @return <返回值含义>
- */
-```
-
-不要求为 getter、setter 或简单委托方法写注释。
-
-### 行注释
-
-复杂逻辑必须加行内注释，例如超过 10 行、包含多重条件、循环或关键算法步骤的代码。
-
-```java
-// Step 1: 两路检索并行发出，每路取 Top-K
-// Step 2: RRF 按 1/(k+rank) 融合
-```
-
-注释写为什么这么做，而不是复述代码。
-
-### 成员变量
-
-有业务语义的成员变量必须注释含义和作用，例如实体字段、算法参数、状态缓存、业务配置值等。
-
-以下基础设施型成员变量不强制写注释，避免产生重复代码本身的噪音：
-
-- `Logger` / `log` 等日志记录器。
-- `@Autowired` 注入的 Spring Bean / Dao / Service / Repository / Client。
-- `static final` 常量，若命名已清楚表达含义且值本身直观。
-- 纯框架适配字段，且字段名与类型已能清晰表达用途。
-
-```java
-/**
- * child chunk 在 parent chunk 中的序号，从 0 开始递增.
- * parent chunk 自身此值为 NULL.
- */
-private Integer chunkIndex;
-```
+缩进、换行、import 排序等机械格式由工具决定，本文档不重复维护。
 
 ---
 
-## 四、设计原则
+## 三、依赖注入
 
-### 奥卡姆剃刀：如无必要，勿增实体
+### 必须
 
-- 不引入当前不需要的抽象层、接口、工具类。
-- Demo 阶段不做“万一以后要用”的预留。
-- 一个接口只有一个实现时，不做 Interface -> Impl 分离，直接写实现类。
+- 新增生产代码使用构造器注入，依赖字段声明为 `private final`。
+- 单构造器省略 `@Autowired`。
+- 禁止新增字段注入。
 
-### 多阶段得分类字段规范
+### 例外
 
-当数据对象通过多个处理阶段时，每个阶段应使用独立结果类型表达本阶段的业务语义。类型可以组合上游业务载体，并只新增当前阶段自己产出的字段。
+只有框架确实要求字段注入时才允许使用，并必须在代码附近说明原因。
 
-- 禁止同一字段在不同阶段承载不同含义；例如一个 `score` 字段不能先后表示召回分、融合分、重排分。
-- 禁止内层返回大而全的外层类型，导致大量字段为 null 或语义未产生。
-- 内层结果类型只表达当前阶段已经确定的业务信息；外层通过组合、包装或工厂方法逐步扩展。
-- 管道方向应保持“内层窄 → 外层宽”：越外层可以携带越多阶段结果，反向依赖不允许。
-- 业务载体字段（如文档、chunk、商品、用户等）可以用 BO/DTO/投影对象组合传递，但不应强迫所有阶段复用持久化 Entity。
+### 迁移
 
-反例：
-
-```java
-// 不允许：内层阶段返回外层大类型，其中大部分字段尚未产生
-public class RecallDao {
-    public List<FinalSearchResult> search(...) { ... }
-}
-
-// 不允许：score 字段含义随管道变化
-public class SearchResult {
-    private final double score; // recall / fusion / rerank 混用
-}
-```
-
-正例：
-
-```java
-// 允许：每层返回自己权责范围内的结果类型
-public class DenseQueryService {
-    public List<DenseSearchResult> search(...) { ... }
-}
-public class SparseQueryService {
-    public List<SparseSearchResult> search(...) { ... }
-}
-public class RrfFusionService {
-    public List<RrfFusionResult> fuse(...) { ... }
-}
-public class RerankService {
-    public List<ChunkSearchResult> rerank(...) { ... }
-}
-```
-
-当前 retrieval 链路示例：
-```
-SparseSearchResult  (ChunkBO, sparseScore)      ← SparseQueryService
-DenseSearchResult   (ChunkBO, denseScore)       ← DenseQueryService
-RrfFusionResult     (ChunkBO, rrfScore + best)  ← RRF 融合
-ChunkSearchResult   (ChunkBO, 全部四路得分)     ← Rerank 组装，最外层
-```
-
-### 第一性原理：满足功能的最小逻辑
-
-- 每段代码必须回答：最少需要做什么？只做那件事。
-- 拒绝过度工程：无状态不用缓存，单线程够用不加锁，数据量小不做分页。
-- Demo 阶段硬编码优于配置文件，同步优于异步，手动优于自动化。
+存量字段注入渐进迁移：修改既有类时修正本次变更涉及的依赖，不要求无关任务全量重构。
 
 ---
 
-## 五、统一 API 响应规范
+## 四、注释与 Javadoc
 
-所有 Controller 方法必须遵从此规范。
+### 必须
 
-### 响应类型
+- 对外公共契约、核心业务类、复杂算法类必须写类级 Javadoc，说明职责、边界和关键约束。
+- 存在非直观前置条件、副作用、异常语义、算法、并发、事务或 CAS 不变量的方法必须写 Javadoc 或必要的局部说明。
+- 注释解释“为什么”和关键约束，禁止逐行复述代码。
+- 覆写方法仅在补充或改变行为约束时增加说明。
 
-- 所有 API 端点必须返回 `Response<T>`（位于 `ai.cerbur.crag.common.dto.result`）。
-- 禁止直接返回 `Map<String, Object>`、`ResponseEntity<?>` 或原始业务类型。
-- `Response<T>` 包含三个字段：`success` (boolean)、`code` (int)、`result` (T)。
+### 推荐
 
-### 构造方式
+- 简单 DTO、record、枚举、异常、配置类和测试类在类型名已足够清楚时不写模板注释。
+- 参数和返回值语义已由命名及类型清楚表达时，可省略 `@param` 和 `@return`。
 
-- 使用静态工厂方法，禁止直接调用构造器：
-  - 成功：`Response.success(result)`
-  - 错误无 payload：`Response.error(ResponseCode.BAD_REQUEST)`
-  - 错误带 payload：`Response.error(ResponseCode.INTERNAL_ERROR, errorDetails)`
-- `code` 值必须来自 `ResponseCode` 枚举，不得传入裸整数字面量。
+### 禁止
 
-### 请求 DTO
-
-- 请求体参数必须封装为 DTO 类，置于 `ai.cerbur.crag.admin.dto.request` 包。
-- 优先使用 Java `record` 定义 DTO。
-- 参数校验使用 `@Valid` + Jakarta Bean Validation 注解（`@NotBlank`、`@NotNull` 等），校验失败由 `GlobalExceptionHandler` 统一转为 `Response.error(BAD_REQUEST)`。
-
-### 异常处理
-
-- Controller 方法不写 try/catch —— 异常由 `GlobalExceptionHandler`（`@RestControllerAdvice`）统一拦截转换。
-- `MethodArgumentNotValidException` → 400、`IllegalArgumentException` → 400、`Exception`（兜底）→ 500 + 日志。
-
-### 示例
-
-```java
-@RestController
-@RequestMapping("/api/v1/admin")
-public class AdminRagController {
-
-    @Autowired
-    private AdminRagService adminRagService;
-
-    @PostMapping("/rag")
-    public Response<AdminRagResult> upload(@Valid @RequestBody AdminRagRequest request) {
-        AdminRagResult result = adminRagService.ingest(
-            request.title(), request.content(), request.metadata());
-        return Response.success(result);
-    }
-}
-```
+- 不以代码行数或固定句数决定是否添加注释。
+- 不强制使用创建日期形式的 `@since`；历史由 Git 追踪。
+- 禁止保留失真、过期或只为满足模板而存在的注释。
 
 ---
 
-## 六、DAO CAS 更新规范
+## 五、设计与抽象
 
-所有自定义 `@Modifying` `@Query` 更新方法必须遵守此规范。
+### 必须
 
-### 版本号比对
+- 每段代码只实现当前需求所需的最小逻辑。
+- 禁止仅为命名对称创建 `XxxService` + `XxxServiceImpl`。
+- 不得以“未来可能扩展”为唯一理由创建接口、抽象层、缓存、并发或配置项。
+- 外部地址、密钥、端口、模型名和环境差异项禁止硬编码。
 
-- 每个 UPDATE 语句的 WHERE 子句必须包含 `AND version = :version`，传入实体当前读到的版本号。
-- 每个 UPDATE 语句的 SET 子句必须包含 `version = version + 1`，在数据库侧原子递增。
-- 调用方在 CAS 成功后必须手动同步版本号：`entity.setVersion(entity.getVersion() + 1)`。
+### 允许单实现接口的情形
 
-### 合理性
+- 隔离外部系统或第三方 SDK。
+- 定义跨模块边界。
+- 存在多个运行环境实现。
+- 确实需要测试替身。
+- 策略替换点属于当前业务设计。
 
-- JPA `@Version` 仅在 `EntityManager.merge()` / `save()` 路径上自动生效。
-- 自定义 `@Query` 绕过 EntityManager，不会自动生成 version 校验。
-- 不加 version 校验时，两个并发操作可能基于同一版本读到的数据各自 UPDATE，后执行的会静默覆盖先执行的，造成丢失更新。
+接口按能力命名，实现类体现技术方案，例如 `RerankClient` 与 `SidecarRerankClient`。
 
-### Dao 层 CAS 异常规范
+### 推荐
 
-- Dao 层 CAS 更新方法（`updateXxxStatus` 等）**必须**在 `affected == 0` 时抛出 `DuplicateKeyException`。
-- **禁止**将 `affected` 返回值透传给调用方，让调用方自行判断 —— 这会导致调用方遗漏检查而静默丢失更新。
-- Repository 层仍返回 `int`（纯 DB 操作），业务判断（affected == 0 → 异常）在 Dao 层完成。
-- 调用方（Cron / Service）通过 `catch (DuplicateKeyException)` 统一处理版本冲突，包括级联的 FAILED 标记更新。
-
-### 示例
-
-```java
-// Repository 侧 —— 纯 DB 操作，返回 affected rows
-@Modifying
-@Transactional
-@Query("UPDATE Chunk c SET c.denseStatus = :newStatus, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.denseStatus = PROCESSING AND c.version = :version")
-int updateDenseStatus(@Param("chunkId") String chunkId,
-                      @Param("newStatus") ChunkStatus newStatus,
-                      @Param("version") Integer version);
-
-// Dao 侧 —— 业务判断：affected == 0 → 抛异常
-public int updateDenseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
-    int affected = chunkRepository.updateDenseStatus(chunkId, newStatus, version);
-    if (affected == 0) {
-        throw new DuplicateKeyException(
-            "CAS updateDenseStatus failed: chunk " + chunkId + " version " + version + " already stale");
-    }
-    return affected;
-}
-
-// Cron 调用方 —— catch DuplicateKeyException 统一处理版本冲突
-try {
-    chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
-    successCount++;
-} catch (DuplicateKeyException e) {
-    // 版本冲突，另一实例已接管
-    log.warn("CAS SUCCESS update conflicted for chunk {}", chunk.getChunkId());
-}
-```
-
-### 禁止事项
-
-- 禁止在自定义 `@Modifying` `@Query` 中省略 `version` 的 WHERE 比对和 SET 递增。
-- 禁止使用 JPA `@Version` 的自动行为替代自定义查询中的显式 version 控制——两者作用于不同路径，互不替代。
-- 禁止 Dao 层将 CAS 更新的 `affected` 返回值透传给调用方判断——必须在 Dao 层 `affected == 0` 时抛出 `DuplicateKeyException`。
+- 先选择满足当前需求的最简单方案。
+- 引入异步、缓存、并发、配置化或自动化时，应有当前需求或可验证收益。
+- 复杂方案的原因记录在代码、Plan 或 ADR 中。
 
 ---
 
-## 七、SQL 批量操作规范
+## 六、可见性与可变性
 
-在保证逻辑清晰的前提下，SQL 操作应优先整理为一次批量查询或批量写入。
+### 必须
 
-- 禁止在循环或 `forEach` 中对每条数据逐个执行 SQL 查询、INSERT 或 UPDATE。
-- 查询场景：先整理本轮需要查询的 ID / 条件集合，再通过批量查询一次取回数据，并在内存中按业务顺序组装结果。
-- 写入场景：先整理本轮需要写入或更新的数据集合，再使用批量 insert / update / saveAll 一次提交。
-- 只有 CAS 抢占、逐条幂等状态推进、单条失败隔离等确实需要逐条判断并发结果的场景，才允许逐条 SQL 操作；调用处必须通过注释说明原因。
+- 使用满足调用范围的最小可见性。
+- DTO、BO 和结果对象创建后默认不可变。
+- 禁止无业务需要的 setter；状态变化使用表达业务意图的方法。
+- 常量默认使用 `private static final`，只有公共契约需要时才公开。
+- 禁止仅为测试提升生产代码可见性。
 
-反例：
+### 推荐
 
-```java
-for (String chunkId : chunkIds) {
-    Chunk chunk = chunkDao.findByChunkId(chunkId); // 不允许：N 次 SQL 查询
-}
-```
-
-正例：
-
-```java
-List<Chunk> chunks = chunkDao.findByChunkIds(chunkIds);
-Map<String, Chunk> chunkById = chunks.stream()
-    .collect(Collectors.toMap(Chunk::getChunkId, Function.identity()));
-```
+- 纯数据载体优先使用 `record`；JPA Entity 等框架对象除外。
+- 优先使用不可变局部数据，减少共享可变状态。
 
 ---
 
-## 八、查询链路 BO 组合规范
+## 七、命名
 
-查询链路（retrieval / query）不得把 `ai.cerbur.crag.storage.entity` 下的 JPA Entity 作为裸返回类型继续透传；retrieval 业务结果类型应组合 `ai.cerbur.crag.retrieval.bo.ChunkBO`。
+### 必须
 
-- Repository / Dao 层可以返回 Entity，因为这是持久化边界内的数据访问模型。
-- Storage Dao 可以返回 storage 投影类型；进入 retrieval 业务链路时必须转换为 `ChunkBO`。
-- Service 编排层如需对外传递查询结果，必须使用 `retrieval.result` 下的窄类型或宽结果类型，例如 `SparseSearchResult`、`DenseSearchResult`、`RrfFusionResult`、`ChunkSearchResult`。
-- 这些结果类型应直接持有 `ChunkBO` 成员，例如 `private final ChunkBO chunk`，让原始 `chunkId`、`parentChunkId`、`chunkIndex`、`content` 沿链路完整传递。
-- 禁止把 `List<Chunk>` 作为 retrieval/query 链路的对外返回值；裸 Entity 会让调用方误以为这是完整 DB 查询结果，而不是某一阶段的检索载体。
-- 如果第一次查询已经拿到 chunk 原始信息，应沿结果类型继续传递 `ChunkBO`，不要只传 `chunkId` 后再回表补齐。
-- 相邻 child 扩展可在 Retrieval 内部调用 Dao 查询 `Chunk`，但必须转换为 `ChunkBO` 并包装为结果类型后再进入 rerank/query 链路。
+- 类型使用业务概念命名，避免无明确职责的 `Common`、`Base`、`Helper`、`Utils`、`Manager`。
+- 方法名使用动词并表达结果或副作用；查询与命令应可区分。
+- 布尔值使用肯定语义，避免双重否定。
+- 集合使用复数名，数量使用 `count`，标识使用 `Id`。
+- 缩写按普通单词处理，例如 `RrfFusionService`、`chunkId`。
+- DAO、DTO、BO 等后缀只在确实表达架构角色时使用。
+- 同一业务概念跨模块保持同名；不同含义必须明确区分。
 
-反例：
+### 推荐
 
-```java
-Chunk chunk = new Chunk();
-chunk.setChunkId(result.getChunkId());
-chunk.setContent(result.getContent());
-return List.of(chunk); // 不允许：查询链路裸透传 JPA Entity
-```
-
-正例：
-
-```java
-public class RrfFusionResult {
-    private final ChunkBO chunk;
-    private final double rrfScore;
-}
-```
+- 避免在变量名中重复类型信息，例如使用 `chunks` 而不是 `chunkList`。
 
 ---
 
-## 九、Repository vs Dao 分层规范
+## 八、空值与返回语义
 
-项目中存在两种数据访问组件，职责边界如下。
+### 必须
 
-### Repository（Spring Data JPA Interface）
+- 集合返回值不得返回 `null`，使用空集合。
+- `Optional` 只用于“结果可能不存在”的返回值，不用于字段、DTO 或方法参数。
+- 必填参数在入口边界校验；内部代码不重复进行无业务价值的防御性判空。
+- 允许为空的字段必须通过类型、命名或 Javadoc 明确业务语义。
+- 禁止用 `null` 表示执行失败；使用异常或明确结果类型。
+- 禁止使用大量 nullable 字段构造跨阶段“大而全”对象。
 
-- 纯数据库类型映射：只做列→字段的一一对应。
-- 允许：Spring Data 派生查询（`findByXxx`、`existsByXxx`）、`@Query`（JPQL 或 native SQL）。
-- 禁止：业务判断逻辑、格式转换、编排多个查询。
-- 示例：`ChunkRepository.tryMarkProcessing(...)` — native SQL 做 CAS 更新，WHERE 条件直接对应 DB 列。
+---
 
-### Dao（Component 类）
+## 九、异常处理
 
-- 业务数据访问层：包含幂等检查、格式选择、多步查询编排等业务判断。
-- 允许：依赖多个 Repository 完成一次业务操作。
-- 禁止：直接使用 `JdbcTemplate` 或手写 SQL（SQL 一律放在 Repository 的 `@Query` 中）。
-- 禁止：直接依赖 `EntityManager`。
-- 示例：`ChunkEmbeddingDao.insert(chunkId, float[] vector)` — 先做 float[] → pgvector 格式转换（业务判断），再委托 `ChunkEmbeddingRepository.insert(chunkId, vectorString)`。
+### 必须
 
-### Cron / Service 层
+- 参数或调用前置条件不满足时抛出 `IllegalArgumentException`。
+- 业务规则冲突使用语义明确的业务异常，不借用无关的基础设施异常。
+- 外部服务、序列化和持久化异常在模块边界包装为本模块异常，并保留 `cause`。
+- 只在能够恢复、补充上下文或转换异常时捕获。
+- 禁止空 `catch`、只打印后继续运行或丢失原始 `cause`。
+- 同一异常原则上只在最终处理边界记录一次，禁止层层重复 `log.error`。
 
-- 只依赖 Dao，不直接依赖 Repository。
-- 不感知 SQL、pgvector 格式、JDBC 等持久化细节。
+---
+
+## 十、日志
+
+### 必须
+
+- 使用参数化日志，禁止字符串拼接。
+- `ERROR` 表示操作最终失败且需要关注。
+- `WARN` 表示可恢复的异常状态，例如 CAS 冲突、降级或重试耗尽。
+- `INFO` 只记录关键业务生命周期事件，不记录逐条循环细节。
+- `DEBUG` 用于诊断信息和批次细节。
+- 禁止记录密钥、Authorization、完整用户文档、完整 Prompt 或个人敏感信息。
+- 日志携带可关联标识，例如 `chunkId`、`docId` 或请求 ID。
+- 需要堆栈时传入异常对象，禁止只记录 `exception.getMessage()`。
+
+---
+
+## 十一、并发与异步
+
+### 必须
+
+- 只有存在明确吞吐、延迟或隔离需求时才引入异步或并行。
+- 生产业务代码禁止直接创建或启动 `Thread`，禁止调用 `Executors.newXxxThreadPool()`。
+- 需要进程内异步时，使用 Spring Bean 管理且显式配置的 `TaskExecutor` 或 `TaskScheduler`。
+- `CompletableFuture` 必须显式传入项目管理的执行器；禁止依赖公共线程池。
+- 生产业务代码禁止使用 `parallelStream()`。
+- `@Async` 必须指定执行器名称。
+- 异步任务必须明确超时、失败处理、重试上限和幂等策略。
+- 重试仅用于可恢复错误，并采用有限次数与退避；业务校验和版本冲突不得盲目重试。
+- 并行结果必须保持确定性排序。
+- 共享可变状态必须有明确同步策略。
+- 定时任务的多实例竞争使用 CAS、租约或其他显式协调机制。
+
+### 例外
+
+单元测试为验证纯 Java 并发逻辑，可创建局部执行器，但必须可靠关闭。第三方库内部线程不直接受本规则约束，但应优先配置其线程池与关闭行为。
+
+---
+
+## 十二、测试代码风格
+
+测试执行边界与覆盖要求见 `constraints/test-workflow.md`。
+
+### 必须
+
+- 测试名称描述可观察行为，可使用 `方法_场景_结果` 或中文 `@DisplayName`。
+- 一个测试聚焦一个行为，但可包含证明该行为所需的多个断言。
+- 禁止使用反射调用 private 方法；通过公开行为验证。
+- Mock 只用于真正的外部依赖或模块边界，不 Mock 被测对象内部实现细节。
+- 时间、随机数、ID 等非确定性来源必须可控。
+- 异常测试验证异常类型与关键业务语义，不依赖完整错误文案。
+- 单元测试不得依赖执行顺序、真实网络、数据库或系统环境状态。
+
+### 推荐
+
+- 使用 Arrange–Act–Assert 组织测试；只有结构不明显时才添加分段注释。
+- 重复测试数据使用小型 builder 或 factory，避免冗长构造。
+
+---
+
+## 十三、存量治理
+
+- 新增代码必须遵守当前规范。
+- 修改既有类时，修正本次变更直接涉及的违规。
+- 不要求在无关任务中全量重构存量代码。
+- 大规模机械格式化与业务变更应分开审查。
+- 评审不得以“顺手整改”为由无限扩大当前任务范围。

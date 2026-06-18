@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 class CragDemoApplicationTests {
 
-    @Test
-    void contextLoads() {
-    }
+  @Test
+  void contextLoads() {}
 }

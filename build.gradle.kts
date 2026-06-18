@@ -1,3 +1,7 @@
+plugins {
+    id("com.diffplug.spotless") version "8.7.0" apply false
+}
+
 group = "ai.cerbur.crag"
 version = "0.1.0"
 
@@ -10,7 +14,7 @@ val validatePlans by tasks.registering(Exec::class) {
 tasks.register("check") {
     group = "verification"
     description = "Runs root project verification."
-    dependsOn(validatePlans)
+    dependsOn(validatePlans, subprojects.map { "${it.path}:check" })
 }
 
 allprojects {
@@ -21,5 +25,19 @@ allprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+    }
+}
+
+subprojects {
+    apply(plugin = "com.diffplug.spotless")
+
+    configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+        java {
+            target("src/**/*.java")
+            googleJavaFormat()
+            removeUnusedImports()
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
     }
 }

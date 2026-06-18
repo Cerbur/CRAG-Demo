@@ -8,7 +8,4 @@ import jakarta.validation.constraints.NotBlank;
  * @param question 用户自然语言问题，不可为空
  * @since 2026-06-13
  */
-public record UserQueryRequest(
-    @NotBlank(message = "question is required")
-    String question
-) {}
+public record UserQueryRequest(@NotBlank(message = "question is required") String question) {}

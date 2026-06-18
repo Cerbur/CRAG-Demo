@@ -7,27 +7,27 @@ package ai.cerbur.crag.common.dto.result;
  */
 public enum ResponseCode {
 
-    /** 通用成功. */
-    SUCCESS(0),
+  /** 通用成功. */
+  SUCCESS(0),
 
-    /** 客户端错误 —— 请求参数无效或缺失. */
-    BAD_REQUEST(400),
+  /** 客户端错误 —— 请求参数无效或缺失. */
+  BAD_REQUEST(400),
 
-    /** 服务端错误 —— 未预期的内部异常. */
-    INTERNAL_ERROR(500);
+  /** 服务端错误 —— 未预期的内部异常. */
+  INTERNAL_ERROR(500);
 
-    private final int code;
+  private final int code;
 
-    ResponseCode(int code) {
-        this.code = code;
-    }
+  ResponseCode(int code) {
+    this.code = code;
+  }
 
-    /**
-     * 序列化到 Response.code 字段的整型码.
-     *
-     * @return 整型响应码
-     */
-    public int getCode() {
-        return code;
-    }
+  /**
+   * 序列化到 Response.code 字段的整型码.
+   *
+   * @return 整型响应码
+   */
+  public int getCode() {
+    return code;
+  }
 }
