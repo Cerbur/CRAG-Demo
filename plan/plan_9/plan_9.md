@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_9
 type: main
-status: ready
+status: blocked
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -38,6 +38,7 @@ updated: 2026-06-19
 - `plan_5` 已完成 Gradle multi-module 拆分。
 - `plan_6` 已完成 Retrieval 查询链路。
 - `plan_8` 已启用 workflow v2 和计划静态校验。
+- `plan_11` 必须先完成测试分层与回归工作流治理；本计划随后按新的 Component、Architecture 和 Docker HTTP 回归规则执行。
 - `plan_7` 尚未开始，并在本计划完成前保持阻塞。
 
 ## 文件边界
@@ -187,7 +188,12 @@ updated: 2026-06-19
 
 ## 阻塞记录
 
-无。
+- **日期**：2026-06-19
+- **原因**：`plan_11` 将先消除单元测试、Spring/H2 组件测试、ArchUnit 和 Docker HTTP 回归之间的分类冲突，避免本计划新增测试后再次改名或调整验收方式。
+- **当前进度**：6 个任务均未开始，无需回滚实现。
+- **解除条件**：`plan_11` 完成并通过测试、文档与 Plan 全量校验。
+- **解除方**：`plan_11` owner。
+- **恢复后的下一步**：重新读取新版 `constraints/test-workflow.md`，从 9.1 开始执行。
 
 ## 废弃任务记录
 
@@ -198,3 +204,4 @@ updated: 2026-06-19
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 plan_9 并设为待开始 | 完成包结构约束 grilling，迁移决策已全部收敛 | 建立 6 项顺序执行任务；plan_7 在本计划完成前阻塞 |
+| 2026-06-19 | 状态调整为阻塞并增加 plan_11 前置依赖 | 测试分层必须先于 ArchUnit、Spring Context 和 Smoke 回归落地 | 架构目标不变；执行顺序调整为 plan_11 → plan_9 |
