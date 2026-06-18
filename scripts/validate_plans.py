@@ -20,6 +20,14 @@ TASK_ROW_RE = re.compile(
 )
 
 PLAN_STATUSES = {"draft", "ready", "in_progress", "blocked", "completed", "abandoned"}
+PLAN_STATUS_LABELS = {
+    "draft": "草稿",
+    "ready": "待开始",
+    "in_progress": "进行中",
+    "blocked": "阻塞",
+    "completed": "完成",
+    "abandoned": "废弃",
+}
 TASK_STATUS_BY_LABEL = {
     "待开始": "pending",
     "进行中": "in_progress",
@@ -254,10 +262,48 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
         expected_link = f"../{relative.as_posix()}"
         if expected_link not in text:
             issues.append(diagnostic("ERROR", "P302", index_path, f"索引未登记：{relative}"))
+        metadata, body, _ = parse_front_matter(path.read_text(encoding="utf-8"), path)
+        if metadata.get("workflow_version") == "2" and metadata.get("type") == "main":
+            row = next(
+                (line for line in text.splitlines() if line.startswith(f"| {metadata['plan_id']} |")),
+                "",
+            )
+            progress = PROGRESS_RE.search(body)
+            expected_progress = f"{progress.group(1)}/{progress.group(2)}" if progress else ""
+            expected_status = PLAN_STATUS_LABELS.get(metadata.get("status", ""), "")
+            if not row or expected_status not in row or expected_progress not in row:
+                issues.append(
+                    diagnostic(
+                        "ERROR",
+                        "P304",
+                        index_path,
+                        f"{metadata['plan_id']} 的状态或进度与 Plan 不一致",
+                    )
+                )
     for target in re.findall(r"\]\((\.\./[^)]+\.md)\)", text):
         resolved = (index_path.parent / target).resolve()
         if not resolved.exists():
             issues.append(diagnostic("ERROR", "P303", index_path, f"失效链接：{target}"))
+    return issues
+
+
+def validate_templates(repo_root: Path) -> list[Diagnostic]:
+    templates = repo_root / "plan/templates"
+    required = {
+        "main-plan-template.md": ["workflow_version: 2", "## 进度追踪", "## 验收记录"],
+        "hotfix-template.md": ["workflow_version: 2", "parent_plan:", "## 进度追踪"],
+        "archive-decision-template.md": ["## Before（变更前）", "## After（变更后）", "## 回滚可能性"],
+    }
+    issues: list[Diagnostic] = []
+    for name, markers in required.items():
+        path = templates / name
+        if not path.exists():
+            issues.append(diagnostic("ERROR", "P401", path, "缺少 Plan 模板"))
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                issues.append(diagnostic("ERROR", "P402", path, f"模板缺少结构：{marker}"))
     return issues
 
 
@@ -270,6 +316,10 @@ def validate_repository(
         issues.extend(validate_plan_file(path, strict=strict, verify_git=verify_git))
     if paths is None:
         issues.extend(validate_index(repo_root, plan_files))
+        issues.extend(validate_templates(repo_root))
+    elif paths == []:
+        issues.extend(validate_index(repo_root, plan_files))
+        issues.extend(validate_templates(repo_root))
     return issues
 
 

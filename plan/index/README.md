@@ -50,17 +50,17 @@ plan/
 
 ## 主计划索引
 
-| Plan | 主要功能 | 状态 | 入口 |
-| --- | --- | --- | --- |
-| plan_main | 项目定位、技术方向、阶段路线和协作约束入口 | ✅ 已收敛 | [plan_main.md](../plan_main.md) |
-| plan_1 | 项目脚手架、基础设施、分包结构、DAO、Docker 基础环境 | ✅ 完成 | [plan_1.md](../plan_1/plan_1.md) |
-| plan_2 | AdminRag 写入链路、Chunk 分块、Dense Embedding Cron、Sidecar 支撑 | ✅ 完成 | [plan_2.md](../plan_2/plan_2.md) |
-| plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.md](../plan_3/plan_3.md) |
-| plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | [plan_4.md](../plan_4/plan_4.md) |
-| plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 (0/4) | [plan_7.md](../plan_7/plan_7.md) |
-| plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | 🔄 进行中 (0/6) | [plan_8.md](../plan_8/plan_8.md) |
+| Plan | 主要功能 | 状态 | 活跃修正 | 入口 |
+| --- | --- | --- | --- | --- |
+| plan_main | 项目定位、技术方向、阶段路线和协作约束入口 | ✅ 已收敛 | — | [plan_main.md](../plan_main.md) |
+| plan_1 | 项目脚手架、基础设施、分包结构、DAO、Docker 基础环境 | ✅ 完成 | — | [plan_1.md](../plan_1/plan_1.md) |
+| plan_2 | AdminRag 写入链路、Chunk 分块、Dense Embedding Cron、Sidecar 支撑 | ✅ 完成 | — | [plan_2.md](../plan_2/plan_2.md) |
+| plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
+| plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
+| plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
+| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ⏳ 待开始 (0/4) | — | [plan_7.md](../plan_7/plan_7.md) |
+| plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | 🔄 进行中 (0/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 
 ---
 

@@ -110,6 +110,31 @@ class ValidatePlansTest(unittest.TestCase):
         diagnostics = self.validate(content, verify_git=True)
         self.assertIn("P218", {item.rule for item in diagnostics})
 
+    def test_index_rejects_v2_status_or_progress_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_path = root / "plan/plan_9/plan_9.md"
+            plan_path.parent.mkdir(parents=True)
+            plan_path.write_text(VALID_PLAN, encoding="utf-8")
+            index_path = root / "plan/index/README.md"
+            index_path.parent.mkdir(parents=True)
+            index_path.write_text(
+                "| Plan | 主要功能 | 状态 | 活跃修正 | 入口 |\n"
+                "| --- | --- | --- | --- | --- |\n"
+                "| plan_9 | Test | ✅ 完成 (1/1) | — | [plan_9.md](../plan_9/plan_9.md) |\n",
+                encoding="utf-8",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_path])
+        self.assertIn("P304", {item.rule for item in diagnostics})
+
+    def test_repository_requires_all_plan_templates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "plan/index").mkdir(parents=True)
+            (root / "plan/index/README.md").write_text("# Index\n", encoding="utf-8")
+            diagnostics = self.validator.validate_repository(root, [], strict=True, verify_git=False)
+        self.assertIn("P401", {item.rule for item in diagnostics})
+
 
 if __name__ == "__main__":
     unittest.main()
