@@ -29,10 +29,11 @@ updated: 2026-06-19
 
 ## 前置依赖
 
-- **执行前置 Plan**：`plan_9`
+- **执行前置 Plan**：`plan_9.hotfix_3`
 - `plan_6` 已完成 Retrieval 查询链路，Query 只依赖 retrieval 门面能力。
 - `plan_5` 已完成 Java module 拆分，Query 新代码落入 `crag-query` 模块。
 - `plan_9` 已于 2026-06-19 完成模块边界迁移：`crag-admin→crag-api`、公开 API 包和 `crag-smoke` 隔离。本计划使用 `crag-api` 和各领域 `api` 包执行。
+- `plan_9.hotfix_3` 必须先完成 HTTP DTO 业务分包、稳定业务错误码、AdminRag HTTP 响应 DTO 和 API 组件测试；该 Hotfix 依赖 `plan_12` 的约束事实校准与防漂移护栏。
 - 本计划当前为 `draft`，需校准 Spring AI 版本、配置属性、确定性 LLM Stub、文件边界与验收命令后转为 `ready`。
 - DeepSeek API 凭据可用是本计划从 `draft` 转为 `ready` 的前提，凭据不得写入仓库。
 
@@ -203,3 +204,4 @@ updated: 2026-06-19
 | 2026-06-19 | 状态调整为阻塞并增加 plan_9 前置依赖 | 避免 Query 功能继续写入即将废弃的模块与包边界 | 业务目标不变；执行路径切换到 crag-api、公开 api 包与 crag-smoke |
 | 2026-06-19 | 状态从 blocked 恢复为 draft | plan_9 完成，架构阻塞消除；需校准 Spring AI/Stub/凭据后转 ready | 5 任务均待开始；使用 crag-api 和 api 包执行 |
 | 2026-06-19 | 重拆为 5 项串行任务并收紧完成门槛 | 先建立 Stub，正式 API 回归不得混入 Smoke，真实 DeepSeek 必须验收 | plan_9 完成后先回 draft 校准，不直接恢复 ready |
+| 2026-06-19 | 增加 plan_9.hotfix_3 执行前置 | Query HTTP 契约必须建立在已收口的 DTO 分包与错误码语义上 | 执行链调整为 plan_12 → plan_9.hotfix_3 → plan_7 |
