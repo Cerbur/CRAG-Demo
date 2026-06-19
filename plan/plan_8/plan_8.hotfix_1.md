@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_8.hotfix_1
 type: hotfix
 parent_plan: plan_8
-status: in_progress
+status: completed
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -93,9 +93,9 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 | 8.hotfix_1.1 | 收敛工作流状态机、专项约束与项目方向 | ✅ 完成 | 4b2cf50 | 2026-06-19 |
 | 8.hotfix_1.2 | 校准活跃 Plan、任务顺序与索引执行队列 | ✅ 完成 | 4b2cf50 | 2026-06-19 |
 | 8.hotfix_1.3 | 增强 Plan 静态校验器及单元测试 | ✅ 完成 | 4b2cf50 | 2026-06-19 |
-| 8.hotfix_1.4 | 完成全量校验与 Hotfix 验收 | 🔍 待验收 | pending | — |
+| 8.hotfix_1.4 | 完成全量校验与 Hotfix 验收 | ✅ 完成 | 918417e | 2026-06-19 |
 
-整体进度：3 / 4（75%）
+整体进度：4 / 4（100%）
 
 ## 8.hotfix_1.1 收敛工作流状态机、专项约束与项目方向
 
@@ -169,3 +169,4 @@ plan_8.hotfix_1 → plan_11 → plan_9 → plan_7 → plan_10
 | 2026-06-19 | 开始执行 8.hotfix_1.1 至 8.hotfix_1.3 | Plan 与索引基线已提交 | 状态转为进行中，开始规则、活跃 Plan 与校验器修改 |
 | 2026-06-19 | 完成前三项并阻塞最终验收 | 实现提交 `4b2cf50` 已创建，但环境无法运行必需的 Gradle check | 整体进度 75%；plan_11 继续等待 |
 | 2026-06-19 | 解除 Gradle 验收阻塞，8.hotfix_1.4 进入待验收 | 沙箱外 `./gradlew check` 与严格 Git 证据校验均通过 | 等待回填本次验收提交后完成 Hotfix |
+| 2026-06-19 | 完成 8.hotfix_1.4 与 Hotfix | 验收证据提交 `918417e` 已核对并回填 | 整体进度 100%；plan_11 成为执行队首 |
