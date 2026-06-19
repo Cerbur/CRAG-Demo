@@ -113,14 +113,14 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.1 | 建立 ArchUnit 模块边界基线 | 🔎 待验收 | pending | — |
+| 9.1 | 建立 ArchUnit 模块边界基线 | ✅ 完成 | 95ca45e | 2026-06-19 |
 | 9.2 | 将 crag-admin 重命名为 crag-api | ⏳ 待开始 | — | — |
 | 9.3 | 迁移跨模块公开 API 包 | ⏳ 待开始 | — | — |
 | 9.4 | 分离 Embedding 公共契约与内部实现 | ⏳ 待开始 | — | — |
 | 9.5 | 新建 crag-smoke 并迁移诊断端点 | ⏳ 待开始 | — | — |
 | 9.6 | 收紧架构规则并完成全量验收 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 6（0%）
+整体进度：1 / 6（17%）
 
 ## 9.1 建立 ArchUnit 模块边界基线
 
@@ -186,6 +186,11 @@ updated: 2026-06-19
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | 本机 macOS，JDK 25，Gradle 9.4.1 | `./gradlew :crag-app:test --tests '*ArchitectureTest' --rerun-tasks` | 通过 | 7 条架构规则全部通过；freeze 机制对新增方法调用形式越界生效（手工注入 ViolationProbe 探测类后 repository_cohesion 与 app_no_business_calls 失败，移除后恢复通过） |
+| 2026-06-19 | 本机 Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies -v` | 通过 | 5/5 通过；含依赖环检测、白名单拒绝、crag-admin→crag-api 映射 |
+| 2026-06-19 | 本机 Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 error |
+| 2026-06-19 | 本机 | `python3 scripts/validate_plans.py --strict plan/plan_9/plan_9.md` | 通过 | 0 error, 0 warning |
+| 2026-06-19 | 本机 | `./gradlew spotlessCheck` | 通过 | 格式合规 |
 
 ## 阻塞记录
 
@@ -210,3 +215,4 @@ updated: 2026-06-19
 | 2026-06-19 | 收窄 Smoke、测试与 Docker 职责 | 避免与 plan_10 重复设计部署机制，并落实自动化 HTTP 回归 | plan_9 只交付最小 Smoke 隔离；完成后 plan_7 转 draft 校准 |
 | 2026-06-19 | 状态从 blocked 恢复为 ready | plan_11 完成测试分层治理并全量校验通过，前置阻塞条件已满足 | 可从 9.1 开始执行；plan_7 仍保持阻塞至本计划完成 |
 | 2026-06-19 | 状态从 ready 转为 in_progress，开始 9.1 | Plan Gate 全部通过，用户选定 deepseek/deepseek-v4-pro 作为实现模型 | 9.1 进行中；其余 5 项待开始 |
+| 2026-06-19 | 完成 9.1，回填实现提交 95ca45e | ArchUnit 7 条规则建立，冻结例外精确关联 9.3/9.4/9.5；依赖白名单校验器修复依赖环检测后 5/5 通过 | 整体进度 1/6；下一步 9.2 |
