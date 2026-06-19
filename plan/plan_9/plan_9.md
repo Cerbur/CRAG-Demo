@@ -114,13 +114,13 @@ updated: 2026-06-19
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 9.1 | 建立 ArchUnit 模块边界基线 | ✅ 完成 | 95ca45e | 2026-06-19 |
-| 9.2 | 将 crag-admin 重命名为 crag-api | 🔎 待验收 | pending | — |
+| 9.2 | 将 crag-admin 重命名为 crag-api | ✅ 完成 | 2a257a2 | 2026-06-19 |
 | 9.3 | 迁移跨模块公开 API 包 | ⏳ 待开始 | — | — |
 | 9.4 | 分离 Embedding 公共契约与内部实现 | ⏳ 待开始 | — | — |
 | 9.5 | 新建 crag-smoke 并迁移诊断端点 | ⏳ 待开始 | — | — |
 | 9.6 | 收紧架构规则并完成全量验收 | ⏳ 待开始 | — | — |
 
-整体进度：1 / 6（17%）
+整体进度：2 / 6（33%）
 
 ## 9.1 建立 ArchUnit 模块边界基线
 
@@ -191,6 +191,10 @@ updated: 2026-06-19
 | 2026-06-19 | 本机 Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 error |
 | 2026-06-19 | 本机 | `python3 scripts/validate_plans.py --strict plan/plan_9/plan_9.md` | 通过 | 0 error, 0 warning |
 | 2026-06-19 | 本机 | `./gradlew spotlessCheck` | 通过 | 格式合规 |
+| 2026-06-19 | 本机 macOS，JDK 25，Gradle 9.4.1 | `./gradlew :crag-api:test :crag-app:test --rerun-tasks '*ArchitectureTest'` | 通过 | crag-api 无测试源(NO-SOURCE)；crag-app 架构测试按新 ai.cerbur.crag.api 包路径重新冻结后 7/7 通过 |
+| 2026-06-19 | 本机 Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies -v` | 通过 | 5/5 通过；test_accepts_crag_admin_mapped 改为 test_accepts_crag_api_whitelist_directly 反映映射删除 |
+| 2026-06-19 | 本机 | `rg -n 'crag-admin\|ai\.cerbur\.crag\.admin' settings.gradle.kts crag-app crag-api constraints README.md` | 通过 | 仅剩 constraints/api-style.md:44 明确历史说明(9.2 已完成迁移) |
+| 2026-06-19 | 本机 | `python3 scripts/validate_plans.py --strict plan/plan_9/plan_9.md` | 通过 | 0 error, 0 warning |
 
 ## 阻塞记录
 
@@ -216,3 +220,4 @@ updated: 2026-06-19
 | 2026-06-19 | 状态从 blocked 恢复为 ready | plan_11 完成测试分层治理并全量校验通过，前置阻塞条件已满足 | 可从 9.1 开始执行；plan_7 仍保持阻塞至本计划完成 |
 | 2026-06-19 | 状态从 ready 转为 in_progress，开始 9.1 | Plan Gate 全部通过，用户选定 deepseek/deepseek-v4-pro 作为实现模型 | 9.1 进行中；其余 5 项待开始 |
 | 2026-06-19 | 完成 9.1，回填实现提交 95ca45e | ArchUnit 7 条规则建立，冻结例外精确关联 9.3/9.4/9.5；依赖白名单校验器修复依赖环检测后 5/5 通过 | 整体进度 1/6；下一步 9.2 |
+| 2026-06-19 | 完成 9.2，回填实现提交 2a257a2 | crag-admin→crag-api 模块与 package 迁移，旧目录删除；同步 constraints、架构测试包路径与依赖校验器死映射清理 | 整体进度 2/6；下一步 9.3 |
