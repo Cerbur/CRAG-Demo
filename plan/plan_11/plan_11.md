@@ -106,7 +106,7 @@ updated: 2026-06-19
 | 11.1 | 重写测试分层与执行约束 | ✅ 完成 | 0703beb | 2026-06-19 |
 | 11.2 | 对齐代码风格、Skill 与活跃 Plan | ✅ 完成 | f365189 | 2026-06-19 |
 | 11.3 | 迁移现有轻量组件测试命名 | ✅ 完成 | 064578d | 2026-06-19 |
-| 11.4 | 完成全量校验与治理验收 | 🔄 进行中 | — | — |
+| 11.4 | 完成全量校验与治理验收 | 🔄 待验收 | — | — |
 
 整体进度：3 / 4（75%）
 
@@ -156,6 +156,7 @@ updated: 2026-06-19
 | --- | --- | --- | --- | --- |
 | 2026-06-19 | macOS 宿主机 | `rg -n 'TODO|TBD|待定|非单元测试' constraints/test-workflow.md`；`git diff --check`；`python3 scripts/validate_plans.py --strict plan/plan_11/plan_11.md` | 通过 | 四层测试、H2 边界、Docker HTTP 触发、runId、LLM、flaky 与行为覆盖规则已落地；无旧二分术语或占位符 |
 | 2026-06-19 | macOS 宿主机 + OpenCode `deepseek/deepseek-v4-pro` | 聚焦 `rg`；`python3 scripts/validate_plans.py --strict plan/plan_7/plan_7.md plan/plan_9/plan_9.md plan/plan_10/plan_10.md plan/plan_11/plan_11.md`；`git diff --check` | 通过 | 代码风格、执行 Skill、提示模板与活跃 Plan 已对齐；OpenCode 会话 `ses_1220a91ebffeRxszvLRcWW83hg`，修复会话 `ses_122058a40ffe4KAA3S1a3kJPqS` |
+| 2026-06-19 | macOS 宿主机 | `./gradlew :crag-app:test --tests '*ComponentTest'`；`./gradlew test`；`./gradlew check`；`rg -n '非单元测试'`；`git diff --check` | 通过 | 11.3 迁移 `CragDemoApplicationTests → CragDemoApplicationComponentTest`；`./gradlew test`/`check` 通过；模板与 benchmark/README 旧二分术语已清除，活跃文档无测试分类冲突 |
 
 ## 阻塞记录
 
@@ -174,3 +175,5 @@ updated: 2026-06-19
 | 2026-06-19 | 开始执行 11.1 | Plan gate 与 OpenCode 模型选择完成 | Plan 进入进行中；先重写测试工作流约束 |
 | 2026-06-19 | 完成 11.1 | 四层测试约束与验收规则验证通过，实现提交 `0703beb` 已核对 | 整体进度更新为 25%；开始 11.2 |
 | 2026-06-19 | 完成 11.2 | 约束由 ParentAgent 修改，Skill 由 OpenCode 实现并完成一轮独立修复；提交 `f365189` 已核对 | 整体进度更新为 50%；开始 11.3 |
+| 2026-06-19 | 完成 11.3 | OpenCode `deepseek/deepseek-v4-pro` 实现重命名与 H2 表述修正，旧文件由 ParentAgent 用 `git rm` 删除；提交 `064578d` 已核对 | 整体进度更新为 75%；开始 11.4 |
+| 2026-06-19 | 完成 11.4 并解除 plan_9 阻塞 | 全量 `./gradlew test`/`check` 与严格校验通过；术语检查发现 `plan/templates/main-plan-template.md`、`benchmark/README.md` 仍用旧二分术语，按用户裁决扩展 11.4 owned scope 修复 | 整体进度更新为 100%；plan_9 从 blocked 恢复为 ready；范围外溢文件已在验收记录标注 |

@@ -45,8 +45,12 @@ updated: YYYY-MM-DD
 
 ## 测试与验证计划
 
-- 单元测试命令与覆盖范围。
-- 非单元测试的 Docker Compose 命令与验收范围。
+测试按 `constraints/test-workflow.md` 四层分类组织，逐层写明命令与覆盖范围：
+
+- 纯单元测试（`./gradlew test`，不依赖 Spring/Docker）。
+- 轻量组件测试（`*ComponentTest`，Spring Context/Slice/Mock HTTP Client/H2，`./gradlew test`）。
+- 架构测试（`*ArchitectureTest`，只验包/模块/依赖规则，`./gradlew test`）。
+- Docker HTTP 回归（完整依赖 + 确定性 LLM Stub，触发条件见 `test-workflow.md`）。
 
 ## 进度追踪
 

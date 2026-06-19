@@ -52,7 +52,7 @@ docker compose up -d --build
 python3 benchmark/retrieval_benchmark_runner.py
 ```
 
-> 非单元测试必须走 Docker。该 benchmark 依赖真实 PostgreSQL/pgvector、Spring Boot app、Python sidecar embedding/rerank 模型。
+> benchmark 属于 Docker HTTP 回归（见 `constraints/test-workflow.md` 四层分类），必须走 Docker。该 benchmark 依赖真实 PostgreSQL/pgvector、Spring Boot app、Python sidecar embedding/rerank 模型。
 
 ## 评分口径
 

@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_9
 type: main
-status: blocked
+status: ready
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -194,6 +194,7 @@ updated: 2026-06-19
 - **当前进度**：6 个任务均未开始，无需回滚实现。
 - **解除条件**：`plan_11` 完成并通过测试、文档与 Plan 全量校验。
 - **解除方**：`plan_11` owner。
+- **解除状态**：已于 2026-06-19 解除。`plan_11` 四层测试分类、命名规则、H2 边界、Docker HTTP 回归触发条件、runId、LLM Stub 与 flaky 规则已落地，`./gradlew test`/`./gradlew check` 与 Plan 严格校验通过。
 - **恢复后的下一步**：重新读取新版 `constraints/test-workflow.md`，从 9.1 开始执行。
 
 ## 废弃任务记录
@@ -207,3 +208,4 @@ updated: 2026-06-19
 | 2026-06-19 | 创建 plan_9 并设为待开始 | 完成包结构约束 grilling，迁移决策已全部收敛 | 建立 6 项顺序执行任务；plan_7 在本计划完成前阻塞 |
 | 2026-06-19 | 状态调整为阻塞并增加 plan_11 前置依赖 | 测试分层必须先于 ArchUnit、Spring Context 和 Smoke 回归落地 | 架构目标不变；执行顺序调整为 plan_11 → plan_9 |
 | 2026-06-19 | 收窄 Smoke、测试与 Docker 职责 | 避免与 plan_10 重复设计部署机制，并落实自动化 HTTP 回归 | plan_9 只交付最小 Smoke 隔离；完成后 plan_7 转 draft 校准 |
+| 2026-06-19 | 状态从 blocked 恢复为 ready | plan_11 完成测试分层治理并全量校验通过，前置阻塞条件已满足 | 可从 9.1 开始执行；plan_7 仍保持阻塞至本计划完成 |
