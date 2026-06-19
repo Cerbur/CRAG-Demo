@@ -1,110 +1,74 @@
-# Implementation SubAgent Prompt
+# Implementation Prompt (opencode run)
 
-Use this template to create the single implementation SubAgent for one Plan task. Replace every bracketed placeholder.
+codex 用此模板拼出**每任务一次**的 `opencode run` prompt。规则已固化在 `opencode-config/agents/crag-plan-implementer.md`，所以这里**只含任务上下文占位符**——这是省 codex token 的核心（规则不重复进 codex 上下文）。
+
+## 拼装后的 prompt（填完占位符发给 opencode）
 
 ```text
-You are the isolated implementation controller for one CRAG-Demo Plan task.
+实现 CRAG-Demo Plan 中的单个任务。严格按你的 agent 规则执行，最后只回结构化报告。
 
-Your responsibility is to drive the external OpenCode CLI. Do not silently replace OpenCode by implementing the requested production change yourself.
-
-Task context
-- Repository: [ABSOLUTE_REPOSITORY_PATH]
-- Isolated workspace: [ABSOLUTE_WORKSPACE_PATH]
+任务上下文
+- 仓库根（--dir 指向它）: [REPO_ROOT]
 - Plan: [PLAN_PATH]
-- Task: [TASK_ID_AND_TITLE]
-- Acceptance criteria:
+- 任务: [TASK_ID_AND_TITLE]
+- 验收标准:
 [ACCEPTANCE_CRITERIA]
-- Selected OpenCode model: [PROVIDER/MODEL]
-- Owned files or modules:
+- owned scope（你只能动这些）:
 [OWNED_SCOPE]
-- Protected pre-existing files:
+- 受保护、禁止改动的前置文件:
 [PROTECTED_FILES]
-- Relevant constraints:
+- 相关约束文件（开工前读）:
 [CONSTRAINT_PATHS]
 
-You are not alone in the codebase. Preserve all user and other-agent changes. Never revert, overwrite, reformat, or delete protected or unrelated work. Stay inside the owned scope unless you stop and request an explicit scope decision.
-
-Before changing files
-1. Run `command -v opencode` and `opencode --version`.
-2. Confirm the repository OpenCode configuration is readable.
-3. Confirm the selected model and required credentials are usable.
-4. Confirm the workspace contains the expected Plan and baseline.
-5. Read AGENTS.md, the Plan, and every listed constraint.
-6. Inspect the existing implementation and tests.
-7. If a preflight check fails, make no code change and return diagnostics.
-
-OpenCode execution
-1. Start OpenCode in a PTY from the isolated workspace:
-   `opencode run -i -m [PROVIDER/MODEL]`
-2. Prompt OpenCode to implement only this task and its required tests.
-3. Interactively review every permission request.
-4. You may approve ordinary Plan-scoped reads, owned-file edits, builds, formatting, tests, and downloads of already-declared dependencies.
-5. Never use `--dangerously-skip-permissions`.
-6. Do not approve new or upgraded dependencies, credentials, system changes, Docker infrastructure changes, Git writes, branch changes, commits, pushes, reset, checkout, clean, stash, destructive deletion, protected-file edits, or Plan expansion. Return these to the ParentAgent.
-7. Record the OpenCode session ID. Use `opencode session list` if needed to identify it.
-
-Implementation rules
-- Do not modify Plan files or plan/index/README.md.
-- Do not perform Git write operations.
-- Prefer the smallest implementation satisfying the current task.
-- Follow all repository constraints. Test execution follows the four-layer classification and risk-trigger rules in constraints/test-workflow.md: pure unit, lightweight component, and architecture tests run through Gradle without Docker; only Docker HTTP regression requires Docker Compose per the risk-trigger rules.
-- Require OpenCode to inspect existing tests before adding new ones.
-- Require tests for changed core behavior and failure paths.
-- Do not conceal skipped tests or environmental failures.
-
-When OpenCode finishes, inspect its diff and test output. If its report is incomplete, use the same session to obtain the missing facts.
-
-Return exactly:
-
-## Status
-completed | blocked | authorization-required
-
-## OpenCode Session
-<session id>
-
-## Changed Files
-- <path>: <reason>
-
-## Implementation
-<summary and notable decisions>
-
-## Test Workflow
-- Test files and cases
-- Acceptance criterion or risk covered by each case
-- Exact reproducible commands
-- Pure unit / lightweight component / architecture / Docker HTTP regression scope (per constraints/test-workflow.md)
-- External dependencies and test data setup
-- Expected results
-
-## Executed Tests
-- <command>: <raw outcome>
-
-## Skipped Tests and Risks
-<items or none>
-
-## Authorization Request
-- Exact command or action
-- Purpose
-- Affected scope
-- Permission failure or prompt
-- Risk
-- Safe alternatives
-<or none>
-
-## Scope Check
-<state whether scope changed; if yes, stop and explain>
+要求
+1. 开工前读 [PLAN_PATH]、AGENTS.md 和上面列出的约束文件。
+2. 只实现这一任务及其测试，不扩大到其它任务。
+3. 测试按 constraints/test-workflow.md 四层分类：纯单元 / 轻量组件 / 架构测试用 ./gradlew test 跑（不启动 Docker）；只有 Docker HTTP 回归按风险触发规则，如需触发就回 needs-info 交给调用方。
+4. 改完用 git diff 自查没越出 owned scope。
+5. 回复**只**包含你 agent 规则里定义的结构化报告块（STATUS / CHANGED-FILES / TESTS-RUN / SKIPPED-OR-BLOCKED / SCOPE-CLAIM / NOTES），不要输出过程叙述。
 ```
 
-## Test-completion continuation
+## codex 调用约定（见 SKILL.md「opencode 调用约定」一节）
 
-When the ParentAgent finds the test workflow insufficient, send the finding to this same SubAgent. Require it to continue the same OpenCode session:
+完整 Bash 模板（codex 填占位符后执行）：
 
-```text
-Continue OpenCode session [SESSION_ID] in the existing isolated workspace with:
-`opencode run -i --session [SESSION_ID] -m [PROVIDER/MODEL]`
-
-The ParentAgent accepted the implementation direction but found the test workflow insufficient:
-[TEST_REVIEW_FINDINGS]
-
-Add or refine only the missing tests and evidence. Preserve existing code unless a minimal change is required to make the intended behavior testable. Return the complete structured report again.
+```bash
+OPENCODE_CONFIG_DIR="<SKILL_DIR>/opencode-config" \
+opencode run \
+  --agent crag-plan-implementer \
+  -m "[PROVIDER/MODEL]" \
+  --dir "[REPO_ROOT]" \
+  --format json \
+  "[上面拼好的 prompt]" \
+  2>&1 | tee "build/opencode-task-[TASK_ID].log"
 ```
+
+提取关键字段（codex 只 parse 这些，不读全文；已在 opencode 1.17.4 上验证）：
+
+```bash
+# 最终文本（含结构化报告块）
+jq -r 'select(.type=="text") | .part.text' \
+  "build/opencode-task-[TASK_ID].log" | tail -n 80
+
+# session id（用于续会话修复）
+jq -r '.sessionID // empty' "build/opencode-task-[TASK_ID].log" | head -n1
+
+# 退出原因与 token 用量（日志审计用）
+jq -r 'select(.type=="step_finish") | {reason: .part.reason, tokens: .part.tokens}' \
+  "build/opencode-task-[TASK_ID].log"
+```
+
+> `--format json` 的字段名随版本可能不同；若 `jq` 取不到，降级用 `tail` 取日志末尾的结构化报告块 + `git diff --stat` 交叉验证，不硬依赖精确 schema。
+
+## codex 验收 checklist（轻量，逐任务）
+
+收到 opencode 报告后，codex 只做：
+
+1. **STATUS** 是否 `completed`？否则进续会话修复（见 `references/repair-prompt.md`）。
+2. **越界检查**：`git diff --stat` 的文件列表是否全在 owned scope 内？越界即挂。
+3. **测试审计**：TESTS-RUN 是否覆盖验收标准要求的范围？有无 SKIPPED 未说明理由？
+4. **scope 未扩**：SCOPE-CLAIM 是否确认在 owned scope 内？
+5. **Plan 校验**：`python3 scripts/validate_plans.py --strict [PLAN_PATH]`（轻，仅查格式）。
+
+全过 → codex 提交实现 commit + 更新 plan 簿记（`verifying → completed`）→ 下一任务。
+任一挂 → 拼进 repair-prompt 模板，续同一 session（`-c`）≤3 轮。

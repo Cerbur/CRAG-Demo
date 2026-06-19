@@ -1,98 +1,45 @@
-# Review Repair SubAgent Prompt
+# Repair Prompt (续会话修复)
 
-Use this template for every failed code Review round. Create a new isolated SubAgent and a new OpenCode session. Replace every bracketed placeholder.
+codex 用此模板把**单轮验收 findings** 拼成修复 prompt，复用同一 opencode session（省 opencode 自己的 token，codex 只递 findings 不重发规则）。
+
+## 触发条件
+
+逐任务验收 checklist（见 `implementation-prompt.md`）任一项未过，且修复轮数 ≤ 3。
+
+## 拼装后的 prompt（填完占位符发给 opencode）
 
 ```text
-You are an independent repair controller for CRAG-Demo. Drive a new external OpenCode CLI session to repair the current Review findings.
+继续这个 session 修复下列验收 findings。只针对 findings 做最小修复，不扩大改动，不改你 agent 规则禁止的文件。
 
-Do not inherit or defend the previous implementation agent's reasoning. Judge the current code, Plan, tests, and findings independently. Do not silently replace OpenCode by writing the requested production repair yourself.
+本轮 findings（来自调用方验收）:
+[FINDINGS]
 
-Repair context
-- Repository: [ABSOLUTE_REPOSITORY_PATH]
-- Isolated workspace: [ABSOLUTE_WORKSPACE_PATH]
-- Plan: [PLAN_PATH]
-- Task: [TASK_ID_AND_TITLE]
-- Acceptance criteria:
-[ACCEPTANCE_CRITERIA]
-- Selected OpenCode model: [PROVIDER/MODEL]
-- Current Review round: [ROUND_OF_3]
-- Current Review findings:
-[REVIEW_FINDINGS]
-- Relevant test results:
-[TEST_RESULTS]
-- Owned repair scope:
+要求
+1. 逐条 findings 给出根因 + 最小修复 + 回归测试（每个行为级 finding 一个回归）。
+2. 修完重跑相关测试确认通过。
+3. 用 git diff 自查改动仍在原 owned scope 内:
 [OWNED_SCOPE]
-- Protected pre-existing files:
-[PROTECTED_FILES]
-- Relevant constraints:
-[CONSTRAINT_PATHS]
-
-You are not alone in the codebase. Preserve all user and other-agent changes. Never revert, overwrite, reformat, or delete protected or unrelated work.
-
-Before changing files
-1. Run `command -v opencode` and `opencode --version`.
-2. Confirm configuration, credentials, and [PROVIDER/MODEL] are usable.
-3. Confirm the isolated workspace contains the current reviewed code.
-4. Read AGENTS.md, the Plan, relevant constraints, current diff, tests, and every Review finding.
-5. If a preflight check fails, make no code change and return diagnostics.
-
-OpenCode execution
-1. Start a new PTY session:
-   `opencode run -i -m [PROVIDER/MODEL]`
-2. Give OpenCode the current code and Review findings, without prior agent reasoning.
-3. Require the smallest root-cause repair that satisfies the Plan.
-4. Require regression tests for every behavior-level finding.
-5. Review permissions interactively.
-6. You may approve ordinary Plan-scoped reads, owned-file edits, builds, formatting, tests, and downloads of already-declared dependencies.
-7. Never use `--dangerously-skip-permissions`.
-8. Escalate new or upgraded dependencies, credentials, system changes, Docker infrastructure changes, Git writes, destructive operations, protected-file edits, and scope expansion.
-9. Record the new OpenCode session ID.
-
-Repair rules
-- Do not modify Plan files or plan/index/README.md.
-- Do not perform Git write operations.
-- Do not weaken tests to make failures disappear.
-- Do not broaden the refactor beyond the findings without ParentAgent approval.
-- Follow validation rules per constraints/test-workflow.md four-layer classification and risk-trigger rules.
-- Report every unresolved finding honestly.
-
-Return exactly:
-
-## Status
-completed | blocked | authorization-required
-
-## OpenCode Session
-<new session id>
-
-## Changed Files
-- <path>: <reason>
-
-## Implementation
-- Root cause
-- Repair
-- Review findings addressed
-
-## Test Workflow
-- Test files and cases
-- Finding or acceptance criterion covered by each case
-- Exact reproducible commands
-- Required setup and expected results
-
-## Executed Tests
-- <command>: <raw outcome>
-
-## Skipped Tests and Risks
-<items or none>
-
-## Authorization Request
-- Exact command or action
-- Purpose
-- Affected scope
-- Permission failure or prompt
-- Risk
-- Safe alternatives
-<or none>
-
-## Scope Check
-<state whether scope changed; if yes, stop and explain>
+4. 回复只包含结构化报告块（STATUS / CHANGED-FILES / TESTS-RUN / SKIPPED-OR-BLOCKED / SCOPE-CLAIM / NOTES），不输出过程叙述。
 ```
+
+## codex 调用约定（续会话，复用上下文）
+
+```bash
+OPENCODE_CONFIG_DIR="<SKILL_DIR>/opencode-config" \
+opencode run \
+  -c \
+  --session "[SESSION_ID]" \
+  -m "[PROVIDER/MODEL]" \
+  --dir "[REPO_ROOT]" \
+  --format json \
+  "[上面拼好的 repair prompt]" \
+  2>&1 | tee -a "build/opencode-task-[TASK_ID].log"
+```
+
+提取与验收同 `implementation-prompt.md`（结构化报告块 + session id）。
+
+## 轮数限制
+
+- 每任务修复上限 **3 轮**（含首次实现后的验收失败）。
+- 达到 3 轮仍未过：停止自动修复，向用户报告根因、剩余 findings、推荐人工介入。
+- **不要**为修复失败新建独立 session——那会让 opencode 丢失上下文，反而更费 token，也违背续会话设计。

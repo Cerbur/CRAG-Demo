@@ -1,0 +1,39 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "small_model": "opencode/deepseek-v4-flash-free",
+  "agent": {
+    "crag-plan-implementer": {
+      "description": "CRAG-Demo Plan 实现执行体。非交互模式下按任务上下文实现代码与测试，自检并跑测试，输出结构化精简报告。codex 只做编排与轻量验收。",
+      "mode": "primary",
+      "temperature": 0.2,
+      "permission": {
+        "edit": {
+          "plan/**": "deny",
+          "constraints/**": "deny",
+          "AGENTS.md": "deny",
+          "skill/**": "deny",
+          "**/.opencode/**": "deny",
+          "**/*": "allow"
+        },
+        "bash": {
+          "git commit*": "deny",
+          "git push*": "deny",
+          "git reset*": "deny",
+          "git checkout*": "deny",
+          "git clean*": "deny",
+          "git stash*": "deny",
+          "git rebase*": "deny",
+          "git merge*": "deny",
+          "git tag*": "deny",
+          "rm -rf*": "deny",
+          "rm -fr*": "deny",
+          "sudo *": "deny",
+          "curl *": "deny",
+          "wget *": "deny"
+        },
+        "webfetch": "deny",
+        "websearch": "deny"
+      }
+    }
+  }
+}

@@ -1,13 +1,13 @@
 ---
 name: execute-plan-with-opencode
-description: Use when the user explicitly invokes $execute-plan-with-opencode to execute one CRAG-Demo Plan through isolated SubAgents that drive the external OpenCode CLI.
+description: Use when the user explicitly invokes $execute-plan-with-opencode to execute one CRAG-Demo Plan. codex does light orchestration and acceptance; OpenCode does the actual coding non-interactively. Designed to minimize codex token consumption.
 ---
 
 # Execute Plan with OpenCode
 
 ## Purpose
 
-Execute one CRAG-Demo Plan as a controlled state machine. Keep planning, Review, test execution, Plan progress, and final acceptance with the ParentAgent; delegate code changes to isolated SubAgents that operate OpenCode.
+Execute one CRAG-Demo Plan as a controlled state machine. **codex is the orchestrator + light acceptor; OpenCode is the non-interactive implementer.** codex never replays OpenCode's process output, never does line-by-line code review, and never re-runs tests per task. The expensive work (implement, self-check, run tests, report) is pushed down to OpenCode so codex token stays low.
 
 Never invoke this Skill implicitly.
 
@@ -35,9 +35,20 @@ Run these phases in order:
 
 Do not skip a phase because code already appears partially implemented. Reconstruct evidence first.
 
+## Token discipline (the whole point of this Skill)
+
+Six rules, each tied to a concrete saving:
+
+1. **No SubAgent, no PTY relay.** Call OpenCode once via `opencode run --format json` and let codex parse only key fields. Never relay OpenCode's streaming output into codex context.
+2. **Rules live in config, not in prompts.** Implementation rules are固化 in `opencode-config/agents/crag-plan-implementer.md`. codex's per-task prompt carries only task context — rules are never re-sent through codex.
+3. **No line-by-line review by codex.** Use `git diff --stat` boundary checks + audit OpenCode's test report instead. codex does not re-read full diffs.
+4. **No per-task test re-run by codex.** OpenCode runs tests inside the task and reports pass/fail counts. codex audits the report; only the final Plan regression re-runs a scripted check.
+5. **Short structured reports only.** OpenCode returns the 6-block contract (STATUS / CHANGED-FILES / TESTS-RUN / SKIPPED-OR-BLOCKED / SCOPE-CLAIM / NOTES). codex `tail`s or `jq`s these; no 9-paragraph narratives.
+6. **Continue the session on repair.** Failed acceptance reuses the same OpenCode session (`-c --session`) with only findings; never spin a fresh implementer for repair.
+
 ## Phase 1: Preflight
 
-### Check OpenCode
+### Check OpenCode and the non-interactive path
 
 Run:
 
@@ -46,7 +57,19 @@ command -v opencode
 opencode --version
 ```
 
-If OpenCode is absent, stop immediately and tell the user that OpenCode must be installed before this Skill can continue. Do not create a SubAgent or modify the Plan.
+Then verify the non-interactive path and config injection work end-to-end with one smoke call:
+
+```bash
+OPENCODE_CONFIG_DIR="<SKILL_DIR>/opencode-config" \
+opencode run --agent crag-plan-implementer -m <provider/model> --dir . --format json \
+  "reply with: SMOKE OK" 2>&1 | tee build/opencode-smoke.log
+```
+
+Replace `<SKILL_DIR>` with this Skill's absolute directory and `<provider/model>` with any model the user already authed.
+
+- If OpenCode is absent → stop, tell the user it must be installed.
+- If the smoke call errors on the `crag-plan-implementer` agent or `OPENCODE_CONFIG_DIR` → that opencode version has a known config-dir bug (refs: opencode #3610/#4399). Stop and instruct the user to either upgrade opencode or fall back to `OPENCODE_CONFIG_CONTENT` inline JSON (see Recovery).
+- If `--format json` is unsupported or the schema differs → proceed using `tail` on the log + `git diff --stat` as the source of truth; do not depend on a precise JSON schema.
 
 ### Record the workspace baseline
 
@@ -74,189 +97,142 @@ Read:
 
 ## Phase 2: Plan Gate
 
-Require the target Plan to use the current workflow version and be `ready` before implementation. Require all conditions:
+Require the target Plan to use the current workflow version and be `ready` before implementation. The eleven checks below were previously done by hand; now run the validator first and only inspect manually what it cannot see:
 
-1. The workflow v2 front matter is valid.
-2. Goals, scope, and non-goals are explicit.
-3. Tasks, prerequisites, execution order, and file boundaries are explicit.
-4. Every task has the required fixed fields and acceptance criteria.
-5. Test scope and reproducible commands are defined.
-6. Effects on project constraint documents are addressed.
-7. Risks, rollback, compatibility concerns, and decisions are resolved.
-8. The required progress, acceptance, blocking, abandonment, and change records exist.
-9. No blocking TODO, unresolved decision, or contradiction remains.
-10. `python3 scripts/validate_plans.py --strict <plan-path>` succeeds.
-11. The ready Plan and index have already been committed.
+```bash
+python3 scripts/validate_plans.py --strict <plan-path>
+```
+
+Then confirm the validator cannot verify these:
+
+1. Goals, scope, and non-goals are explicit.
+2. Tasks, prerequisites, execution order, and file boundaries are explicit.
+3. Every task has the required fixed fields and acceptance criteria.
+4. Test scope and reproducible commands are defined.
+5. Effects on project constraint documents are addressed.
+6. Risks, rollback, compatibility concerns, and decisions are resolved.
+7. No blocking TODO, unresolved decision, or contradiction remains.
+8. The ready Plan and index have already been committed.
 
 If any condition fails:
 
-- do not create a SubAgent or invoke OpenCode;
+- do not invoke OpenCode;
 - invoke `$grill-me` and resolve one decision at a time with the user;
-- let the ParentAgent update the Plan and required index files;
-- rerun all nine checks.
+- update the Plan and required index files;
+- rerun the validator and the manual checks.
 
 Proceed only when every condition passes.
 
 ## Phase 3: Model Selection
 
-Run `opencode models` and present the configured candidates to the user. If the command requires system authorization, let the ParentAgent request it and retry.
+Run `opencode models` and present the configured candidates to the user. If the command requires system authorization, request it and retry.
 
-Wait for an explicit `provider/model` choice. Use that model for every implementation, test-completion, and repair session in this Plan. Do not ask again per task unless the selected model becomes unavailable or the user requests a change.
+Wait for an explicit `provider/model` choice. Use that model for every implementation and repair session in this Plan. Do not ask again per task unless the selected model becomes unavailable or the user requests a change.
 
-Do not persist models, providers, or credentials in this Skill.
+Provider credentials live on the target machine's global OpenCode config (e.g. `~/.config/opencode/`). This Skill carries no credentials. `OPENCODE_CONFIG_DIR` supplements the global config (per opencode #9062) — global credentials are not lost.
 
 ## Phase 4: Task Loop
 
 Execute unfinished tasks in Plan order. Fully close one task before starting the next.
 
-### Start one implementation SubAgent
+### Run one task (codex light orchestration)
 
-For every task:
+For every task codex:
 
-- create one new isolated implementation SubAgent;
-- give it ownership only of that task's implementation and test files;
-- require it to read `references/implementation-prompt.md`;
-- fill every placeholder with the Plan path, task, acceptance criteria, selected model, workspace, protected files, and relevant constraints;
-- require it to use a PTY and run `opencode run -i -m <provider/model>`;
-- prohibit parallel code-writing SubAgents.
+1. Reads `references/implementation-prompt.md` and fills the placeholders (Plan path, task, acceptance criteria, owned scope, protected files, constraint paths).
+2. Issues **one** `opencode run` call (see the invocation convention below), piping to a per-task log under `build/`.
+3. Parses only the structured report block and session id from the log (`tail`/`jq`). Does **not** read the full log.
+4. Runs the light acceptance checklist (boundary check + test-report audit + scope claim + Plan validator).
+5. On pass → creates the implementation commit, marks the task `verifying`, then backfills the commit hash to `completed` in a separate bookkeeping commit.
+6. On fail → repairs via `references/repair-prompt.md`, continuing the same session, up to 3 rounds.
 
-The SubAgent is an OpenCode controller, not an alternative implementer. It must not silently replace OpenCode by writing the requested production change itself.
+### Light acceptance checklist (per task)
 
-### Double-check inside the SubAgent
+This replaces the old four-axis line-by-line review. codex does only:
 
-Before modifying files, require the SubAgent to verify:
+1. **STATUS** == `completed`? If not → repair.
+2. **Boundary check**: `git diff --stat` file list ⊆ owned scope? Out-of-scope → fail.
+3. **Test audit**: TESTS-RUN covers the acceptance-required scope? Any SKIPPED without a stated reason → fail.
+4. **Scope claim**: SCOPE-CLAIM confirms in-scope and flags no decision needed → else fail.
+5. **Plan validator**: `python3 scripts/validate_plans.py --strict <plan-path>` (format only, light).
 
-- `command -v opencode`;
-- `opencode --version`;
-- project configuration is readable;
-- required credentials and selected model are usable;
-- its isolated workspace contains the expected baseline.
-
-If any check fails, return diagnostics without modifying code.
-
-### Review the test workflow
-
-Require the implementation SubAgent to return:
-
-- test files and cases;
-- acceptance criterion or risk covered by each case;
-- exact reproducible commands;
-- pure unit, lightweight component, architecture, or Docker HTTP regression scope (per `constraints/test-workflow.md`);
-- external dependencies and data setup;
-- expected results;
-- tests OpenCode actually ran and raw outcomes;
-- skipped tests, reasons, and residual risks.
-
-The ParentAgent reviews this workflow against the Plan and `constraints/test-workflow.md`.
-
-If the workflow is insufficient, send a follow-up to the same SubAgent and continue the same OpenCode session with `opencode run -i --session <session-id> -m <provider/model>`. Do not create a new SubAgent. Repeat until the proposed workflow is adequate or a real blocker is found.
-
-### Review the code
-
-After the test workflow is adequate, review the code relative to the recorded baseline on four axes:
-
-1. Plan compliance and scope.
-2. Project constraints.
-3. Correctness, failure paths, transactions, concurrency, compatibility, and security.
-4. Test credibility.
-
-The ParentAgent may directly fix only Plan progress, index, or other bookkeeping documentation. It must not directly repair production or test code found defective during Review.
-
-### Repair failed Reviews
-
-If code Review fails:
-
-- create a new isolated repair SubAgent and a new OpenCode session;
-- require it to read `references/repair-prompt.md`;
-- provide the Plan, current code, relevant test results, and only the current Review findings;
-- do not pass the previous repair session or its reasoning;
-- re-review after the repair.
-
-Use a new repair SubAgent for every failed Review round. Stop automatic repair after three rounds and report the root causes, remaining findings, and recommended next action.
-
-### Run tests as ParentAgent
-
-After code Review passes, the ParentAgent runs the approved test workflow itself.
-
-- Route test execution through `constraints/test-workflow.md` four-layer classification and risk-trigger rules.
-- Pure unit, lightweight component, and architecture tests run through Gradle without Docker.
-- Docker HTTP regression runs through Docker Compose per the risk-trigger rules; lightweight component tests using H2 or Spring slices never require Docker.
-
-A failed test returns the task to code Review. Treat the failure as a new finding and create a new repair SubAgent, subject to the same three-round total limit.
+All pass → accept the task. Any fail → repair (≤3 rounds, same session).
 
 ### Accept the task
 
-After acceptance criteria, Review, and required tests have evidence:
+After the checklist passes:
 
-1. The ParentAgent creates the task implementation commit.
-2. The ParentAgent marks the task `verifying / 待验收` with commit field `pending`.
-3. In a separate Plan bookkeeping commit, the ParentAgent backfills the implementation short hash and marks the task `completed / 完成`.
+1. codex creates the task implementation commit.
+2. codex marks the task `verifying / 待验收` with commit field `pending`.
+3. In a separate Plan bookkeeping commit, codex backfills the implementation short hash and marks the task `completed / 完成`.
 4. The bookkeeping commit itself is not task implementation evidence.
 
 Do not use `—`, an empty value, or an uncommitted workspace to mark a task complete. If the user explicitly prohibits commits, stop at `verifying`; the task and Plan cannot be completed.
 
-Then start the next task with a fresh implementation SubAgent and fresh OpenCode session.
+Then start the next task with a fresh `opencode run` (new session).
 
-## Permission Protocol
+## OpenCode invocation convention
 
-Never use `--dangerously-skip-permissions`.
+This is the single canonical call shape. Fill placeholders, run via Bash, capture the log.
 
-The SubAgent may approve ordinary, Plan-scoped OpenCode requests interactively, including:
-
-- reading and editing owned project files;
-- compilation, unit tests, formatting, and safe build output;
-- downloading dependencies already declared by the project.
-
-Escalate to the ParentAgent:
-
-- any system or Codex sandbox authorization;
-- new or upgraded dependencies;
-- credentials or secrets;
-- system environment changes;
-- Docker infrastructure changes;
-- Git writes, branch changes, commits, pushes, reset, checkout, clean, or stash;
-- deletions, destructive commands, Plan expansion, or protected-file changes.
-
-Return an escalation with the exact command, purpose, scope, failure or prompt, risk, and safe alternatives. Resume the same SubAgent and OpenCode session after approval when consistency is preserved.
-
-## SubAgent Return Contract
-
-Require this Markdown structure:
-
-```markdown
-## Status
-completed | blocked | authorization-required
-
-## OpenCode Session
-<session id>
-
-## Changed Files
-- <path>: <reason>
-
-## Implementation
-<summary and notable decisions>
-
-## Test Workflow
-<cases, coverage, commands, setup, expected results>
-
-## Executed Tests
-<commands and raw outcomes>
-
-## Skipped Tests and Risks
-<items or none>
-
-## Authorization Request
-<command, purpose, scope, risk, alternatives, or none>
-
-## Scope Check
-<whether task scope changed>
+```bash
+OPENCODE_CONFIG_DIR="<SKILL_DIR>/opencode-config" \
+opencode run \
+  --agent crag-plan-implementer \
+  -m "<provider/model>" \
+  --dir "<repo-root>" \
+  --format json \
+  "<prompt>" \
+  2>&1 | tee "build/opencode-task-<task-id>.log"
 ```
 
-If fields are missing, ask the same SubAgent to complete its report. Do not create a replacement solely for incomplete reporting.
+Extract (parse only these, never the whole log; verified on opencode 1.17.4):
+
+```bash
+# final response text (the structured report block)
+jq -r 'select(.type=="text") | .part.text' "build/opencode-task-<task-id>.log" | tail -n 80
+
+# session id for repair continuation
+jq -r '.sessionID // empty' "build/opencode-task-<task-id>.log" | head -n1
+
+# exit reason and token cost (from the step_finish event)
+jq -r 'select(.type=="step_finish") | {reason: .part.reason, tokens: .part.tokens}' "build/opencode-task-<task-id>.log"
+```
+
+Repair continues the same session:
+
+```bash
+OPENCODE_CONFIG_DIR="<SKILL_DIR>/opencode-config" \
+opencode run -c --session "<session-id>" \
+  -m "<provider/model>" --dir "<repo-root>" --format json \
+  "<repair-prompt>" 2>&1 | tee -a "build/opencode-task-<task-id>.log"
+```
+
+Notes:
+
+- Every call sets `OPENCODE_CONFIG_DIR` to this Skill's `opencode-config/` so the `crag-plan-implementer` agent and its permission whitelist load. This directory is committed with the Skill, so the same call works on any machine with opencode + provider auth.
+- Never use `--dangerously-skip-permissions`. The whitelist in `opencode-config/` denies git writes, destructive ops, and edits to `plan/`, `constraints/`, `AGENTS.md`, `skill/`.
+- If `--format json` output differs from the extractor above, fall back to `tail` on the log + `git diff --stat`. Do not depend on a precise JSON schema.
 
 ## Phase 5: Plan Regression
 
-After all tasks close, run the complete Plan regression workflow as ParentAgent. Re-review cross-task integration and verify that every acceptance criterion still has current evidence.
+After all tasks close, run the Plan regression as a scripted check (codex reads only exit code + summary lines, not full output):
+
+```bash
+python3 scripts/validate_plans.py --strict --verify-git <plan-path>
+```
+
+Plus a cross-task boundary check against the recorded baseline:
+
+```bash
+git diff --stat <baseline-ref> -- ':!plan' ':!build'
+```
+
+Audit that:
+
+- every acceptance criterion still has current evidence;
+- no required test is skipped without a stated reason;
+- Docker HTTP regression, if required by the risk-trigger rules, was triggered (not silently skipped).
 
 Do not accept skipped required tests, environmental blockers, or undocumented residual risks as completion.
 
@@ -265,15 +241,14 @@ Do not accept skipped required tests, environmental blockers, or undocumented re
 Declare the Plan complete only when:
 
 - all tasks and acceptance criteria have evidence;
-- final code Review passes;
-- the ParentAgent has run all required tests successfully;
+- Plan regression passed;
 - Docker HTTP regression, if required by risk-trigger rules, used Docker Compose;
 - no required test is skipped and no blocker remains;
 - every completed task has one or more real implementation commit hashes;
 - `python3 scripts/validate_plans.py --strict --verify-git <plan-path>` succeeds;
 - the Plan progress table and `plan/index/README.md` are current;
 - the workspace has no uncommitted changes owned by the Plan;
-- the final report maps every acceptance criterion to code and test evidence.
+- the final report maps every acceptance criterion to code and test evidence (codex composes this from the per-task reports already in context, not from re-reading diffs).
 
 Otherwise report partial completion or blocked status and do not mark the Plan complete.
 
@@ -286,13 +261,24 @@ On interruption:
 1. reread the Plan and constraints;
 2. reconstruct the workspace baseline and current diff;
 3. identify accepted tasks from code and test evidence, not only `🔄` or `✅` markers;
-4. locate the selected model, current phase, and OpenCode session from conversation or ignored runtime logs;
+4. read the per-task logs under `build/opencode-task-*.log` to recover session ids and last status;
 5. continue a session only when its workspace and code state provably match;
-6. otherwise create a fresh repair SubAgent from current code.
+6. otherwise start a fresh `opencode run` (new session) from current code.
 
-Keep run-specific state out of Git. Store session IDs, model choice, stage, and runtime logs only in the conversation or ignored `.opencode/` / `build/` paths.
+Keep run-specific state out of Git. Store session IDs, model choice, stage, and logs only in the conversation or git-ignored `build/` paths.
+
+### `OPENCODE_CONFIG_DIR` fallback
+
+If Preflight shows the config-dir path is broken on the installed opencode version, fall back to inline config via `OPENCODE_CONFIG_CONTENT`. Build the JSON from `opencode-config/opencode.json` (embed the `agent.crag-plan-implementer` block) and set:
+
+```bash
+OPENCODE_CONFIG_CONTENT='<json from opencode-config/opencode.json>' opencode run ...
+```
+
+This keeps the same agent definition and permission whitelist without relying on the directory mechanism.
 
 ## Prompt Resources
 
-- Read `references/implementation-prompt.md` before creating an implementation SubAgent or continuing it for test completion.
-- Read `references/repair-prompt.md` before creating every repair SubAgent.
+- Read `references/implementation-prompt.md` before each task's `opencode run`.
+- Read `references/repair-prompt.md` before each repair round.
+- The implementation rules themselves live in `opencode-config/agents/crag-plan-implementer.md` (loaded by opencode, never re-sent through codex).
