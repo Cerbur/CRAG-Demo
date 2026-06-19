@@ -2,8 +2,8 @@ package ai.cerbur.crag.api.controller;
 
 import ai.cerbur.crag.api.dto.request.AdminRagRequest;
 import ai.cerbur.crag.common.dto.result.Response;
-import ai.cerbur.crag.ingestion.service.AdminRagResult;
-import ai.cerbur.crag.ingestion.service.AdminRagService;
+import ai.cerbur.crag.ingestion.api.AdminRagResult;
+import ai.cerbur.crag.ingestion.api.AdminRagService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;

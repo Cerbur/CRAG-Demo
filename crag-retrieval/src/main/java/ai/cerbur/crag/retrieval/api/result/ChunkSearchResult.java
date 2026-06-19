@@ -1,6 +1,7 @@
-package ai.cerbur.crag.retrieval.result;
+package ai.cerbur.crag.retrieval.api.result;
 
 import ai.cerbur.crag.retrieval.bo.ChunkBO;
+import ai.cerbur.crag.retrieval.result.RrfFusionResult;
 
 /**
  * 最终检索结果 —— 检索管道最外层的宽类型，组装全部四路得分.

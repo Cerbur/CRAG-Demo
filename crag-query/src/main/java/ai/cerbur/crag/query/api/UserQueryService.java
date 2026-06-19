@@ -1,4 +1,4 @@
-package ai.cerbur.crag.query.service;
+package ai.cerbur.crag.query.api;
 
 import org.springframework.stereotype.Service;
 

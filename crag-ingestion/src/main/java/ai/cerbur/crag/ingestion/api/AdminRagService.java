@@ -1,4 +1,4 @@
-package ai.cerbur.crag.ingestion.service;
+package ai.cerbur.crag.ingestion.api;
 
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitGroup;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitResult;

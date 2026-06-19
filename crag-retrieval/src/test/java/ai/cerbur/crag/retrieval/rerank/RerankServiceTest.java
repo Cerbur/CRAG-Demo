@@ -6,9 +6,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
 import ai.cerbur.crag.retrieval.rerank.client.RerankClient;
 import ai.cerbur.crag.retrieval.rerank.client.RerankClient.RerankResult;
-import ai.cerbur.crag.retrieval.result.ChunkSearchResult;
 import ai.cerbur.crag.retrieval.result.RrfFusionResult;
 import java.util.Collections;
 import java.util.List;

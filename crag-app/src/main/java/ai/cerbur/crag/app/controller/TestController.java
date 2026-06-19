@@ -1,15 +1,15 @@
 package ai.cerbur.crag.app.controller;
 
 import ai.cerbur.crag.common.dto.result.Response;
+import ai.cerbur.crag.retrieval.api.RetrievalService;
+import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
 import ai.cerbur.crag.retrieval.dense.DenseQueryService;
 import ai.cerbur.crag.retrieval.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.rerank.RerankService;
-import ai.cerbur.crag.retrieval.result.ChunkSearchResult;
 import ai.cerbur.crag.retrieval.result.DenseSearchResult;
 import ai.cerbur.crag.retrieval.result.RrfFusionResult;
 import ai.cerbur.crag.retrieval.result.SparseSearchResult;
 import ai.cerbur.crag.retrieval.rrf.RrfFusionService;
-import ai.cerbur.crag.retrieval.service.RetrievalService;
 import ai.cerbur.crag.retrieval.sparse.SparseQueryService;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.ChunkEmbeddingDao;

@@ -1,4 +1,4 @@
-package ai.cerbur.crag.ingestion.service;
+package ai.cerbur.crag.ingestion.api;
 
 /**
  * AdminRag 入库结果 —— 返回 docId、子 chunk 数量和状态.

@@ -121,7 +121,7 @@ class ModuleBoundaryArchitectureTest {
                   "ai.cerbur.crag.ingestion.cron..")
               .because(
                   "crag-api 只能通过 ingestion.api 包访问。"
-                      + "冻结例外：AdminRagController→ingestion.service — 由 9.3 修复。"));
+                      + "冻结例外：AdminRagController→ingestion.service — 已由 9.3 消除。"));
 
   // ═══════════════════════════════════════════════════════════════
   // 规则 5b：crag-ingestion → crag-retrieval 仅允许 api 包

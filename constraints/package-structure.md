@@ -75,21 +75,22 @@ Base package 统一为 `ai.cerbur.crag`。
 目标公开入口：
 
 ```text
-ai.cerbur.crag.ingestion.api
+ai.cerbur.crag.ingestion.api    ✅ plan_9 9.3 已完成
 ├── AdminRagService
 └── AdminRagResult
 
-ai.cerbur.crag.retrieval.api
+ai.cerbur.crag.retrieval.api    ✅ plan_9 9.3 已完成 (不含 embedding，9.4 完成)
 ├── RetrievalService
-├── result/
-│   └── ChunkSearchResult
-└── embedding/
-    ├── EmbeddingClient
-    └── EmbeddingException
+└── result/
+    └── ChunkSearchResult
 
-ai.cerbur.crag.query.api
+ai.cerbur.crag.retrieval.api.embedding   ⏳ 待 plan_9 9.4 迁移
+├── EmbeddingClient
+└── EmbeddingException
+
+ai.cerbur.crag.query.api        ✅ plan_9 9.3 已完成
 ├── UserQueryService
-└── result/                            — Query 对外回答与 sources 类型
+└── result/                            — Query 对外回答与 sources 类型（当前无独立 result 类型）
 ```
 
 `EmbeddingClient` 是 Retrieval 对外提供的能力契约。当前实现可以调用 HTTP Sidecar；未来可迁移为 RPC 或独立 SDK，但 `crag-ingestion` 只能依赖 `retrieval.api.embedding`，不得依赖具体传输实现。
@@ -167,7 +168,7 @@ ai.cerbur.crag.storage
 
 ```text
 ai.cerbur.crag.ingestion
-├── service/                           — AdminRagService / AdminRagResult
+├── api/                               — AdminRagService / AdminRagResult（跨模块公开入口）
 ├── chunk.split/                       — ChunkSplit 能力与数据类型
 ├── dense/                             — DenseEmbeddingService
 └── cron/                              — Dense / Sparse 定时编排
@@ -177,19 +178,19 @@ ai.cerbur.crag.ingestion
 
 ```text
 ai.cerbur.crag.retrieval
-├── service/                           — RetrievalService 门面
-├── embedding/                         — Embedding 契约、Sidecar 实现与异常
+├── api/                               — RetrievalService / result.ChunkSearchResult（跨模块公开入口）
+├── embedding/                         — Embedding 契约、Sidecar 实现与异常（9.4 将契约迁入 api.embedding）
 ├── sparse/ / dense/                   — 双路召回
 ├── rrf/ / rerank/                     — 融合与重排
 ├── bo/                                — ChunkBO
-└── result/                            — 各检索阶段结果
+└── result/                            — 各检索阶段结果（SparseSearchResult/DenseSearchResult/RrfFusionResult）
 ```
 
 ### `crag-query`
 
 ```text
 ai.cerbur.crag.query
-├── service/                           — UserQueryService 骨架
+├── api/                               — UserQueryService（跨模块公开入口）
 └── llm/                               — ChatClient 契约骨架
 ```
 
@@ -210,7 +211,7 @@ ai.cerbur.crag.app
 └── controller.TestController          — 当前冒烟与分阶段诊断入口
 ```
 
-当前尚不存在 `crag-smoke` module；公开入口也尚未统一迁入 `api` 包。
+当前尚不存在 `crag-smoke` module；Embedding 契约尚未迁入 `retrieval.api.embedding`（待 9.4）。
 
 ## 十、已知偏差
 
@@ -219,9 +220,9 @@ ai.cerbur.crag.app
 | 偏差 | 当前状态 | 目标 |
 | --- | --- | --- |
 | 组合根承载诊断 Controller | `TestController` 位于 `crag-app` 并直接调用内部组件 | 迁移到仅在 `smoke` Profile 启用的 `crag-smoke` |
-| 跨模块入口没有统一边界 | Service、Result、Client 分散在普通实现包 | 迁入各模块 `api` 包 |
-| Embedding 契约与实现混放 | Ingestion 直接依赖 `retrieval.embedding` | 契约迁入 `retrieval.api.embedding`，Sidecar 实现保留内部 |
-| 架构规则只靠文档记忆 | 尚无自动模块与包边界校验 | 增加 ArchUnit 规则并清理迁移期例外 |
+| 跨模块入口没有统一边界 | Ingestion/Query 已迁入 `api` 包（9.3）；Retrieval 门面已迁，Embedding 待 9.4 | 迁入各模块 `api` 包 |
+| Embedding 契约与实现混放 | Ingestion 直接依赖 `retrieval.embedding.EmbeddingClient` | 契约迁入 `retrieval.api.embedding`，Sidecar 实现保留内部 |
+| 架构规则只靠文档记忆 | ArchUnit 基线已建立（9.1），临时例外待 9.4/9.5 消除后由 9.6 清理 | 清除所有迁移期例外 |
 
 在 `plan_9` 完成前，新增代码不得扩大以上偏差。偏差完成迁移后必须从本节删除，并把实际结构同步到“当前实现索引”。
 
