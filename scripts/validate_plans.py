@@ -419,7 +419,7 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
     execution_ids = {
         plan_id
         for plan_id, (_, metadata, _) in plans.items()
-        if metadata.get("status") not in {"verifying", "completed", "abandoned"}
+        if metadata.get("status") not in {"completed", "abandoned"}
     }
     acceptance_ids = {
         plan_id

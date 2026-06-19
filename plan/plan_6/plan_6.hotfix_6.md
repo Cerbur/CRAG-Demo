@@ -152,6 +152,7 @@ updated: 2026-06-20
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-20 | 本机 | `python3 scripts/validate_plans.py --strict --verify-git` | ✅ 0 错误 | P306 修复：将 verifying 从 execution_ids 排除集中移除，执行队列加入 plan_6.hotfix_6 队首 |
 
 ## 阻塞记录
 
@@ -159,7 +160,9 @@ updated: 2026-06-20
 
 ## 废弃任务记录
 
-无。
+| 日期 | 任务 | 原因 |
+| --- | --- | --- |
+| 2026-06-20 | ChunkRepositoryComponentTest（H2 组件测试） | `crag-storage` 同包内的 `ChunkEmbedding`（`vector(768)`）和 `ChunkFts`（`tsvector`）使用 PostgreSQL 专有列类型，H2 无法创建对应表，`@DataJpaTest` 上下文加载失败。补偿：`ChunkDaoTest` 通过 Mockito 验证 `findParentContentsByIds` 委托与参数；JPQL `SELECT new ...` 构造器投影在编译期检查类型与字段顺序；Docker HTTP 回归 `retrieval_evidence_test.sh` 在真实 PostgreSQL 上覆盖完整投影路径。
 
 ## 变更记录
 
