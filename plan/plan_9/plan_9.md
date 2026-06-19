@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_9
 type: main
-status: ready
+status: in_progress
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -113,7 +113,7 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.1 | 建立 ArchUnit 模块边界基线 | ⏳ 待开始 | — | — |
+| 9.1 | 建立 ArchUnit 模块边界基线 | 🔄 进行中 | — | — |
 | 9.2 | 将 crag-admin 重命名为 crag-api | ⏳ 待开始 | — | — |
 | 9.3 | 迁移跨模块公开 API 包 | ⏳ 待开始 | — | — |
 | 9.4 | 分离 Embedding 公共契约与内部实现 | ⏳ 待开始 | — | — |
@@ -209,3 +209,4 @@ updated: 2026-06-19
 | 2026-06-19 | 状态调整为阻塞并增加 plan_11 前置依赖 | 测试分层必须先于 ArchUnit、Spring Context 和 Smoke 回归落地 | 架构目标不变；执行顺序调整为 plan_11 → plan_9 |
 | 2026-06-19 | 收窄 Smoke、测试与 Docker 职责 | 避免与 plan_10 重复设计部署机制，并落实自动化 HTTP 回归 | plan_9 只交付最小 Smoke 隔离；完成后 plan_7 转 draft 校准 |
 | 2026-06-19 | 状态从 blocked 恢复为 ready | plan_11 完成测试分层治理并全量校验通过，前置阻塞条件已满足 | 可从 9.1 开始执行；plan_7 仍保持阻塞至本计划完成 |
+| 2026-06-19 | 状态从 ready 转为 in_progress，开始 9.1 | Plan Gate 全部通过，用户选定 deepseek/deepseek-v4-pro 作为实现模型 | 9.1 进行中；其余 5 项待开始 |
