@@ -71,10 +71,10 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.hotfix_4.1 | 迁移为构造器注入并切换 @WebMvcTest | ⏳ 待开始 | — | — |
-| 9.hotfix_4.2 | 收紧字段集合断言并全量验收 | ⏳ 待开始 | — | — |
+| 9.hotfix_4.1 | 迁移为构造器注入并切换 @WebMvcTest | ✅ 完成 | f5c2097 | 2026-06-19 |
+| 9.hotfix_4.2 | 收紧字段集合断言并全量验收 | ✅ 完成 | f5c2097 | 2026-06-19 |
 
-整体进度：0 / 2（0%）
+整体进度：2 / 2（100%）
 
 ## 9.hotfix_4.1 迁移为构造器注入并切换 @WebMvcTest
 
@@ -100,6 +100,10 @@ updated: 2026-06-19
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | 本地 macOS | `./gradlew check` | ✅ 通过 | 全量 Gradle 构建、测试（含 ArchUnit）、Spotless 格式检查通过 |
+| 2026-06-19 | 本地 macOS | `python3 scripts/validate_constraints.py` | ✅ 通过 | 0 errors |
+| 2026-06-19 | 本地 macOS | `python3 scripts/validate_plans.py --strict` | ✅ 通过 | 0 errors（仅历史 Plan workflow v2 警告） |
+| 2026-06-19 | Docker Compose | `bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080` | ✅ 通过 | 14/14 断言：含精确 key 集合（top-level + result） |
 
 ## 阻塞记录
 
