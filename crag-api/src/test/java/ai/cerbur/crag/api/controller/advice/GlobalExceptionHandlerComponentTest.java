@@ -1,103 +1,28 @@
 package ai.cerbur.crag.api.controller.advice;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ai.cerbur.crag.api.controller.AdminRagController;
-import ai.cerbur.crag.ingestion.api.AdminRagResult;
-import ai.cerbur.crag.ingestion.api.AdminRagService;
-import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 /**
- * 轻量组件测试 —— 验证 GlobalExceptionHandler 将异常正确转换为业务码与 HTTP 状态.
+ * 轻量组件测试 —— 验证 GlobalExceptionHandler 将四类异常正确转换为业务码与 HTTP 状态.
  *
- * <p>使用 MockMvcBuilders.standaloneSetup 仅加载必要组件。 IllegalArgumentException、NoResourceFoundException
- * 和兜底异常通过 TestExceptionController 触发； Bean Validation 通过 AdminRagController 的 @Valid 校验触发。
+ * <p>使用 @WebMvcTest 加载 MVC 切片，通过 @Import 显式注册 TestExceptionController 和 GlobalExceptionHandler。Bean
+ * Validation 由 AdminRagControllerComponentTest 覆盖。
  */
+@WebMvcTest
+@Import({TestExceptionController.class, GlobalExceptionHandler.class})
 class GlobalExceptionHandlerComponentTest {
 
-  private MockMvc mockMvc;
-
-  @BeforeEach
-  void setUp() {
-    LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
-    validator.afterPropertiesSet();
-
-    // 手工 stub AdminRagService，使 AdminRagController 可不依赖 Spring 上下文运行
-    AdminRagService stubService =
-        new AdminRagService() {
-          @Override
-          public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
-            return new AdminRagResult("stub", 0, "PENDING");
-          }
-        };
-
-    AdminRagController adminController = new AdminRagController(stubService);
-
-    mockMvc =
-        MockMvcBuilders.standaloneSetup(new TestExceptionController(), adminController)
-            .setControllerAdvice(new GlobalExceptionHandler())
-            .setValidator(validator)
-            .build();
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // Bean Validation → VALIDATION_ERROR / HTTP 400
-  // ═══════════════════════════════════════════════════════════════
-
-  @Nested
-  @DisplayName("Bean Validation failures")
-  class BeanValidation {
-
-    @Test
-    @DisplayName("missing title returns VALIDATION_ERROR with HTTP 400")
-    void missingTitle() throws Exception {
-      String body =
-          """
-          {"content": "some content"}""";
-
-      mockMvc
-          .perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.success").value(false))
-          .andExpect(jsonPath("$.code").value(40001))
-          .andExpect(jsonPath("$.result").isEmpty());
-    }
-
-    @Test
-    @DisplayName("missing content returns VALIDATION_ERROR with HTTP 400")
-    void missingContent() throws Exception {
-      String body =
-          """
-          {"title": "some title"}""";
-
-      mockMvc
-          .perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.success").value(false))
-          .andExpect(jsonPath("$.code").value(40001));
-    }
-
-    @Test
-    @DisplayName("empty body returns VALIDATION_ERROR with HTTP 400")
-    void emptyBody() throws Exception {
-      mockMvc
-          .perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content("{}"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.success").value(false))
-          .andExpect(jsonPath("$.code").value(40001));
-    }
-  }
+  @Autowired private MockMvc mockMvc;
 
   // ═══════════════════════════════════════════════════════════════
   // IllegalArgumentException → INVALID_ARGUMENT / HTTP 400
