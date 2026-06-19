@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_6.hotfix_6
 type: hotfix
 parent_plan: plan_6
-status: draft
+status: ready
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -73,7 +73,8 @@ updated: 2026-06-19
 - Evidence 路径允许 RRF `3N` 加相邻扩展后最多约 `9N` 个 child 进入 Rerank，再截取 Rerank 后前 `3N` 个 child 作为 Evidence 候选窗口。
 - 内部检索结果同时携带 Rerank 后 child 列表与真实 RRF 命中 child ID 的有序集合；禁止通过分数是否为 null 或零反推来源。
 - parent 排名按 Evidence 候选窗口内该 parent 的最高 Rerank 名次确定，相邻扩展 child 可以影响 parent 排名，但不能进入 `matchedChildIds`。
-- `matchedChildIds` 只包含 Evidence 候选窗口内的真实 RRF 命中 child，按最终 Rerank 顺序稳定去重；Rerank 服务异常漏项时，未返回的真实命中 child 按原 RRF 顺序追加，但主动 `3N` 截断排除的 child 不追加。
+- `matchedChildIds` 只包含 Evidence 候选窗口内的真实 RRF 命中 child，按最终 Rerank 顺序稳定去重；主动 `3N` 截断排除的 child 不追加。
+- Rerank 部分返回时继承现有 `RerankService` 语义：未返回候选以 0 分保留，并按原候选相对顺序稳定排列在已评分候选之后；Evidence 直接消费该完整结果，不另行追加或重排。
 - 只有相邻扩展、没有任何真实命中 child 的 parent 不返回；若真实命中 child 被主动截断而只剩相邻 child，该 parent 同样丢弃。
 - Rerank 返回空并按既有逻辑回退时，Evidence 沿用回退后的顺序，不另行定义排序。
 - parent 回表使用批量查询，禁止逐条 N+1 查询。
@@ -86,6 +87,7 @@ updated: 2026-06-19
 - 公共结果不携带 Sparse、Dense、RRF 或 Rerank 分数。
 - 新增独立 Smoke 诊断端点 `/api/v1/test/retrieval/evidence`，直接返回 `Response<List<ParentEvidenceResult>>`；不改变既有 `/retrieval` child 诊断契约。
 - `retrieveEvidence()` 对 blank query 或非正 `topN` 返回空列表；Smoke 端点不额外发明 HTTP 参数校验语义。
+- Docker HTTP 回归使用写入内容中的唯一 `runId` 隔离测试数据；当前 Demo 不新增清理接口，允许保留可识别残留，禁止清表、删除 volume 或清理其他运行数据。
 
 ## 未决问题
 
@@ -104,7 +106,7 @@ updated: 2026-06-19
 - 纯单元测试：`./gradlew :crag-retrieval:test :crag-storage:test`，覆盖三个内部限额、饱和乘法、真实命中与相邻扩展区分、parent 排名、`matchedChildIds` 顺序与截断、缺失/空 parent、补位和空结果。
 - 轻量组件测试：新增 `ChunkRepositoryComponentTest` 验证 parent 投影字段映射和 parent 行过滤；`ChunkDaoTest` 验证委托与参数。H2 只证明映射，不作为 PostgreSQL 兼容证据。
 - 架构测试：`./gradlew :crag-app:test --tests '*ArchitectureTest'`，确认 Query 仍只能依赖 Retrieval `api` 包，新结果不泄漏 Storage 类型。
-- Docker HTTP 回归：通过 Compose 启动真实 PostgreSQL、pgvector、Sidecar 和 App，使用 `scripts/tests/http/` 的 Retrieval 诊断脚本验证 parent evidence 顺序、内容和 matched child；不直接查询数据库替代业务入口。
+- Docker HTTP 回归：通过 Compose 启动真实 PostgreSQL、pgvector、Sidecar 和 App，使用 `scripts/tests/http/` 的 Retrieval 诊断脚本写入带唯一 `runId` 的单 parent 文档，轮询索引完成后验证完整 parent 内容、真实 matched child，并以相同请求重复调用验证顺序稳定；不直接查询数据库替代业务入口，不新增清理接口。
 - 全量检查：`./gradlew test`、`./gradlew check`、`python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`。
 
 ## 进度追踪
@@ -121,20 +123,20 @@ updated: 2026-06-19
 
 **目标**：定义 Query 可依赖的 parent evidence 公开结果和 `retrieveEvidence()` 行为边界。
 **前置任务**：无
-**范围**：新增强不变量的 `ParentEvidenceResult` record；提取带召回/RRF/最终 child 三限额的内部检索方法；内部结果显式携带 Rerank 列表与真实 RRF 命中 ID；新增 `retrieveEvidence(query, topN)` 和可纯单元测试的 Evidence 聚合逻辑；固定 parent 排名、matched child 稳定去重、异常漏项与主动截断语义。
-**非目标**：不完成真实 parent 回表，不修改既有 `retrieve()`，不实现 Query。
-**验收标准**：公共类型不含 Entity、DAO、Spring Web 或检索分数；record 防御性复制集合并拒绝非法状态；既有 `retrieve()` 成本与语义不变；Evidence 召回不扩大到 `9N`；相邻 child 可影响 parent 排名但不进入 matched child；只有相邻 child 的 parent 不返回；非法入口输入返回空集合。
-**验证方式**：运行 `./gradlew :crag-retrieval:test`，覆盖单/多 parent、重复 child、同 parent 多 child、真实命中与相邻扩展、Rerank 空回退、异常漏项、主动 `3N` 截断、饱和乘法、空输入和 topN 边界。
+**范围**：新增强不变量的 `ParentEvidenceResult` record；提取带召回/RRF/最终 child 三限额的内部检索方法；内部结果显式携带 Rerank 列表与真实 RRF 命中 ID；实现可纯单元测试的 Evidence 候选聚合逻辑；固定 parent 排名、matched child 稳定去重、Rerank 部分返回与主动截断语义。
+**非目标**：不新增尚不能真实回表的半成品 `retrieveEvidence()` 公共入口，不完成 parent 批量回表，不修改既有 `retrieve()`，不实现 Query。
+**验收标准**：公共结果类型不含 Entity、DAO、Spring Web 或检索分数；record 防御性复制集合并拒绝非法状态；既有 `retrieve()` 成本与语义不变；Evidence 召回不扩大到 `9N`；相邻 child 可影响 parent 排名但不进入 matched child；只有相邻 child 的 parent 不返回；Rerank 未评分候选继承现有稳定尾排语义。
+**验证方式**：运行 `./gradlew :crag-retrieval:test`，覆盖单/多 parent、重复 child、同 parent 多 child、真实命中与相邻扩展、Rerank 空回退、部分返回、主动 `3N` 截断和饱和乘法。
 **涉及文件**：`crag-retrieval/src/main/java/ai/cerbur/crag/retrieval/api/**`、`crag-retrieval/src/test/**`
 
 ## 6.hotfix_6.2 实现 parent 批量回表与稳定 Evidence 输出
 
 **目标**：从 Rerank 后 child 结果生成包含完整 parent 内容的可用 evidence。
 **前置任务**：6.hotfix_6.1
-**范围**：新增 `ParentChunkContent` 投影和限定 parent 行的批量查询；按 parent 排名建立映射并组装 `ParentEvidenceResult`；跳过并以后续候选补位缺失、null 或 blank 内容 parent；处理重复投影和无 parent ID child；记录受限安全诊断信息。
+**范围**：新增 `ParentChunkContent` 投影和限定 parent 行的批量查询；落地 `retrieveEvidence(query, topN)` 公共入口；按 parent 排名建立映射并组装 `ParentEvidenceResult`；跳过并以后续候选补位缺失、null 或 blank 内容 parent；处理重复投影和无 parent ID child；记录受限安全诊断信息。
 **非目标**：不循环扩大候选集，不逐条查询 parent，不以 child 内容兜底，不改变检索算法。
-**验收标准**：最多返回 `topN` 个不同有效 parent；结果保留完整原文且不 trim；批量回表无 N+1、不泄漏 Entity；不依赖数据库返回顺序；缺失/空 parent 不导致整体失败并由后续有效候选补位；日志不包含文档内容且 child ID 最多记录 10 个。
-**验证方式**：运行 `./gradlew :crag-storage:test :crag-retrieval:test`；通过 `ChunkDaoTest` 检查委托、调用次数和参数，通过 `ChunkRepositoryComponentTest` 检查投影映射与 parent 行过滤；覆盖乱序/重复投影、候选高度聚集、parent 缺失、blank 内容、补位和不足 topN。
+**验收标准**：blank query 或非正 `topN` 返回空集合；最多返回 `topN` 个不同有效 parent；结果保留完整原文且不 trim；批量回表无 N+1、不泄漏 Entity；不依赖数据库返回顺序；缺失/空 parent 不导致整体失败并由后续有效候选补位；日志不包含文档内容且 child ID 最多记录 10 个。
+**验证方式**：运行 `./gradlew :crag-storage:test :crag-retrieval:test`；通过 `ChunkDaoTest` 检查委托、调用次数和参数，通过 `ChunkRepositoryComponentTest` 检查投影映射与 parent 行过滤；覆盖空输入、topN 边界、乱序/重复投影、候选高度聚集、parent 缺失、blank 内容、补位和不足 topN。
 **涉及文件**：`crag-retrieval/src/main/**`、`crag-retrieval/src/test/**`、`crag-storage/src/main/**`、`crag-storage/src/test/**`
 
 ## 6.hotfix_6.3 补齐架构护栏、Docker 回归与约束同步
@@ -143,8 +145,8 @@ updated: 2026-06-19
 **前置任务**：6.hotfix_6.2
 **范围**：增加或调整 Architecture 规则；新增 `/api/v1/test/retrieval/evidence` Smoke 诊断端点并保持既有 `/retrieval` 不变；沉淀 parent evidence Docker HTTP 回归；同步 Retrieval 与包结构约束、Plan 和索引。
 **非目标**：不实现 UserQuery API，不把 Smoke 端点作为 Query 正式入口，不修改 Docker 部署契约。
-**验收标准**：普通模块只能从 `retrieval.api` 访问 Parent Evidence；Smoke 直接序列化公共契约且不改变既有 child 诊断；真实 Docker/PostgreSQL 链路返回排序稳定的完整 parent 内容和真实命中 child；约束当前实现索引准确；全量检查通过。
-**验证方式**：运行 `./gradlew :crag-app:test --tests '*ArchitectureTest'`、`./gradlew test`、`./gradlew check`；通过 Compose 执行 Retrieval parent evidence HTTP 回归；运行 Plan 严格校验和 `git diff --check`。
+**验收标准**：普通模块只能从 `retrieval.api` 访问 Parent Evidence；Smoke 直接序列化公共契约且不改变既有 child 诊断；真实 Docker/PostgreSQL 链路返回完整 parent 内容和真实命中 child，相同请求重复调用顺序一致；测试数据包含唯一 `runId` 且不破坏性清理；约束当前实现索引准确；全量检查通过。
+**验证方式**：运行 `./gradlew :crag-app:test --tests '*ArchitectureTest'`、`./gradlew test`、`./gradlew check`；通过 Compose 执行 Retrieval parent evidence HTTP 回归并记录可识别残留 `runId`；运行 Plan 严格校验和 `git diff --check`。
 **涉及文件**：`crag-smoke/src/**`、`crag-app/src/test/**`、`scripts/tests/http/**`、`constraints/retrieval-style.md`、`constraints/package-structure.md`、`plan/plan_6/plan_6.hotfix_6.md`、`plan/index/README.md`
 
 ## 验收记录
@@ -166,3 +168,4 @@ updated: 2026-06-19
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 Hotfix 并设为待开始 | Plan 7 grilling 发现 Query 必须消费 parent 维度 Context，而现有 Retrieval 只公开 child 结果 | 新增 3 项修正任务；执行队列置于 plan_13 与 plan_7 之前 |
 | 2026-06-19 | 完成度 grilling 后退回草稿 | 原计划未区分真实命中与相邻扩展，内部限额、Storage 投影、无效数据补位和诊断边界仍不充分 | 保持实现进度 0/3；重划三项任务并补齐 28 项执行决策，重新提交后方可恢复 ready |
+| 2026-06-19 | 二次 grilling 完成并恢复待开始 | 校准 Rerank 部分返回语义、公共入口任务边界和 Demo 测试数据策略；确认下游只需要三字段 Evidence 契约 | 计划达到 ready 完整度；不新增清理接口，编码前需先提交 Plan 与索引 |
