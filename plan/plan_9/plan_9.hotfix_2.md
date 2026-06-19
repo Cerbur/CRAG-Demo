@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_9.hotfix_2
 type: hotfix
 parent_plan: plan_9
-status: ready
+status: in_progress
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -74,7 +74,7 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.hotfix_2.1 | 收敛模块与 API 约束的当前事实 | ⏳ 待开始 | — | — |
+| 9.hotfix_2.1 | 收敛模块与 API 约束的当前事实 | 🚧 进行中 | — | — |
 
 整体进度：0 / 1（0%）
 
@@ -106,3 +106,4 @@ updated: 2026-06-19
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 Hotfix | `plan_9` 完成后约束仍混有过期实现事实和完成历史 | 建立 1 项文档收敛任务 |
+| 2026-06-19 | 转为进行中 | 计划与索引已提交，开始执行约束文档修正 | 任务 9.hotfix_2.1 进入进行中 |
