@@ -7,60 +7,68 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ai.cerbur.crag.api.controller.advice.GlobalExceptionHandler;
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 /**
  * 轻量组件测试 —— 验证 AdminRagController 成功映射与 JSON 字段.
  *
- * <p>使用 MockMvcBuilders.standaloneSetup，用匿名 stub 替代 AdminRagService。
+ * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @Import 引入手动构造的 Controller（注入 stub service）， AdminRagService 不作为
+ * Spring bean，避免 @Autowired 依赖链传播。
  */
+@WebMvcTest
+@Import(AdminRagControllerComponentTest.StubConfig.class)
 class AdminRagControllerComponentTest {
 
-  private MockMvc mockMvc;
+  /** 共享状态，每个测试通过此引用控制 stub 返回值. */
+  static final AtomicReference<AdminRagResult> STUB_RESULT =
+      new AtomicReference<>(new AdminRagResult("default", 0, "PENDING"));
 
-  /** 可控 stub，返回预设 AdminRagResult. */
-  private AdminRagResult stubResult;
+  @Autowired private MockMvc mockMvc;
 
-  @BeforeEach
-  void setUp() {
-    AdminRagService stubService =
-        new AdminRagService() {
-          @Override
-          public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
-            return stubResult;
-          }
-        };
+  @Configuration
+  static class StubConfig {
 
-    AdminRagController controller = new AdminRagController();
-    try {
-      var field = AdminRagController.class.getDeclaredField("adminRagService");
-      field.setAccessible(true);
-      field.set(controller, stubService);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    @Bean
+    GlobalExceptionHandler globalExceptionHandler() {
+      return new GlobalExceptionHandler();
     }
 
-    LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
-    validator.afterPropertiesSet();
+    @Bean
+    AdminRagController adminRagController() {
+      AdminRagService stubService =
+          new AdminRagService() {
+            @Override
+            public AdminRagResult ingest(
+                String title, String content, Map<String, Object> metadata) {
+              return STUB_RESULT.get();
+            }
+          };
+      return new AdminRagController(stubService);
+    }
+  }
 
-    mockMvc =
-        MockMvcBuilders.standaloneSetup(controller)
-            .setControllerAdvice(new GlobalExceptionHandler())
-            .setValidator(validator)
-            .build();
+  @BeforeEach
+  void resetStub() {
+    STUB_RESULT.set(new AdminRagResult("default", 0, "PENDING"));
   }
 
   @Test
   @DisplayName("successful upload returns AdminRagResponse with correct fields")
   void successfulUpload() throws Exception {
-    stubResult = new AdminRagResult("abc-123", 5, "PENDING");
+    STUB_RESULT.set(new AdminRagResult("abc-123", 5, "PENDING"));
 
     String body =
         """
@@ -77,9 +85,9 @@ class AdminRagControllerComponentTest {
   }
 
   @Test
-  @DisplayName("response JSON has only three top-level fields: success, code, result")
-  void responseHasThreeFields() throws Exception {
-    stubResult = new AdminRagResult("id", 1, "PENDING");
+  @DisplayName("response JSON has exactly three top-level fields: success, code, result")
+  void responseHasExactlyThreeFields() throws Exception {
+    STUB_RESULT.set(new AdminRagResult("id", 1, "PENDING"));
 
     String body =
         """
@@ -94,26 +102,43 @@ class AdminRagControllerComponentTest {
             .getResponse()
             .getContentAsString();
 
-    // 验证没有 message 字段
-    org.junit.jupiter.api.Assertions.assertFalse(
-        content.contains("\"message\""), "Response should not contain 'message' field");
+    ObjectMapper mapper = new ObjectMapper();
+    Map<?, ?> parsed = mapper.readValue(content, Map.class);
+
+    Set<?> keys = parsed.keySet();
+    Set<String> expected = Set.of("success", "code", "result");
+    if (!keys.equals(expected)) {
+      throw new AssertionError("Expected top-level keys " + expected + " but got " + keys);
+    }
   }
 
   @Test
   @DisplayName("response result has only three business fields: docId, chunks, status")
   void resultHasThreeBusinessFields() throws Exception {
-    stubResult = new AdminRagResult("id", 3, "PENDING");
+    STUB_RESULT.set(new AdminRagResult("id", 3, "PENDING"));
 
     String body =
         """
         {"title": "T", "content": "C"}""";
 
-    mockMvc
-        .perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.result.docId").exists())
-        .andExpect(jsonPath("$.result.chunks").exists())
-        .andExpect(jsonPath("$.result.status").exists());
+    String content =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    ObjectMapper mapper = new ObjectMapper();
+    Map<?, ?> parsed = mapper.readValue(content, Map.class);
+    Map<?, ?> result = (Map<?, ?>) parsed.get("result");
+
+    Set<?> keys = result.keySet();
+    Set<String> expected = Set.of("docId", "chunks", "status");
+    if (!keys.equals(expected)) {
+      throw new AssertionError("Expected result keys " + expected + " but got " + keys);
+    }
   }
 
   @Test

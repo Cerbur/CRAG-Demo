@@ -63,11 +63,13 @@ CODE=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['c
 DOC_ID=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['docId'])" 2>/dev/null || echo "PARSE_ERROR")
 CHUNKS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['chunks'])" 2>/dev/null || echo "PARSE_ERROR")
 STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['status'])" 2>/dev/null || echo "PARSE_ERROR")
-HAS_MESSAGE=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print('YES' if 'message' in d else 'NO')" 2>/dev/null || echo "PARSE_ERROR")
+TOP_KEYS=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(','.join(sorted(d.keys())))" 2>/dev/null || echo "PARSE_ERROR")
+RESULT_KEYS=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin)['result']; print(','.join(sorted(d.keys())))" 2>/dev/null || echo "PARSE_ERROR")
 
 assert_json "AdminRag success field" "success" "True" "$SUCCESS"
 assert_json "AdminRag code" "code" "0" "$CODE"
-assert_json "AdminRag no message field" "message absent" "NO" "$HAS_MESSAGE"
+assert_json "AdminRag top-level keys" "top-level keys" "code,result,success" "$TOP_KEYS"
+assert_json "AdminRag result keys" "result keys" "chunks,docId,status" "$RESULT_KEYS"
 
 # 验证 result 含 docId（UUID 格式）且非空
 if [ "$DOC_ID" = "PARSE_ERROR" ] || [ -z "$DOC_ID" ]; then

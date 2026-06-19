@@ -5,6 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ai.cerbur.crag.api.controller.AdminRagController;
+import ai.cerbur.crag.ingestion.api.AdminRagResult;
+import ai.cerbur.crag.ingestion.api.AdminRagService;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,11 +19,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 /**
- * 轻量组件测试 —— 验证 GlobalExceptionHandler 将四类异常正确转换为业务码与 HTTP 状态.
+ * 轻量组件测试 —— 验证 GlobalExceptionHandler 将异常正确转换为业务码与 HTTP 状态.
  *
- * <p>使用 MockMvcBuilders.standaloneSetup 只加载目标 Controller 与 Advice，不启动完整 Spring 上下文。 通过 test source
- * set 中的 TestExceptionController 触发 IllegalArgumentException 与兜底分支。 手动设置 Validator 以启用 Jakarta Bean
- * Validation。
+ * <p>使用 MockMvcBuilders.standaloneSetup 仅加载必要组件。 IllegalArgumentException、NoResourceFoundException
+ * 和兜底异常通过 TestExceptionController 触发； Bean Validation 通过 AdminRagController 的 @Valid 校验触发。
  */
 class GlobalExceptionHandlerComponentTest {
 
@@ -30,10 +33,19 @@ class GlobalExceptionHandlerComponentTest {
     LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
     validator.afterPropertiesSet();
 
+    // 手工 stub AdminRagService，使 AdminRagController 可不依赖 Spring 上下文运行
+    AdminRagService stubService =
+        new AdminRagService() {
+          @Override
+          public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
+            return new AdminRagResult("stub", 0, "PENDING");
+          }
+        };
+
+    AdminRagController adminController = new AdminRagController(stubService);
+
     mockMvc =
-        MockMvcBuilders.standaloneSetup(
-                new TestExceptionController(),
-                new ai.cerbur.crag.api.controller.AdminRagController())
+        MockMvcBuilders.standaloneSetup(new TestExceptionController(), adminController)
             .setControllerAdvice(new GlobalExceptionHandler())
             .setValidator(validator)
             .build();

@@ -13,7 +13,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @RestController
 @RequestMapping("/api/v1/test/exception")
-class TestExceptionController {
+public class TestExceptionController {
 
   /** 触发 IllegalArgumentException → INVALID_ARGUMENT / HTTP 400. */
   @GetMapping("/illegal-argument")

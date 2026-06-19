@@ -72,7 +72,7 @@ plan/
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | 📝 草稿 (0/5)，plan_9 已完成，待校准 Spring AI/Stub/凭据 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
-| plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
+| plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | [plan_9.hotfix_4](../plan_9/plan_9.hotfix_4.md) 🟡 待开始 (0/2) | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
@@ -82,11 +82,11 @@ plan/
 ## 当前执行队列
 
 ```text
-plan_7 → plan_10
+plan_9.hotfix_4 → plan_7 → plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_9.hotfix_3` 已完成 API 契约收口；`plan_12` 已完成现行约束校准与防漂移护栏。当前执行 Query 链路与完整 Docker 部署治理。
+- `plan_9.hotfix_3` 已完成 API 契约收口；`plan_9.hotfix_4` 修正 review 发现。`plan_12` 已完成现行约束校准与防漂移护栏。
 
 ---
 
@@ -169,6 +169,7 @@ plan_7 → plan_10
 | [plan_9.hotfix_1.md](../plan_9/plan_9.hotfix_1.md) | GlobalExceptionHandler HTTP 状态码修正（兜底 500、显式 404） | ✅ 完成 (3/3) |
 | [plan_9.hotfix_2.md](../plan_9/plan_9.hotfix_2.md) | 收敛模块与 API 约束中的过期实现事实和已完成迁移历史 | ✅ 完成 (1/1) |
 | [plan_9.hotfix_3.md](../plan_9/plan_9.hotfix_3.md) | HTTP API 契约边界收口，包含错误码、DTO 分包、AdminRagResponse、组件测试与 Docker HTTP 回归 | ✅ 完成 (3/3) |
+| [plan_9.hotfix_4.md](../plan_9/plan_9.hotfix_4.md) | 修正 review 发现：构造器注入、@WebMvcTest、字段集合断言 | 🟡 待开始 (0/2) |
 
 ## Plan_10 明细
 
