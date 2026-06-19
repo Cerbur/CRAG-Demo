@@ -18,7 +18,7 @@ CRAG-Demo 是一个基于 Java 21 + Spring Boot 构建的 RAG 问答系统后端
 - 🧠 **RAG 架构**：文档分块 → 向量化 → 语义检索 → 重排序 → LLM 生成
 - 📦 **全容器化**：PostgreSQL + pgvector + Spring Boot 全部 Docker 化
 - 🔗 **统一 LLM 接口**：磨平不同 LLM 提供商差异，可灵活切换
-- 📐 **清晰分层**：`crag-app` 统一启动，`crag-admin` 承载 HTTP 入口，领域能力按 module 隔离
+- 📐 **清晰分层**：`crag-app` 统一启动，`crag-api` 承载 HTTP 入口，领域能力按 module 隔离
 
 ## 技术栈
 
@@ -70,7 +70,7 @@ Content-Type: multipart/form-data
 ├── crag-ingestion/   # AdminRag 写入链路、ChunkSplit、Dense/Sparse 索引写入 Cron
 ├── crag-retrieval/   # Sparse/Dense 查询召回、RRF、Rerank、Embedding client
 ├── crag-query/       # UserQuery 编排、Prompt 组装、LLM 调用
-├── crag-admin/       # HTTP API service：Controller、请求 DTO、异常处理
+├── crag-api/         # HTTP API service：Controller、请求 DTO、异常处理
 ├── crag-app/         # 唯一 Spring Boot 启动模块，承载 application.yml/schema.sql/data.sql
 └── plan/             # 项目规划文档（plan_main + index + plan_N 目录）
 ```

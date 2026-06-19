@@ -193,10 +193,10 @@ ai.cerbur.crag.query
 └── llm/                               — ChatClient 契约骨架
 ```
 
-### `crag-admin`
+### `crag-api`
 
 ```text
-ai.cerbur.crag.admin
+ai.cerbur.crag.api
 ├── controller/                        — AdminRagController / UserQueryController
 ├── controller.advice/                 — GlobalExceptionHandler
 └── dto.request/                       — HTTP 请求 DTO
@@ -210,7 +210,7 @@ ai.cerbur.crag.app
 └── controller.TestController          — 当前冒烟与分阶段诊断入口
 ```
 
-当前尚不存在 `crag-api` 和 `crag-smoke` module；公开入口也尚未统一迁入 `api` 包。
+当前尚不存在 `crag-smoke` module；公开入口也尚未统一迁入 `api` 包。
 
 ## 十、已知偏差
 
@@ -218,7 +218,6 @@ ai.cerbur.crag.app
 
 | 偏差 | 当前状态 | 目标 |
 | --- | --- | --- |
-| 正式 HTTP 模块命名失真 | `crag-admin` 同时承载 AdminRag 与 UserQuery | 重命名为 `crag-api`，按业务入口分包 |
 | 组合根承载诊断 Controller | `TestController` 位于 `crag-app` 并直接调用内部组件 | 迁移到仅在 `smoke` Profile 启用的 `crag-smoke` |
 | 跨模块入口没有统一边界 | Service、Result、Client 分散在普通实现包 | 迁入各模块 `api` 包 |
 | Embedding 契约与实现混放 | Ingestion 直接依赖 `retrieval.embedding` | 契约迁入 `retrieval.api.embedding`，Sidecar 实现保留内部 |

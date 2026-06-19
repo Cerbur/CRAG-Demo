@@ -14,6 +14,6 @@ include(
     "crag-ingestion",
     "crag-retrieval",
     "crag-query",
-    "crag-admin",
+    "crag-api",
     "crag-app"
 )

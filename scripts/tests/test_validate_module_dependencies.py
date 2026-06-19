@@ -25,7 +25,7 @@ include(
     "crag-retrieval",
     "crag-ingestion",
     "crag-query",
-    "crag-admin",
+    "crag-api",
     "crag-app"
 )
 """
@@ -79,7 +79,7 @@ dependencies {
 }
 """
 
-BUILD_ADMIN = """\
+BUILD_API = """\
 plugins {
     `java-library`
 }
@@ -100,7 +100,7 @@ dependencies {
     implementation(project(":crag-ingestion"))
     implementation(project(":crag-retrieval"))
     implementation(project(":crag-query"))
-    implementation(project(":crag-admin"))
+    implementation(project(":crag-api"))
 }
 """
 
@@ -122,7 +122,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
             "crag-retrieval": BUILD_RETRIEVAL,
             "crag-ingestion": BUILD_INGESTION,
             "crag-query": BUILD_QUERY,
-            "crag-admin": BUILD_ADMIN,
+            "crag-api": BUILD_API,
             "crag-app": BUILD_APP,
         }
         for mod in modules:
@@ -143,7 +143,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
                     "crag-retrieval",
                     "crag-ingestion",
                     "crag-query",
-                    "crag-admin",
+                    "crag-api",
                     "crag-app",
                 ],
             )
@@ -173,7 +173,7 @@ dependencies {
                     "crag-retrieval",
                     "crag-ingestion",
                     "crag-query",
-                    "crag-admin",
+                    "crag-api",
                     "crag-app",
                 ],
                 overrides=overrides,
@@ -247,8 +247,8 @@ include("crag-common")
         errors = [item for item in diagnostics if item.level == "ERROR"]
         self.assertEqual([], errors)
 
-    def test_accepts_crag_admin_mapped_to_crag_api_whitelist(self):
-        """crag-admin is mapped to crag-api whitelist and accepted."""
+    def test_accepts_crag_api_whitelist_directly(self):
+        """crag-api module matches the whitelist entry directly (no name mapping)."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._setup_repo(
@@ -257,7 +257,7 @@ include("crag-common")
                     "crag-common",
                     "crag-ingestion",
                     "crag-query",
-                    "crag-admin",
+                    "crag-api",
                 ],
             )
             diagnostics = self.validator.validate(root)

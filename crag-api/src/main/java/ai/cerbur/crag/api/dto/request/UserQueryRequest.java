@@ -1,4 +1,4 @@
-package ai.cerbur.crag.admin.dto.request;
+package ai.cerbur.crag.api.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 

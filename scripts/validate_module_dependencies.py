@@ -37,9 +37,8 @@ MODULE_WHITELIST: dict[str, set[str]] = {
 }
 
 # Name mapping from current module names to target whitelist keys.
-MODULE_NAME_MAP: dict[str, str] = {
-    "crag-admin": "crag-api",
-}
+# Empty after plan_9 9.2: crag-admin was renamed to crag-api and removed.
+MODULE_NAME_MAP: dict[str, str] = {}
 
 # Special modules.
 APP_MODULE = "crag-app"

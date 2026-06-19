@@ -1,4 +1,4 @@
-package ai.cerbur.crag.admin.controller.advice;
+package ai.cerbur.crag.api.controller.advice;
 
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.common.dto.result.ResponseCode;

@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 模块边界架构测试基线.
  *
- * <p>验证包边界、模块依赖和公开 API 规则。当前版本的临时例外由 {@code freeze} 机制记录，
- * 由 plan_9 任务 9.2～9.5 逐步消除。所有冻结例外可查看 {@code archunit_store/} 目录。
+ * <p>验证包边界、模块依赖和公开 API 规则。当前版本的临时例外由 {@code freeze} 机制记录， 由 plan_9 任务 9.2～9.5 逐步消除。所有冻结例外可查看 {@code
+ * archunit_store/} 目录。
  *
  * <p>新增同类越界类会导致测试失败；已记录的例外在对应任务完成后必须删除冻结记录。
  */
@@ -28,23 +28,16 @@ class ModuleBoundaryArchitectureTest {
   // 规则 1：代码依赖无环
   // ═══════════════════════════════════════════════════════════════
 
-  /**
-   * 所有顶层模块包之间不得形成依赖环。当前无违反。
-   */
+  /** 所有顶层模块包之间不得形成依赖环。当前无违反。 */
   @ArchTest
   static final ArchRule no_module_cycles =
-      slices()
-          .matching("ai.cerbur.crag.(*)..")
-          .should()
-          .beFreeOfCycles();
+      slices().matching("ai.cerbur.crag.(*)..").should().beFreeOfCycles();
 
   // ═══════════════════════════════════════════════════════════════
   // 规则 2：Repository 内聚
   // ═══════════════════════════════════════════════════════════════
 
-  /**
-   * {@code crag-storage} 的 {@code repository} 包只能被 Storage 模块内部访问。当前无违反。
-   */
+  /** {@code crag-storage} 的 {@code repository} 包只能被 Storage 模块内部访问。当前无违反。 */
   @ArchTest
   static final ArchRule repository_cohesion =
       noClasses()
@@ -60,11 +53,9 @@ class ModuleBoundaryArchitectureTest {
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * {@code @RestController} 只允许出现在 {@code crag-admin.controller} 包（将重命名为
-   * {@code crag-api}）。
+   * {@code @RestController} 只允许出现在 {@code crag-api.controller} 包。
    *
-   * <p>冻结例外（由任务 9.5 删除）：{@code TestController} 当前位于 {@code
-   * ai.cerbur.crag.app.controller}。
+   * <p>冻结例外（由任务 9.5 删除）：{@code TestController} 当前位于 {@code ai.cerbur.crag.app.controller}。
    */
   @ArchTest
   static final ArchRule controller_location =
@@ -73,9 +64,9 @@ class ModuleBoundaryArchitectureTest {
               .that()
               .areAnnotatedWith(RestController.class)
               .should()
-              .resideInAnyPackage("ai.cerbur.crag.admin.controller..")
+              .resideInAnyPackage("ai.cerbur.crag.api.controller..")
               .because(
-                  "@RestController 仅允许在 crag-admin（将重命名为 crag-api）和 crag-smoke（待 9.5"
+                  "@RestController 仅允许在 crag-api 和 crag-smoke（待 9.5"
                       + " 创建）中。冻结例外：TestController — 由 9.5 删除。"));
 
   // ═══════════════════════════════════════════════════════════════
@@ -106,11 +97,11 @@ class ModuleBoundaryArchitectureTest {
                       + "冻结例外：TestController 对 DAO/Retrieval 的访问 — 由 9.5 删除。"));
 
   // ═══════════════════════════════════════════════════════════════
-  // 规则 5a：crag-admin → crag-ingestion 仅允许 api 包
+  // 规则 5a：crag-api → crag-ingestion 仅允许 api 包
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * {@code crag-admin} 只能通过 {@code crag-ingestion} 的 {@code api} 包访问其公开入口。
+   * {@code crag-api} 只能通过 {@code crag-ingestion} 的 {@code api} 包访问其公开入口。
    *
    * <p>冻结例外（由任务 9.3 修复）：{@code AdminRagController} 当前直接 import {@code
    * ingestion.service.AdminRagService} 和 {@code ingestion.service.AdminRagResult}。
@@ -120,7 +111,7 @@ class ModuleBoundaryArchitectureTest {
       freeze(
           noClasses()
               .that()
-              .resideInAPackage("ai.cerbur.crag.admin..")
+              .resideInAPackage("ai.cerbur.crag.api..")
               .should()
               .accessClassesThat()
               .resideInAnyPackage(
@@ -129,7 +120,7 @@ class ModuleBoundaryArchitectureTest {
                   "ai.cerbur.crag.ingestion.dense..",
                   "ai.cerbur.crag.ingestion.cron..")
               .because(
-                  "crag-admin 只能通过 ingestion.api 包访问。"
+                  "crag-api 只能通过 ingestion.api 包访问。"
                       + "冻结例外：AdminRagController→ingestion.service — 由 9.3 修复。"));
 
   // ═══════════════════════════════════════════════════════════════
@@ -139,9 +130,8 @@ class ModuleBoundaryArchitectureTest {
   /**
    * {@code crag-ingestion} 只能通过 {@code crag-retrieval} 的 {@code api} 包访问其公开入口。
    *
-   * <p>冻结例外（由任务 9.4 修复）：{@code DenseEmbeddingService} 和 {@code DenseEmbeddingCron}
-   * 当前直接 import {@code retrieval.embedding.EmbeddingClient} 和 {@code
-   * retrieval.embedding.EmbeddingException}。
+   * <p>冻结例外（由任务 9.4 修复）：{@code DenseEmbeddingService} 和 {@code DenseEmbeddingCron} 当前直接 import
+   * {@code retrieval.embedding.EmbeddingClient} 和 {@code retrieval.embedding.EmbeddingException}。
    */
   @ArchTest
   static final ArchRule ingestion_only_retrieval_api =
@@ -190,7 +180,4 @@ class ModuleBoundaryArchitectureTest {
               "ai.cerbur.crag.retrieval.result..")
           .allowEmptyShould(true)
           .because("crag-query 只能通过 retrieval.api 包访问。当前无违反。");
-
-
-
 }

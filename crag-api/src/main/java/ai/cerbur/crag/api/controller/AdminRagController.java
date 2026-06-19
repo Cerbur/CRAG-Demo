@@ -1,6 +1,6 @@
-package ai.cerbur.crag.admin.controller;
+package ai.cerbur.crag.api.controller;
 
-import ai.cerbur.crag.admin.dto.request.AdminRagRequest;
+import ai.cerbur.crag.api.dto.request.AdminRagRequest;
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.ingestion.service.AdminRagResult;
 import ai.cerbur.crag.ingestion.service.AdminRagService;

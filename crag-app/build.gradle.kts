@@ -15,7 +15,7 @@ dependencies {
     implementation(project(":crag-ingestion"))
     implementation(project(":crag-retrieval"))
     implementation(project(":crag-query"))
-    implementation(project(":crag-admin"))
+    implementation(project(":crag-api"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")

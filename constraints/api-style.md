@@ -41,7 +41,7 @@
 ### 必须
 
 - HTTP DTO 的目标所有者是 API 边界模块 `crag-api`。
-- `plan_9` 完成前，现有 `crag-admin` 仅作为已记录的迁移期实现偏差保留；不得新增依赖其模块名的长期契约，任务 9.2 必须同步完成模块与本文档迁移。
+- `plan_9` 任务 9.2 已完成 `crag-admin` → `crag-api` 模块与 package 迁移；不得再新增任何 `crag-admin` 或 `ai.cerbur.crag.admin` 引用。
 - 按业务能力组织包，例如 `dto.rag`、`dto.query`，避免所有类型横向堆入单一 `request` 或 `response` 包。
 - 请求与响应使用独立契约，不直接暴露 Entity、内部 BO 或阶段结果。
 - DTO 与业务对象的转换发生在 API 边界，禁止下层模块依赖 HTTP DTO。
