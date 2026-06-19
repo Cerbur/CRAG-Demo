@@ -72,24 +72,23 @@ Base package 统一为 `ai.cerbur.crag`。
 - 外部协议或供应商 SDK 类型不得穿透公开 API。
 - 跨模块结果优先使用所属模块的 API DTO、业务对象或结果类型，不新增 Entity 泄漏。
 
-目标公开入口：
+当前公开入口：
 
 ```text
-ai.cerbur.crag.ingestion.api    ✅ plan_9 9.3 已完成
+ai.cerbur.crag.ingestion.api
 ├── AdminRagService
 └── AdminRagResult
 
-ai.cerbur.crag.retrieval.api    ✅ plan_9 9.3/9.4 已完成
+ai.cerbur.crag.retrieval.api
 ├── RetrievalService
 ├── result/
 │   └── ChunkSearchResult
-└── embedding/             ✅ plan_9 9.4 已完成
+└── embedding/
     ├── EmbeddingClient
     └── EmbeddingException
 
-ai.cerbur.crag.query.api        ✅ plan_9 9.3 已完成
-├── UserQueryService
-└── result/                            — Query 对外回答与 sources 类型（当前无独立 result 类型）
+ai.cerbur.crag.query.api
+└── UserQueryService
 ```
 
 `EmbeddingClient` 是 Retrieval 对外提供的能力契约。当前实现可以调用 HTTP Sidecar；未来可迁移为 RPC 或独立 SDK，但 `crag-ingestion` 只能依赖 `retrieval.api.embedding`，不得依赖具体传输实现。
@@ -98,7 +97,7 @@ ai.cerbur.crag.query.api        ✅ plan_9 9.3 已完成
 
 `crag-storage` 尚未建立完整 `api` 包，迁移期间允许上层通过根包 DAO 和必要的 `storage.result` / `storage.entity` 类型访问存储能力，但必须满足：
 
-- 例外只覆盖 `plan_9` 开始时已经存在并可通过架构测试列举的调用；禁止新增 Entity 跨模块传播。
+- 例外只覆盖当前架构测试白名单列举的既有调用；禁止新增 Entity 跨模块传播。
 - `storage.repository` 永远只允许 Storage 内部访问。
 - 上层不得修改 Entity 后自行持久化；状态变化必须通过 DAO 方法完成。
 - 新增跨模块返回类型优先使用投影或结果类型，不得扩大 Entity 传播范围。
@@ -138,7 +137,6 @@ ai.cerbur.crag.query.api        ✅ plan_9 9.3 已完成
 - 只允许通过显式 smoke Docker Compose 启动方式激活，例如设置 `SPRING_PROFILES_ACTIVE=smoke`。
 - 允许直接调用 DAO、Sparse/Dense/RRF/Rerank 等内部组件，但每个端点必须明确标注验证阶段。
 - 禁止在冒烟端点中实现正式业务规则，禁止被正式 API 复用。
-- `crag-smoke` Controller 已受 `@Profile("smoke")` 限制，默认应用不暴露诊断端点（9.5）。
 - 单元测试仍保留在各业务模块；`crag-smoke` 不替代单元测试或正式 API 的端到端测试。
 
 ## 九、当前实现索引
@@ -213,25 +211,16 @@ ai.cerbur.crag.smoke
 
 ```text
 ai.cerbur.crag.app
-├── CragDemoApplication
-└── controller.TestController          — 当前冒烟与分阶段诊断入口
+└── CragDemoApplication
 ```
 
-ArchUnit 规则已建立（9.1），剩余例外由 9.6 清理。
+模块与包边界由 `ModuleBoundaryArchitectureTest` 和 Gradle 模块依赖校验器共同验证，当前不包含迁移期豁免。
 
 ## 十、已知偏差
 
-以下偏差统一由 [`plan_9`](../plan/plan_9/plan_9.md) 消除：
-
-| 偏差 | 当前状态 | 目标 |
+| 偏差 | 受控边界 | 退出条件 |
 | --- | --- | --- |
-| 组合根承载诊断 Controller | 已消除（9.5）；TestController 迁入 crag-smoke，受 @Profile("smoke") 限制 | 已完成 |
-| 跨模块入口没有统一边界 | 已消除（9.3/9.4）；Ingestion/Query/Retrieval 公开入口均在各模块 api 包 | 已完成 |
-| Embedding 契约与实现混放 | 已消除（9.4）；EmbeddingClient/EmbeddingException 迁入 api.embedding，Sidecar 留内部 | 已完成 |
-| 架构规则只靠文档记忆 | 已消除（9.1/9.6）；ArchUnit 8 条规则无豁免通过，依赖白名单校验器覆盖 Gradle 声明 | 已完成 |
-| 尚无 crag-api/crag-smoke 模块 | 已消除（9.2/9.5）；crag-api 承载正式 Controller，crag-smoke 承载 Profile 隔离诊断端点 | 已完成 |
-
-在 `plan_9` 完成前，新增代码不得扩大以上偏差。偏差完成迁移后必须从本节删除，并把实际结构同步到“当前实现索引”。
+| `crag-storage` 尚无统一 `api` 包，上层仍通过根包 DAO 和少量 storage 类型访问 | 只允许 5.2 节定义的现有调用；禁止 Repository 外泄和新增 Entity 传播 | 实际跨模块耦合需要独立 Storage API 时，通过对应 Plan 收口并删除例外 |
 
 ## 十一、维护与自动校验
 
