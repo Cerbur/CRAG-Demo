@@ -116,11 +116,11 @@ updated: 2026-06-19
 | 9.1 | 建立 ArchUnit 模块边界基线 | ✅ 完成 | 95ca45e | 2026-06-19 |
 | 9.2 | 将 crag-admin 重命名为 crag-api | ✅ 完成 | 2a257a2 | 2026-06-19 |
 | 9.3 | 迁移跨模块公开 API 包 | ✅ 完成 | 0bac69b | 2026-06-19 |
-| 9.4 | 分离 Embedding 公共契约与内部实现 | 🔎 待验收 | pending | — |
+| 9.4 | 分离 Embedding 公共契约与内部实现 | ✅ 完成 | b8bfab5 | 2026-06-19 |
 | 9.5 | 新建 crag-smoke 并迁移诊断端点 | ⏳ 待开始 | — | — |
 | 9.6 | 收紧架构规则并完成全量验收 | ⏳ 待开始 | — | — |
 
-整体进度：3 / 6（50%）
+整体进度：4 / 6（67%）
 
 ## 9.1 建立 ArchUnit 模块边界基线
 
@@ -222,3 +222,4 @@ updated: 2026-06-19
 | 2026-06-19 | 完成 9.1，回填实现提交 95ca45e | ArchUnit 7 条规则建立，冻结例外精确关联 9.3/9.4/9.5；依赖白名单校验器修复依赖环检测后 5/5 通过 | 整体进度 1/6；下一步 9.2 |
 | 2026-06-19 | 完成 9.2，回填实现提交 2a257a2 | crag-admin→crag-api 模块与 package 迁移，旧目录删除；同步 constraints、架构测试包路径与依赖校验器死映射清理 | 整体进度 2/6；下一步 9.3 |
 | 2026-06-19 | 完成 9.3，回填实现提交 0bac69b | Ingestion/Retrieval/Query 公开入口迁入各模块 api 包；同步更新调用方 import、架构测试和 constraints | 整体进度 3/6；下一步 9.4 |
+| 2026-06-19 | 完成 9.4，回填实现提交 b8bfab5 | EmbeddingClient/EmbeddingException 迁入 retrieval.api.embedding；SidecarEmbeddingClient 留在内部；所有 import 更新 | 整体进度 4/6；下一步 9.5 |
