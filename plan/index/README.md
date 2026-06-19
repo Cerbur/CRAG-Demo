@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-19 (plan_9.hotfix_5 进行中)
+> 最后更新：2026-06-19 (plan_9.hotfix_5 进行中，任务待验收)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -172,7 +172,7 @@ plan_9.hotfix_5 → plan_7 → plan_10
 | [plan_9.hotfix_2.md](../plan_9/plan_9.hotfix_2.md) | 收敛模块与 API 约束中的过期实现事实和已完成迁移历史 | ✅ 完成 (1/1) |
 | [plan_9.hotfix_3.md](../plan_9/plan_9.hotfix_3.md) | HTTP API 契约边界收口，包含错误码、DTO 分包、AdminRagResponse、组件测试与 Docker HTTP 回归 | ✅ 完成 (3/3) |
 | [plan_9.hotfix_4.md](../plan_9/plan_9.hotfix_4.md) | 修正 review 发现：构造器注入、@WebMvcTest、字段集合断言 | ✅ 完成 (2/2) |
-| [plan_9.hotfix_5.md](../plan_9/plan_9.hotfix_5.md) | 四类异常测试迁移到 @WebMvcTest | 🔄 进行中 (0/1) |
+| [plan_9.hotfix_5.md](../plan_9/plan_9.hotfix_5.md) | 四类异常测试迁移到 @WebMvcTest | 🔄 进行中 (0/1)，任务待验收 |
 
 ## Plan_10 明细
 
