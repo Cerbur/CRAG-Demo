@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_9.hotfix_1
 type: hotfix
 parent_plan: plan_9
-status: in_progress
+status: completed
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -71,11 +71,11 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.hotfix_1.1 | 修正 handleInternal 返回 ResponseEntity + HTTP 500 | ✅ 待验收 | pending | — |
-| 9.hotfix_1.2 | 新增 NoResourceFoundException → HTTP 404 显式映射 | ✅ 待验收 | pending | — |
-| 9.hotfix_1.3 | Docker 冒烟回归验证（默认 + smoke Profile） | ⏳ 待开始 | — | — |
+| 9.hotfix_1.1 | 修正 handleInternal 返回 ResponseEntity + HTTP 500 | ✅ 完成 | ce15828 | 2026-06-19 |
+| 9.hotfix_1.2 | 新增 NoResourceFoundException → HTTP 404 显式映射 | ✅ 完成 | ce15828 | 2026-06-19 |
+| 9.hotfix_1.3 | Docker 冒烟回归验证（默认 + smoke Profile） | ✅ 完成 | ce15828 | 2026-06-19 |
 
-整体进度：0 / 3（0%）
+整体进度：3 / 3（100%）
 
 ## 9.hotfix_1.1 修正 handleInternal 返回 ResponseEntity + HTTP 500
 
