@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_12
 type: main
-status: ready
+status: in_progress
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -100,12 +100,12 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 12.1 | 校准 Docker 当前事实与受控偏差 | ⏳ 待开始 | — | — |
-| 12.2 | 收敛现行约束术语与路由 | ⏳ 待开始 | — | — |
-| 12.3 | 实现约束校验器并接入 Gradle | ⏳ 待开始 | — | — |
-| 12.4 | 同步依赖计划、执行队列并完成验收 | ⏳ 待开始 | — | — |
+| 12.1 | 校准 Docker 当前事实与受控偏差 | 🔍 待验收 | pending | — |
+| 12.2 | 收敛现行约束术语与路由 | 🔍 待验收 | pending | — |
+| 12.3 | 实现约束校验器并接入 Gradle | 🔍 待验收 | pending | — |
+| 12.4 | 同步依赖计划、执行队列并完成验收 | 🔍 待验收 | pending | — |
 
-整体进度：0 / 4（0%）
+整体进度：0 / 4（0%）→ 待提交后回填
 
 ## 12.1 校准 Docker 当前事实与受控偏差
 
@@ -151,6 +151,12 @@ updated: 2026-06-19
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | macOS, Python 3.14 | `python3 -m unittest scripts.tests.test_validate_constraints -v` | ✅ 通过 | 13/13 测试通过，覆盖入口一致（含 LF/CRLF 字节级）、链接、Compose 解析失败、crag-admin 上下文和废弃术语的通过与失败用例 |
+| 2026-06-19 | macOS, Python 3.14 | `python3 scripts/validate_constraints.py` | ✅ 通过 | 0 错误：AGENTS/CLAUDE 一致、链接完整、Compose 5 服务已登记、无废弃术语 |
+| 2026-06-19 | macOS, Python 3.14 | `python3 scripts/validate_module_dependencies.py` | ✅ 通过 | 0 错误：模块依赖无环且在白名单内 |
+| 2026-06-19 | macOS, Python 3.14 | `python3 scripts/validate_plans.py --strict` | ✅ 通过 | 0 错误，24 警告均为历史 Plan 格式 |
+| 2026-06-19 | macOS, Gradle 9.4.1 | `./gradlew check` | ✅ 通过 | 全部 47 任务执行：validateConstraints / validatePlans / validateModuleDependencies / 所有子项目 check |
+| 2026-06-19 | macOS | `git diff --check` | ✅ 通过 | 无空白问题 |
 
 ## 阻塞记录
 
@@ -165,3 +171,4 @@ updated: 2026-06-19
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建并转为 ready | constraints 改造复核与 grilling 已完成，范围、依赖、校验边界和回滚均已确定 | 建立 4 项治理任务；执行后进入 plan_9.hotfix_3 |
+| 2026-06-19 | 执行 4 项任务 | 完成 Docker 约束重写、术语收敛、校验器实现与 Gradle 接入、计划同步和全量验收 | constraints/docker-structure.md 覆盖全部 5 个 Compose 服务；迁移期例外→受控架构例外；新增 validateConstraints 校验器及 13 个测试（含 CRLF 字节级、Compose 解析失败、crag-admin 上下文）；AGENTS/CLAUDE 一致；所有校验通过 |

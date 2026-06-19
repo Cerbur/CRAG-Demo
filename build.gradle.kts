@@ -17,10 +17,16 @@ val validateModuleDependencies by tasks.registering(Exec::class) {
     commandLine("python3", "scripts/validate_module_dependencies.py")
 }
 
+val validateConstraints by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Validates constraint document drift: entry identity, links, Compose services, and terms."
+    commandLine("python3", "scripts/validate_constraints.py")
+}
+
 tasks.register("check") {
     group = "verification"
     description = "Runs root project verification."
-    dependsOn(validatePlans, validateModuleDependencies, subprojects.map { "${it.path}:check" })
+    dependsOn(validatePlans, validateModuleDependencies, validateConstraints, subprojects.map { "${it.path}:check" })
 }
 
 allprojects {

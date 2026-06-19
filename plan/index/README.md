@@ -75,7 +75,7 @@ plan/
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | [plan_9.hotfix_3](../plan_9/plan_9.hotfix_3.md) 🟡 待开始 (0/3) | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
-| plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | 🟡 待开始 (0/4) | — | [plan_12.md](../plan_12/plan_12.md) |
+| plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | 🔄 进行中 (0/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 
 ---
 
@@ -186,7 +186,7 @@ plan_12 → plan_9.hotfix_3 → plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_12.md](../plan_12/plan_12.md) | 校准 Docker 与 Storage 约束事实，增加入口、链接、服务索引和术语防漂移校验 | 🟡 待开始 (0/4) |
+| [plan_12.md](../plan_12/plan_12.md) | 校准 Docker 与 Storage 约束事实，增加入口、链接、服务索引和术语防漂移校验 | 🔄 进行中 (0/4) |
 
 ---
 

@@ -93,15 +93,16 @@ ai.cerbur.crag.query.api
 
 `EmbeddingClient` 是 Retrieval 对外提供的能力契约。当前实现可以调用 HTTP Sidecar；未来可迁移为 RPC 或独立 SDK，但 `crag-ingestion` 只能依赖 `retrieval.api.embedding`，不得依赖具体传输实现。
 
-### 5.2 Storage 的暂时例外
+### 5.2 Storage 的受控架构例外
 
-`crag-storage` 尚未建立完整 `api` 包，迁移期间允许上层通过根包 DAO 和必要的 `storage.result` / `storage.entity` 类型访问存储能力，但必须满足：
+`crag-storage` 尚未建立完整 `api` 包，上层通过根包 DAO 和必要的 `storage.result` / `storage.entity` 类型访问存储能力属于受控架构例外，必须满足：
 
 - 例外只覆盖当前架构测试白名单列举的既有调用；禁止新增 Entity 跨模块传播。
 - `storage.repository` 永远只允许 Storage 内部访问。
 - 上层不得修改 Entity 后自行持久化；状态变化必须通过 DAO 方法完成。
 - 新增跨模块返回类型优先使用投影或结果类型，不得扩大 Entity 传播范围。
-- 是否收口 Storage API 由实际耦合问题驱动，不为形式统一提前增加映射层；新增需求不得借迁移例外扩大白名单。
+- 是否收口 Storage API 由实际耦合问题驱动；只有跨模块耦合恶化时才通过对应 Plan 收口，不为形式统一提前增加映射层。
+- 新增需求不得扩大白名单。
 
 ## 六、固定包语义
 
@@ -214,7 +215,7 @@ ai.cerbur.crag.app
 └── CragDemoApplication
 ```
 
-模块与包边界由 `ModuleBoundaryArchitectureTest` 和 Gradle 模块依赖校验器共同验证，当前不包含迁移期豁免。
+模块与包边界由 `ModuleBoundaryArchitectureTest` 和 Gradle 模块依赖校验器共同验证，当前不包含受控例外的豁免。
 
 ## 十、已知偏差
 

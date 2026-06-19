@@ -71,7 +71,7 @@ JPA `@Version` 只在受 EntityManager 管理的更新路径自动生效。自�
 ### 必须
 
 - Entity 仅用于持久化边界，不作为 HTTP 响应或新的跨模块公共业务契约。
-- `constraints/package-structure.md` 记录的 Storage 迁移期例外只适用于当前已有调用白名单；不得新增 Entity 泄漏。新增跨模块返回值优先使用 storage 投影或明确结果类型。
+- `constraints/package-structure.md` 记录的 Storage 受控架构例外只适用于当前已有调用白名单；不得新增 Entity 泄漏。新增跨模块返回值优先使用 storage 投影或明确结果类型。
 - Native SQL 或 JPQL 投影的列顺序、别名和类型必须有测试覆盖。
 - 数据库特有格式转换由 DAO 或 storage 层适配器负责，禁止泄漏到上层业务服务。
 
