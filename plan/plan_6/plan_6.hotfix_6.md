@@ -163,6 +163,10 @@ updated: 2026-06-20
 | 2026-06-20 | 本机 | `./gradlew check --rerun-tasks` | ✅ 通过 | 51 个任务全部重新执行并通过 |
 | 2026-06-20 | 本机 | `python3 scripts/validate_plans.py --strict --verify-git` | ✅ 通过 | Plan 严格校验 0 错误、24 个历史兼容警告 |
 | 2026-06-20 | 本机 | `bash -n scripts/tests/http/retrieval_evidence_test.sh` | ✅ 通过 | 脚本语法检查通过 |
+| 2026-06-20 | 独立验收 session | `./gradlew check --rerun-tasks`、Plan 严格校验、`git diff --check` | ✅ 通过 | 51 个 Gradle 任务全部重新执行并通过；Plan 校验 0 错误、24 个历史兼容警告；无空白错误 |
+| 2026-06-20 | Docker Compose（从 `ef97f66` 重建 `app-smoke`） | `bash scripts/tests/http/retrieval_evidence_test.sh` | ✅ 通过 | `runId=evidence-1781897044-35351`；HTTP 200、目标 parent、完整 runId 内容、连续请求稳定顺序均通过；3 个 evidence 的 matched child 在本次数据中均为 1/1 交叉命中 |
+| 2026-06-20 | 独立验收 session | `matchedChildIds` 自动化断言审查 | ❌ 失败 | Section 7 只检查每个 evidence 的 `matchedChildIds` 与 child 结果至少存在一个交集；当列表同时包含真实 ID 与错误 ID 时仍输出 `ALL_VERIFIED`，不能证明所有返回 ID 均为真实命中 |
+| 2026-06-20 | 独立验收 session | workflow v3 交接检查 | ❌ 失败 | 当前 Plan 仍为 `in_progress`，任务 6.hotfix_6.3 提交栏未记录实现提交 `ef97f66`，且不存在独立交接提交；不满足进入 `verifying` 的门槛 |
 
 ## 阻塞记录
 
@@ -185,3 +189,4 @@ updated: 2026-06-20
 | 2026-06-20 | 修复验收缺陷并重新交接至待验收 | 修复 HTTP 回归零结果假阳性、parentChunkId 与 runId 断言；还原 Chunk.java 无关 JSONB columnDefinition | 任务 6.hotfix_6.3 实现提交 895efdf，计划与索引转入待验收，执行队列移交 plan_13 |
 | 2026-06-20 | 第二次独立验收失败，退回进行中 | 真实 Docker 回归中相同 Evidence 请求连续两次返回不同的后续 parent，稳定顺序验收失败 | 任务 6.hotfix_6.3 退回进行中；定位检索/Rerank 非确定性并补充回归后重新交接，继续阻止 plan_13 |
 | 2026-06-20 | 修复 DB 查询非确定性与 HTTP 回归脚本缺陷 | (1) FTS/Dense native SQL ORDER BY 均缺乏分数平局时的确定性次级排序，导致相同查询重复执行时 RRF/Rerank 输入顺序不同；(2) 相邻 child 批量查询无 ORDER BY，DB 行序漂移影响候选集顺序；(3) HTTP 回归脚本未断言 HTTP 状态码；(4) `matchedChildIds` 仅检查非空，未与 child retrieval 交叉验证以证明来自真实 RRF 命中 | (1) `ChunkFtsRepository.searchFts` ORDER BY 增加 `, c.chunk_id ASC`；(2) `ChunkEmbeddingRepository.searchSimilar` ORDER BY 增加 `, c.chunk_id ASC`；(3) `RetrievalService.findAdjacentChunks` 在 DB 结果后按 chunkId 排序；(4) `retrieval_evidence_test.sh` 为所有 curl 调用添加 HTTP 200 断言，新增 Section 7 通过 child retrieval 端点交叉验证 matchedChildIds |
+| 2026-06-20 | 第三次独立验收未完成 | 真实 Docker 链路与稳定顺序已通过，但 Section 7 只证明部分交集，且实现提交 `ef97f66` 尚未通过独立交接提交回填并转入 `verifying` | 任务保持进行中；将断言改为所有 `matchedChildIds` 均属于 child ID 集合，完成实现 hash 回填与交接后重新验收 |
