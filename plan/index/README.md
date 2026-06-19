@@ -69,7 +69,7 @@ plan/
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ❌ 阻塞 (0/6)，等待 plan_11 | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
-| plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | 🔄 进行中 (0/4) | — | [plan_11.md](../plan_11/plan_11.md) |
+| plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | 🔄 进行中 (1/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 
 ---
 
@@ -172,7 +172,7 @@ plan_11 → plan_9 → plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_11.md](../plan_11/plan_11.md) | 测试分层与回归工作流治理，包含轻量组件测试、架构测试、Docker HTTP 回归、数据隔离与验收规则 | 🔄 进行中 (0/4) |
+| [plan_11.md](../plan_11/plan_11.md) | 测试分层与回归工作流治理，包含轻量组件测试、架构测试、Docker HTTP 回归、数据隔离与验收规则 | 🔄 进行中 (1/4) |
 
 ---
 
