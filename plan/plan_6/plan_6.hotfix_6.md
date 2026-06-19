@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_6.hotfix_6
 type: hotfix
 parent_plan: plan_6
-status: in_progress
+status: verifying
 created: 2026-06-19
 updated: 2026-06-20
 ---
@@ -114,7 +114,7 @@ updated: 2026-06-20
 | --- | --- | --- | --- | --- |
 | 6.hotfix_6.1 | 建立 Parent Evidence 公共契约与聚合规则 | ✅ 完成 | 3b4cc6f | 2026-06-20 |
 | 6.hotfix_6.2 | 实现 parent 批量回表与稳定 Evidence 输出 | ✅ 完成 | 1eb8cbb | 2026-06-20 |
-| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | 🚧 进行中 | 5c2d27d | — |
+| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | 🚧 待验收 | 5c2d27d, 895efdf | — |
 
 整体进度：2 / 3（67%）
 
@@ -176,3 +176,4 @@ updated: 2026-06-20
 | 2026-06-19 | 完成度 grilling 后退回草稿 | 原计划未区分真实命中与相邻扩展，内部限额、Storage 投影、无效数据补位和诊断边界仍不充分 | 保持实现进度 0/3；重划三项任务并补齐 28 项执行决策，重新提交后方可恢复 ready |
 | 2026-06-19 | 二次 grilling 完成并恢复待开始 | 校准 Rerank 部分返回语义、公共入口任务边界和 Demo 测试数据策略；确认下游只需要三字段 Evidence 契约 | 计划达到 ready 完整度；不新增清理接口，编码前需先提交 Plan 与索引 |
 | 2026-06-20 | 独立验收失败，退回进行中 | HTTP 回归脚本允许零结果通过，且未绑定本次写入的 parent ID 与完整 runId 内容，存在假阳性 | 任务 6.hotfix_6.3 退回进行中；修复脚本并在可访问 Docker 的环境执行真实回归后重新交接验收 |
+| 2026-06-20 | 修复验收缺陷并重新交接至待验收 | 修复 HTTP 回归零结果假阳性、parentChunkId 与 runId 断言；还原 Chunk.java 无关 JSONB columnDefinition | 任务 6.hotfix_6.3 实现提交 895efdf，计划与索引转入待验收，执行队列移交 plan_13 |
