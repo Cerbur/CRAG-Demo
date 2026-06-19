@@ -1,4 +1,6 @@
-# Test profile — 使用 H2 内存数据库（PostgreSQL 兼容模式），跳过 schema.sql（由 JPA ddl-auto 自动建表）
+# 轻量组件测试替身配置：使用 H2 内存数据库，由 JPA ddl-auto 自动建表。
+# H2 仅证明 Bean 装配、配置绑定和受控替身下的基础组件协作，不能证明 PostgreSQL 方言、
+# native SQL、JSONB、pgvector、锁、CAS 或真实事务隔离正确。详见 constraints/test-workflow.md 1.2 节。
 spring:
   datasource:
     url: jdbc:h2:mem:crag_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
