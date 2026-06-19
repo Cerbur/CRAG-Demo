@@ -268,6 +268,29 @@ class ValidatePlansTest(unittest.TestCase):
         self.assertNotIn("P306", {item.rule for item in diagnostics})
         self.assertNotIn("P307", {item.rule for item in diagnostics})
 
+    def test_index_rejects_execution_when_dependency_is_still_verifying(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            verifying_content = VALID_PLAN.replace("status: ready", "status: verifying").replace(
+                "| 9.1 | Validate | ⏳ 待开始 | — | — |",
+                "| 9.1 | Validate | 🔍 待验收 | deadbee | — |",
+            )
+            plan_9 = self.write_plan(root, "plan_9", verifying_content)
+            plan_10_content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_10").replace(
+                "# plan_9", "# plan_10"
+            ).replace("| 9.1 |", "| 10.1 |").replace("## 9.1", "## 10.1").replace(
+                "None.", "- **执行前置 Plan**：`plan_9`", 1
+            )
+            plan_10 = self.write_plan(root, "plan_10", plan_10_content)
+            self.write_index(
+                root,
+                [("plan_9", "待验收", "0/1"), ("plan_10", "待开始", "0/1")],
+                "plan_10",
+                acceptance_queue="plan_9",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
+        self.assertIn("P306", {item.rule for item in diagnostics})
+
     def test_index_rejects_verifying_plan_in_execution_queue(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

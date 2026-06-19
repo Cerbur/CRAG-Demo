@@ -452,6 +452,15 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
             if plan_id not in execution_ids:
                 continue
             for dependency in parse_plan_dependencies(body):
+                if dependency in acceptance_ids:
+                    issues.append(
+                        diagnostic(
+                            "ERROR",
+                            "P306",
+                            index_path,
+                            f"执行队列未获放行：{plan_id} 的前置 {dependency} 仍在待验收",
+                        )
+                    )
                 if dependency in execution_ids and positions[dependency] > positions[plan_id]:
                     issues.append(
                         diagnostic(
