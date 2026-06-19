@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_9.hotfix_5
 type: hotfix
 parent_plan: plan_9
-status: ready
+status: in_progress
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -61,7 +61,7 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.hotfix_5.1 | 四类异常测试迁移到 @WebMvcTest | ⏳ 待开始 | — | — |
+| 9.hotfix_5.1 | 四类异常测试迁移到 @WebMvcTest | 🔄 进行中 | — | — |
 
 整体进度：0 / 1（0%）
 
@@ -93,3 +93,4 @@ updated: 2026-06-19
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建并转为 ready | plan_9.hotfix_4 review 发现 GlobalExceptionHandlerComponentTest 未使用 @WebMvcTest | 建立 1 项修复 |
+| 2026-06-19 | 开始执行 9.hotfix_5.1 | ready Plan 与索引已提交，进入实现阶段 | Plan 转为 in_progress，任务转为进行中 |
