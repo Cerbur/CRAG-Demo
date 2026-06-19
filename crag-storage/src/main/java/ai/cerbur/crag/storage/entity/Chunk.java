@@ -57,9 +57,9 @@ public class Chunk {
   @Column(name = "token_count")
   private Integer tokenCount;
 
-  /** 扩展元数据，JSON 格式. 存储标签、来源等自定义字段. */
+  /** 扩展元数据，JSONB 格式，默认 '{}'. 存储标签、来源等自定义字段. */
   @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "metadata")
+  @Column(name = "metadata", columnDefinition = "JSONB DEFAULT '{}'")
   private String metadata;
 
   /**

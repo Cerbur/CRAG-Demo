@@ -70,7 +70,10 @@ echo "--- 4. Verify evidence response structure ---"
 RESULT_COUNT=$(echo "$EVIDENCE_RESP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['result']))" 2>/dev/null || echo "0")
 echo "Evidence result count: $RESULT_COUNT"
 
-if [ "$RESULT_COUNT" -gt 0 ]; then
+if [ "$RESULT_COUNT" -eq 0 ]; then
+  echo "FAIL: No evidence results returned — indexing may not be complete, or query may not match"
+  FAILED=1
+else
   # Check each evidence result has required fields
   FIRST_PARENT=$(echo "$EVIDENCE_RESP" | python3 -c "
 import sys, json
@@ -104,9 +107,30 @@ print('OK' if isinstance(matched, list) and len(matched) > 0 else 'EMPTY_LIST')
     echo "FAIL: Evidence response missing required fields"
     FAILED=1
   fi
-else
-  echo "WARN: No evidence results — indexing may not be complete, or query may not match"
-  echo "  This is acceptable if indexing hasn't finished; re-run with a longer wait."
+
+  # ── 4a. Assert first result parentChunkId matches written parent ──
+  if [ -n "${PARENT_ID:-}" ] && [ "$FIRST_PARENT" != "$PARENT_ID" ]; then
+    echo "FAIL: First parentChunkId ($FIRST_PARENT) != written parent ($PARENT_ID)"
+    FAILED=1
+  elif [ -n "${PARENT_ID:-}" ]; then
+    echo "PASS: First parentChunkId matches written parent ID"
+  fi
+
+  # ── 4b. Assert first result content contains unique runId ──
+  CONTENT_HAS_RUNID=$(echo "$EVIDENCE_RESP" | python3 -c "
+import sys, json
+results = json.load(sys.stdin)['result']
+first = results[0]
+content = first.get('content', '')
+run_id = '${RUN_ID}'
+print('OK' if run_id in content else 'MISSING')
+" 2>/dev/null || echo "ERROR")
+  if [ "$CONTENT_HAS_RUNID" = "OK" ]; then
+    echo "PASS: First evidence content contains RUN_ID"
+  else
+    echo "FAIL: First evidence content does not contain RUN_ID=$RUN_ID"
+    FAILED=1
+  fi
 fi
 
 # ── 5. Verify stable ordering (same request twice) ──
