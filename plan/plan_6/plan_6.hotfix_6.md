@@ -3,9 +3,9 @@ workflow_version: 3
 plan_id: plan_6.hotfix_6
 type: hotfix
 parent_plan: plan_6
-status: ready
+status: verifying
 created: 2026-06-19
-updated: 2026-06-19
+updated: 2026-06-20
 ---
 
 # plan_6.hotfix_6 — Retrieval Parent Evidence 输出修正
@@ -112,11 +112,11 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_6.1 | 建立 Parent Evidence 公共契约与聚合规则 | ⏳ 待开始 | — | — |
-| 6.hotfix_6.2 | 实现 parent 批量回表与稳定 Evidence 输出 | ⏳ 待开始 | — | — |
-| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | ⏳ 待开始 | — | — |
+| 6.hotfix_6.1 | 建立 Parent Evidence 公共契约与聚合规则 | ✅ 完成 | 3b4cc6f | 2026-06-20 |
+| 6.hotfix_6.2 | 实现 parent 批量回表与稳定 Evidence 输出 | ✅ 完成 | 1eb8cbb | 2026-06-20 |
+| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | ⏳ 待验收 | — | — |
 
-整体进度：0 / 3（0%）
+整体进度：2 / 3（67%）
 
 ## 6.hotfix_6.1 建立 Parent Evidence 公共契约与聚合规则
 

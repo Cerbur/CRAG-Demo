@@ -4,6 +4,7 @@ import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.retrieval.api.RetrievalService;
 import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
+import ai.cerbur.crag.retrieval.api.result.ParentEvidenceResult;
 import ai.cerbur.crag.retrieval.dense.DenseQueryService;
 import ai.cerbur.crag.retrieval.rerank.RerankService;
 import ai.cerbur.crag.retrieval.result.DenseSearchResult;
@@ -105,6 +106,25 @@ public class TestController {
     // 委托 RetrievalService 全链路：Embed → Sparse + Dense → RRF → 邻接扩展 → Rerank
     List<ChunkSearchResult> results = retrievalService.retrieve(query, topN);
     return Response.success(new RetrievalSmokeResponse(query, results));
+  }
+
+  /**
+   * Parent evidence 检索冒烟测试 —— 通过 retrieveEvidence 返回完整 parent 内容证据.
+   *
+   * <p>委托 RetrievalService.retrieveEvidence(...) 执行 child 召回 → RRF → Rerank → parent 聚合 → 批量回表全流程.
+   * 返回的 {@link ParentEvidenceResult} 包含完整 parent 内容及真实 RRF 命中的 child ID 列表， 不携带检索分数. 此端点不改变既有
+   * /retrieval child 诊断契约.
+   *
+   * @param query 用户查询文本
+   * @param topN 最终最多返回的不同 parent 数量，默认 5
+   * @return Response 包装的 List&lt;ParentEvidenceResult&gt;
+   */
+  @GetMapping("/retrieval/evidence")
+  public Response<List<ParentEvidenceResult>> retrievalEvidence(
+      @RequestParam("query") String query,
+      @RequestParam(value = "topN", defaultValue = "5") int topN) {
+    List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(query, topN);
+    return Response.success(results);
   }
 
   /**

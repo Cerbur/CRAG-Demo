@@ -176,7 +176,7 @@ ai.cerbur.crag.ingestion
 
 ```text
 ai.cerbur.crag.retrieval
-├── api/                               — RetrievalService / result.ChunkSearchResult / embedding.EmbeddingClient / embedding.EmbeddingException（跨模块公开入口）
+├── api/                               — RetrievalService / result.ChunkSearchResult / result.ParentEvidenceResult / embedding.EmbeddingClient / embedding.EmbeddingException（跨模块公开入口）
 ├── embedding/                         — SidecarEmbeddingClient 等内部实现
 ├── sparse/ / dense/                   — 双路召回
 ├── rrf/ / rerank/                     — 融合与重排

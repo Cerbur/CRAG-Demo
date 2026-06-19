@@ -8,8 +8,10 @@
 
 ### 必须
 
-- 外部模块只通过 `RetrievalService` 使用检索能力，不依赖 Sparse、Dense、RRF 或 Rerank 内部组件。
+- 外部模块只通过 `RetrievalService.retrieve()` 或 `RetrievalService.retrieveEvidence()` 使用检索能力，不依赖 Sparse、Dense、RRF 或 Rerank 内部组件。
 - Retrieval 内部实现不得向 Query 或 Admin 泄漏 storage Repository、Entity 或外部 Sidecar 协议类型。
+- `retrieve()` 返回 child 维度的 `ChunkSearchResult`，服务 Retrieval 内部测试和 Smoke 分阶段诊断。
+- `retrieveEvidence()` 返回 parent 维度的 `ParentEvidenceResult`（parentChunkId、完整 content、matchedChildIds），不携带检索分数；供 Query 链路构建 LLM Context。
 - 外部服务通过能力接口隔离，实现类体现技术方案，例如 `RerankClient` 与 `SidecarRerankClient`。
 
 ---
@@ -29,10 +31,11 @@
 当前链路：
 
 ```text
-SparseSearchResult  (ChunkBO, sparseScore)      ← SparseQueryService
-DenseSearchResult   (ChunkBO, denseScore)       ← DenseQueryService
-RrfFusionResult     (ChunkBO, rrfScore + best)  ← RrfFusionService
-ChunkSearchResult   (ChunkBO, 全部阶段得分)      ← RerankService
+SparseSearchResult   (ChunkBO, sparseScore)      ← SparseQueryService
+DenseSearchResult    (ChunkBO, denseScore)       ← DenseQueryService
+RrfFusionResult      (ChunkBO, rrfScore + best)  ← RrfFusionService
+ChunkSearchResult    (ChunkBO, 全部阶段得分)      ← RerankService → retrieve()
+ParentEvidenceResult (parentChunkId, content, matchedChildIds) ← retrieveEvidence()
 ```
 
 ---
