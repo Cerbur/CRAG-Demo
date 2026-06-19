@@ -168,7 +168,7 @@ plan_9.hotfix_3 → plan_7 → plan_10
 | [plan_9.md](../plan_9/plan_9.md) | Java 模块边界收紧，包含 crag-api 重命名、公开 API 包、Embedding 契约、crag-smoke 和 ArchUnit | ✅ 完成 (6/6) |
 | [plan_9.hotfix_1.md](../plan_9/plan_9.hotfix_1.md) | GlobalExceptionHandler HTTP 状态码修正（兜底 500、显式 404） | ✅ 完成 (3/3) |
 | [plan_9.hotfix_2.md](../plan_9/plan_9.hotfix_2.md) | 收敛模块与 API 约束中的过期实现事实和已完成迁移历史 | ✅ 完成 (1/1) |
-| [plan_9.hotfix_3.md](../plan_9/plan_9.hotfix_3.md) | HTTP API 契约边界收口，包含错误码、DTO 分包、AdminRagResponse 与组件测试 | 🟡 待开始 (0/3) |
+| [plan_9.hotfix_3.md](../plan_9/plan_9.hotfix_3.md) | HTTP API 契约边界收口，包含错误码、DTO 分包、AdminRagResponse、组件测试与 Docker HTTP 回归 | 🟡 待开始 (0/3) |
 
 ## Plan_10 明细
 

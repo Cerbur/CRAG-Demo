@@ -49,10 +49,12 @@ updated: 2026-06-19
 
 - `crag-common/src/main/java/ai/cerbur/crag/common/dto/result/ResponseCode.java`
 - `crag-common/src/test/**`
+- `crag-common/build.gradle.kts`
 - `crag-api/src/main/java/ai/cerbur/crag/api/controller/**`
 - `crag-api/src/main/java/ai/cerbur/crag/api/dto/**`
 - `crag-api/src/test/**`
 - `crag-api/build.gradle.kts`
+- `scripts/tests/http/admin_rag_contract_test.sh`
 - `constraints/api-style.md`
 - `constraints/package-structure.md`
 - `plan/plan_9/plan_9.hotfix_3.md`
@@ -66,12 +68,16 @@ updated: 2026-06-19
 
 - HTTP 状态表达协议结果；`Response.code` 使用独立稳定业务码，二者不再复用同一数值语义。
 - `ResponseCode` 立即持有默认安全消息，但本次不序列化消息，保持现有 JSON 结构兼容。
+- 默认安全消息固定为 `Success`、`Validation failed`、`Invalid argument`、`Resource not found`、`Internal server error`。
+- `ResponseCode` 继续位于 `crag-common` 并直接持有 Spring `HttpStatus`；本 Hotfix 接受 `crag-common` 增加 `spring-web` 实现依赖，避免把现有统一响应类型迁移成更大的模块边界重构。
 - `GlobalExceptionHandler` 使用 `ResponseEntity<Response<?>>` 和 `ResponseCode.getHttpStatus()` 统一设置所有错误 HTTP 状态。
 - Bean Validation 映射 `VALIDATION_ERROR/40001/HTTP 400`；`IllegalArgumentException` 映射 `INVALID_ARGUMENT/40002/HTTP 400`。
 - 未知路径映射 `NOT_FOUND/40401/HTTP 404`；未处理异常映射 `INTERNAL_ERROR/50001/HTTP 500`，并只在兜底边界记录一次完整堆栈。
 - API 层拥有 HTTP DTO。AdminRag 成功响应不再直接序列化 `AdminRagResult`；`AdminRagResponse` 保持相同业务字段，避免无关客户端结构变化。
 - 当前已有但尚未实现完整功能的 `UserQueryRequest` 只迁移到 `dto.query`；`UserQueryResponse` 由 `plan_7` 设计。
-- API 测试使用 `@WebMvcTest` 和边界 Mock，只证明 MVC 校验、序列化、映射与异常转换，不声称数据库或端到端保证。
+- 当前 Controller 内嵌的 `UserQueryResponse` 是受控临时偏差，由 `plan_7` 的 7.4 拆为正式独立契约；本 Hotfix 不在 Query 领域模型尚未确定时冻结该响应 DTO。
+- API 测试使用 `@WebMvcTest` 和边界 Mock，只证明 MVC 校验、序列化、映射与异常转换，不声称数据库或端到端保证；`IllegalArgumentException` 与兜底异常通过 test source set 中的测试专用 Controller 触发，不增加生产调试端点。
+- Docker HTTP 回归新增独立 `admin_rag_contract_test.sh`，不把正式 API 契约混入 smoke Profile 脚本；脚本生成唯一 `runId` 并验证 AdminRag 成功、Bean Validation 与未知路径。
 
 ## 未决问题
 
@@ -80,18 +86,22 @@ updated: 2026-06-19
 ## 风险与回滚
 
 - 业务错误码从 400/404/500 改为 40001/40401/50001，可能影响依赖旧数值的客户端；当前项目尚无声明的稳定外部客户端，测试与 README 搜索用于确认影响面。
+- `crag-common` 增加 Spring Web 类型依赖会扩大基础模块的框架耦合；这是遵循现行 `api-style.md` 的显式代价，失败时可将 HTTP 状态映射退回 API 层并撤销该依赖，但该替代方案必须先更新约束与 Plan。
 - DTO 移包会导致 import 编译失败；通过全仓库编译和 `rg` 检查旧包引用。
 - `@WebMvcTest` 可能因安全或自动配置差异加载额外 Bean；测试只导入目标 Controller 与 Advice，并显式 Mock 业务边界。
-- 本 Hotfix 不改变数据库或部署。失败时可逆序撤销测试、DTO 与错误码提交。
+- Docker AdminRag 成功回归会写入真实数据库；脚本使用唯一 `runId` 写入 title、content 或 metadata，当前没有安全精确删除入口，因此保留可识别测试数据并在验收记录说明，不执行共享表清空或 volume 删除。
+- `UserQueryResponse` 暂时仍是 Controller 内嵌正式响应契约；该已知偏差由 `plan_7` 任务 7.4 负责移除，本 Hotfix 不扩大其结构。
+- 本 Hotfix 不改变数据库 schema 或部署结构。失败时可逆序撤销 HTTP 脚本、测试、DTO、错误码与依赖提交；数据库中带 `runId` 的回归数据无需运行时回滚。
 
 ## 测试与验证计划
 
 - 纯单元测试：验证 `ResponseCode` 每个值的业务码、默认消息与 HTTP 状态。
-- 轻量组件测试：使用 `@WebMvcTest` 覆盖 AdminRag 成功响应、Bean Validation、`IllegalArgumentException`、未知路径与未处理异常。
+- 轻量组件测试：使用 `GlobalExceptionHandlerComponentTest` 覆盖 Bean Validation、`IllegalArgumentException`、未知路径与未处理异常；使用 `AdminRagControllerComponentTest` 覆盖 AdminRag 成功映射与 JSON 字段。
 - 架构检查：现有 `ModuleBoundaryArchitectureTest` 验证 DTO 和 Controller 仍位于 `crag-api`，下层模块不依赖 HTTP DTO。
 - 全量 Gradle：`./gradlew check`。
 - 静态检查：`rg -n 'BAD_REQUEST|api\.dto\.request' crag-* constraints` 必须无过期实现命中。
-- 本 Hotfix 不触发 Docker HTTP 回归：HTTP 字段集合和业务成功字段保持不变，真实链路回归由后续 `plan_7` 和既有脚本覆盖；组件测试覆盖本次协议语义变化。若实现时发现既有自动化脚本断言旧业务码，则本 Hotfix 同步修正并执行受影响脚本。
+- Docker HTTP 回归：使用 `docker compose up -d --build db sidecar app` 启动正式默认模式，执行 `bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`；脚本必须断言成功 HTTP 200、三字段响应、`code=0` 与业务字段，校验失败 HTTP 400 + `code=40001`，未知路径 HTTP 404 + `code=40401`。
+- Docker 脚本每次生成唯一 `runId` 并写入可追踪业务数据；当前无安全精确删除入口，成功数据保留且不得清空共享表或删除 volume。
 
 ## 进度追踪
 
@@ -107,31 +117,31 @@ updated: 2026-06-19
 
 **目标**：分离业务错误码与 HTTP 状态，并让异常处理统一读取枚举元数据。  
 **前置任务**：无  
-**范围**：先为 `ResponseCode` 元数据和异常映射增加失败测试；将枚举改为 `code/defaultMessage/httpStatus`；删除 `BAD_REQUEST`；增加 `VALIDATION_ERROR`、`INVALID_ARGUMENT`；让 Validation、非法参数、404 和兜底异常均返回 `ResponseEntity` 并使用枚举 HTTP 状态。  
+**范围**：先增加 `ResponseCodeTest` 与 `GlobalExceptionHandlerComponentTest` 并确认旧实现失败；将枚举改为 `code/defaultMessage/httpStatus`，使用已固定的五条安全消息；删除 `BAD_REQUEST`；增加 `VALIDATION_ERROR`、`INVALID_ARGUMENT`；让 Validation、非法参数、404 和兜底异常均返回 `ResponseEntity` 并使用枚举 HTTP 状态；在 test source set 中使用测试专用 Controller 触发非法参数和兜底分支；为 `crag-common` 增加 Spring Web 实现依赖，并为 `crag-api` 增加 Spring Boot Test 与 JUnit Platform 测试依赖。
 **非目标**：不修改 `Response` 字段、不序列化默认消息、不增加业务异常体系。  
-**验收标准**：所有错误码唯一且符合已确认数值；异常映射的 HTTP 状态与枚举一致；兜底异常记录完整堆栈；项目中无 `BAD_REQUEST` 引用。  
-**验证方式**：先运行新增测试确认对旧实现失败；实现后运行 `./gradlew :crag-common:test :crag-api:test`；运行 `rg -n 'BAD_REQUEST' crag-* constraints`。  
-**涉及文件**：`crag-common/src/main/java/ai/cerbur/crag/common/dto/result/ResponseCode.java`、`crag-common/src/test/**`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/advice/GlobalExceptionHandler.java`、`crag-api/src/test/**`
+**验收标准**：五个错误码唯一且符合已确认数值、默认消息和 HTTP 状态；四类异常映射均通过 MVC 异常解析链返回枚举定义的 HTTP 状态与业务码；兜底异常记录完整堆栈；项目中无 `BAD_REQUEST` 引用。
+**验证方式**：先运行 `./gradlew :crag-common:test :crag-api:test` 确认新增测试对旧实现失败；实现后重复运行并通过；运行 `rg -n 'BAD_REQUEST' crag-* constraints`。
+**涉及文件**：`crag-common/src/main/java/ai/cerbur/crag/common/dto/result/ResponseCode.java`、`crag-common/src/test/**`、`crag-common/build.gradle.kts`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/advice/GlobalExceptionHandler.java`、`crag-api/src/test/**`、`crag-api/build.gradle.kts`
 
 ## 9.hotfix_3.2 DTO 按业务分包并增加 AdminRagResponse
 
 **目标**：让 HTTP 请求与响应契约由 API 边界按业务能力所有。  
 **前置任务**：9.hotfix_3.1  
-**范围**：把 `AdminRagRequest` 移至 `ai.cerbur.crag.api.dto.rag`，把 `UserQueryRequest` 移至 `ai.cerbur.crag.api.dto.query`；新增字段为 `docId/chunks/status` 的 `AdminRagResponse` record；在 `AdminRagController` 中显式从 `AdminRagResult` 映射并返回 `Response<AdminRagResponse>`；同步当前实现索引。  
+**范围**：把 `AdminRagRequest` 移至 `ai.cerbur.crag.api.dto.rag`，把 `UserQueryRequest` 移至 `ai.cerbur.crag.api.dto.query`；新增字段为 `docId/chunks/status` 的 `AdminRagResponse` record；在 `AdminRagController` 中显式从 `AdminRagResult` 映射并返回 `Response<AdminRagResponse>`；增加 `AdminRagControllerComponentTest` 锁定成功映射、响应字段集合和值；同步当前实现索引。
 **非目标**：不新增 `UserQueryResponse`，不修改 `AdminRagResult`，不改变请求字段、URL 或成功响应业务字段。  
 **验收标准**：旧 `dto.request` 包不存在；下层模块不引用 API DTO；AdminRag 成功 JSON 的字段集合和值保持一致；包结构索引与源码一致。  
-**验证方式**：运行 `./gradlew :crag-api:compileJava :crag-app:test`；运行 `rg -n 'api\.dto\.request|dto/request' crag-* constraints`；核对 AdminRag MVC 成功测试。  
-**涉及文件**：`crag-api/src/main/java/ai/cerbur/crag/api/dto/**`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/AdminRagController.java`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/UserQueryController.java`、`constraints/package-structure.md`
+**验证方式**：运行 `./gradlew :crag-api:test :crag-app:test`；运行 `rg -n 'api\.dto\.request|dto/request' crag-* constraints`；核对 AdminRag MVC 成功测试。
+**涉及文件**：`crag-api/src/main/java/ai/cerbur/crag/api/dto/**`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/AdminRagController.java`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/UserQueryController.java`、`crag-api/src/test/**`、`constraints/package-structure.md`
 
 ## 9.hotfix_3.3 增加 API 组件测试并完成全量验收
 
-**目标**：用 API 边界测试锁定本 Hotfix 的协议语义并完成回归。  
+**目标**：用正式 Docker HTTP 入口锁定本 Hotfix 的协议语义并完成全量回归。
 **前置任务**：9.hotfix_3.1、9.hotfix_3.2  
-**范围**：完善 `@WebMvcTest` 测试，覆盖 AdminRag 成功映射、请求校验、程序化非法参数、未知路径和未处理异常；必要时补充测试专用 Controller 触发 Advice 分支；同步 `api-style.md` 的当前业务码与 DTO 结构示例；执行全量验证并记录证据。  
-**非目标**：不启动数据库、Sidecar 或 Docker，不测试业务 Service 内部逻辑。  
-**验收标准**：五类 HTTP 行为均断言 HTTP 状态、`success`、`code` 和 `result`；无测试依赖完整错误文案；`./gradlew check` 与全部静态校验通过。  
-**验证方式**：运行 `./gradlew :crag-api:test --tests '*ComponentTest'`、`./gradlew check`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict`、`git diff --check`。  
-**涉及文件**：`crag-api/src/test/**`、`crag-api/build.gradle.kts`、`constraints/api-style.md`、`plan/plan_9/plan_9.hotfix_3.md`、`plan/index/README.md`
+**范围**：新增 `admin_rag_contract_test.sh`，每次生成唯一 `runId`，从正式 AdminRag HTTP 入口验证成功、Bean Validation 与未知路径；同步 `api-style.md` 的当前业务码与 DTO 结构示例；执行组件测试、全量 Gradle、约束/Plan 静态校验和 Docker HTTP 回归并记录证据。
+**非目标**：不把正式 API 断言加入 smoke Profile 脚本，不通过 Docker 调试端点触发程序化非法参数或兜底异常，不测试业务 Service 内部逻辑，不破坏性清理共享数据库。
+**验收标准**：组件测试覆盖 AdminRag 成功映射及四类异常转换；Docker 脚本断言成功 HTTP 200 + `code=0` + 三字段响应与业务字段、校验失败 HTTP 400 + `code=40001`、未知路径 HTTP 404 + `code=40401`；脚本使用唯一 `runId`、失败非零退出且不删除共享数据；`./gradlew check` 与全部静态校验通过。
+**验证方式**：运行 `./gradlew :crag-api:test --tests '*ComponentTest'`、`./gradlew check`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict`、`docker compose up -d --build db sidecar app`、`bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`、`git diff --check`。
+**涉及文件**：`scripts/tests/http/admin_rag_contract_test.sh`、`constraints/api-style.md`、`plan/plan_9/plan_9.hotfix_3.md`、`plan/index/README.md`
 
 ## 验收记录
 
@@ -151,3 +161,4 @@ updated: 2026-06-19
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建并转为 ready | API 约束与当前实现存在 DTO 组织和错误码语义偏差，grilling 已完成 | 建立 3 项修复任务；等待 plan_12 完成后执行 |
+| 2026-06-19 | 完成执行前复核并保持 ready | 修正原计划与 Docker HTTP 回归约束的冲突，闭合默认消息、common 依赖、Query 临时偏差和测试归属 | 新增独立 AdminRag 契约脚本；三项任务的测试与提交边界明确，可直接执行 |
