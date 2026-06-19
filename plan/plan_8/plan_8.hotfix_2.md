@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_8.hotfix_2
 type: hotfix
 parent_plan: plan_8
-status: in_progress
+status: verifying
 created: 2026-06-19
 updated: 2026-06-19
 ---
@@ -88,10 +88,10 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 8.hotfix_2.1 | 以测试先行升级 v3 校验规则 | 🚧 进行中 | — | — |
-| 8.hotfix_2.2 | 重写执行与独立验收工作流约束 | 🚧 进行中 | — | — |
-| 8.hotfix_2.3 | 迁移模板、索引和全部 v2 Plan | 🚧 进行中 | — | — |
-| 8.hotfix_2.4 | 完成实现验证并交接独立验收 | 🚧 进行中 | — | — |
+| 8.hotfix_2.1 | 以测试先行升级 v3 校验规则 | 🔍 待验收 | 823df0a | — |
+| 8.hotfix_2.2 | 重写执行与独立验收工作流约束 | 🔍 待验收 | 823df0a | — |
+| 8.hotfix_2.3 | 迁移模板、索引和全部 v2 Plan | 🔍 待验收 | 823df0a | — |
+| 8.hotfix_2.4 | 完成实现验证并交接独立验收 | 🔍 待验收 | 823df0a | — |
 
 整体进度：0 / 4（0%）
 
@@ -158,3 +158,4 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 v3 引导 Hotfix 并设为待开始 | Parent Agent / SubAgent 执行模型不再适用 | 建立独立执行与验收 session 的迁移范围 |
 | 2026-06-19 | 开始执行全部迁移任务 | 执行基线提交 `03dddcc` 已创建 | Plan 转为进行中，开始校验器、约束和全量元信息迁移 |
+| 2026-06-19 | 完成实现并交接独立验收 | 实现提交 `823df0a` 已创建，执行侧验证全部通过 | 四项任务与 Plan 转为待验收，本 session 不拥有最终完成权 |
