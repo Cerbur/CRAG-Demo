@@ -452,16 +452,22 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
             if plan_id not in execution_ids:
                 continue
             for dependency in parse_plan_dependencies(body):
-                if dependency in acceptance_ids:
+                if dependency not in plans:
+                    continue
+                dependency_status = plans[dependency][1].get("status")
+                if dependency_status == "completed":
+                    continue
+                if dependency not in execution_ids:
                     issues.append(
                         diagnostic(
                             "ERROR",
                             "P306",
                             index_path,
-                            f"执行队列未获放行：{plan_id} 的前置 {dependency} 仍在待验收",
+                            f"执行队列未获放行：{plan_id} 的前置 {dependency} 状态为 "
+                            f"{dependency_status}，且不在执行队列中",
                         )
                     )
-                if dependency in execution_ids and positions[dependency] > positions[plan_id]:
+                elif positions[dependency] > positions[plan_id]:
                     issues.append(
                         diagnostic(
                             "ERROR",

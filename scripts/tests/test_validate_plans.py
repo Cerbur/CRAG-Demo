@@ -291,6 +291,30 @@ class ValidatePlansTest(unittest.TestCase):
             diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
         self.assertIn("P306", {item.rule for item in diagnostics})
 
+    def test_index_rejects_execution_when_dependency_is_abandoned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            abandoned_content = VALID_PLAN.replace("status: ready", "status: abandoned").replace(
+                "| 9.1 | Validate | ⏳ 待开始 | — | — |",
+                "| 9.1 | Validate | 🗑️ 废弃 | — | — |",
+            ).replace("整体进度：0 / 1（0%）", "整体进度：0 / 0（0%），废弃：1").replace(
+                "## 废弃任务记录\nNone.", "## 废弃任务记录\nAbandoned by decision."
+            )
+            plan_9 = self.write_plan(root, "plan_9", abandoned_content)
+            plan_10_content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_10").replace(
+                "# plan_9", "# plan_10"
+            ).replace("| 9.1 |", "| 10.1 |").replace("## 9.1", "## 10.1").replace(
+                "None.", "- **执行前置 Plan**：`plan_9`", 1
+            )
+            plan_10 = self.write_plan(root, "plan_10", plan_10_content)
+            self.write_index(
+                root,
+                [("plan_9", "废弃", "0/0"), ("plan_10", "待开始", "0/1")],
+                "plan_10",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
+        self.assertIn("P306", {item.rule for item in diagnostics})
+
     def test_index_rejects_verifying_plan_in_execution_queue(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
