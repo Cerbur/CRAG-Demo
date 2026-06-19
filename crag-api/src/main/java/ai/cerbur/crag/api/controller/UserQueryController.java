@@ -1,6 +1,6 @@
 package ai.cerbur.crag.api.controller;
 
-import ai.cerbur.crag.api.dto.request.UserQueryRequest;
+import ai.cerbur.crag.api.dto.query.UserQueryRequest;
 import ai.cerbur.crag.common.dto.result.Response;
 import jakarta.validation.Valid;
 import java.util.List;

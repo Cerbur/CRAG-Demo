@@ -34,6 +34,18 @@
 - `ResponseCode` 保存业务码、默认安全消息和对应 HTTP 状态。
 - 返回消息保持安全稳定，诊断细节仅记录日志。
 
+### 当前业务码
+
+| 枚举值 | 业务码 | 默认消息 | HTTP 状态 |
+| --- | --- | --- | --- |
+| `SUCCESS` | `0` | Success | 200 |
+| `VALIDATION_ERROR` | `40001` | Validation failed | 400 |
+| `INVALID_ARGUMENT` | `40002` | Invalid argument | 400 |
+| `NOT_FOUND` | `40401` | Resource not found | 404 |
+| `INTERNAL_ERROR` | `50001` | Internal server error | 500 |
+
+业务码独立稳定，不复用 HTTP 状态码数值语义。默认消息当前不序列化到 JSON 响应。
+
 ---
 
 ## 三、HTTP DTO
@@ -50,6 +62,19 @@
 ### 推荐
 
 - 简单不可变 DTO 优先使用 Java `record`。
+
+### 当前 DTO 结构
+
+```text
+ai.cerbur.crag.api
+├── dto.rag/
+│   ├── AdminRagRequest   — POST /api/v1/admin/rag 请求
+│   └── AdminRagResponse  — POST /api/v1/admin/rag 成功响应
+└── dto.query/
+    └── UserQueryRequest  — POST /api/v1/query 请求
+```
+
+`UserQueryResponse` 尚未独立为正式契约；当前由 Controller 内嵌 record 承载，由 `plan_7` 任务 7.4 负责移除。
 
 ---
 

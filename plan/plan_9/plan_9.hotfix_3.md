@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_9.hotfix_3
 type: hotfix
 parent_plan: plan_9
-status: ready
+status: completed
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -107,11 +107,11 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.hotfix_3.1 | 重构 ResponseCode 与统一异常映射 | ⏳ 待开始 | — | — |
-| 9.hotfix_3.2 | DTO 按业务分包并增加 AdminRagResponse | ⏳ 待开始 | — | — |
-| 9.hotfix_3.3 | 增加 API 组件测试并完成全量验收 | ⏳ 待开始 | — | — |
+| 9.hotfix_3.1 | 重构 ResponseCode 与统一异常映射 | ✅ 完成 | — | 2026-06-19 |
+| 9.hotfix_3.2 | DTO 按业务分包并增加 AdminRagResponse | ✅ 完成 | — | 2026-06-19 |
+| 9.hotfix_3.3 | 增加 API 组件测试并完成全量验收 | ✅ 完成 | — | 2026-06-19 |
 
-整体进度：0 / 3（0%）
+整体进度：3 / 3（100%）
 
 ## 9.hotfix_3.1 重构 ResponseCode 与统一异常映射
 
@@ -147,6 +147,14 @@ updated: 2026-06-19
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | 本地 macOS | `./gradlew check` | ✅ 通过 | 全量 Gradle 构建、测试（含 ArchUnit）、Spotless 格式检查通过 |
+| 2026-06-19 | 本地 macOS | `rg -n 'BAD_REQUEST' crag-*/src/main constraints/` | ✅ 通过 | 仅剩 `HttpStatus.BAD_REQUEST`（正确用法）与约束禁止规则 |
+| 2026-06-19 | 本地 macOS | `rg -n 'api\\.dto\\.request\|dto/request' crag-* constraints/` | ✅ 通过 | 无旧 DTO 包引用 |
+| 2026-06-19 | 本地 macOS | `python3 scripts/validate_constraints.py` | ✅ 通过 | 0 errors |
+| 2026-06-19 | 本地 macOS | `python3 scripts/validate_plans.py --strict` | ✅ 通过 | 0 errors（仅历史 Plan workflow v2 警告） |
+| 2026-06-19 | Docker Compose | `docker compose up -d --build db sidecar app` | ✅ 通过 | 三个服务健康启动 |
+| 2026-06-19 | Docker Compose | `bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080` | ✅ 通过 | 12/12 断言：AdminRag 成功（200+code=0+三字段+docId/chunks/PENDING）、校验失败（400+code=40001）、未知路径（404+code=40401）；runId=contract-20260619-181947-37283 |
+| 2026-06-19 | 本地 macOS | `git diff --check` | ✅ 通过 | 无空白问题 |
 
 ## 阻塞记录
 

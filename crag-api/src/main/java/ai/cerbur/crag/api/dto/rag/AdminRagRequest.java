@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api.dto.request;
+package ai.cerbur.crag.api.dto.rag;
 
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;

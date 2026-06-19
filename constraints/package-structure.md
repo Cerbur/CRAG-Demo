@@ -198,7 +198,8 @@ ai.cerbur.crag.query
 ai.cerbur.crag.api
 ├── controller/                        — AdminRagController / UserQueryController
 ├── controller.advice/                 — GlobalExceptionHandler
-└── dto.request/                       — HTTP 请求 DTO
+├── dto.rag/                           — AdminRagRequest / AdminRagResponse
+└── dto.query/                         — UserQueryRequest
 ```
 
 ### `crag-smoke`
