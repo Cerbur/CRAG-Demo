@@ -228,7 +228,8 @@ ArchUnit 规则已建立（9.1），剩余例外由 9.6 清理。
 | 组合根承载诊断 Controller | 已消除（9.5）；TestController 迁入 crag-smoke，受 @Profile("smoke") 限制 | 已完成 |
 | 跨模块入口没有统一边界 | 已消除（9.3/9.4）；Ingestion/Query/Retrieval 公开入口均在各模块 api 包 | 已完成 |
 | Embedding 契约与实现混放 | 已消除（9.4）；EmbeddingClient/EmbeddingException 迁入 api.embedding，Sidecar 留内部 | 已完成 |
-| 架构规则只靠文档记忆 | ArchUnit 基线已建立（9.1），部分例外已由 9.3/9.4/9.5 消除，9.6 做最终清理 | 清除所有迁移期例外 |
+| 架构规则只靠文档记忆 | 已消除（9.1/9.6）；ArchUnit 8 条规则无豁免通过，依赖白名单校验器覆盖 Gradle 声明 | 已完成 |
+| 尚无 crag-api/crag-smoke 模块 | 已消除（9.2/9.5）；crag-api 承载正式 Controller，crag-smoke 承载 Profile 隔离诊断端点 | 已完成 |
 
 在 `plan_9` 完成前，新增代码不得扩大以上偏差。偏差完成迁移后必须从本节删除，并把实际结构同步到“当前实现索引”。
 

@@ -2,7 +2,7 @@
 
 - **日期**：2026-06-19
 - **变更原因**：现有包结构文档混合了现状清单、未来设计和架构约束；`crag-admin` 命名无法覆盖 UserQuery，`crag-app` 承载了可直接访问内部组件的 `TestController`，跨模块公开入口也缺少统一边界。
-- **关联提交**：`774d5ad`
+- **关联提交**：`774d5ad`（创建）, `95ca45e`（9.1 ArchUnit）, `2a257a2`（9.2 crag-api）, `0bac69b`（9.3 api 包）, `b8bfab5`（9.4 embedding）, `4796117`（9.5 crag-smoke）, 最终收紧通过 `./gradlew check`。
 
 ## Before（变更前）
 

@@ -3,7 +3,6 @@ package ai.cerbur.crag.app.arch;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
-import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -14,10 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 模块边界架构测试基线.
  *
- * <p>验证包边界、模块依赖和公开 API 规则。当前版本的临时例外由 {@code freeze} 机制记录， 由 plan_9 任务 9.2～9.5 逐步消除。所有冻结例外可查看 {@code
- * archunit_store/} 目录。
+ * <p>验证包边界、模块依赖和公开 API 规则。plan_9 迁移期例外已全部消除（9.3/9.4/9.5）， 当前所有规则无豁免直接通过。
  *
- * <p>新增同类越界类会导致测试失败；已记录的例外在对应任务完成后必须删除冻结记录。
+ * <p>新增同类越界类会导致测试失败。
  */
 @AnalyzeClasses(
     packages = "ai.cerbur.crag",
@@ -98,25 +96,21 @@ class ModuleBoundaryArchitectureTest {
   /**
    * {@code crag-api} 只能通过 {@code crag-ingestion} 的 {@code api} 包访问其公开入口。
    *
-   * <p>冻结例外（由任务 9.3 修复）：{@code AdminRagController} 当前直接 import {@code
-   * ingestion.service.AdminRagService} 和 {@code ingestion.service.AdminRagResult}。
+   * <p>原冻结例外（AdminRagController→ingestion.service）已由 9.3 消除。当前无违反。
    */
   @ArchTest
   static final ArchRule admin_only_ingestion_api =
-      freeze(
-          noClasses()
-              .that()
-              .resideInAPackage("ai.cerbur.crag.api..")
-              .should()
-              .accessClassesThat()
-              .resideInAnyPackage(
-                  "ai.cerbur.crag.ingestion.service..",
-                  "ai.cerbur.crag.ingestion.chunk..",
-                  "ai.cerbur.crag.ingestion.dense..",
-                  "ai.cerbur.crag.ingestion.cron..")
-              .because(
-                  "crag-api 只能通过 ingestion.api 包访问。"
-                      + "冻结例外：AdminRagController→ingestion.service — 已由 9.3 消除。"));
+      noClasses()
+          .that()
+          .resideInAPackage("ai.cerbur.crag.api..")
+          .should()
+          .accessClassesThat()
+          .resideInAnyPackage(
+              "ai.cerbur.crag.ingestion.service..",
+              "ai.cerbur.crag.ingestion.chunk..",
+              "ai.cerbur.crag.ingestion.dense..",
+              "ai.cerbur.crag.ingestion.cron..")
+          .because("crag-api 只能通过 ingestion.api 包访问。原例外已由 9.3 消除。");
 
   // ═══════════════════════════════════════════════════════════════
   // 规则 5b：crag-ingestion → crag-retrieval 仅允许 api 包
@@ -125,30 +119,25 @@ class ModuleBoundaryArchitectureTest {
   /**
    * {@code crag-ingestion} 只能通过 {@code crag-retrieval} 的 {@code api} 包访问其公开入口。
    *
-   * <p>冻结例外（由任务 9.4 修复）：{@code DenseEmbeddingService} 和 {@code DenseEmbeddingCron} 原直接 import
-   * {@code retrieval.embedding.EmbeddingClient} 和 {@code retrieval.embedding.EmbeddingException}，
-   * 已由 9.4 消除（Embedding 契约迁入 {@code api.embedding}，内部 implementation 留 {@code embedding}）。
+   * <p>原冻结例外（DenseEmbeddingService/Cron→retrieval.embedding）已由 9.4 消除。当前无违反。
    */
   @ArchTest
   static final ArchRule ingestion_only_retrieval_api =
-      freeze(
-          noClasses()
-              .that()
-              .resideInAPackage("ai.cerbur.crag.ingestion..")
-              .should()
-              .accessClassesThat()
-              .resideInAnyPackage(
-                  "ai.cerbur.crag.retrieval.embedding..",
-                  "ai.cerbur.crag.retrieval.service..",
-                  "ai.cerbur.crag.retrieval.dense..",
-                  "ai.cerbur.crag.retrieval.sparse..",
-                  "ai.cerbur.crag.retrieval.rrf..",
-                  "ai.cerbur.crag.retrieval.rerank..",
-                  "ai.cerbur.crag.retrieval.bo..",
-                  "ai.cerbur.crag.retrieval.result..")
-              .because(
-                  "crag-ingestion 只能通过 retrieval.api 包访问。"
-                      + "冻结例外：DenseEmbeddingService/Cron→retrieval.embedding — 由 9.4 修复。"));
+      noClasses()
+          .that()
+          .resideInAPackage("ai.cerbur.crag.ingestion..")
+          .should()
+          .accessClassesThat()
+          .resideInAnyPackage(
+              "ai.cerbur.crag.retrieval.embedding..",
+              "ai.cerbur.crag.retrieval.service..",
+              "ai.cerbur.crag.retrieval.dense..",
+              "ai.cerbur.crag.retrieval.sparse..",
+              "ai.cerbur.crag.retrieval.rrf..",
+              "ai.cerbur.crag.retrieval.rerank..",
+              "ai.cerbur.crag.retrieval.bo..",
+              "ai.cerbur.crag.retrieval.result..")
+          .because("crag-ingestion 只能通过 retrieval.api 包访问。原例外已由 9.4 消除。");
 
   // ═══════════════════════════════════════════════════════════════
   // 规则 5c：crag-query → crag-retrieval 仅允许 api 包
@@ -176,4 +165,25 @@ class ModuleBoundaryArchitectureTest {
               "ai.cerbur.crag.retrieval.result..")
           .allowEmptyShould(true)
           .because("crag-query 只能通过 retrieval.api 包访问。当前无违反。");
+
+  // ═══════════════════════════════════════════════════════════════
+  // 规则 6：Smoke Bean 必须受 Profile 限制
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * {@code crag-smoke} 模块中标记了 {@code @RestController} 的类必须同时标记 {@code @Profile("smoke")}，
+   * 确保默认应用启动不暴露诊断端点。
+   *
+   * <p>不禁止业务模块依赖 {@code crag-smoke} 由依赖白名单校验器覆盖。
+   */
+  @ArchTest
+  static final ArchRule smoke_controllers_have_profile =
+      classes()
+          .that()
+          .resideInAPackage("ai.cerbur.crag.smoke..")
+          .and()
+          .areAnnotatedWith(RestController.class)
+          .should()
+          .beAnnotatedWith(org.springframework.context.annotation.Profile.class)
+          .because("crag-smoke 的诊断端点必须受 @Profile(\"smoke\") 限制。");
 }

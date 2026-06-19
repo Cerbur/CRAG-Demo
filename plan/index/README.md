@@ -65,7 +65,7 @@ plan/
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | ❌ 阻塞 (0/5)，等待 plan_9 | — | [plan_7.md](../plan_7/plan_7.md) |
+| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | 📝 草稿 (0/5)，plan_9 已完成，待校准 Spring AI/Stub/凭据 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | 🔄 进行中 (5/6)，plan_11 已完成 | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
@@ -147,7 +147,7 @@ plan_9 → plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、LLM Stub、DeepSeek、正式 UserQuery API 和自动化 HTTP 回归 | ❌ 阻塞 (0/5)，等待 plan_9 |
+| [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、LLM Stub、DeepSeek、正式 UserQuery API 和自动化 HTTP 回归 | 📝 草稿 (0/5)，plan_9 已完成，待校准 |
 
 ## Plan_8 明细
 

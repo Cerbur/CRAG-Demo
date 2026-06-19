@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_7
 type: main
-status: blocked
+status: draft
 owner: parent-agent
 created: 2026-06-18
 updated: 2026-06-19
@@ -32,8 +32,8 @@ updated: 2026-06-19
 - **执行前置 Plan**：`plan_9`
 - `plan_6` 已完成 Retrieval 查询链路，Query 只依赖 retrieval 门面能力。
 - `plan_5` 已完成 Java module 拆分，Query 新代码落入 `crag-query` 模块。
-- `plan_9` 必须先完成模块边界迁移；本计划随后使用 `crag-api` 和各领域 `api` 包执行，`crag-smoke` 仅保留内部诊断职责。
-- `plan_9` 完成后本计划先转为 `draft`，校准 Spring AI 版本、配置属性、确定性 LLM Stub、文件边界与验收命令。
+- `plan_9` 已于 2026-06-19 完成模块边界迁移：`crag-admin→crag-api`、公开 API 包和 `crag-smoke` 隔离。本计划使用 `crag-api` 和各领域 `api` 包执行。
+- 本计划当前为 `draft`，需校准 Spring AI 版本、配置属性、确定性 LLM Stub、文件边界与验收命令后转为 `ready`。
 - DeepSeek API 凭据可用是本计划从 `draft` 转为 `ready` 的前提，凭据不得写入仓库。
 
 ## 文件边界
@@ -187,6 +187,7 @@ updated: 2026-06-19
 - **当前进度**：5 个任务均未开始，无需回滚实现。
 - **解除条件**：`plan_9` 完成并通过 Architecture、纯单元、轻量组件测试及默认/smoke Docker HTTP 验收。
 - **解除方**：`plan_9` owner。
+- **解除状态**：已于 2026-06-19 解除。`plan_9` 6 项任务全部完成，`./gradlew check` 通过，plan_7 转为 `draft`。
 - **恢复后的下一步**：转为 `draft`，重新读取迁移后的公开 API，确认 Spring AI、LLM Stub、DeepSeek 凭据与文件边界；提交校准后的 Plan 和索引，再转为 `ready`。
 
 ## 废弃任务记录
@@ -200,4 +201,5 @@ updated: 2026-06-19
 | 2026-06-18 | 创建 plan_7 | 从 plan_6 拆分 Query 链路 | 建立 4 项业务任务 |
 | 2026-06-19 | 迁移为 workflow v2，状态为待开始 | plan_8 工作流治理 | 补齐元信息、边界、固定任务结构与验证计划；业务范围不变 |
 | 2026-06-19 | 状态调整为阻塞并增加 plan_9 前置依赖 | 避免 Query 功能继续写入即将废弃的模块与包边界 | 业务目标不变；执行路径切换到 crag-api、公开 api 包与 crag-smoke |
+| 2026-06-19 | 状态从 blocked 恢复为 draft | plan_9 完成，架构阻塞消除；需校准 Spring AI/Stub/凭据后转 ready | 5 任务均待开始；使用 crag-api 和 api 包执行 |
 | 2026-06-19 | 重拆为 5 项串行任务并收紧完成门槛 | 先建立 Stub，正式 API 回归不得混入 Smoke，真实 DeepSeek 必须验收 | plan_9 完成后先回 draft 校准，不直接恢复 ready |
