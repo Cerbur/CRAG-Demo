@@ -40,7 +40,7 @@ updated: 2026-06-19
 - **执行前置 Plan**：`plan_9`、`plan_7`
 - `plan_9` 必须完成，由其先落地 `crag-api`、`crag-smoke`、默认禁用诊断端点及显式 Smoke Profile 装配。
 - `plan_7` 必须完成，由其先落地 Spring AI、DeepSeek/Stub 配置、环境变量和 Query HTTP 回归。
-- `plan_7` 的上游治理顺序为 `plan_12 → plan_9.hotfix_3 → plan_7`；本计划不重复声明传递依赖，但转为 `ready` 时必须读取这些计划的最终事实。
+- `plan_7` 的当前上游顺序为 `plan_6.hotfix_6 → plan_13 → plan_7`；本计划不重复声明传递依赖，但转为 `ready` 时必须读取这些计划的最终事实。
 - `plan_10` 在 `plan_9` 与 `plan_7` 完成前保持 `draft`，不得与二者并行修改共享 Docker、配置或 README 文件。
 - 转为 `ready` 前重新读取 `plan_9` 与 `plan_7` 的最终提交和验收记录，并按实际模块名、配置、健康端点与启动方式校准本计划。
 
@@ -179,3 +179,4 @@ updated: 2026-06-19
 | 2026-06-19 | 创建 draft 计划 | Docker 约束 grilling 已完成，决定将全面部署契约升级与 `plan_9` 串行拆分 | 建立 4 项任务；`plan_9` 完成前不得执行 |
 | 2026-06-19 | 增加 plan_7 前置并收窄 Smoke 职责 | Query/LLM 配置会改变最终部署契约，Smoke 机制由 plan_9 交付 | 执行顺序固定为 plan_9 → plan_7 → plan_10 |
 | 2026-06-19 | 记录上游治理链 | constraints 复核新增 plan_12 与 plan_9.hotfix_3，二者先于 Query 执行 | 本计划直接依赖仍为 plan_9、plan_7；完整队列为 plan_12 → plan_9.hotfix_3 → plan_7 → plan_10 |
+| 2026-06-19 | 同步 Query 新增前置 | Parent Evidence 修正与 Boot 4 / Spring AI 2 升级先于 Query | 当前执行队列为 plan_6.hotfix_6 → plan_13 → plan_7 → plan_10 |

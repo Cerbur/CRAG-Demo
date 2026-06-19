@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-19 (plan_9.hotfix_5 完成)
+> 最后更新：2026-06-19 (plan_7 grilling 完成，新增 plan_6.hotfix_6 与 plan_13)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -37,7 +37,8 @@ plan/
 │   ├── plan_6.hotfix_2.md
 │   ├── plan_6.hotfix_3.md
 │   ├── plan_6.hotfix_4.md
-│   └── plan_6.hotfix_5.md
+│   ├── plan_6.hotfix_5.md
+│   └── plan_6.hotfix_6.md
 ├── plan_7/
 │   └── plan_7.md
 ├── plan_8/
@@ -55,6 +56,8 @@ plan/
 │   └── plan_11.md
 ├── plan_12/
 │   └── plan_12.md
+├── plan_13/
+│   └── plan_13.md
 └── plan_archive/
     └── README.md
 ```
@@ -71,24 +74,25 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | 📝 草稿 (0/5)，plan_9 已完成，待校准 Spring AI/Stub/凭据 | — | [plan_7.md](../plan_7/plan_7.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_6](../plan_6/plan_6.hotfix_6.md) 待开始 (0/3) | [plan_6.md](../plan_6/plan_6.md) |
+| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash、正式 UserQuery API 和自动化回归 | 📝 草稿 (0/7)，等待 plan_6.hotfix_6、plan_13 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
-| plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
+| plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
+| plan_13 | Spring Boot 4.1.0、Spring Framework 7 与 Spring AI 2.0.0 基线升级 | ⏳ 待开始 (0/4)，等待 plan_6.hotfix_6 | — | [plan_13.md](../plan_13/plan_13.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
-plan_7 → plan_10
+plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_9.hotfix_5` 已完成异常处理组件测试的 MVC Slice 验收；当前继续执行 Query 链路与完整 Docker 部署治理。
+- `plan_6.hotfix_6` 先修正 Retrieval 的 parent evidence 输出；随后升级 Boot 4 / Spring AI 2，再实现 Query 与完整 Docker 部署治理。
 
 ---
 
@@ -149,12 +153,13 @@ plan_7 → plan_10
 | [plan_6.hotfix_3.md](../plan_6/plan_6.hotfix_3.md) | Benchmark skill 评估集标准优化，补充黄金/对抗/分布样本、置信区间和回归检测能力 | ✅ 完成 |
 | [plan_6.hotfix_4.md](../plan_6/plan_6.hotfix_4.md) | Benchmark skill 任务路由补齐，确保 benchmark / evaluation / 回归测试意图索引到 `crag-benchmark` | ✅ 完成 |
 | [plan_6.hotfix_5.md](../plan_6/plan_6.hotfix_5.md) | 项目级 OpenCode Plan 执行 Skill，固化 Plan 完整度、SubAgent 实现、Review、测试与验收闭环 | ✅ 完成 |
+| [plan_6.hotfix_6.md](../plan_6/plan_6.hotfix_6.md) | 新增 parent evidence 公共入口，聚合 child 命中并返回完整 parent Context | ⏳ 待开始 (0/3) |
 
 ## Plan_7 明细
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_7.md](../plan_7/plan_7.md) | Query 问答链路，包含 Context、sources、LLM Stub、DeepSeek、正式 UserQuery API 和自动化 HTTP 回归 | 📝 草稿 (0/5)，plan_9 已完成，待校准 |
+| [plan_7.md](../plan_7/plan_7.md) | Query Parent Context、引用、LLM contract/adapter、DeepSeek V4 Flash、正式 UserQuery API 和自动化 HTTP 回归 | 📝 草稿 (0/7)，等待 plan_6.hotfix_6、plan_13 |
 
 ## Plan_8 明细
 
@@ -178,7 +183,7 @@ plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_10.md](../plan_10/plan_10.md) | Docker 部署契约升级与实现对齐，包含正式健康检查、既有 Smoke 机制验收、构建约束和全量验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 |
+| [plan_10.md](../plan_10/plan_10.md) | Docker 部署契约升级与实现对齐，包含正式健康检查、既有 Smoke 机制验收、构建约束和全量验收 | 📝 草稿 (0/4)，等待 plan_7 |
 
 ## Plan_11 明细
 
@@ -191,6 +196,12 @@ plan_7 → plan_10
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_12.md](../plan_12/plan_12.md) | 校准 Docker 与 Storage 约束事实，增加入口、链接、服务索引和术语防漂移校验 | ✅ 完成 (4/4) |
+
+## Plan_13 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_13.md](../plan_13/plan_13.md) | Spring Boot 4.1.0、Spring Framework 7 与 Spring AI 2.0.0 基线升级 | ⏳ 待开始 (0/4)，等待 plan_6.hotfix_6 |
 
 ---
 
