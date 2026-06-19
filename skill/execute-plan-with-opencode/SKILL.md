@@ -141,7 +141,7 @@ Require the implementation SubAgent to return:
 - test files and cases;
 - acceptance criterion or risk covered by each case;
 - exact reproducible commands;
-- unit, integration, architecture, smoke, or end-to-end scope;
+- pure unit, lightweight component, architecture, or Docker HTTP regression scope (per `constraints/test-workflow.md`);
 - external dependencies and data setup;
 - expected results;
 - tests OpenCode actually ran and raw outcomes;
@@ -178,9 +178,9 @@ Use a new repair SubAgent for every failed Review round. Stop automatic repair a
 
 After code Review passes, the ParentAgent runs the approved test workflow itself.
 
-- Unit tests may run through Gradle normally.
-- Interface, integration, end-to-end, smoke, manual integration, PostgreSQL, pgvector, Spring Boot, and Sidecar checks must run through Docker Compose.
-- Never directly start Java or Python services for non-unit validation.
+- Route test execution through `constraints/test-workflow.md` four-layer classification and risk-trigger rules.
+- Pure unit, lightweight component, and architecture tests run through Gradle without Docker.
+- Docker HTTP regression runs through Docker Compose per the risk-trigger rules; lightweight component tests using H2 or Spring slices never require Docker.
 
 A failed test returns the task to code Review. Treat the failure as a new finding and create a new repair SubAgent, subject to the same three-round total limit.
 
@@ -267,7 +267,7 @@ Declare the Plan complete only when:
 - all tasks and acceptance criteria have evidence;
 - final code Review passes;
 - the ParentAgent has run all required tests successfully;
-- non-unit validation used Docker Compose;
+- Docker HTTP regression, if required by risk-trigger rules, used Docker Compose;
 - no required test is skipped and no blocker remains;
 - every completed task has one or more real implementation commit hashes;
 - `python3 scripts/validate_plans.py --strict --verify-git <plan-path>` succeeds;

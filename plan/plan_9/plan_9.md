@@ -100,9 +100,10 @@ updated: 2026-06-19
 
 - 计划校验：`python3 scripts/validate_plans.py --strict`。
 - Gradle 依赖白名单：`python3 scripts/validate_module_dependencies.py`。
-- 架构测试：`./gradlew :crag-app:test --tests '*ArchitectureRulesTest'`。
-- 模块单测：按迁移阶段运行受影响模块的 `test`，最终运行 `./gradlew test`。
-- 全量工程检查：`./gradlew check`，确认 Spotless、单元测试、架构规则和 Plan 校验全部通过。
+- 架构测试：`./gradlew :crag-app:test --tests '*ArchitectureTest'`。
+- 轻量组件测试统一使用 `*ComponentTest`，覆盖 Spring Context、Profile 与装配行为，不把 H2 结果当作真实 PostgreSQL 保证。
+- 模块测试：按迁移阶段运行受影响模块的纯单元、轻量组件和 Architecture 测试，最终运行 `./gradlew test`。
+- 全量工程检查：`./gradlew check`，确认 Spotless、三类 Gradle 测试、架构规则和 Plan 校验全部通过。
 - 默认 Docker 验证：`docker compose up -d --build` 后确认正式 API 可用且 `/api/v1/test/**` 不存在。
 - Smoke Docker 验证：显式设置 `SPRING_PROFILES_ACTIVE=smoke` 启动 Compose，回归现有 smoke、chunk、indexes、rrf、rerank 和 retrieval 诊断端点。
 - Smoke HTTP 回归必须沉淀为 `scripts/tests/http/` 自动化脚本；本计划只建立最小可用的显式启用机制，不治理健康检查、镜像、安全或持久化契约。
@@ -128,7 +129,7 @@ updated: 2026-06-19
 **范围**：为 `crag-app` 测试集引入 ArchUnit，建立代码依赖无环、Repository 内聚、Controller 位置、App 禁止业务调用、普通模块仅访问公开包等规则；新增标准库实现的 Gradle project dependency 白名单校验器及单元测试；对现有 `TestController`、旧公开入口和旧模块名使用精确临时例外。  
 **非目标**：本任务不移动生产代码，不一次性修复现有偏差，不使用宽泛的全包忽略。  
 **验收标准**：架构测试在记录当前精确例外后通过；新增同类越界类会使测试失败；Gradle 校验器能拒绝未列入白名单的 project dependency 和依赖环；每个临时例外都注明由 9.2 至 9.5 的哪项任务删除。  
-**验证方式**：先编写无例外规则并运行 `./gradlew :crag-app:test --tests '*ArchitectureRulesTest'` 确认命中当前偏差，再加入精确例外并确认测试通过；运行 `python3 -m unittest scripts.tests.test_validate_module_dependencies -v`、`python3 scripts/validate_module_dependencies.py` 和 `./gradlew :crag-app:test`。  
+**验证方式**：先编写无例外规则并运行 `./gradlew :crag-app:test --tests '*ArchitectureTest'` 确认命中当前偏差，再加入精确例外并确认测试通过；运行 `python3 -m unittest scripts.tests.test_validate_module_dependencies -v`、`python3 scripts/validate_module_dependencies.py` 和 `./gradlew :crag-app:test`。
 **涉及文件**：`crag-app/build.gradle.kts`、`crag-app/src/test/**`、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`、`build.gradle.kts`
 
 ## 9.2 将 crag-admin 重命名为 crag-api

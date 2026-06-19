@@ -19,13 +19,13 @@ updated: 2026-06-19
 - `crag-query` 调用 `RetrievalService` 获取已完成召回、融合和重排的 chunks。
 - 构建可控长度的 prompt context，并保留 answer sources。
 - 接入 DeepSeek / Spring AI，在 UserQueryService 中编排 retrieval、prompt 与生成。
-- 暴露 `POST /api/v1/query`，补充单元测试与 Docker Compose 端到端冒烟验证。
+- 暴露 `POST /api/v1/query`，补充纯单元、轻量组件测试与自动化 Docker HTTP 回归。
 
 ## 非目标
 
 - 不修改 Sparse、Dense、RRF 或 Rerank 内部算法。
 - 不实现流式输出、鉴权、多租户、对话记忆或 Prompt 管理平台。
-- 不绕过 Docker 直接启动 Java、Python 或临时数据库做非单元验证。
+- 不绕过 Docker 直接启动 Java、Python 或临时数据库做真实运行时业务链路验证。
 
 ## 前置依赖
 
@@ -70,7 +70,7 @@ updated: 2026-06-19
 
 ## 风险与回滚
 
-- 外部 LLM 不可用或限流：映射为可理解错误并通过单元测试覆盖失败路径。
+- 外部 LLM 不可用或限流：映射为可理解错误并通过纯单元测试覆盖失败路径。
 - Context 过长：在 Query 内实施明确上限，边界输入必须测试。
 - sources 与实际 context 漂移：从同一排序结果生成，测试顺序、截断与元信息映射。
 - 配置或依赖接入失败时，回滚对应任务提交；本计划不迁移数据库，无不可逆数据变更。
@@ -105,7 +105,7 @@ updated: 2026-06-19
 
 **非目标**：不修改 Retrieval 排序，不调用 LLM，不暴露 HTTP。
 
-**验收标准**：sources 可追溯到 chunk/document 元信息；context 长度有上限；空结果、截断边界和顺序稳定均有单元测试。
+**验收标准**：sources 可追溯到 chunk/document 元信息；context 长度有上限；空结果、截断边界和顺序稳定均有纯单元测试。
 
 **验证方式**：运行 `./gradlew :crag-query:test`，核对正常、空输入、超长输入和 sources 映射用例。
 
@@ -117,7 +117,7 @@ updated: 2026-06-19
 
 **前置任务**：7.1
 
-**范围**：LLM 请求/结果契约、失败语义、确定性 Stub、Profile 或配置切换及单元测试。
+**范围**：LLM 请求/结果契约、失败语义、确定性 Stub、Profile 或配置切换及纯单元测试。
 
 **非目标**：不接入真实 DeepSeek，不实现 UserQueryService、流式生成或多供应商动态切换。
 
@@ -133,7 +133,7 @@ updated: 2026-06-19
 
 **前置任务**：7.2
 
-**范围**：Spring AI 依赖与配置、DeepSeek adapter、UserQueryService、失败映射及单元测试。
+**范围**：Spring AI 依赖与配置、DeepSeek adapter、UserQueryService、失败映射，以及纯单元与必要的轻量组件测试。
 
 **非目标**：不实现流式生成、重试框架、对话记忆或第二供应商。
 
@@ -185,7 +185,7 @@ updated: 2026-06-19
 - **日期**：2026-06-19
 - **原因**：`plan_9` 将先完成 `crag-admin → crag-api`、公开 API 包和 `crag-smoke` 迁移，避免本计划向旧边界继续新增代码后再次搬迁。
 - **当前进度**：5 个任务均未开始，无需回滚实现。
-- **解除条件**：`plan_9` 完成并通过架构、单元测试及默认/smoke Docker 验收。
+- **解除条件**：`plan_9` 完成并通过 Architecture、纯单元、轻量组件测试及默认/smoke Docker HTTP 验收。
 - **解除方**：`plan_9` owner。
 - **恢复后的下一步**：转为 `draft`，重新读取迁移后的公开 API，确认 Spring AI、LLM Stub、DeepSeek 凭据与文件边界；提交校准后的 Plan 和索引，再转为 `ready`。
 

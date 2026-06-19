@@ -47,7 +47,7 @@ Implementation rules
 - Do not modify Plan files or plan/index/README.md.
 - Do not perform Git write operations.
 - Prefer the smallest implementation satisfying the current task.
-- Follow all repository constraints, including Docker-only non-unit testing.
+- Follow all repository constraints. Test execution follows the four-layer classification and risk-trigger rules in constraints/test-workflow.md: pure unit, lightweight component, and architecture tests run through Gradle without Docker; only Docker HTTP regression requires Docker Compose per the risk-trigger rules.
 - Require OpenCode to inspect existing tests before adding new ones.
 - Require tests for changed core behavior and failure paths.
 - Do not conceal skipped tests or environmental failures.
@@ -72,7 +72,7 @@ completed | blocked | authorization-required
 - Test files and cases
 - Acceptance criterion or risk covered by each case
 - Exact reproducible commands
-- Unit/integration/architecture/smoke/end-to-end scope
+- Pure unit / lightweight component / architecture / Docker HTTP regression scope (per constraints/test-workflow.md)
 - External dependencies and test data setup
 - Expected results
 

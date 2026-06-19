@@ -23,7 +23,7 @@ updated: 2026-06-19
 - 验证并文档化 `plan_9` 已建立的单 Compose Smoke 切换机制，不重复设计第二套机制。
 - 为 Spring Boot 应用提供不依赖诊断端点的正式健康检查，并纳入 Compose 就绪判断。
 - 对齐 `docker-compose.yml`、应用与 Sidecar Dockerfile、忽略规则和必要的环境变量示例。
-- 同步中文 README、测试工作流及受影响的部署说明。
+- 同步中文 README 与受影响的部署说明；测试分类和触发规则继续路由到 `constraints/test-workflow.md`。
 - 分别完成默认模式和 Smoke 模式的 Docker Compose 验收。
 
 ## 非目标
@@ -132,7 +132,7 @@ updated: 2026-06-19
 
 **目标**：让 Compose 能通过不依赖 Smoke 后门的正式端点判断 Spring Boot 应用及其数据库依赖是否真正可服务。  
 **前置任务**：10.1  
-**范围**：按 `plan_9` 最终模块结构接入 Spring Boot 正式健康能力，配置只暴露必要健康信息；增加应用层测试，验证默认 Profile 下健康能力可用且不依赖 `crag-smoke`；为 `app` 增加健康检查；确认 `model-init → sidecar → app` 与 `db → app` 的就绪条件完整。  
+**范围**：按 `plan_9` 最终模块结构接入 Spring Boot 正式健康能力，配置只暴露必要健康信息；增加 `*ComponentTest`，验证默认 Profile 下健康能力可用且不依赖 `crag-smoke`；为 `app` 增加健康检查；确认 `model-init → sidecar → app` 与 `db → app` 的就绪条件完整。
 **非目标**：不新增业务健康 Controller，不把 Retrieval 全链路或模型推理请求塞入应用存活检查，不改变 Sidecar `/health` 协议。  
 **验收标准**：默认 Profile 下正式健康端点返回成功并反映数据库连接状态；禁用 Smoke 时仍可检查应用健康；`app` 成为 Compose 中具有健康状态的长期服务；任一必要依赖未就绪时 App 不会被误判为完整部署可用。  
 **验证方式**：运行受影响的 `crag-app` 测试和 `./gradlew check`；运行 `docker compose config`；启动 `db`、`sidecar`、`app` 后检查 `docker compose ps` 与正式健康端点；停止数据库后确认应用健康状态能够反映依赖异常。  
@@ -153,7 +153,7 @@ updated: 2026-06-19
 **目标**：让使用者、测试约束和实际部署方式一致，并以可复现证据完成部署契约升级。  
 **前置任务**：10.3  
 **范围**：更新中文 README 的默认启动、正式健康检查、Smoke 显式启动、Query/LLM 配置、端口与本地数据说明；检查 `package-structure.md` 中 Smoke Docker 描述与最终方式一致；执行默认与 Smoke 两套完整验收并记录结果。
-**非目标**：不重写项目介绍或 API 文档，不把局部服务启动当作完整验收，不清除数据库和模型缓存。  
+**非目标**：不重写项目介绍、API 文档或测试分类，不把局部服务启动当作完整验收，不清除数据库和模型缓存。
 **验收标准**：README 可让新使用者用单一 Compose 完成默认和 Smoke 两种启动；默认模式诊断端点不可见、Smoke 模式可见；`db`、`sidecar`、`app` 均健康；App 正式健康端点、数据库状态、Sidecar 健康和容器内调用均通过；普通 down/up 后持久化数据仍存在；约束、实现和命令示例无冲突。  
 **验证方式**：依次运行默认与 Smoke 环境的 `docker compose config`、`docker compose up -d --build`、`docker compose ps`、正式健康端点和诊断端点检查、容器内 Sidecar 调用、`docker compose down`；运行 `./gradlew check`、`python3 scripts/validate_plans.py --strict --verify-git`、`rg -n 'docker compose|SPRING_PROFILES_ACTIVE|/api/v1/test|health' README.md constraints` 和 `git diff --check`。  
 **涉及文件**：`README.md`、`constraints/package-structure.md`、`constraints/docker-structure.md`、`plan/plan_10/plan_10.md`、`plan/index/README.md`

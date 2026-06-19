@@ -53,7 +53,7 @@ Repair rules
 - Do not perform Git write operations.
 - Do not weaken tests to make failures disappear.
 - Do not broaden the refactor beyond the findings without ParentAgent approval.
-- Follow Docker-only rules for all non-unit validation.
+- Follow validation rules per constraints/test-workflow.md four-layer classification and risk-trigger rules.
 - Report every unresolved finding honestly.
 
 Return exactly:
