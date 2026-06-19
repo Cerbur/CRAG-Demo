@@ -1,4 +1,4 @@
-package ai.cerbur.crag.retrieval.embedding;
+package ai.cerbur.crag.retrieval.api.embedding;
 
 /**
  * EmbeddingClient 统一接口 —— 文本向量化.

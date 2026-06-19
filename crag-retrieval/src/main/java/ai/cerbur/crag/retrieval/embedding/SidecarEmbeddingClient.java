@@ -1,5 +1,7 @@
 package ai.cerbur.crag.retrieval.embedding;
 
+import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
+import ai.cerbur.crag.retrieval.api.embedding.EmbeddingException;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.Map;

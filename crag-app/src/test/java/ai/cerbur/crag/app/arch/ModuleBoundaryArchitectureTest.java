@@ -130,8 +130,9 @@ class ModuleBoundaryArchitectureTest {
   /**
    * {@code crag-ingestion} 只能通过 {@code crag-retrieval} 的 {@code api} 包访问其公开入口。
    *
-   * <p>冻结例外（由任务 9.4 修复）：{@code DenseEmbeddingService} 和 {@code DenseEmbeddingCron} 当前直接 import
-   * {@code retrieval.embedding.EmbeddingClient} 和 {@code retrieval.embedding.EmbeddingException}。
+   * <p>冻结例外（由任务 9.4 修复）：{@code DenseEmbeddingService} 和 {@code DenseEmbeddingCron} 原直接 import
+   * {@code retrieval.embedding.EmbeddingClient} 和 {@code retrieval.embedding.EmbeddingException}，
+   * 已由 9.4 消除（Embedding 契约迁入 {@code api.embedding}，内部 implementation 留 {@code embedding}）。
    */
   @ArchTest
   static final ArchRule ingestion_only_retrieval_api =

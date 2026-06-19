@@ -79,14 +79,13 @@ ai.cerbur.crag.ingestion.api    ✅ plan_9 9.3 已完成
 ├── AdminRagService
 └── AdminRagResult
 
-ai.cerbur.crag.retrieval.api    ✅ plan_9 9.3 已完成 (不含 embedding，9.4 完成)
+ai.cerbur.crag.retrieval.api    ✅ plan_9 9.3/9.4 已完成
 ├── RetrievalService
-└── result/
-    └── ChunkSearchResult
-
-ai.cerbur.crag.retrieval.api.embedding   ⏳ 待 plan_9 9.4 迁移
-├── EmbeddingClient
-└── EmbeddingException
+├── result/
+│   └── ChunkSearchResult
+└── embedding/             ✅ plan_9 9.4 已完成
+    ├── EmbeddingClient
+    └── EmbeddingException
 
 ai.cerbur.crag.query.api        ✅ plan_9 9.3 已完成
 ├── UserQueryService
@@ -178,8 +177,8 @@ ai.cerbur.crag.ingestion
 
 ```text
 ai.cerbur.crag.retrieval
-├── api/                               — RetrievalService / result.ChunkSearchResult（跨模块公开入口）
-├── embedding/                         — Embedding 契约、Sidecar 实现与异常（9.4 将契约迁入 api.embedding）
+├── api/                               — RetrievalService / result.ChunkSearchResult / embedding.EmbeddingClient / embedding.EmbeddingException（跨模块公开入口）
+├── embedding/                         — SidecarEmbeddingClient 等内部实现
 ├── sparse/ / dense/                   — 双路召回
 ├── rrf/ / rerank/                     — 融合与重排
 ├── bo/                                — ChunkBO
@@ -211,7 +210,7 @@ ai.cerbur.crag.app
 └── controller.TestController          — 当前冒烟与分阶段诊断入口
 ```
 
-当前尚不存在 `crag-smoke` module；Embedding 契约尚未迁入 `retrieval.api.embedding`（待 9.4）。
+当前尚不存在 `crag-smoke` module（待 9.5）。
 
 ## 十、已知偏差
 
@@ -220,8 +219,8 @@ ai.cerbur.crag.app
 | 偏差 | 当前状态 | 目标 |
 | --- | --- | --- |
 | 组合根承载诊断 Controller | `TestController` 位于 `crag-app` 并直接调用内部组件 | 迁移到仅在 `smoke` Profile 启用的 `crag-smoke` |
-| 跨模块入口没有统一边界 | Ingestion/Query 已迁入 `api` 包（9.3）；Retrieval 门面已迁，Embedding 待 9.4 | 迁入各模块 `api` 包 |
-| Embedding 契约与实现混放 | Ingestion 直接依赖 `retrieval.embedding.EmbeddingClient` | 契约迁入 `retrieval.api.embedding`，Sidecar 实现保留内部 |
+| 跨模块入口没有统一边界 | 已消除（9.3/9.4）；Ingestion/Query/Retrieval 公开入口均在各模块 api 包 | 已完成 |
+| Embedding 契约与实现混放 | 已消除（9.4）；EmbeddingClient/EmbeddingException 迁入 api.embedding，Sidecar 留内部 | 已完成 |
 | 架构规则只靠文档记忆 | ArchUnit 基线已建立（9.1），临时例外待 9.4/9.5 消除后由 9.6 清理 | 清除所有迁移期例外 |
 
 在 `plan_9` 完成前，新增代码不得扩大以上偏差。偏差完成迁移后必须从本节删除，并把实际结构同步到“当前实现索引”。

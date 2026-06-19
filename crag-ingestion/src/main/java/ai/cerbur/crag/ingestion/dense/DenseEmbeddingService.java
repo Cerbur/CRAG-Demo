@@ -1,7 +1,7 @@
 package ai.cerbur.crag.ingestion.dense;
 
-import ai.cerbur.crag.retrieval.embedding.EmbeddingClient;
-import ai.cerbur.crag.retrieval.embedding.EmbeddingException;
+import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
+import ai.cerbur.crag.retrieval.api.embedding.EmbeddingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,7 +1,7 @@
 package ai.cerbur.crag.ingestion.cron;
 
 import ai.cerbur.crag.ingestion.dense.DenseEmbeddingService;
-import ai.cerbur.crag.retrieval.embedding.EmbeddingException;
+import ai.cerbur.crag.retrieval.api.embedding.EmbeddingException;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.ChunkEmbeddingDao;
 import ai.cerbur.crag.storage.entity.Chunk;

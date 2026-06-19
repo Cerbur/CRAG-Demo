@@ -6,9 +6,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import ai.cerbur.crag.retrieval.api.RetrievalService;
+import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
 import ai.cerbur.crag.retrieval.dense.DenseQueryService;
-import ai.cerbur.crag.retrieval.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.rerank.RerankService;
 import ai.cerbur.crag.retrieval.result.DenseSearchResult;
 import ai.cerbur.crag.retrieval.result.RrfFusionResult;

@@ -1,4 +1,4 @@
-package ai.cerbur.crag.retrieval.embedding;
+package ai.cerbur.crag.retrieval.api.embedding;
 
 /**
  * Embedding 调用异常 —— 当 Sidecar /embed 端点调用失败时抛出.
