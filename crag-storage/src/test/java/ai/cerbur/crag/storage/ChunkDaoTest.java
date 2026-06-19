@@ -6,6 +6,9 @@ import static org.mockito.Mockito.when;
 
 import ai.cerbur.crag.storage.entity.ChunkStatus;
 import ai.cerbur.crag.storage.repository.ChunkRepository;
+import ai.cerbur.crag.storage.result.ParentChunkContent;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -81,6 +84,33 @@ class ChunkDaoTest {
           .hasMessageContaining("chunk-002")
           .hasMessageContaining("version 5")
           .hasMessageContaining("stale");
+    }
+  }
+
+  @Nested
+  @DisplayName("findParentContentsByIds")
+  class FindParentContentsByIds {
+
+    @Test
+    @DisplayName("空输入返回空列表")
+    void emptyInputReturnsEmptyList() {
+      assertThat(chunkDao.findParentContentsByIds(null)).isEmpty();
+      assertThat(chunkDao.findParentContentsByIds(Collections.emptyList())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("正常委托到 repository")
+    void delegatesToRepository() {
+      List<String> ids = List.of("p1", "p2");
+      List<ParentChunkContent> expected =
+          List.of(
+              new ParentChunkContent("p1", "content 1"), new ParentChunkContent("p2", "content 2"));
+      when(chunkRepository.findParentContentsByIds(ids)).thenReturn(expected);
+
+      List<ParentChunkContent> result = chunkDao.findParentContentsByIds(ids);
+
+      assertThat(result).isEqualTo(expected);
+      assertThat(result).hasSize(2);
     }
   }
 }

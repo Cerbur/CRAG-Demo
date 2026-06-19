@@ -3,7 +3,9 @@ package ai.cerbur.crag.storage;
 import ai.cerbur.crag.storage.entity.Chunk;
 import ai.cerbur.crag.storage.entity.ChunkStatus;
 import ai.cerbur.crag.storage.repository.ChunkRepository;
+import ai.cerbur.crag.storage.result.ParentChunkContent;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -205,5 +207,21 @@ public class ChunkDao {
   public List<Chunk> findByParentChunkIdsAndChunkIndexes(
       List<String> parentChunkIds, List<Integer> chunkIndexes) {
     return chunkRepository.findByParentChunkIdInAndChunkIndexIn(parentChunkIds, chunkIndexes);
+  }
+
+  /**
+   * 按 chunk ID 列表批量查询 parent chunk 内容投影.
+   *
+   * <p>仅返回 {@code chunkId} 和 {@code content}，限定 parent 行（parent_chunk_id = ''）， 用于 Evidence 回表组装.
+   * 不做顺序保证，调用方自行按 chunkId 建立映射.
+   *
+   * @param chunkIds chunk ID 列表
+   * @return parent chunk 内容投影列表，不存在的 ID 不会出现在结果中
+   */
+  public List<ParentChunkContent> findParentContentsByIds(List<String> chunkIds) {
+    if (chunkIds == null || chunkIds.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return chunkRepository.findParentContentsByIds(chunkIds);
   }
 }

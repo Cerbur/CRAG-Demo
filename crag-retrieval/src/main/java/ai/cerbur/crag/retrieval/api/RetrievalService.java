@@ -2,6 +2,7 @@ package ai.cerbur.crag.retrieval.api;
 
 import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
+import ai.cerbur.crag.retrieval.api.result.ParentEvidenceResult;
 import ai.cerbur.crag.retrieval.bo.ChunkBO;
 import ai.cerbur.crag.retrieval.dense.DenseQueryService;
 import ai.cerbur.crag.retrieval.rerank.RerankService;
@@ -12,6 +13,7 @@ import ai.cerbur.crag.retrieval.rrf.RrfFusionService;
 import ai.cerbur.crag.retrieval.sparse.SparseQueryService;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.entity.Chunk;
+import ai.cerbur.crag.storage.result.ParentChunkContent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -88,6 +90,115 @@ public class RetrievalService {
     logScores(topResults);
 
     return topResults;
+  }
+
+  /**
+   * 执行 parent evidence 检索 —— 返回包含完整 parent 内容的证据列表.
+   *
+   * <p>与 {@link #retrieve(String, int)} 的区别：
+   *
+   * <ul>
+   *   <li>内部使用召回 3N、RRF 3N、最终 3N 的候选倍率；
+   *   <li>从 Rerank 后前 3N 个 child 聚合 parent 候选；
+   *   <li>批量回表读取完整 parent 内容；
+   *   <li>跳过内容缺失/null/blank 的 parent 并以后续有效候选补位；
+   *   <li>最终截取前 {@code topN} 个有效 parent。
+   * </ul>
+   *
+   * <p>返回的 {@link ParentEvidenceResult} 不携带检索分数，不暴露 Entity 或 DAO 类型.
+   *
+   * @param query 用户问题文本
+   * @param topN 最终最多返回的不同 parent 数量
+   * @return 按 Evidence 排名升序排列的 parent evidence 列表
+   */
+  public List<ParentEvidenceResult> retrieveEvidence(String query, int topN) {
+    if (query == null || query.isBlank() || topN <= 0) {
+      return Collections.emptyList();
+    }
+
+    int limit = saturatingMultiply(topN, 3);
+    PipelineConfig config = new PipelineConfig(limit, limit, limit);
+    InternalRetrievalResult internal = retrieveInternal(query, config);
+
+    if (internal.rerankedChildren().isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    // Aggregate evidence candidates from 3N child window
+    List<EvidenceCandidate> candidates =
+        aggregateEvidenceCandidates(
+            internal.rerankedChildren(), internal.realRrfHitChunkIds(), limit);
+
+    if (candidates.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    // Batch read parent content — no N+1, no order dependency
+    List<String> parentIds = candidates.stream().map(EvidenceCandidate::parentChunkId).toList();
+    List<ParentChunkContent> parentContents = chunkDao.findParentContentsByIds(parentIds);
+
+    // Build content map (first occurrence wins for duplicate projections)
+    Map<String, String> contentMap = new LinkedHashMap<>();
+    for (ParentChunkContent pc : parentContents) {
+      if (contentMap.containsKey(pc.chunkId())) {
+        log.warn("Duplicate parent projection for chunkId={}, keeping first", pc.chunkId());
+      } else {
+        contentMap.put(pc.chunkId(), pc.content());
+      }
+    }
+
+    // Assemble results, skip missing/null/blank content, fill from subsequent candidates
+    List<ParentEvidenceResult> results = new ArrayList<>();
+    int invalidCount = 0;
+
+    for (EvidenceCandidate candidate : candidates) {
+      String content = contentMap.get(candidate.parentChunkId());
+
+      if (content == null || content.isBlank()) {
+        invalidCount++;
+        logWarnInvalidParent(candidate, content == null ? "null" : "blank");
+        continue;
+      }
+
+      results.add(
+          new ParentEvidenceResult(
+              candidate.parentChunkId(), content, candidate.matchedChildIds()));
+    }
+
+    if (invalidCount > 0) {
+      log.warn(
+          "Evidence retrieval — {} parent(s) skipped due to missing or blank content",
+          invalidCount);
+    }
+
+    if (results.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    // Truncate to topN
+    int end = Math.min(results.size(), topN);
+    return Collections.unmodifiableList(results.subList(0, end));
+  }
+
+  /**
+   * Log a single invalid parent warning — includes parentChunkId, hit count, and up to 10 child
+   * IDs.
+   */
+  private void logWarnInvalidParent(EvidenceCandidate candidate, String reason) {
+    if (!log.isWarnEnabled()) {
+      return;
+    }
+    List<String> childIds = candidate.matchedChildIds();
+    int showCount = Math.min(childIds.size(), 10);
+    List<String> preview = childIds.subList(0, showCount);
+    log.warn(
+        "Parent evidence skipped — parentChunkId={} has {} matched child(ren), "
+            + "content is {}, first {} child IDs: {}",
+        candidate.parentChunkId(),
+        childIds.size(),
+        reason,
+        showCount,
+        preview);
   }
 
   // ============================================================
