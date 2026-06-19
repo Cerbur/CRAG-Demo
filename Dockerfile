@@ -21,7 +21,8 @@ COPY crag-storage/build.gradle.kts crag-storage/build.gradle.kts
 COPY crag-retrieval/build.gradle.kts crag-retrieval/build.gradle.kts
 COPY crag-ingestion/build.gradle.kts crag-ingestion/build.gradle.kts
 COPY crag-query/build.gradle.kts crag-query/build.gradle.kts
-COPY crag-admin/build.gradle.kts crag-admin/build.gradle.kts
+COPY crag-api/build.gradle.kts crag-api/build.gradle.kts
+COPY crag-smoke/build.gradle.kts crag-smoke/build.gradle.kts
 COPY crag-app/build.gradle.kts crag-app/build.gradle.kts
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
     chmod +x gradlew && ./gradlew :crag-app:dependencies --no-daemon
@@ -32,7 +33,8 @@ COPY crag-storage/src/ crag-storage/src/
 COPY crag-retrieval/src/ crag-retrieval/src/
 COPY crag-ingestion/src/ crag-ingestion/src/
 COPY crag-query/src/ crag-query/src/
-COPY crag-admin/src/ crag-admin/src/
+COPY crag-api/src/ crag-api/src/
+COPY crag-smoke/src/ crag-smoke/src/
 COPY crag-app/src/ crag-app/src/
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
     ./gradlew :crag-app:bootJar --no-daemon

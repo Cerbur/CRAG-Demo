@@ -35,11 +35,17 @@ CRAG-Demo 是一个基于 Java 21 + Spring Boot 构建的 RAG 问答系统后端
 git clone <repo-url>
 cd CRAG-Demo
 
-# 一键启动
+# 一键启动（默认模式，不暴露诊断端点）
 docker compose up -d --build
 
-# 验证服务
-curl http://localhost:8080/api/v1/test/smoke
+# 验证正式 API
+curl -X POST http://localhost:8080/api/v1/admin/rag \
+  -H "Content-Type: application/json" \
+  -d '{"title":"test","content":"hello world"}'
+
+# Smoke 诊断模式（显式启用 /api/v1/test/** 诊断端点）
+docker compose --profile smoke up -d --build app-smoke
+curl http://localhost:8081/api/v1/test/smoke
 ```
 
 ## API 接口

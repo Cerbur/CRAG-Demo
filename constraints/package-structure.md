@@ -138,7 +138,7 @@ ai.cerbur.crag.query.api        ✅ plan_9 9.3 已完成
 - 只允许通过显式 smoke Docker Compose 启动方式激活，例如设置 `SPRING_PROFILES_ACTIVE=smoke`。
 - 允许直接调用 DAO、Sparse/Dense/RRF/Rerank 等内部组件，但每个端点必须明确标注验证阶段。
 - 禁止在冒烟端点中实现正式业务规则，禁止被正式 API 复用。
-- `crag-smoke` 不生成独立可启动 jar；由 `crag-app` 作为可选运行时依赖装配。
+- `crag-smoke` Controller 已受 `@Profile("smoke")` 限制，默认应用不暴露诊断端点（9.5）。
 - 单元测试仍保留在各业务模块；`crag-smoke` 不替代单元测试或正式 API 的端到端测试。
 
 ## 九、当前实现索引
@@ -202,6 +202,13 @@ ai.cerbur.crag.api
 └── dto.request/                       — HTTP 请求 DTO
 ```
 
+### `crag-smoke`
+
+```text
+ai.cerbur.crag.smoke
+└── controller/                        — TestController（smoke Profile 诊断端点）
+```
+
 ### `crag-app`
 
 ```text
@@ -210,7 +217,7 @@ ai.cerbur.crag.app
 └── controller.TestController          — 当前冒烟与分阶段诊断入口
 ```
 
-当前尚不存在 `crag-smoke` module（待 9.5）。
+ArchUnit 规则已建立（9.1），剩余例外由 9.6 清理。
 
 ## 十、已知偏差
 
@@ -218,10 +225,10 @@ ai.cerbur.crag.app
 
 | 偏差 | 当前状态 | 目标 |
 | --- | --- | --- |
-| 组合根承载诊断 Controller | `TestController` 位于 `crag-app` 并直接调用内部组件 | 迁移到仅在 `smoke` Profile 启用的 `crag-smoke` |
+| 组合根承载诊断 Controller | 已消除（9.5）；TestController 迁入 crag-smoke，受 @Profile("smoke") 限制 | 已完成 |
 | 跨模块入口没有统一边界 | 已消除（9.3/9.4）；Ingestion/Query/Retrieval 公开入口均在各模块 api 包 | 已完成 |
 | Embedding 契约与实现混放 | 已消除（9.4）；EmbeddingClient/EmbeddingException 迁入 api.embedding，Sidecar 留内部 | 已完成 |
-| 架构规则只靠文档记忆 | ArchUnit 基线已建立（9.1），临时例外待 9.4/9.5 消除后由 9.6 清理 | 清除所有迁移期例外 |
+| 架构规则只靠文档记忆 | ArchUnit 基线已建立（9.1），部分例外已由 9.3/9.4/9.5 消除，9.6 做最终清理 | 清除所有迁移期例外 |
 
 在 `plan_9` 完成前，新增代码不得扩大以上偏差。偏差完成迁移后必须从本节删除，并把实际结构同步到“当前实现索引”。
 

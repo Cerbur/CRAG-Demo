@@ -53,21 +53,20 @@ class ModuleBoundaryArchitectureTest {
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * {@code @RestController} 只允许出现在 {@code crag-api.controller} 包。
+   * {@code @RestController} 只允许出现在 {@code crag-api.controller} 和受控诊断例外 {@code
+   * crag-smoke.controller} 包。
    *
-   * <p>冻结例外（由任务 9.5 删除）：{@code TestController} 当前位于 {@code ai.cerbur.crag.app.controller}。
+   * <p>原冻结例外（TestController 位于 crag-app）已由 9.5 消除。
    */
   @ArchTest
   static final ArchRule controller_location =
-      freeze(
-          classes()
-              .that()
-              .areAnnotatedWith(RestController.class)
-              .should()
-              .resideInAnyPackage("ai.cerbur.crag.api.controller..")
-              .because(
-                  "@RestController 仅允许在 crag-api 和 crag-smoke（待 9.5"
-                      + " 创建）中。冻结例外：TestController — 由 9.5 删除。"));
+      classes()
+          .that()
+          .areAnnotatedWith(RestController.class)
+          .should()
+          .resideInAnyPackage(
+              "ai.cerbur.crag.api.controller..", "ai.cerbur.crag.smoke.controller..")
+          .because("@RestController 仅允许在 crag-api 和 crag-smoke（诊断例外）中。");
 
   // ═══════════════════════════════════════════════════════════════
   // 规则 4：crag-app 禁止业务调用
@@ -76,25 +75,21 @@ class ModuleBoundaryArchitectureTest {
   /**
    * {@code crag-app} 是唯一组合根，禁止在 Java 代码中直接调用任何业务模块。
    *
-   * <p>冻结例外（由任务 9.5 删除）：{@code TestController} 直接调用 {@code ChunkDao}、{@code
-   * DenseQueryService}、{@code RetrievalService} 等存储和检索内部组件。
+   * <p>原冻结例外（TestController 对 DAO/Retrieval 的访问）已由 9.5 消除。当前无违反。
    */
   @ArchTest
   static final ArchRule app_no_business_calls =
-      freeze(
-          noClasses()
-              .that()
-              .resideInAPackage("ai.cerbur.crag.app..")
-              .should()
-              .accessClassesThat()
-              .resideInAnyPackage(
-                  "ai.cerbur.crag.storage..",
-                  "ai.cerbur.crag.retrieval..",
-                  "ai.cerbur.crag.ingestion..",
-                  "ai.cerbur.crag.query..")
-              .because(
-                  "crag-app 是组合根，禁止直接调用业务模块的 Java 类型。"
-                      + "冻结例外：TestController 对 DAO/Retrieval 的访问 — 由 9.5 删除。"));
+      noClasses()
+          .that()
+          .resideInAPackage("ai.cerbur.crag.app..")
+          .should()
+          .accessClassesThat()
+          .resideInAnyPackage(
+              "ai.cerbur.crag.storage..",
+              "ai.cerbur.crag.retrieval..",
+              "ai.cerbur.crag.ingestion..",
+              "ai.cerbur.crag.query..")
+          .because("crag-app 是组合根，禁止直接调用业务模块的 Java 类型。TestController 已由 9.5 迁入 crag-smoke。");
 
   // ═══════════════════════════════════════════════════════════════
   // 规则 5a：crag-api → crag-ingestion 仅允许 api 包

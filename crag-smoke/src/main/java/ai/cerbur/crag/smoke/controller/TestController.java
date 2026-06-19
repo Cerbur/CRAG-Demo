@@ -1,4 +1,4 @@
-package ai.cerbur.crag.app.controller;
+package ai.cerbur.crag.smoke.controller;
 
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.retrieval.api.RetrievalService;
@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,12 +29,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 冒烟测试接口 —— 验证 HTTP 可达 + 数据库连通 + 检索全链路.
+ * 冒烟测试接口 —— 仅在 {@code smoke} Profile 激活时启用，验证 HTTP 可达 + 数据库连通 + 检索全链路.
  *
- * <p>用于快速验证全链路基础设施是否就绪。 一期提供 GET /api/v1/test/smoke 端点，plan_6 新增 retrieval 冒烟端点.
+ * <p>用于快速验证全链路基础设施是否就绪。所有端点统一受 {@link Profile @Profile("smoke")} 限制， 默认应用启动不暴露 {@code
+ * /api/v1/test/**}。
+ *
+ * <p>本类是计划 {@code plan_9} 任务 9.5 从 {@code crag-app} 迁移到 {@code crag-smoke} 的唯一受控诊断例外。
  *
  * @since 2026-06-10
  */
+@Profile("smoke")
 @RestController
 @RequestMapping("/api/v1/test")
 public class TestController {
@@ -86,8 +91,8 @@ public class TestController {
   /**
    * 检索全链路冒烟测试 —— 委托 RetrievalService.retrieve(...) 执行完整门面链路.
    *
-   * <p>覆盖 Embed → Sparse + Dense → RRF → 邻接扩展 → Rerank 全流程， 包括 plan 6.10 要求的“top RRF child + 同
-   * parent 相邻 child 参与 rerank”逻辑. 中间阶段计数请使用 /api/v1/test/rrf 独立端点.
+   * <p>覆盖 Embed → Sparse + Dense → RRF → 邻接扩展 → Rerank 全流程， 包括 plan 6.10 要求的"top RRF child + 同
+   * parent 相邻 child 参与 rerank"逻辑. 中间阶段计数请使用 /api/v1/test/rrf 独立端点.
    *
    * @param query 用户查询文本
    * @param topN 最终返回数量，默认 10
@@ -216,8 +221,6 @@ public class TestController {
   /**
    * 冒烟测试响应体.
    *
-   * <p>用显式结构表达 HTTP、数据库连接和核心表计数结果，避免 Controller 返回裸 Map.
-   *
    * @param status HTTP 服务状态
    * @param database 数据库连接状态
    * @param tables 核心数据表记录数
@@ -226,8 +229,6 @@ public class TestController {
 
   /**
    * 冒烟测试表计数.
-   *
-   * <p>记录 chunk、chunk_embedding、chunk_fts 三张核心表的当前记录数.
    *
    * @param chunk chunk 表记录数
    * @param chunkEmbedding chunk_embedding 表记录数
@@ -240,8 +241,6 @@ public class TestController {
 
   /**
    * 检索冒烟测试响应体 —— 通过 RetrievalService.retrieve(...) 全链路获取结果.
-   *
-   * <p>中间阶段计数（sparse/dense/fused）可通过 /api/v1/test/rrf 独立验证.
    *
    * @param query 用户查询文本
    * @param results Rerank 重排序后的最终结果列表（含邻接扩展 + 四路得分）

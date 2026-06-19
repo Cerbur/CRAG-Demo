@@ -15,5 +15,6 @@ include(
     "crag-retrieval",
     "crag-query",
     "crag-api",
+    "crag-smoke",
     "crag-app"
 )

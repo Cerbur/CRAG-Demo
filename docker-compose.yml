@@ -69,7 +69,7 @@ services:
       retries: 30
       start_period: 120s
 
-  # --- Spring Boot 应用 ---
+  # --- Spring Boot 应用（默认模式） ---
   app:
     build:
       context: .
@@ -90,6 +90,31 @@ services:
         condition: service_healthy
     networks:
       - crag-net
+
+  # --- Spring Boot 应用（smoke Profile，显式启用诊断端点） ---
+  app-smoke:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crag-app-smoke
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/crag_demo
+      SPRING_DATASOURCE_USERNAME: crag_user
+      SPRING_DATASOURCE_PASSWORD: crag_pass
+      CRAG_EMBEDDING_SIDECAR_URL: http://sidecar:8001
+      CRAG_RERANK_SIDECAR_URL: http://sidecar:8001
+      SPRING_PROFILES_ACTIVE: smoke
+    depends_on:
+      db:
+        condition: service_healthy
+      sidecar:
+        condition: service_healthy
+    networks:
+      - crag-net
+    profiles:
+      - smoke
 
 networks:
   crag-net:

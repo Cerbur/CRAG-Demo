@@ -1,6 +1,5 @@
 plugins {
-    java
-    id("org.springframework.boot") version "3.4.1"
+    `java-library`
 }
 
 java {
@@ -16,14 +15,9 @@ dependencies {
     implementation(project(":crag-retrieval"))
     implementation(project(":crag-query"))
     implementation(project(":crag-api"))
-    runtimeOnly(project(":crag-smoke"))
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.postgresql:postgresql")
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testRuntimeOnly("com.h2database:h2")
 }
