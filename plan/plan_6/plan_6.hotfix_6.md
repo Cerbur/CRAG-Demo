@@ -1,10 +1,9 @@
 ---
-workflow_version: 2
+workflow_version: 3
 plan_id: plan_6.hotfix_6
 type: hotfix
 parent_plan: plan_6
 status: ready
-owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
 ---

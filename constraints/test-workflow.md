@@ -154,7 +154,7 @@ Plan 的测试与验证部分必须按适用层级列出：
 - 实际执行结果、日期和环境。
 - 未执行或跳过项的原因、风险、责任任务和后续动作。
 
-Parent Agent 负责运行并核对最终验收命令。纯单元、轻量组件和架构测试可通过 Gradle 执行；Docker HTTP 回归必须通过 Docker Compose 执行。
+独立验收 session 负责运行并核对最终验收命令，且不得依赖执行 session 的口头结论。纯单元、轻量组件和架构测试可通过 Gradle 执行；Docker HTTP 回归必须通过 Docker Compose 执行。
 
 大型测试报告保存在既有 `build/` 路径，Plan 只记录链接或摘要，不粘贴大段终端输出。完成标准同时受 `constraints/plan-workflow.md` 约束。
 

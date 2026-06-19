@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_8.hotfix_2
 type: hotfix
 parent_plan: plan_8
-status: ready
+status: in_progress
 created: 2026-06-19
 updated: 2026-06-19
 ---
@@ -81,17 +81,17 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 - 运行 `python3 -m unittest scripts.tests.test_validate_plans -v`。
 - 运行 `python3 scripts/validate_plans.py --strict`。
 - 运行 `./gradlew check`。
-- 运行 `rg -n "workflow_version: 2|owner:|parent-agent|Parent Agent|SubAgent|提交必须为 pending" constraints plan scripts`。
+- 运行 `rg -n '^workflow_version: 2$|^owner:|提交必须为 pending|load_v2_plans|workflow v2 规则' constraints plan/templates scripts`。
 - 运行 `git diff --check` 并核对实现提交范围。
 
 ## 进度追踪
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 8.hotfix_2.1 | 以测试先行升级 v3 校验规则 | ⏳ 待开始 | — | — |
-| 8.hotfix_2.2 | 重写执行与独立验收工作流约束 | ⏳ 待开始 | — | — |
-| 8.hotfix_2.3 | 迁移模板、索引和全部 v2 Plan | ⏳ 待开始 | — | — |
-| 8.hotfix_2.4 | 完成实现验证并交接独立验收 | ⏳ 待开始 | — | — |
+| 8.hotfix_2.1 | 以测试先行升级 v3 校验规则 | 🚧 进行中 | — | — |
+| 8.hotfix_2.2 | 重写执行与独立验收工作流约束 | 🚧 进行中 | — | — |
+| 8.hotfix_2.3 | 迁移模板、索引和全部 v2 Plan | 🚧 进行中 | — | — |
+| 8.hotfix_2.4 | 完成实现验证并交接独立验收 | 🚧 进行中 | — | — |
 
 整体进度：0 / 4（0%）
 
@@ -121,7 +121,7 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 **前置任务**：8.hotfix_2.1、8.hotfix_2.2  
 **范围**：模板改为 v3；全部 v2 Plan 升级版本并删除 `owner`；索引新增验收队列并登记本 Hotfix。  
 **非目标**：不更改历史任务状态、提交 hash、完成日期和既有验收证据。  
-**验收标准**：仓库不存在 workflow v2 或 `owner`；已完成 Plan 保持完成；所有未完成 Plan 恰好位于执行或验收队列之一。  
+**验收标准**：仓库不存在 `workflow_version: 2` 或 `owner` 元信息；已完成 Plan 保持完成；所有未完成 Plan 恰好位于执行或验收队列之一。
 **验证方式**：运行全仓检索和 `python3 scripts/validate_plans.py --strict`。  
 **涉及文件**：`plan/templates/**`、`plan/plan_*/plan_*.md`、`plan/index/README.md`
 
@@ -139,6 +139,10 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | macOS / Python 3 | `python3 -m unittest scripts.tests.test_validate_plans -v` | 通过 | 新增 v3 测试先确认 12 项预期失败，完成实现后 18/18 通过 |
+| 2026-06-19 | macOS / Git repository | `python3 scripts/validate_plans.py --strict` | 通过 | 0 error；24 条 warning 均为缺少版本元信息的兼容历史 Plan |
+| 2026-06-19 | macOS / Gradle 9.4.1 / Java 21 | `./gradlew check` | 通过 | 沙箱内受文件锁通信限制；获准在沙箱外执行后 `BUILD SUCCESSFUL in 10s`，51 个任务完成 |
+| 2026-06-19 | Git working tree | v3 残留关键词检索与 `git diff --check` | 通过 | 现行约束、模板和校验器无 v2 元信息、owner 或 pending 提交规则残留；无 whitespace error |
 
 ## 阻塞记录
 
@@ -153,3 +157,4 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 v3 引导 Hotfix 并设为待开始 | Parent Agent / SubAgent 执行模型不再适用 | 建立独立执行与验收 session 的迁移范围 |
+| 2026-06-19 | 开始执行全部迁移任务 | 执行基线提交 `03dddcc` 已创建 | Plan 转为进行中，开始校验器、约束和全量元信息迁移 |

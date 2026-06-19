@@ -1,10 +1,9 @@
 ---
-workflow_version: 2
+workflow_version: 3
 plan_id: plan_N.hotfix_M
 type: hotfix
 parent_plan: plan_N
 status: draft
-owner: parent-agent
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---

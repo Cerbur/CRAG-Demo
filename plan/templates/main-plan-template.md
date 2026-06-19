@@ -1,9 +1,8 @@
 ---
-workflow_version: 2
+workflow_version: 3
 plan_id: plan_N
 type: main
 status: draft
-owner: parent-agent
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---

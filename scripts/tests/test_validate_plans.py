@@ -16,11 +16,10 @@ def load_validator():
 
 VALID_PLAN = """\
 ---
-workflow_version: 2
+workflow_version: 3
 plan_id: plan_9
 type: main
 status: ready
-owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
 ---
@@ -98,6 +97,35 @@ class ValidatePlansTest(unittest.TestCase):
         diagnostics = self.validate(VALID_PLAN)
         self.assertEqual([], [item for item in diagnostics if item.level == "ERROR"])
 
+    def test_rejects_owner_in_v3_plan(self):
+        content = VALID_PLAN.replace("status: ready", "status: ready\nowner: developer")
+        diagnostics = self.validate(content)
+        self.assertIn("P208", {item.rule for item in diagnostics})
+
+    def test_accepts_verifying_plan_with_real_implementation_hash(self):
+        content = VALID_PLAN.replace("status: ready", "status: verifying").replace(
+            "| 9.1 | Validate | ⏳ 待开始 | — | — |",
+            "| 9.1 | Validate | 🔍 待验收 | deadbee | — |",
+        )
+        diagnostics = self.validate(content)
+        self.assertEqual([], [item for item in diagnostics if item.level == "ERROR"])
+
+    def test_rejects_verifying_task_with_pending_commit(self):
+        content = VALID_PLAN.replace("status: ready", "status: verifying").replace(
+            "| 9.1 | Validate | ⏳ 待开始 | — | — |",
+            "| 9.1 | Validate | 🔍 待验收 | pending | — |",
+        )
+        diagnostics = self.validate(content)
+        self.assertIn("P214", {item.rule for item in diagnostics})
+
+    def test_rejects_verifying_plan_with_in_progress_task(self):
+        content = VALID_PLAN.replace("status: ready", "status: verifying").replace(
+            "| 9.1 | Validate | ⏳ 待开始 | — | — |",
+            "| 9.1 | Validate | 🚧 进行中 | — | — |",
+        )
+        diagnostics = self.validate(content)
+        self.assertIn("P224", {item.rule for item in diagnostics})
+
     def test_rejects_completed_task_without_commit_hash(self):
         content = VALID_PLAN.replace("status: ready", "status: in_progress").replace(
             "| 9.1 | Validate | ⏳ 待开始 | — | — |",
@@ -120,7 +148,7 @@ class ValidatePlansTest(unittest.TestCase):
         diagnostics = self.validate(content, verify_git=True)
         self.assertIn("P218", {item.rule for item in diagnostics})
 
-    def test_index_rejects_v2_status_or_progress_mismatch(self):
+    def test_index_rejects_v3_status_or_progress_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             plan_path = root / "plan/plan_9/plan_9.md"
@@ -217,6 +245,47 @@ class ValidatePlansTest(unittest.TestCase):
             diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
         self.assertIn("P306", {item.rule for item in diagnostics})
 
+    def test_index_accepts_separate_execution_and_acceptance_queues(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_9 = self.write_plan(root, "plan_9", VALID_PLAN)
+            verifying_content = VALID_PLAN.replace("plan_id: plan_9", "plan_id: plan_10").replace(
+                "# plan_9", "# plan_10"
+            ).replace("| 9.1 |", "| 10.1 |").replace("## 9.1", "## 10.1").replace(
+                "status: ready", "status: verifying"
+            ).replace(
+                "| 10.1 | Validate | ⏳ 待开始 | — | — |",
+                "| 10.1 | Validate | 🔍 待验收 | deadbee | — |",
+            )
+            plan_10 = self.write_plan(root, "plan_10", verifying_content)
+            self.write_index(
+                root,
+                [("plan_9", "待开始", "0/1"), ("plan_10", "待验收", "0/1")],
+                "plan_9",
+                acceptance_queue="plan_10",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_9, plan_10])
+        self.assertNotIn("P306", {item.rule for item in diagnostics})
+        self.assertNotIn("P307", {item.rule for item in diagnostics})
+
+    def test_index_rejects_verifying_plan_in_execution_queue(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            content = VALID_PLAN.replace("status: ready", "status: verifying").replace(
+                "| 9.1 | Validate | ⏳ 待开始 | — | — |",
+                "| 9.1 | Validate | 🔍 待验收 | deadbee | — |",
+            )
+            plan_9 = self.write_plan(root, "plan_9", content)
+            self.write_index(
+                root,
+                [("plan_9", "待验收", "0/1")],
+                "plan_9",
+                acceptance_queue="无",
+            )
+            diagnostics = self.validator.validate_index(root, [plan_9])
+        self.assertIn("P306", {item.rule for item in diagnostics})
+        self.assertIn("P307", {item.rule for item in diagnostics})
+
     def test_index_rejects_hotfix_status_or_progress_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -243,7 +312,7 @@ class ValidatePlansTest(unittest.TestCase):
         path.write_text(content, encoding="utf-8")
         return path
 
-    def write_index(self, root, rows, queue, hotfix=False):
+    def write_index(self, root, rows, queue, hotfix=False, acceptance_queue="无"):
         index_path = root / "plan/index/README.md"
         index_path.parent.mkdir(parents=True, exist_ok=True)
         table_rows = []
@@ -257,7 +326,9 @@ class ValidatePlansTest(unittest.TestCase):
             "| --- | --- | --- | --- | --- |\n"
             + "\n".join(table_rows)
             + "\n\n## 当前执行队列\n\n"
-            + f"```text\n{queue}\n```\n",
+            + f"```text\n{queue}\n```\n"
+            + "\n## 当前验收队列\n\n"
+            + f"```text\n{acceptance_queue}\n```\n",
             encoding="utf-8",
         )
 

@@ -1,9 +1,8 @@
 ---
-workflow_version: 2
+workflow_version: 3
 plan_id: plan_7
 type: main
 status: draft
-owner: parent-agent
 created: 2026-06-18
 updated: 2026-06-19
 ---

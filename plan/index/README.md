@@ -96,6 +96,17 @@ plan_8.hotfix_2 → plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
 
 ---
 
+## 当前验收队列
+
+```text
+无
+```
+
+- 仅列出状态为“待验收”的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
+- 前置 Plan 在验收完成前不放行后续 Plan。
+
+---
+
 ## Plan_1 明细
 
 | 文件 | 主要功能 | 状态 |
@@ -167,7 +178,7 @@ plan_8.hotfix_2 → plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
 | --- | --- | --- |
 | [plan_8.md](../plan_8/plan_8.md) | Plan 工作流 v2 工程治理，包含约束、模板、静态校验、Gradle 接入和 plan_7 迁移 | ✅ 完成 (6/6) |
 | [plan_8.hotfix_1.md](../plan_8/plan_8.hotfix_1.md) | 收敛 Plan 依赖顺序、状态机与跨约束冲突，增强依赖图和执行队列校验 | ✅ 完成 (4/4) |
-| [plan_8.hotfix_2.md](../plan_8/plan_8.hotfix_2.md) | workflow v3 独立执行与验收 session、Plan 待验收状态、双队列和 v2 全量迁移 | ⏳ 待开始 (0/4) |
+| [plan_8.hotfix_2.md](../plan_8/plan_8.hotfix_2.md) | workflow v3 独立执行与验收 session、Plan 待验收状态、双队列和 v2 全量迁移 | 🚧 进行中 (0/4) |
 
 ## Plan_9 明细
 
