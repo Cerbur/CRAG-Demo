@@ -1,11 +1,10 @@
-package ai.cerbur.crag.retrieval.service;
+package ai.cerbur.crag.retrieval.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import ai.cerbur.crag.retrieval.api.RetrievalService;
 import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
 import ai.cerbur.crag.retrieval.dense.DenseQueryService;
@@ -88,6 +87,54 @@ class RetrievalServiceTest {
     assertThat(candidatesCaptor.getValue().get(2).getBestDenseScore()).isNull();
     assertThat(results).extracting(ChunkSearchResult::getChunkId).containsExactly("c2");
   }
+
+  @Test
+  @DisplayName("retrieve() 空输入返回空列表")
+  void emptyInputReturnsEmptyList() {
+    assertThat(retrievalService.retrieve(null, 5)).isEmpty();
+    assertThat(retrievalService.retrieve("", 5)).isEmpty();
+    assertThat(retrievalService.retrieve("  ", 5)).isEmpty();
+    assertThat(retrievalService.retrieve("query", 0)).isEmpty();
+    assertThat(retrievalService.retrieve("query", -1)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("prepareRerankCandidates 跟踪真实 RRF 命中 ID")
+  @SuppressWarnings("unchecked")
+  void prepareRerankCandidatesTracksRealRrfHits() {
+    Chunk child0 = child("c0", "p1", 0, "相邻 child 0");
+    Chunk child2 = child("c2", "p1", 2, "相邻 child 2");
+
+    when(chunkDao.findByParentChunkIdsAndChunkIndexes(List.of("p1"), List.of(0, 2)))
+        .thenReturn(List.of(child0, child2));
+
+    RetrievalService.RerankCandidateSet candidateSet =
+        retrievalService.prepareRerankCandidates(
+            List.of(new RrfFusionResult("c1", "p1", 1, 0.9, "命中 child", 0.8, 0.7)));
+
+    assertThat(candidateSet.allCandidates())
+        .extracting(RrfFusionResult::getChunkId)
+        .containsExactly("c1", "c0", "c2");
+    assertThat(candidateSet.rrfHitChunkIds()).containsExactly("c1");
+    assertThat(candidateSet.rrfHitChunkIds()).doesNotContain("c0", "c2");
+  }
+
+  @Test
+  @DisplayName("prepareRerankCandidates 正确处理无 parent 的 child")
+  void prepareRerankCandidatesHandlesNoParentChild() {
+    RetrievalService.RerankCandidateSet candidateSet =
+        retrievalService.prepareRerankCandidates(
+            List.of(new RrfFusionResult("c_no_parent", 0.9, "孤立 child", null, null)));
+
+    assertThat(candidateSet.allCandidates())
+        .extracting(RrfFusionResult::getChunkId)
+        .containsExactly("c_no_parent");
+    assertThat(candidateSet.rrfHitChunkIds()).containsExactly("c_no_parent");
+  }
+
+  // ============================================================
+  // Helpers
+  // ============================================================
 
   private static Chunk child(String chunkId, String parentChunkId, int chunkIndex, String content) {
     Chunk chunk = new Chunk();

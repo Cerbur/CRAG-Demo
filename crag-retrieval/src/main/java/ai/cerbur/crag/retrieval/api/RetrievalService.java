@@ -14,6 +14,7 @@ import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.entity.Chunk;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -58,6 +59,10 @@ public class RetrievalService {
 
   @Autowired private ChunkDao chunkDao;
 
+  // ============================================================
+  // Public API
+  // ============================================================
+
   /**
    * 执行混合检索全链路，返回 Rerank 重排后的检索结果列表.
    *
@@ -73,52 +78,73 @@ public class RetrievalService {
     if (query == null || query.isBlank() || topN <= 0) {
       return Collections.emptyList();
     }
+    int recallN = saturatingMultiply(topN, 3);
+    PipelineConfig config = new PipelineConfig(recallN, topN, topN);
+    InternalRetrievalResult internal = retrieveInternal(query, config);
 
-    // Step 1: Query embedding
-    float[] queryEmbedding = embeddingClient.embed(query);
+    List<ChunkSearchResult> topResults = internal.rerankedChildren().stream().limit(topN).toList();
 
-    // Step 2: Parallel search — Sparse FTS + Dense vector (narrow types)
-    int topK = topN * 3;
-    List<SparseSearchResult> sparseResults = sparseQueryService.search(query, topK);
-    List<DenseSearchResult> denseResults = denseQueryService.search(queryEmbedding, topK);
-
-    log.info("Retrieval search — sparse={}, dense={}", sparseResults.size(), denseResults.size());
-
-    // Step 3: RRF fusion stays at child chunk granularity.
-    List<RrfFusionResult> fusedResults = rrfFusionService.fuse(sparseResults, denseResults, topN);
-
-    if (fusedResults.isEmpty()) {
-      log.info("RRF fusion returned no results");
-      return Collections.emptyList();
-    }
-    log.info("RRF fusion — {} child chunks", fusedResults.size());
-
-    // Step 4: Rerank top RRF child chunks plus adjacent child chunks in the same parent window.
-    List<RrfFusionResult> rerankCandidates = expandRerankCandidates(fusedResults);
-    List<ChunkSearchResult> rerankedResults = rerankService.rerank(query, rerankCandidates);
-
-    // Step 5: Keep only final topN result objects. Do not expose storage entities to query chain.
-    List<ChunkSearchResult> topResults = rerankedResults.stream().limit(topN).toList();
-
-    // Step 6: Log final results with all four scores for analysis
     log.info("Retrieval complete — {} chunks returned", topResults.size());
     logScores(topResults);
 
     return topResults;
   }
 
+  // ============================================================
+  // Internal retrieval pipeline
+  // ============================================================
+
   /**
-   * 将 top RRF child 扩展为 rerank 候选：命中 child + 同 parent 下前后相邻 child.
+   * 内部检索全链路 —— 支持可配置的召回/RRF/最终 child 三限额.
    *
-   * @param fusedResults child 维度 RRF 结果
-   * @return 去重后的 rerank 候选列表
+   * <p>返回 {@link InternalRetrievalResult}，同时包含 Rerank 后的完整 child 列表和真实 RRF 命中 child ID 的有序集合，供
+   * Evidence 候选聚合使用.
    */
-  private List<RrfFusionResult> expandRerankCandidates(List<RrfFusionResult> fusedResults) {
+  InternalRetrievalResult retrieveInternal(String query, PipelineConfig config) {
+    // Step 1: Query embedding
+    float[] queryEmbedding = embeddingClient.embed(query);
+
+    // Step 2: Parallel search — Sparse FTS + Dense vector (narrow types)
+    List<SparseSearchResult> sparseResults = sparseQueryService.search(query, config.recallN);
+    List<DenseSearchResult> denseResults = denseQueryService.search(queryEmbedding, config.recallN);
+
+    log.info("Retrieval search — sparse={}, dense={}", sparseResults.size(), denseResults.size());
+
+    // Step 3: RRF fusion stays at child chunk granularity.
+    List<RrfFusionResult> fusedResults =
+        rrfFusionService.fuse(sparseResults, denseResults, config.rrfN);
+
+    if (fusedResults.isEmpty()) {
+      log.info("RRF fusion returned no results");
+      return new InternalRetrievalResult(Collections.emptyList(), new LinkedHashSet<>());
+    }
+    log.info("RRF fusion — {} child chunks", fusedResults.size());
+
+    // Step 4: Rerank top RRF child chunks plus adjacent child chunks. Track real RRF hit IDs.
+    RerankCandidateSet candidateSet = prepareRerankCandidates(fusedResults);
+    List<ChunkSearchResult> rerankedResults =
+        rerankService.rerank(query, candidateSet.allCandidates());
+
+    return new InternalRetrievalResult(rerankedResults, candidateSet.rrfHitChunkIds());
+  }
+
+  // ============================================================
+  // Rerank candidate preparation with RRF hit tracking
+  // ============================================================
+
+  /**
+   * 将 top RRF child 扩展为 rerank 候选并显式跟踪真实 RRF 命中.
+   *
+   * <p>返回 {@link RerankCandidateSet}，区分真实 RRF 命中 child 与相邻扩展 child. 禁止通过分数是否为 null 或零反推来源.
+   */
+  RerankCandidateSet prepareRerankCandidates(List<RrfFusionResult> fusedResults) {
+    LinkedHashSet<String> rrfHitIds = new LinkedHashSet<>();
     Map<String, RrfFusionResult> candidates = new LinkedHashMap<>();
     Set<ParentIndexKey> adjacentKeys = new LinkedHashSet<>();
 
     for (RrfFusionResult fused : fusedResults) {
       candidates.put(fused.getChunkId(), fused);
+      rrfHitIds.add(fused.getChunkId());
 
       if (fused.getParentChunkId() == null
           || fused.getParentChunkId().isBlank()
@@ -135,7 +161,7 @@ public class RetrievalService {
           adjacent.getChunkId(), new RrfFusionResult(toChunkBO(adjacent), 0.0, null, null));
     }
 
-    return new ArrayList<>(candidates.values());
+    return new RerankCandidateSet(new ArrayList<>(candidates.values()), rrfHitIds);
   }
 
   /** 一次性查询所有相邻 child，并过滤掉 parent/index 交叉命中的多余行. */
@@ -156,10 +182,93 @@ public class RetrievalService {
         .collect(Collectors.toList());
   }
 
+  // ============================================================
+  // Evidence candidate aggregation
+  // ============================================================
+
+  /**
+   * 从 Rerank 后的 child 列表聚合 parent evidence 候选.
+   *
+   * <p>在 Evidence 候选窗口（rerankedChildren 的前 windowN 个）内：
+   *
+   * <ul>
+   *   <li>按 parentChunkId 分组；
+   *   <li>parent 排名由窗口内该 parent 的最高 Rerank 名次确定（相邻扩展 child 可提升排名）；
+   *   <li>matchedChildIds 只包含窗口内的真实 RRF 命中 child，按 Rerank 顺序稳定去重；
+   *   <li>只有相邻扩展、没有任何真实命中 child 的 parent 不返回；
+   *   <li>真实命中 child 被主动截断而只剩相邻 child 的 parent 同样丢弃。
+   * </ul>
+   *
+   * @param rerankedChildren Rerank 后的完整 child 列表
+   * @param realRrfHitChunkIds 真实 RRF 命中 child ID 的有序集合
+   * @param windowN Evidence 候选窗口大小
+   * @return 按 parent 排名升序排列的 Evidence 候选列表
+   */
+  static List<EvidenceCandidate> aggregateEvidenceCandidates(
+      List<ChunkSearchResult> rerankedChildren, Set<String> realRrfHitChunkIds, int windowN) {
+
+    if (rerankedChildren == null || rerankedChildren.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<ChunkSearchResult> window = rerankedChildren.stream().limit(windowN).toList();
+
+    // Maintain insertion order for stable results
+    Map<String, Integer> parentBestRank = new LinkedHashMap<>();
+    Map<String, LinkedHashSet<String>> parentMatchedChildren = new LinkedHashMap<>();
+
+    for (int i = 0; i < window.size(); i++) {
+      ChunkSearchResult child = window.get(i);
+      String pid = child.getParentChunkId();
+
+      // Skip children without a valid parent — do not treat child as its own parent
+      if (pid == null || pid.isBlank()) {
+        continue;
+      }
+
+      // Record best rank for this parent (first occurrence = best rank)
+      parentBestRank.putIfAbsent(pid, i);
+
+      // Only real RRF hits (not adjacent expansion) enter matchedChildIds
+      if (realRrfHitChunkIds.contains(child.getChunkId())) {
+        parentMatchedChildren
+            .computeIfAbsent(pid, k -> new LinkedHashSet<>())
+            .add(child.getChunkId());
+      }
+    }
+
+    // Build candidates: only parents with at least one real RRF hit child in the window
+    List<EvidenceCandidate> candidates = new ArrayList<>();
+    for (Map.Entry<String, LinkedHashSet<String>> entry : parentMatchedChildren.entrySet()) {
+      String pid = entry.getKey();
+      int rank = parentBestRank.get(pid);
+      candidates.add(new EvidenceCandidate(pid, List.copyOf(entry.getValue()), rank));
+    }
+
+    // Sort by best rank ascending
+    candidates.sort(Comparator.comparingInt(EvidenceCandidate::bestRank));
+
+    return Collections.unmodifiableList(candidates);
+  }
+
+  // ============================================================
+  // Utility
+  // ============================================================
+
   /** 将持久化 Entity 转为 retrieval 业务对象，避免 Entity 进入查询业务链路. */
   private static ChunkBO toChunkBO(Chunk chunk) {
     return new ChunkBO(
         chunk.getChunkId(), chunk.getParentChunkId(), chunk.getChunkIndex(), chunk.getContent());
+  }
+
+  /**
+   * 饱和乘法 —— 防止整数溢出，结果上限为 {@link Integer#MAX_VALUE}.
+   *
+   * <p>用于 Evidence 路径的三倍候选扩展，不额外新增任意业务上限.
+   */
+  static int saturatingMultiply(int a, int b) {
+    long result = (long) a * (long) b;
+    return (result > Integer.MAX_VALUE) ? Integer.MAX_VALUE : (int) result;
   }
 
   /**
@@ -189,6 +298,39 @@ public class RetrievalService {
     }
     return String.format("%.4f", score);
   }
+
+  // ============================================================
+  // Internal records
+  // ============================================================
+
+  /** 检索管道内部三限额配置. */
+  record PipelineConfig(int recallN, int rrfN, int finalN) {
+    PipelineConfig {
+      if (recallN <= 0 || rrfN <= 0 || finalN <= 0) {
+        throw new IllegalArgumentException("limits must be positive");
+      }
+    }
+  }
+
+  /**
+   * 内部检索结果 —— 同时携带 Rerank 后的 child 列表和真实 RRF 命中 child ID 的有序集合.
+   *
+   * <p>真实 RRF 命中 child 通过 {@link LinkedHashSet} 按 RRF 融合顺序维护， 禁止通过分数是否为 null 或零反推来源.
+   */
+  record InternalRetrievalResult(
+      List<ChunkSearchResult> rerankedChildren, LinkedHashSet<String> realRrfHitChunkIds) {}
+
+  /** Rerank 候选集 —— 包含所有候选和真实 RRF 命中 child ID 的有序集合. */
+  record RerankCandidateSet(
+      List<RrfFusionResult> allCandidates, LinkedHashSet<String> rrfHitChunkIds) {}
+
+  /**
+   * Evidence 候选 —— 聚合后的 parent 维度中间结果.
+   *
+   * <p>bestRank 为该 parent 在 Evidence 候选窗口内的最高 Rerank 名次（0 起始）， 相邻扩展 child 可影响 parent 排名，但不进入
+   * matchedChildIds.
+   */
+  record EvidenceCandidate(String parentChunkId, List<String> matchedChildIds, int bestRank) {}
 
   /** parent + child index 组成的相邻 child 定位键. */
   private record ParentIndexKey(String parentChunkId, Integer chunkIndex) {}
