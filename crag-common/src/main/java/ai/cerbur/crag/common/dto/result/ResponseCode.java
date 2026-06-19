@@ -13,6 +13,9 @@ public enum ResponseCode {
   /** 客户端错误 —— 请求参数无效或缺失. */
   BAD_REQUEST(400),
 
+  /** 客户端错误 —— 请求资源不存在. */
+  NOT_FOUND(404),
+
   /** 服务端错误 —— 未预期的内部异常. */
   INTERNAL_ERROR(500);
 
