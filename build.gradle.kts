@@ -11,10 +11,16 @@ val validatePlans by tasks.registering(Exec::class) {
     commandLine("python3", "scripts/validate_plans.py", "--strict")
 }
 
+val validateModuleDependencies by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Validates Gradle project dependency whitelist and detects cycles."
+    commandLine("python3", "scripts/validate_module_dependencies.py")
+}
+
 tasks.register("check") {
     group = "verification"
     description = "Runs root project verification."
-    dependsOn(validatePlans, subprojects.map { "${it.path}:check" })
+    dependsOn(validatePlans, validateModuleDependencies, subprojects.map { "${it.path}:check" })
 }
 
 allprojects {
