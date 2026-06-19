@@ -3,9 +3,9 @@ workflow_version: 3
 plan_id: plan_8.hotfix_2
 type: hotfix
 parent_plan: plan_8
-status: verifying
+status: in_progress
 created: 2026-06-19
-updated: 2026-06-19
+updated: 2026-06-20
 ---
 
 # plan_8.hotfix_2 — Plan 独立验收 Session 工作流
@@ -88,12 +88,12 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 8.hotfix_2.1 | 以测试先行升级 v3 校验规则 | 🔍 待验收 | 823df0a | — |
-| 8.hotfix_2.2 | 重写执行与独立验收工作流约束 | 🔍 待验收 | 823df0a | — |
-| 8.hotfix_2.3 | 迁移模板、索引和全部 v2 Plan | 🔍 待验收 | 823df0a | — |
-| 8.hotfix_2.4 | 完成实现验证并交接独立验收 | 🔍 待验收 | 823df0a | — |
+| 8.hotfix_2.1 | 以测试先行升级 v3 校验规则 | 🚧 进行中 | 823df0a | — |
+| 8.hotfix_2.2 | 重写执行与独立验收工作流约束 | ✅ 完成 | 823df0a | 2026-06-20 |
+| 8.hotfix_2.3 | 迁移模板、索引和全部 v2 Plan | ✅ 完成 | 823df0a | 2026-06-20 |
+| 8.hotfix_2.4 | 完成实现验证并交接独立验收 | ✅ 完成 | 823df0a | 2026-06-20 |
 
-整体进度：0 / 4（0%）
+整体进度：3 / 4（75%）
 
 ## 8.hotfix_2.1 以测试先行升级 v3 校验规则
 
@@ -143,6 +143,10 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 | 2026-06-19 | macOS / Git repository | `python3 scripts/validate_plans.py --strict` | 通过 | 0 error；24 条 warning 均为缺少版本元信息的兼容历史 Plan |
 | 2026-06-19 | macOS / Gradle 9.4.1 / Java 21 | `./gradlew check` | 通过 | 沙箱内受文件锁通信限制；获准在沙箱外执行后 `BUILD SUCCESSFUL in 10s`，51 个任务完成 |
 | 2026-06-19 | Git working tree | v3 残留关键词检索与 `git diff --check` | 通过 | 现行约束、模板和校验器无 v2 元信息、owner 或 pending 提交规则残留；无 whitespace error |
+| 2026-06-20 | macOS / Python 3 | `python3 -m unittest scripts.tests.test_validate_plans -v` | 通过 | 独立验收复跑 18/18 通过 |
+| 2026-06-20 | macOS / Git repository | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error；24 条 warning 均为允许保留的兼容历史 Plan |
+| 2026-06-20 | macOS / Gradle 9.4.1 / Java 21 | `./gradlew check` | 通过 | 沙箱内文件锁通信受限；沙箱外 `BUILD SUCCESSFUL in 6s`，51 项任务中 3 项执行、48 项缓存命中 |
+| 2026-06-20 | 临时双队列 fixture | 验收中构造 `plan_9` 待验收、`plan_10` 依赖 `plan_9` 却进入执行队列并调用 `validate_index` | 失败 | 校验结果为空；`validate_index` 只对执行队列内依赖排序，忽略验收队列中的未完成前置 Plan，违反“前置 Plan 只有 completed 才放行” |
 
 ## 阻塞记录
 
@@ -159,3 +163,4 @@ workflow v2 假定 Parent Agent 持续管理执行流程，并将 SubAgent 限�
 | 2026-06-19 | 创建 v3 引导 Hotfix 并设为待开始 | Parent Agent / SubAgent 执行模型不再适用 | 建立独立执行与验收 session 的迁移范围 |
 | 2026-06-19 | 开始执行全部迁移任务 | 执行基线提交 `03dddcc` 已创建 | Plan 转为进行中，开始校验器、约束和全量元信息迁移 |
 | 2026-06-19 | 完成实现并交接独立验收 | 实现提交 `823df0a` 已创建，执行侧验证全部通过 | 四项任务与 Plan 转为待验收，本 session 不拥有最终完成权 |
+| 2026-06-20 | 独立验收退回校验器任务 | 发现待验收前置 Plan 未完成时，依赖它的后续 Plan 可进入执行队列且不报错 | 8.hotfix_2.1 与 Plan 退回进行中；其余三项验收通过并完成 |

@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-19 (plan_8.hotfix_2 已交接独立验收)
+> 最后更新：2026-06-20 (plan_8.hotfix_2 验收发现依赖放行缺陷，已退回修复)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -88,7 +88,7 @@ plan/
 ## 当前执行队列
 
 ```text
-plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
+plan_8.hotfix_2 → plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
@@ -99,7 +99,7 @@ plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
 ## 当前验收队列
 
 ```text
-plan_8.hotfix_2
+无
 ```
 
 - 仅列出状态为“待验收”的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -178,7 +178,7 @@ plan_8.hotfix_2
 | --- | --- | --- |
 | [plan_8.md](../plan_8/plan_8.md) | Plan 工作流 v2 工程治理，包含约束、模板、静态校验、Gradle 接入和 plan_7 迁移 | ✅ 完成 (6/6) |
 | [plan_8.hotfix_1.md](../plan_8/plan_8.hotfix_1.md) | 收敛 Plan 依赖顺序、状态机与跨约束冲突，增强依赖图和执行队列校验 | ✅ 完成 (4/4) |
-| [plan_8.hotfix_2.md](../plan_8/plan_8.hotfix_2.md) | workflow v3 独立执行与验收 session、Plan 待验收状态、双队列和 v2 全量迁移 | 🔍 待验收 (0/4) |
+| [plan_8.hotfix_2.md](../plan_8/plan_8.hotfix_2.md) | workflow v3 独立执行与验收 session、Plan 待验收状态、双队列和 v2 全量迁移 | 🚧 进行中 (3/4) |
 
 ## Plan_9 明细
 
