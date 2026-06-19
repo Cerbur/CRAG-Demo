@@ -67,7 +67,7 @@ plan/
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query 问答链路，主攻 Context、Prompt 拼接、LLM 接入和 UserQuery API | 📝 草稿 (0/5)，plan_9 已完成，待校准 Spring AI/Stub/凭据 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
-| plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | 🔄 进行中 (5/6)，plan_11 已完成 | — | [plan_9.md](../plan_9/plan_9.md) |
+| plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_9、plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 
@@ -76,12 +76,11 @@ plan/
 ## 当前执行队列
 
 ```text
-plan_9 → plan_7 → plan_10
+plan_7 → plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_11` 已完成，从队列移除；其余活跃 Plan 严格按任务前置关系串行。
-- 依赖或顺序变化时，必须在同一提交同步相关 Plan 与本队列。
+- `plan_9` 已完成，从队列移除；plan_7 已解除架构阻塞转为 draft，待校准后转 ready。
 
 ---
 
@@ -160,7 +159,7 @@ plan_9 → plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_9.md](../plan_9/plan_9.md) | Java 模块边界收紧，包含 crag-api 重命名、公开 API 包、Embedding 契约、crag-smoke 和 ArchUnit | 🔄 进行中 (5/6)，plan_11 已完成 |
+| [plan_9.md](../plan_9/plan_9.md) | Java 模块边界收紧，包含 crag-api 重命名、公开 API 包、Embedding 契约、crag-smoke 和 ArchUnit | ✅ 完成 (6/6) |
 
 ## Plan_10 明细
 

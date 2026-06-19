@@ -2,7 +2,7 @@
 workflow_version: 2
 plan_id: plan_9
 type: main
-status: in_progress
+status: completed
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -118,9 +118,9 @@ updated: 2026-06-19
 | 9.3 | 迁移跨模块公开 API 包 | ✅ 完成 | 0bac69b | 2026-06-19 |
 | 9.4 | 分离 Embedding 公共契约与内部实现 | ✅ 完成 | b8bfab5 | 2026-06-19 |
 | 9.5 | 新建 crag-smoke 并迁移诊断端点 | ✅ 完成 | 4796117 | 2026-06-19 |
-| 9.6 | 收紧架构规则并完成全量验收 | 🔎 待验收 | pending | — |
+| 9.6 | 收紧架构规则并完成全量验收 | ✅ 完成 | b11ae44 | 2026-06-19 |
 
-整体进度：5 / 6（83%）
+整体进度：6 / 6（100%）
 
 ## 9.1 建立 ArchUnit 模块边界基线
 
@@ -224,3 +224,4 @@ updated: 2026-06-19
 | 2026-06-19 | 完成 9.3，回填实现提交 0bac69b | Ingestion/Retrieval/Query 公开入口迁入各模块 api 包；同步更新调用方 import、架构测试和 constraints | 整体进度 3/6；下一步 9.4 |
 | 2026-06-19 | 完成 9.4，回填实现提交 b8bfab5 | EmbeddingClient/EmbeddingException 迁入 retrieval.api.embedding；SidecarEmbeddingClient 留在内部；所有 import 更新 | 整体进度 4/6；下一步 9.5 |
 | 2026-06-19 | 完成 9.5，回填实现提交 4796117 | 新建 crag-smoke 模块；TestController 迁入并加 @Profile("smoke")；crag-app 加 runtimeOnly 依赖；Dockerfile 修正 crag-admin→crag-api+smoke；docker-compose.yml 加 smoke profile；HTTP 回归脚本创建 | 整体进度 5/6；下一步 9.6 |
+| 2026-06-19 | 完成 9.6 并标记 Plan 完成，回填实现提交 b11ae44 | 删除所有迁移期 ArchUnit 冻结例外，8 条规则无豁免通过；添加 smoke Profile 校验规则；plan_7 解除阻塞转 draft；同步索引、执行队列和决策归档 | 整体进度 6/6；plan_9 完成 |
