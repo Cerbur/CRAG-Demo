@@ -3,7 +3,7 @@ workflow_version: 2
 plan_id: plan_9.hotfix_2
 type: hotfix
 parent_plan: plan_9
-status: in_progress
+status: completed
 owner: parent-agent
 created: 2026-06-19
 updated: 2026-06-19
@@ -74,9 +74,9 @@ updated: 2026-06-19
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 9.hotfix_2.1 | 收敛模块与 API 约束的当前事实 | 🚧 进行中 | — | — |
+| 9.hotfix_2.1 | 收敛模块与 API 约束的当前事实 | ✅ 完成 | 519676c | 2026-06-19 |
 
-整体进度：0 / 1（0%）
+整体进度：1 / 1（100%）
 
 ## 9.hotfix_2.1 收敛模块与 API 约束的当前事实
 
@@ -92,6 +92,11 @@ updated: 2026-06-19
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-19 | 本机 macOS | 过期标记 `rg` 检查与源码路径核对 | 通过 | 过期 plan_9 标记、错误 TestController 索引和待清理例外均无命中；App 与 Smoke 路径符合当前事实 |
+| 2026-06-19 | 本机 macOS | `python3 scripts/validate_plans.py --strict` | 通过 | 0 error；24 条 workflow v2 前历史 Plan 兼容警告 |
+| 2026-06-19 | 本机 macOS | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 error |
+| 2026-06-19 | 本机 macOS | `./gradlew check` | 通过 | BUILD SUCCESSFUL；46 个任务，2 executed、44 up-to-date |
+| 2026-06-19 | 本机 macOS | `git diff --check` | 通过 | 无空白错误 |
 
 ## 阻塞记录
 
@@ -107,3 +112,4 @@ updated: 2026-06-19
 | --- | --- | --- | --- |
 | 2026-06-19 | 创建 Hotfix | `plan_9` 完成后约束仍混有过期实现事实和完成历史 | 建立 1 项文档收敛任务 |
 | 2026-06-19 | 转为进行中 | 计划与索引已提交，开始执行约束文档修正 | 任务 9.hotfix_2.1 进入进行中 |
+| 2026-06-19 | 完成 Hotfix | 约束修正与全量验证通过，实现提交已核对 | 回填 `519676c`，恢复执行队列到 plan_7 |
