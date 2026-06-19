@@ -104,11 +104,11 @@ updated: 2026-06-19
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 11.1 | 重写测试分层与执行约束 | ✅ 完成 | 0703beb | 2026-06-19 |
-| 11.2 | 对齐代码风格、Skill 与活跃 Plan | 🧪 待验收 | pending | — |
+| 11.2 | 对齐代码风格、Skill 与活跃 Plan | ✅ 完成 | f365189 | 2026-06-19 |
 | 11.3 | 迁移现有轻量组件测试命名 | ⏳ 待开始 | — | — |
 | 11.4 | 完成全量校验与治理验收 | ⏳ 待开始 | — | — |
 
-整体进度：1 / 4（25%）
+整体进度：2 / 4（50%）
 
 ## 11.1 重写测试分层与执行约束
 
@@ -155,6 +155,7 @@ updated: 2026-06-19
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
 | 2026-06-19 | macOS 宿主机 | `rg -n 'TODO|TBD|待定|非单元测试' constraints/test-workflow.md`；`git diff --check`；`python3 scripts/validate_plans.py --strict plan/plan_11/plan_11.md` | 通过 | 四层测试、H2 边界、Docker HTTP 触发、runId、LLM、flaky 与行为覆盖规则已落地；无旧二分术语或占位符 |
+| 2026-06-19 | macOS 宿主机 + OpenCode `deepseek/deepseek-v4-pro` | 聚焦 `rg`；`python3 scripts/validate_plans.py --strict plan/plan_7/plan_7.md plan/plan_9/plan_9.md plan/plan_10/plan_10.md plan/plan_11/plan_11.md`；`git diff --check` | 通过 | 代码风格、执行 Skill、提示模板与活跃 Plan 已对齐；OpenCode 会话 `ses_1220a91ebffeRxszvLRcWW83hg`，修复会话 `ses_122058a40ffe4KAA3S1a3kJPqS` |
 
 ## 阻塞记录
 
@@ -172,3 +173,4 @@ updated: 2026-06-19
 | 2026-06-19 | 增加 workflow Hotfix 前置与迁移例外 | 先修复状态机、依赖队列和旧测试规则迁移悖论 | plan_8.hotfix_1 完成后执行；11.2 与 11.3 可并行 |
 | 2026-06-19 | 开始执行 11.1 | Plan gate 与 OpenCode 模型选择完成 | Plan 进入进行中；先重写测试工作流约束 |
 | 2026-06-19 | 完成 11.1 | 四层测试约束与验收规则验证通过，实现提交 `0703beb` 已核对 | 整体进度更新为 25%；开始 11.2 |
+| 2026-06-19 | 完成 11.2 | 约束由 ParentAgent 修改，Skill 由 OpenCode 实现并完成一轮独立修复；提交 `f365189` 已核对 | 整体进度更新为 50%；开始 11.3 |
