@@ -290,6 +290,7 @@ public class RetrievalService {
             chunk ->
                 adjacentKeys.contains(
                     new ParentIndexKey(chunk.getParentChunkId(), chunk.getChunkIndex())))
+        .sorted(Comparator.comparing(Chunk::getChunkId))
         .collect(Collectors.toList());
   }
 

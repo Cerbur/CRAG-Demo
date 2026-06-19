@@ -17,17 +17,59 @@ echo "=== Parent Evidence HTTP Regression ==="
 echo "BASE_URL=$BASE_URL"
 echo "RUN_ID=$RUN_ID"
 
+# ── Helper: GET request, asserts HTTP 200 ──
+# Sets globals RESP_BODY, RESP_CODE.
+http_get() {
+  local url="$1"
+  local desc="$2"
+  local raw
+  raw=$(curl -s -w '\n%{http_code}' "$url" || printf '{"code":-1}\n000')
+  RESP_CODE=$(printf '%s' "$raw" | tail -1)
+  RESP_BODY=$(printf '%s' "$raw" | sed '$d')
+  if [ "$RESP_CODE" != "200" ]; then
+    echo "FAIL: $desc — HTTP $RESP_CODE (expected 200)"
+    FAILED=1
+  else
+    echo "PASS: $desc — HTTP 200"
+  fi
+}
+
+# ── Helper: POST request, asserts HTTP 200 ──
+# Sets globals RESP_BODY, RESP_CODE.
+http_post() {
+  local url="$1"
+  local data="$2"
+  local desc="$3"
+  local raw
+  raw=$(curl -s -w '\n%{http_code}' -X POST "$url" \
+    -H "Content-Type: application/json" \
+    -d "$data" || printf '{"code":-1}\n000')
+  RESP_CODE=$(printf '%s' "$raw" | tail -1)
+  RESP_BODY=$(printf '%s' "$raw" | sed '$d')
+  if [ "$RESP_CODE" != "200" ]; then
+    echo "FAIL: $desc — HTTP $RESP_CODE (expected 200)"
+    FAILED=1
+  else
+    echo "PASS: $desc — HTTP 200"
+  fi
+}
+
+# ── Helper: extract JSON code field from body ──
+json_code() {
+  printf '%s' "$1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1"
+}
+
 # ── 1. Write a parent+child document ──
 echo "--- 1. Write test document ---"
-WRITE_RESP=$(curl -s -X POST "$BASE_URL/api/v1/test/chunk" \
-  -H "Content-Type: application/json" \
-  -d "{\"title\":\"evidence-test-$RUN_ID\",\"content\":\"$RUN_ID parent evidence test content for verification purposes\"}" || echo '{"code":-1}')
-WRITE_CODE=$(echo "$WRITE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
+http_post "$BASE_URL/api/v1/test/chunk" \
+  "{\"title\":\"evidence-test-$RUN_ID\",\"content\":\"$RUN_ID parent evidence test content for verification purposes\"}" \
+  "/chunk write"
+WRITE_CODE=$(json_code "$RESP_BODY")
 if [ "$WRITE_CODE" = "0" ]; then
-  PARENT_ID=$(echo "$WRITE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['parent_chunk_ids'][0])" 2>/dev/null || echo "")
+  PARENT_ID=$(echo "$RESP_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['parent_chunk_ids'][0])" 2>/dev/null || echo "")
   echo "PASS: /chunk write success, parent_id=$PARENT_ID"
 else
-  echo "FAIL: /chunk returned code=$WRITE_CODE, resp=$WRITE_RESP"
+  echo "FAIL: /chunk returned code=$WRITE_CODE, resp=$RESP_BODY"
   FAILED=1
 fi
 
@@ -38,9 +80,9 @@ WAITED=0
 while [ $WAITED -lt $MAX_WAIT ]; do
   sleep 5
   WAITED=$((WAITED + 5))
-  # Use retrieval as a proxy for indexing readiness
+  # Use raw curl (not http_get) since the server may not be ready yet
   RET_RESP=$(curl -s "$BASE_URL/api/v1/test/retrieval?query=$RUN_ID&topN=1" || echo '{"code":-1}')
-  RET_CODE=$(echo "$RET_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
+  RET_CODE=$(json_code "$RET_RESP")
   if [ "$RET_CODE" = "0" ]; then
     RESULT_COUNT=$(echo "$RET_RESP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['result']['results']))" 2>/dev/null || echo "0")
     if [ "$RESULT_COUNT" -gt 0 ]; then
@@ -54,15 +96,14 @@ while [ $WAITED -lt $MAX_WAIT ]; do
   fi
 done
 
-# ── 3. Call /retrieval/evidence ──
-echo "--- 3. Parent evidence retrieval ---"
-EVIDENCE_RESP=$(curl -s "$BASE_URL/api/v1/test/retrieval/evidence?query=$RUN_ID&topN=3" || echo '{"code":-1}')
-EVIDENCE_CODE=$(echo "$EVIDENCE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
+# ── 3. Call /retrieval/evidence (first call) ──
+echo "--- 3. Parent evidence retrieval (call 1) ---"
+http_get "$BASE_URL/api/v1/test/retrieval/evidence?query=$RUN_ID&topN=3" "/retrieval/evidence (call 1)"
+EVIDENCE_RESP="$RESP_BODY"
+EVIDENCE_CODE=$(json_code "$EVIDENCE_RESP")
 if [ "$EVIDENCE_CODE" != "0" ]; then
   echo "FAIL: /retrieval/evidence returned code=$EVIDENCE_CODE, resp=$EVIDENCE_RESP"
   FAILED=1
-else
-  echo "PASS: /retrieval/evidence HTTP 200"
 fi
 
 # ── 4. Verify response structure ──
@@ -135,7 +176,8 @@ fi
 
 # ── 5. Verify stable ordering (same request twice) ──
 echo "--- 5. Verify stable ordering ---"
-EVIDENCE_RESP2=$(curl -s "$BASE_URL/api/v1/test/retrieval/evidence?query=$RUN_ID&topN=3" || echo '{"code":-1}')
+http_get "$BASE_URL/api/v1/test/retrieval/evidence?query=$RUN_ID&topN=3" "/retrieval/evidence (call 2)"
+EVIDENCE_RESP2="$RESP_BODY"
 ORDER1=$(echo "$EVIDENCE_RESP" | python3 -c "import sys,json; print([r['parentChunkId'] for r in json.load(sys.stdin).get('result',[])])" 2>/dev/null || echo "[]")
 ORDER2=$(echo "$EVIDENCE_RESP2" | python3 -c "import sys,json; print([r['parentChunkId'] for r in json.load(sys.stdin).get('result',[])])" 2>/dev/null || echo "[]")
 if [ "$ORDER1" = "$ORDER2" ]; then
@@ -145,8 +187,8 @@ else
   FAILED=1
 fi
 
-# ── 6. Verify matched child IDs contain real RRF hit children ──
-echo "--- 6. Verify matched child IDs are non-empty for results ---"
+# ── 6. Verify matched child IDs are non-empty for all evidence results ──
+echo "--- 6. Verify matched child IDs are non-empty for all results ---"
 ALL_HAVE_MATCHED=$(echo "$EVIDENCE_RESP" | python3 -c "
 import sys, json
 results = json.load(sys.stdin).get('result', [])
@@ -158,6 +200,64 @@ if [ "$ALL_HAVE_MATCHED" = "OK" ] || [ "$RESULT_COUNT" = "0" ]; then
 else
   echo "FAIL: Some evidence results have empty matchedChildIds"
   FAILED=1
+fi
+
+# ── 7. Cross-reference matchedChildIds against real child retrieval ──
+echo "--- 7. Verify matchedChildIds from real RRF hits ---"
+if [ "$RESULT_COUNT" -gt 0 ]; then
+  http_get "$BASE_URL/api/v1/test/retrieval?query=$RUN_ID&topN=20" "/retrieval child lookup"
+  CHILD_RET_CODE=$(json_code "$RESP_BODY")
+  if [ "$CHILD_RET_CODE" != "0" ]; then
+    echo "FAIL: Child retrieval returned code=$CHILD_RET_CODE"
+    FAILED=1
+  else
+    # Cross-reference: verify matchedChildIds are real RRF hits
+    # by checking they appear in the child retrieval result set.
+    MATCHED_VERIFIED=$(python3 -c "
+import sys, json
+
+evidence = json.loads(sys.argv[1])
+child = json.loads(sys.argv[2])
+
+evidence_results = evidence.get('result', [])
+child_results = child.get('result', {}).get('results', [])
+child_ids = {r['chunkId'] for r in child_results}
+
+if not child_ids:
+    print('NO_CHILD_IDS')
+    sys.exit(0)
+
+child_count = len(child_ids)
+print(f'Child retrieval returned {child_count} unique chunk IDs')
+
+all_verified = True
+for er in evidence_results:
+    matched = set(er.get('matchedChildIds', []))
+    overlap = matched & child_ids
+    pid = er.get('parentChunkId', '?')
+    if not overlap:
+        print(f'FAIL: evidence parent {pid} matchedChildIds {sorted(matched)} have no overlap with child retrieval IDs')
+        all_verified = False
+    else:
+        print(f'OK: parent {pid} matchedChildIds {len(overlap)}/{len(matched)} found in child retrieval')
+
+if all_verified:
+    print('ALL_VERIFIED')
+" "$EVIDENCE_RESP" "$RESP_BODY" 2>/dev/null || echo "ERROR")
+
+      echo "$MATCHED_VERIFIED"
+      if echo "$MATCHED_VERIFIED" | grep -q "ALL_VERIFIED"; then
+        echo "PASS: All evidence matchedChildIds cross-referenced to real child retrieval hits"
+      elif echo "$MATCHED_VERIFIED" | grep -q "NO_CHILD_IDS"; then
+        echo "FAIL: No child IDs available for cross-referencing"
+        FAILED=1
+      else
+        echo "FAIL: Some matchedChildIds could not be verified against child retrieval"
+        FAILED=1
+      fi
+    fi
+else
+  echo "SKIP: No evidence results to cross-reference"
 fi
 
 # ── Final ──

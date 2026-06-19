@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-20 (plan_6.hotfix_6 第二次验收失败，退回进行中)
+> 最后更新：2026-06-20 (plan_6.hotfix_6 第三次修复：DB 确定性 + HTTP 状态 + matchedChildIds 交叉验证)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -74,7 +74,7 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_6](../plan_6/plan_6.hotfix_6.md) 进行中 (2/3) | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_6](../plan_6/plan_6.hotfix_6.md) 进行中 (2/3) — 第三次修复：DB 确定性 + HTTP 状态断言 + matchedChildIds 交叉验证 | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash、正式 UserQuery API 和自动化回归 | 📝 草稿 (0/7)，等待 plan_13 | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
@@ -92,7 +92,7 @@ plan_6.hotfix_6 → plan_13 → plan_7 → plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_6.hotfix_6` 第二次验收失败后退回进行中，继续占据队首并阻止 `plan_13`。
+- `plan_6.hotfix_6` 第三次修复完成（DB 确定性 + HTTP 状态 + matchedChildIds 交叉验证），等待独立验收。
 
 ---
 

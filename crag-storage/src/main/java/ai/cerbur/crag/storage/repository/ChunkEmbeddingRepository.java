@@ -65,7 +65,7 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
                c.content
           FROM chunk_embedding ce
           JOIN chunk c ON c.chunk_id = ce.chunk_id
-         ORDER BY ce.embedding <=> CAST(:vectorLiteral AS vector) ASC
+         ORDER BY ce.embedding <=> CAST(:vectorLiteral AS vector) ASC, c.chunk_id ASC
          LIMIT :limit
         """,
       nativeQuery = true)

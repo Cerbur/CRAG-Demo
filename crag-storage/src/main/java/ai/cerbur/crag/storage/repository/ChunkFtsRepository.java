@@ -75,7 +75,7 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
          WHERE cf.fts_content @@
                plainto_tsquery('simple',
                    regexp_replace(:query, '([一-龥])', '\\1 ', 'g'))
-         ORDER BY score DESC
+         ORDER BY score DESC, c.chunk_id ASC
          LIMIT :limit
         """,
       nativeQuery = true)
