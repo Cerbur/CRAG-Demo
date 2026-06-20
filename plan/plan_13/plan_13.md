@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_13
 type: main
-status: ready
+status: in_progress
 created: 2026-06-19
 updated: 2026-06-20
 ---
@@ -164,9 +164,9 @@ updated: 2026-06-20
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 13.1 | 原子升级框架、生产代码与测试基线 | ⏳ 待开始 | — | — |
-| 13.2 | 固定 Boot Jar 并完成 Docker HTTP 回归 | ⏳ 待开始 | — | — |
-| 13.3 | 同步技术方向、约束与下游计划并全量收口 | ⏳ 待开始 | — | — |
+| 13.1 | 原子升级框架、生产代码与测试基线 | 🚧 进行中 | a83c62b | — |
+| 13.2 | 固定 Boot Jar 并完成 Docker HTTP 回归 | 🚧 进行中 | 6624b6e | — |
+| 13.3 | 同步技术方向、约束与下游计划并全量收口 | 🚧 进行中 | — | — |
 
 整体进度：0 / 3（0%）
 
@@ -204,6 +204,11 @@ updated: 2026-06-20
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | 工作区与任务提交证据核对；`git diff --check`；`python3 scripts/validate_framework_dependencies.py`；`python3 -m unittest scripts.tests.test_validate_framework_dependencies -v`；`python3 scripts/validate_plans.py --strict --verify-git`；`./gradlew check`；定向 `dependencyInsight` | 失败 | `./gradlew check`、框架校验器及其 9 个单测通过，依赖解析为 Boot 4.1.0 / Framework 7.0.8 / Spring AI 2.0.0 / Jackson 3.1.4；但全部实现仍为未提交工作区改动，3 个任务提交栏为占位 hash，严格 Plan 校验报 3 个 P218；`crag-ingestion` 仍硬编码 `spring-ai-bom:2.0.0` 并使用 `platform()`，与 catalog 唯一版本源及任务 13.1 禁止子模块 Gradle platform 的验收标准冲突，校验器测试反而显式放行；新增 `MetadataSerializationException` 缺少序列化失败及 cause 保留测试。Docker HTTP 回归因实现尚未达到验收交接门槛未执行。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew check`；`python3 scripts/validate_framework_dependencies.py`；`python3 -m unittest scripts.tests.test_validate_framework_dependencies -v`；`python3 scripts/validate_plans.py --strict --verify-git`；`git diff --check`；定向 `dependencyInsight`（Boot/Framework/Jackson） | 通过 | 三个问题均修复：(1) Spring AI BOM 从 `crag-ingestion` 的硬编码 `platform("...:2.0.0")` 迁移至根构建 `dependency-management` 统一导入，版本通过 catalog `libs.versions.spring.ai` 解析，所有子模块通过 BOM 获得 Spring AI 版本管理；(2) `check_no_platform_mixing()` 新增 Spring AI BOM platform 检测模式，移除 crag-ingestion 豁免，单元测试翻转为检测违规；(3) `AdminRagServiceTest` 新增 serializationFailureThrowsWithCausePreserved 测试，验证 `MetadataSerializationException` 保留 `JacksonException` cause 且消息含 docId 标识。`./gradlew check` 全绿，9 个校验器单测全过，Plan 校验 0 错误，依赖解析确认 Boot 4.1.0 / Framework 7.0.8 / Jackson 3.1.4。13.1 已提交 `d347833`。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 / Docker | `./gradlew :crag-app:bootJar`；`docker compose up -d --build` → `admin_rag_contract_test.sh` + `smoke_default_test.sh`；`docker compose --profile smoke up -d --build app-smoke` → `smoke_endpoints_test.sh` + `retrieval_evidence_test.sh`；容器日志检查；`docker compose down` | 通过 | 四套回归全部通过：(1) AdminRag 契约测试 — 成功、Validation、未知路径全 PASS；(2) 默认 Smoke 测试 — 4 个测试端点均返回 404，HTTP 000 正确判定为 FAIL；(3) Smoke 端点测试 — /smoke、/chunk、/retrieval 全 PASS，写入数据含唯一 RUN_ID `smoke-20260620-140920-23690`；(4) Parent Evidence 回归 — 证据结构、parentChunkId 匹配、RUN_ID 内容包含、稳定排序、matchedChildIds 交叉验证全 PASS，RUN_ID=`evidence-1781935771-23743`。构建目录只产生 `crag-demo.jar`（54 MB），无 plain jar；容器以非 root 用户运行；日志确认 Spring Boot v4.1.0 / Spring v7.0.8，无版本混用或敏感信息。`docker compose down` 普通清理，测试数据保留可识别。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew check`；`python3 scripts/validate_framework_dependencies.py`；`python3 -m unittest scripts.tests.test_validate_framework_dependencies -v`；`python3 scripts/validate_plans.py --strict --verify-git`；`git diff --check`；全仓检索旧版本/旧 Starter/milestone 仓库残留 | 通过 | 全量检查通过：(1) `./gradlew check` 全绿，0 错误；(2) 框架依赖校验器及其 9 个单测全过；(3) Plan 严格校验 0 错误；(4) 归档决策记录 `plan/plan_archive/2026-06-20-spring-boot-4-framework-baseline.md` 已创建并修正 `platform()` 描述；(5) `plan_main.md` 补充 Spring AI 2.0.0 版本；(6) README 已含 Boot 4.1.0 / Framework 7 / Spring AI 2.0.0；(7) `plan_7.md` 未决问题已校准为根 `dependency-management` 统一导入 Spring AI BOM，明确 `crag-query` 不使用 `platform()`；(8) `plan/index/README.md` 同步为待验收状态；(9) 全仓检索无 Boot 3.4.1、Spring AI M5/1.0.0-M5、OpenAI Starter、Spring Milestone 仓库残留。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | 提交范围与任务证据核对；`python3 scripts/validate_framework_dependencies.py`；`python3 -m unittest scripts.tests.test_validate_framework_dependencies -v`；`python3 scripts/validate_plans.py --strict --verify-git`；`git diff --check`；`./gradlew check` | 失败 | 静态校验、9 个校验器单测、严格 Plan 校验和 Gradle 全量检查均通过；但实现与 Plan 规范不一致：(1) 根构建向全部子模块导入 Spring AI BOM，而本 Plan 的范围、关键决策及 13.1 验收标准明确要求 Spring AI BOM 只在 `crag-ingestion` 导入，并由 plan_7 后续在 `crag-query` 增加；(2) 任务 13.2 记录的实现提交 `b1c92c3` 只修改 Plan 文档，真正的 Dockerfile 和 HTTP 脚本改动混在 13.1 提交 `d347833`，不满足任务实现证据真实性及“三个任务各自独立实现提交、不共享提交”的关键决策；(3) `d347833` 同时包含 13.1、13.2、13.3 文件范围。上述问题已足以阻断完成，本轮未重复执行 Docker HTTP 回归。 |
 
 ## 阻塞记录
 
@@ -220,3 +225,6 @@ updated: 2026-06-20
 | 2026-06-19 | 创建计划并设为待开始 | Plan 7 grilling 决定在接入 Spring AI Provider 前独立升级框架基线 | 执行队列为 plan_6.hotfix_6 → plan_13 → plan_7 → plan_10 |
 | 2026-06-20 | 完成执行细节 grilling 并重写为 5 项任务 | 锁定集中版本治理、dependency-management、最小 Spring AI 模块、Jackson 3、测试分层、确定性 Boot Jar、Docker 回归与项目级方向同步 | 保持 ready；先提交 Plan 与索引，再按 13.1 至 13.5 串行执行 |
 | 2026-06-20 | 二次 grilling 收敛为 3 项原子任务 | 禁止不可构建中间提交；确认 splitter 只需 commons、Boot 4 MVC 测试专用 Starter、根构建集中 BOM，并修复三处 HTTP 回归假阳性或隔离漏洞 | 保持 ready；13.1 必须在单一提交内完成框架、生产和测试迁移并使 `check` 全绿 |
+| 2026-06-20 | 独立验收失败，退回进行中 | 实现未提交且无真实任务 hash；Spring AI BOM 的硬编码 `platform()` 与 Plan 验收标准冲突；metadata 序列化异常契约缺少失败路径测试 | 13.1 退回进行中，13.2 与 13.3 恢复待开始；修复后按任务分别提交、回填真实 hash、完成自测与 Docker 回归，再重新交接验收 |
+| 2026-06-20 | 第二次独立验收失败，退回进行中 | Spring AI BOM 被根构建导入全部子模块，违反 Plan 的模块边界；13.2 实现证据指向纯文档提交，且 13.1 提交混入后续任务范围 | 13.1、13.2、13.3 均退回进行中；按既定模块边界修正 BOM 导入，并整理真实、独立的任务实现提交与 hash 后重新交接 |
+| 2026-06-20 | BOM 边界修正与提交重整 | 修正 Spring AI BOM 只在 crag-ingestion 导入（通过 catalog library + dependencyManagement），根构建不再全局导入；校验器更新为禁止根构建含 Spring AI BOM；重整三个任务为独立提交 | 13.1 含 framework/生产/测试/BOM 修正，13.2 含 Dockerfile/HTTP 回归脚本，13.3 含文档同步；旧混合提交 d347833/b1c92c3/40fb33b 已由 soft reset 替换 |

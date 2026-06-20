@@ -226,7 +226,7 @@ CRAG_QUERY_LLM_STUB_MODE
 ## 未决问题
 
 - `DEEPSEEK_API_KEY` 当前是否可用尚未确认，但只影响 7.7 的真实 Provider 验收，不阻塞前置任务执行。
-- `plan_13` 完成后必须按其实际 Spring AI 2 依赖治理和最终配置属性校准路径；`crag-query` 应沿用 catalog 中的 Spring AI 版本，通过 dependency-management 导入 BOM，并只新增 DeepSeek 所需模块。负责人为 Plan owner，处理时机为本计划转 `ready` 前。
+- ~~`plan_13` 完成后必须按其实际 Spring AI 2 依赖治理和最终配置属性校准路径。~~ **已解决**（2026-06-20）：`plan_13` 已完成。Spring AI 2.0.0 版本已在 `gradle/libs.versions.toml` 声明为 `libs.versions.spring.ai`；根构建通过 `io.spring.dependency-management` 插件在 `subprojects` 中统一导入 Spring AI BOM，所有子模块自动获得版本管理。`crag-ingestion` 已仅依赖 `spring-ai-commons`。本计划在 `crag-query` 只需新增 DeepSeek Starter 所需模块（不含 `spring-ai-transformers`、Provider 自动配置或旧 OpenAI Starter），版本由根 BOM 统一管理，**不使用 `platform()`**。
 
 ## 风险与回滚
 

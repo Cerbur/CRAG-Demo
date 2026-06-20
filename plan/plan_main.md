@@ -57,12 +57,12 @@ POST /api/v1/query
 
 | 层级 | 方向 | 说明 |
 | --- | --- | --- |
-| 后端 | Java 21 + Spring Boot 3.x | Demo 主服务 |
+| 后端 | Java 21 + Spring Boot 4.1.0 (Framework 7) | Demo 主服务 |
 | 构建 | Gradle Kotlin DSL | 统一构建入口 |
 | 数据 | PostgreSQL + pgvector | 元数据、全文检索、向量检索 |
 | Embedding | Python Sidecar `/embed` | gte 中文 embedding，768 维 |
 | Rerank | Python Sidecar `/rerank` | bge-reranker-v2-m3 |
-| LLM | DeepSeek API + Spring AI | 一期接入 DeepSeek，integration 层保留扩展空间 |
+| LLM | DeepSeek API + Spring AI 2.0.0 | 一期接入 DeepSeek，integration 层保留扩展空间 |
 | 部署 | Docker + Docker Compose | 本地一键启动 |
 
 ---
