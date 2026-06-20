@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_13
 type: main
-status: verifying
+status: completed
 created: 2026-06-19
 updated: 2026-06-20
 ---
@@ -164,11 +164,11 @@ updated: 2026-06-20
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 13.1 | 原子升级框架、生产代码与测试基线 | ⏳ 待验收 | 430c51f | — |
-| 13.2 | 固定 Boot Jar 并完成 Docker HTTP 回归 | ⏳ 待验收 | 87150c6 | — |
-| 13.3 | 同步技术方向、约束与下游计划并全量收口 | ⏳ 待验收 | 4974631, 794177b | — |
+| 13.1 | 原子升级框架、生产代码与测试基线 | ✅ 完成 | 430c51f | 2026-06-20 |
+| 13.2 | 固定 Boot Jar 并完成 Docker HTTP 回归 | ✅ 完成 | 87150c6 | 2026-06-20 |
+| 13.3 | 同步技术方向、约束与下游计划并全量收口 | ✅ 完成 | 4974631, 794177b | 2026-06-20 |
 
-整体进度：0 / 3（0%）
+整体进度：3 / 3（100%）
 
 ## 13.1 原子升级框架、生产代码与测试基线
 
@@ -212,10 +212,18 @@ updated: 2026-06-20
 | 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | 重整后提交范围核对；框架校验器及其 12 个单测；严格 Plan 校验；`git diff --check`；定向 Spring AI `dependencyInsight`；`./gradlew check` | 失败 | BOM 代码边界已修复，Spring AI 2.0.0 仅在 `crag-ingestion` 解析，`crag-query` 无 Spring AI 依赖；三个提交的主要文件组已分离，静态校验与 Gradle 全量检查通过。但仍有两项阻断：(1) `crag-app/build.gradle.kts` 中禁用 plain Jar、固定 `crag-demo.jar` 的 13.2 实现仍位于 13.1 提交 `a83c62b`，13.2 提交 `6624b6e` 未包含任务声明的全部实现文件；(2) `plan_7.md` 与框架归档仍错误声称根构建向所有子模块导入 Spring AI BOM，与当前实现、Plan 13 关键决策及 13.3 文档同步验收标准冲突。上述问题已足以阻断完成，本轮未重复执行 Docker HTTP 回归。 |
 | 2026-06-20 | macOS / Git | 第四轮交接门槛检查；当前历史与任务提交 hash 核对；框架校验器及其 12 个单测；严格 Plan 校验 | 失败 | 前次实现问题已修复：当前历史中的 13.1 `430c51f`、13.2 `87150c6` 已具有正确独立范围，BOM 文档事实由 `794177b` 修正。但 Plan 仍为 `in_progress`，13.2/13.3 仍标记进行中，验收队列为空；任务表继续引用已脱离当前 HEAD 历史的旧 hash `a83c62b`、`6624b6e`、`6962275`。执行 session 尚未按 workflow v3 回填当前真实 hash 并重新交接至 `verifying`，因此本轮未启动 Gradle/Docker 最终验收。 |
 | 2026-06-20 | macOS / Git | 交接回填；任务 hash、Status、Plan 状态与索引队列同步 | — | 本轮未进入正式验收：实现和文档修复已在前轮确认正确，交接尚未完成。执行 session 回填当前真实 hash `430c51f`、`87150c6`、`4974631, 794177b`；13.1/13.2/13.3 全部转为 `⏳ 待验收`；Plan frontmatter `status` 转为 `verifying`；`plan/index/README.md` 更新执行队列、验收队列与 plan_13 行。交接记录提交 `3156335`。下一轮独立验收 session 从验收队列检出并执行全量 Gradle/Docker 验证。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 / Docker | 第五轮独立验收：静态校验、完整 Gradle、定向依赖解析、Boot Jar 重建、`docker compose up -d --build`、HTTP 回归启动 | 阻塞 | 框架校验器及 12 个单测、约束/模块/Plan 校验、`git diff --check`、完整 Gradle 编译测试架构检查均通过；依赖确认为 Boot 4.1.0 / Framework 7.0.8 / Jackson 3.1.4 / Spring AI 2.0.0，query 未提前引入 Spring AI；仅生成 `crag-demo.jar`；Compose 镜像构建成功，db/sidecar 健康且 app 已启动。随后沙箱内 HTTP 脚本无法连接 localhost，沙箱外执行与 `docker compose down` 审批因 Codex 使用额度限制被系统拒绝，四套 HTTP 回归未完成。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 / Docker | 恢复第五轮独立验收：`admin_rag_contract_test.sh`；`smoke_default_test.sh`；`docker compose --profile smoke up -d --build app-smoke`；`smoke_endpoints_test.sh`；`retrieval_evidence_test.sh`；容器用户与日志检查；普通 Compose down | 通过 | AdminRag 成功/Validation/404 契约、默认四个 Smoke 404、smoke `/smoke`/`/chunk`/`/retrieval`、Parent Evidence 结构、runId 内容、稳定排序及 matchedChildIds 交叉验证全部通过；本轮 runId 为 `contract-20260620-150131-40450`、`smoke-20260620-150230-41306`、`evidence-1781938954-41295`。app/app-smoke 使用 `appuser`，sidecar 使用 `sidecar`；日志确认 Boot 4.1.0 / Spring 7.0.8，无 ERROR、异常或敏感凭据输出；默认与 smoke profile 均已普通 down，未删除数据。 |
 
 ## 阻塞记录
 
-无。
+- **日期**：2026-06-20
+- **原因**：Codex 沙箱禁止 localhost HTTP；沙箱外命令审批因当前使用额度耗尽被系统拒绝。
+- **当前进度**：静态、Gradle、依赖、唯一 Jar 与 Compose 构建/启动均通过；四套 HTTP 回归未执行；本轮 Compose 服务可能仍在运行。
+- **解除条件**：沙箱外命令审批恢复，或用户显式执行 HTTP 脚本并提供结果；同时确认并执行普通 `docker compose down`。
+- **解除方**：Codex 审批额度恢复或用户提供外部执行结果。
+- **恢复后的下一步**：`blocked → verifying`，依次执行默认两套回归、smoke profile 两套回归、日志与非 root 检查，普通 down 后完成验收。
+- **解除结果**：2026-06-20 审批额度恢复；Plan 返回 `verifying`，四套 HTTP 回归、日志、非 root 与清理全部通过，随后转为 `completed`。
 
 ## 废弃任务记录
 
@@ -234,3 +242,5 @@ updated: 2026-06-20
 | 2026-06-20 | 第三次独立验收失败，退回进行中 | 13.2 的 Boot Jar Gradle 配置仍混在 13.1 提交；plan_7 与归档的 Spring AI BOM 描述仍是过期事实 | 保留已通过的 13.1 待验收状态；13.2、13.3 退回进行中，整理提交边界并同步真实文档事实后重新交接 |
 | 2026-06-20 | 第四轮验收未进入执行 | 实现和文档修复已完成，但任务表仍引用改写前旧 hash，Plan 未重新进入 verifying，索引验收队列为空 | 执行 session 回填 `430c51f`、`87150c6`、`4974631, 794177b`，将三个任务与 Plan 转为待验收并同步索引后，再启动独立验收 |
 | 2026-06-20 | 交接回填完成 | 执行 session 回填当前真实 hash，将 13.1/13.2/13.3 全部转待验收，Plan 转 verifying，更新索引执行/验收队列 | 下一轮独立验收 session 从验收队列检出并执行全量 Gradle/Docker 验证 |
+| 2026-06-20 | 第五轮验收环境阻塞 | Compose 已成功构建启动，但 localhost HTTP 与 Docker 清理命令的沙箱外审批因 Codex 使用额度限制被拒绝 | Plan 从 verifying 转 blocked；保留待验收任务状态，审批恢复后返回 verifying 并续跑 Docker HTTP 回归 |
+| 2026-06-20 | 独立验收通过并完成 Plan | 审批额度恢复后续跑四套 Docker HTTP 回归，全部验收标准、提交范围、依赖边界、Gradle 与静态门禁均通过 | Plan 完成，解除 plan_7 前置门禁；执行队列推进为 plan_7 → plan_10 |
