@@ -405,17 +405,65 @@ class QueryPropertiesTest {
                   "crag.query.llm.deepseek.base-url=https://api.deepseek.com/anthropic",
                   "crag.query.llm.deepseek.model=deepseek-v4-flash",
                   // deliberately bad value to trigger failure
-                  "crag.query.llm.deepseek.max-output-tokens=0");
+                  "crag.query.llm.deepseek.max-output-tokens=255");
 
       runner.run(
           ctx -> {
             Throwable failure = ctx.getStartupFailure();
-            if (failure != null) {
-              String message = failure.getMessage();
-              // If there's a failure, it must not leak the key
-              assertThat(message).doesNotContain("sk-super-secret-key-12345");
-            }
+            assertThat(failure).isNotNull();
+            String message = failure.getMessage();
+            assertThat(message).doesNotContain("sk-super-secret-key-12345");
           });
+    }
+
+    @Test
+    @DisplayName("空白 api-key → 启动失败")
+    void blankApiKey() {
+      runnerWith(
+              "crag.query.llm.provider=deepseek",
+              "crag.query.llm.deepseek.api-key=   ",
+              "crag.query.llm.deepseek.base-url=https://api.deepseek.com/anthropic",
+              "crag.query.llm.deepseek.model=deepseek-v4-flash",
+              "crag.query.llm.deepseek.max-output-tokens=4096")
+          .run(
+              ctx -> {
+                assertThat(ctx).hasFailed();
+                assertThat(ctx.getStartupFailure()).isNotNull();
+              });
+    }
+
+    @Test
+    @DisplayName("zero request-timeout → 启动失败")
+    void zeroRequestTimeout() {
+      runnerWith(
+              "crag.query.llm.provider=deepseek",
+              "crag.query.llm.deepseek.api-key=sk-key",
+              "crag.query.llm.deepseek.base-url=https://api.deepseek.com/anthropic",
+              "crag.query.llm.deepseek.model=deepseek-v4-flash",
+              "crag.query.llm.deepseek.max-output-tokens=4096",
+              "crag.query.llm.request-timeout=0s")
+          .run(
+              ctx -> {
+                assertThat(ctx).hasFailed();
+                assertThat(ctx.getStartupFailure()).isNotNull();
+              });
+    }
+
+    @Test
+    @DisplayName("negative request-timeout → 启动失败")
+    void negativeRequestTimeout() {
+      runnerWith(
+              "crag.query.llm.provider=deepseek",
+              "crag.query.llm.deepseek.api-key=sk-key",
+              "crag.query.llm.deepseek.base-url=https://api.deepseek.com/anthropic",
+              "crag.query.llm.deepseek.model=deepseek-v4-flash",
+              "crag.query.llm.deepseek.max-output-tokens=4096",
+              "crag.query.llm.request-timeout=-1s")
+          .run(
+              ctx -> {
+                assertThat(ctx).hasFailed();
+                assertThat(ctx.getStartupFailure()).isNotNull();
+              });
     }
   }
 

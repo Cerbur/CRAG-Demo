@@ -15,6 +15,7 @@ public final class DeepSeekApiKey {
    * @param value 原始 API 密钥，允许为空字符串（上游校验）
    */
   public DeepSeekApiKey(String value) {
+    Objects.requireNonNull(value, "value must not be null");
     this.value = value;
   }
 
