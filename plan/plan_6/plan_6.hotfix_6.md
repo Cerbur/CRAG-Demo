@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_6.hotfix_6
 type: hotfix
 parent_plan: plan_6
-status: verifying
+status: completed
 created: 2026-06-19
 updated: 2026-06-20
 ---
@@ -114,9 +114,9 @@ updated: 2026-06-20
 | --- | --- | --- | --- | --- |
 | 6.hotfix_6.1 | 建立 Parent Evidence 公共契约与聚合规则 | ✅ 完成 | 3b4cc6f | 2026-06-20 |
 | 6.hotfix_6.2 | 实现 parent 批量回表与稳定 Evidence 输出 | ✅ 完成 | 1eb8cbb | 2026-06-20 |
-| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | 待验收 | 5c2d27d, 895efdf, ef97f66 | — |
+| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | ✅ 完成 | 5c2d27d, 895efdf, ef97f66, 7b0d2d2 | 2026-06-20 |
 
-整体进度：2 / 3（67%），待验收：1
+整体进度：3 / 3（100%）
 
 ## 6.hotfix_6.1 建立 Parent Evidence 公共契约与聚合规则
 
@@ -167,6 +167,10 @@ updated: 2026-06-20
 | 2026-06-20 | Docker Compose（从 `ef97f66` 重建 `app-smoke`） | `bash scripts/tests/http/retrieval_evidence_test.sh` | ✅ 通过 | `runId=evidence-1781897044-35351`；HTTP 200、目标 parent、完整 runId 内容、连续请求稳定顺序均通过；3 个 evidence 的 matched child 在本次数据中均为 1/1 交叉命中 |
 | 2026-06-20 | 独立验收 session | `matchedChildIds` 自动化断言审查 | ❌ 失败 | Section 7 只检查每个 evidence 的 `matchedChildIds` 与 child 结果至少存在一个交集；当列表同时包含真实 ID 与错误 ID 时仍输出 `ALL_VERIFIED`，不能证明所有返回 ID 均为真实命中 |
 | 2026-06-20 | 独立验收 session | workflow v3 交接检查 | ❌ 失败 | 当前 Plan 仍为 `in_progress`，任务 6.hotfix_6.3 提交栏未记录实现提交 `ef97f66`，且不存在独立交接提交；不满足进入 `verifying` 的门槛 |
+| 2026-06-20 | 独立验收 session | 实现提交与 Section 7 修复复核 | ✅ 通过 | 核对 `5c2d27d`、`895efdf`、`ef97f66`、`7b0d2d2`；Section 7 使用 `matched - child_ids` 子集检查，夹带任意非 child ID 时失败；实现提交均服务任务 6.hotfix_6.3 |
+| 2026-06-20 | 独立验收 session | `python3 -c` 子集断言正反 fixture | ✅ 通过 | 全部 ID 属于 child 集合时通过；混入 `fake` ID 时差集精确识别该额外 ID |
+| 2026-06-20 | 独立验收 session | `./gradlew check --rerun-tasks` | ✅ 通过 | 51 个 actionable tasks 全部重新执行并通过；约束、模块依赖和 Plan 校验均为 0 错误 |
+| 2026-06-20 | 独立验收 session | 最终验收结论 | ✅ 通过 | 复用 Docker 回归 `runId=evidence-1781897044-35351` 的真实链路证据，并确认其后仅修改 Section 7 自动化断言与交接文档；三项任务全部验收完成 |
 
 ## 阻塞记录
 
@@ -191,3 +195,4 @@ updated: 2026-06-20
 | 2026-06-20 | 修复 DB 查询非确定性与 HTTP 回归脚本缺陷 | (1) FTS/Dense native SQL ORDER BY 均缺乏分数平局时的确定性次级排序，导致相同查询重复执行时 RRF/Rerank 输入顺序不同；(2) 相邻 child 批量查询无 ORDER BY，DB 行序漂移影响候选集顺序；(3) HTTP 回归脚本未断言 HTTP 状态码；(4) `matchedChildIds` 仅检查非空，未与 child retrieval 交叉验证以证明来自真实 RRF 命中 | (1) `ChunkFtsRepository.searchFts` ORDER BY 增加 `, c.chunk_id ASC`；(2) `ChunkEmbeddingRepository.searchSimilar` ORDER BY 增加 `, c.chunk_id ASC`；(3) `RetrievalService.findAdjacentChunks` 在 DB 结果后按 chunkId 排序；(4) `retrieval_evidence_test.sh` 为所有 curl 调用添加 HTTP 200 断言，新增 Section 7 通过 child retrieval 端点交叉验证 matchedChildIds |
 | 2026-06-20 | 第三次独立验收未完成 | 真实 Docker 链路与稳定顺序已通过，但 Section 7 只证明部分交集，且实现提交 `ef97f66` 尚未通过独立交接提交回填并转入 `verifying` | 任务保持进行中；将断言改为所有 `matchedChildIds` 均属于 child ID 集合，完成实现 hash 回填与交接后重新验收 |
 | 2026-06-20 | 修正 Section 7 子集断言并正式交接 | (1) Section 7 交叉验证将交集检查改为子集检查，确保所有 `matchedChildIds` 均属于 child retrieval ID 集合；(2) 回填实现提交 `ef97f66`，将任务 6.hotfix_6.3 与 Plan 转为待验收，同步索引和执行/验收队列 | 实现已完整，移交独立验收 session |
+| 2026-06-20 | 独立验收通过并完成 Hotfix | Docker 真实链路、稳定排序、HTTP 200、完整 parent 内容、全部 matched child 子集断言、提交范围和全量 Gradle 检查均通过 | 任务 6.hotfix_6.3 与 Plan 完成；解除 plan_13 的执行前置门禁 |
