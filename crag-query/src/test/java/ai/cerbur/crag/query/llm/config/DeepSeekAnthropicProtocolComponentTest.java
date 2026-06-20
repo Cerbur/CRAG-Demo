@@ -105,7 +105,7 @@ class DeepSeekAnthropicProtocolComponentTest {
     // 验证请求头
     assertNotNull(captured.headers(), "Headers should not be null");
     assertEquals("sk-test-key-12345", captured.headers().xApiKey());
-    assertNotNull(captured.headers().anthropicVersion());
+    assertEquals("2023-06-01", captured.headers().anthropicVersion());
     assertTrue(
         captured.headers().contentType().startsWith("application/json"),
         "Content-Type should be application/json");
