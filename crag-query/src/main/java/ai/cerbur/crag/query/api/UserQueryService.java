@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,37 +53,12 @@ public class UserQueryService {
   static final int MAX_QUESTION_LENGTH = 2000;
   static final String INSUFFICIENT_EVIDENCE_ANSWER = "知识库证据不足";
 
-  private final RetrievalService retrievalService;
-  private final ContextBuilder contextBuilder;
-  private final PromptBuilder promptBuilder;
-  private final LlmClient llmClient;
-  private final QueryProperties queryProperties;
-  private final ReferenceAnalyzer referenceAnalyzer;
-
-  /**
-   * 构造用户查询服务.
-   *
-   * @param retrievalService 检索服务
-   * @param contextBuilder 上下文构建器
-   * @param promptBuilder 提示词构建器
-   * @param llmClient LLM 客户端（已装配为 STUB 或 DEEPSEEK）
-   * @param queryProperties 查询配置
-   * @param referenceAnalyzer 引用分析器
-   */
-  public UserQueryService(
-      RetrievalService retrievalService,
-      ContextBuilder contextBuilder,
-      PromptBuilder promptBuilder,
-      LlmClient llmClient,
-      QueryProperties queryProperties,
-      ReferenceAnalyzer referenceAnalyzer) {
-    this.retrievalService = retrievalService;
-    this.contextBuilder = contextBuilder;
-    this.promptBuilder = promptBuilder;
-    this.llmClient = llmClient;
-    this.queryProperties = queryProperties;
-    this.referenceAnalyzer = referenceAnalyzer;
-  }
+  @Autowired private RetrievalService retrievalService;
+  @Autowired private ContextBuilder contextBuilder;
+  @Autowired private PromptBuilder promptBuilder;
+  @Autowired private LlmClient llmClient;
+  @Autowired private QueryProperties queryProperties;
+  @Autowired private ReferenceAnalyzer referenceAnalyzer;
 
   /**
    * 执行用户查询全链路.

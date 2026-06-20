@@ -6,6 +6,7 @@ import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,11 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminRagController {
 
   /** 管理端 RAG 服务，编排分块 + 写入. */
-  private final AdminRagService adminRagService;
-
-  public AdminRagController(AdminRagService adminRagService) {
-    this.adminRagService = adminRagService;
-  }
+  @Autowired private AdminRagService adminRagService;
 
   /**
    * 知识库上传 —— 接收文档文本，分块写入 chunk 表，返回 docId 及分块数量.

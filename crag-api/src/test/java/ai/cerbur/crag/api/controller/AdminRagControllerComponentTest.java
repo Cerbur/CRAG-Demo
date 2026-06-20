@@ -1,7 +1,6 @@
 package ai.cerbur.crag.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,29 +20,25 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 /**
  * 轻量组件测试 —— 验证 AdminRagController 成功映射与 JSON 字段.
  *
- * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @Import 提供 mock AdminRagService 和 GlobalExceptionHandler。
+ * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @MockitoBean 提供 AdminRagService 测试替身，并导入 GlobalExceptionHandler。
  */
 @WebMvcTest
 @Import({AdminRagController.class, AdminRagControllerComponentTest.StubConfig.class})
 class AdminRagControllerComponentTest {
 
-  @Autowired private AdminRagService adminRagService;
+  @MockitoBean private AdminRagService adminRagService;
 
   @Autowired private MockMvc mockMvc;
 
   @Configuration
   static class StubConfig {
-
-    @Bean
-    AdminRagService adminRagService() {
-      return mock(AdminRagService.class);
-    }
 
     @Bean
     GlobalExceptionHandler globalExceptionHandler() {

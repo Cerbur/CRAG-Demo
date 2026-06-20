@@ -4,10 +4,15 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -186,4 +191,32 @@ class ModuleBoundaryArchitectureTest {
           .should()
           .beAnnotatedWith(org.springframework.context.annotation.Profile.class)
           .because("crag-smoke 的诊断端点必须受 @Profile(\"smoke\") 限制。");
+
+  // ═══════════════════════════════════════════════════════════════
+  // 规则 7：Spring 组件默认使用字段注入
+  // ═══════════════════════════════════════════════════════════════
+
+  /** Service 与 RestController 不得声明带参数构造器，避免再次引入非必要构造器注入。 */
+  @ArchTest
+  static final ArchRule spring_components_use_field_injection =
+      classes()
+          .that()
+          .areAnnotatedWith(Service.class)
+          .or()
+          .areAnnotatedWith(RestController.class)
+          .should(
+              new ArchCondition<>("不声明带参数构造器") {
+                @Override
+                public void check(JavaClass javaClass, ConditionEvents events) {
+                  javaClass.getConstructors().stream()
+                      .filter(constructor -> !constructor.getRawParameterTypes().isEmpty())
+                      .forEach(
+                          constructor ->
+                              events.add(
+                                  SimpleConditionEvent.violated(
+                                      constructor,
+                                      javaClass.getName() + " 应默认使用 @Autowired 字段注入，不应声明依赖构造器")));
+                }
+              })
+          .because("项目默认使用 @Autowired 字段注入；构造器注入需要明确且必要的例外理由。");
 }

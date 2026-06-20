@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -31,20 +32,13 @@ public class AdminRagService {
   private static final Logger log = LoggerFactory.getLogger(AdminRagService.class);
 
   /** 文档分块服务 —— 将纯文本拆分为 parent + child chunks. */
-  private final ChunkSplitService chunkSplitService;
+  @Autowired private ChunkSplitService chunkSplitService;
 
   /** Chunk 表 DAO —— 批量写入 chunk 实体. */
-  private final ChunkDao chunkDao;
+  @Autowired private ChunkDao chunkDao;
 
   /** Jackson ObjectMapper —— 序列化 chunk metadata 为 JSON 字符串. */
-  private final ObjectMapper objectMapper;
-
-  public AdminRagService(
-      ChunkSplitService chunkSplitService, ChunkDao chunkDao, ObjectMapper objectMapper) {
-    this.chunkSplitService = chunkSplitService;
-    this.chunkDao = chunkDao;
-    this.objectMapper = objectMapper;
-  }
+  @Autowired private ObjectMapper objectMapper;
 
   /**
    * 知识入库 —— 接收纯文本，分块后写入 chunk 表，返回入库结果.

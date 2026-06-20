@@ -1,7 +1,6 @@
 package ai.cerbur.crag.api.controller;
 
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,41 +20,28 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * 轻量组件测试 —— 验证 UserQueryController 成功映射与异常处理.
  *
- * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @Import 提供控制器、GlobalExceptionHandler 和 mock StubConfig。
+ * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @MockitoBean 提供 UserQueryService 测试替身，并导入控制器与
+ * GlobalExceptionHandler。
  */
 @WebMvcTest
-@Import({
-  UserQueryController.class,
-  GlobalExceptionHandler.class,
-  UserQueryControllerComponentTest.StubConfig.class
-})
+@Import({UserQueryController.class, GlobalExceptionHandler.class})
 class UserQueryControllerComponentTest {
 
   @Autowired private MockMvc mockMvc;
 
-  @Autowired private UserQueryService userQueryService;
+  @MockitoBean private UserQueryService userQueryService;
 
   @BeforeEach
   void resetMock() {
     reset(userQueryService);
-  }
-
-  @Configuration
-  static class StubConfig {
-
-    @Bean
-    UserQueryService userQueryService() {
-      return mock(UserQueryService.class);
-    }
   }
 
   @Nested

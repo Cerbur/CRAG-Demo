@@ -7,6 +7,7 @@ import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.query.api.UserQueryResult;
 import ai.cerbur.crag.query.api.UserQueryService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,11 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class UserQueryController {
 
-  private final UserQueryService userQueryService;
-
-  public UserQueryController(UserQueryService userQueryService) {
-    this.userQueryService = userQueryService;
-  }
+  @Autowired private UserQueryService userQueryService;
 
   /**
    * 用户问答接口 —— 委托 UserQueryService 执行检索+生成全链路.

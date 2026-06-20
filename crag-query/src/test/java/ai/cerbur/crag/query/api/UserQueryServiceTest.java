@@ -25,6 +25,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.MDC;
@@ -41,7 +42,7 @@ class UserQueryServiceTest {
   @Mock private ReferenceAnalyzer referenceAnalyzer;
   @Mock private QueryProperties queryProperties;
 
-  private UserQueryService service;
+  @InjectMocks private UserQueryService service;
 
   private static final String REQUEST_ID = "test-request-id-123";
   private static final String QUESTION = "什么是CRAG？";
@@ -72,15 +73,6 @@ class UserQueryServiceTest {
     lenient().when(queryProperties.getRetrieval()).thenReturn(retrievalConfig);
     lenient().when(queryProperties.getContext()).thenReturn(contextConfig);
     lenient().when(queryProperties.getLlm()).thenReturn(llmConfig);
-
-    service =
-        new UserQueryService(
-            retrievalService,
-            contextBuilder,
-            promptBuilder,
-            llmClient,
-            queryProperties,
-            referenceAnalyzer);
   }
 
   private ParentEvidenceResult makeEvidence() {
