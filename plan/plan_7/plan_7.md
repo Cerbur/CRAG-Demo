@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: 待验收
+status: in_progress
 created: 2026-06-18
 updated: 2026-06-20
 ---
@@ -370,14 +370,14 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | ✅ 完成 | bc08a15 | 2026-06-20 |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | ✅ 完成 | 5815de1 | 2026-06-20 |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 进行中 | bc08a15 | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 进行中 | 5815de1 | — |
 
-整体进度：8/8（100%）
+整体进度：6 / 8（75%）
 
 ## 验收状态
 
-全部 8 项任务已实现完成。真实 DeepSeek 验收需独立 session 执行 `query_deepseek_acceptance_test.sh`。
+独立验收发现 7.7、7.8 的自动化脚本无法满足验收标准，Plan 已退回进行中。修复脚本并重新交接后，须由新的独立验收 session 重跑 Stub 成功、Stub 失败/恢复和真实 DeepSeek 验收。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -463,6 +463,14 @@ CRAG_QUERY_LLM_STUB_MODE
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-20 | macOS / Java 21 / Docker Compose | `./gradlew test` | 通过 | 全量 Gradle 测试通过，34 个 actionable tasks，20 executed、14 up-to-date。 |
+| 2026-06-20 | macOS / Java 21 | `./gradlew check` | 失败 | `validatePlans` 报 4 个错误：Plan YAML status、整体进度及执行/验收队列不一致；其他约束、框架依赖和模块依赖校验通过。 |
+| 2026-06-20 | macOS / Python 3 | `python3 scripts/validate_plans.py --strict --verify-git` | 失败 | 与 `./gradlew check` 相同的 4 个 Plan 静态错误；本次验收状态回退后需由执行 session 修复并重新校验。 |
+| 2026-06-20 | Docker Compose / Stub success | `bash scripts/tests/http/query_stub_success_test.sh` | 失败 | 脚本退出 0，但 AdminRag 响应不含 `parentChunkId`，关键目标 parent 映射断言被降级为 `SKIP`，不满足 7.7 验收标准。runId：`qs-1781965514-12001`；测试数据保留。 |
+| 2026-06-20 | Docker Compose / Stub failure | `bash scripts/tests/http/query_stub_failure_test.sh` | 失败 | readiness 将 curl 失败输出 `000000` 误判为就绪；failure 请求和恢复确认均得到 HTTP `000`，脚本退出 1。runId：`qf-1781965584-13145`；测试数据保留。 |
+| 2026-06-20 | Docker Compose / DeepSeek | `source ~/.zshrc; bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 执行环境拒绝从 `.zshrc` 读取密钥并向第三方服务发送本地业务数据；未发起真实调用。再次尝试前需用户在知悉数据外发风险后明确批准，且应先修复与 Stub 脚本同源的 parent ID/readiness 缺陷。 |
+| 2026-06-20 | macOS / Python 3 / Git | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check` | 通过 | 验收失败状态、进度和队列同步后严格 Plan 校验为 0 error；仅保留 24 个历史 Plan 兼容 warning。 |
+| 2026-06-20 | Docker Compose / Stub success | 正式 `POST /api/v1/query` 恢复检查 | 通过 | 失败脚本结束后等待应用稳定，正式 Query API 返回 HTTP 200、`code=0`，共享环境已恢复 Stub success。 |
 
 ## 阻塞记录
 
@@ -491,3 +499,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-20 | 补充 7.8 执行授权与安全边界 | 用户确认凭据、少量费用、单次调用、失败停止、密钥注入、日志与测试数据策略 | 真实验收仅主动调用一次；失败后再次调用须明确批准；禁止持久化凭据和敏感证据 |
 | 2026-06-20 | 收口 usage 观测与方向归档 | ready 审查发现 LlmResult 与 UserQueryService usage 日志之间缺少数据通路，且 plan_main 技术方向变更缺少归档 | 新增供应商中立 LlmUsage；补充 LLM 韧性候选归档记录 |
 | 2026-06-20 | 对照仓库与官方协议补全执行接缝 | Spring AI 2.0.0 Anthropic 已基于官方 SDK，原双超时配置无法由计划指定的 builder 准确兑现；Docker 回归文件和恢复行为未固定 | 收敛为单一 request timeout；固定实现/测试/脚本文件；协议测试必须穿过真实配置 Bean；Stub/DeepSeek 回归结束后恢复默认成功模式 |
+| 2026-06-20 | 独立验收失败，退回 7.7 与 7.8 | Stub 成功脚本跳过目标 parent 映射；Stub failure readiness 误判导致失败与恢复均未验证；真实调用未获执行环境批准 | Plan 退回 `in_progress`，修复自动化回归后重新交接独立验收 |
