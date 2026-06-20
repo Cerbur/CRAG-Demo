@@ -1,8 +1,10 @@
 package ai.cerbur.crag.app;
 
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -19,9 +21,19 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @ComponentScan("ai.cerbur.crag")
 @EnableJpaRepositories("ai.cerbur.crag.storage.repository")
-@EntityScan("ai.cerbur.crag.storage.entity")
 @EnableScheduling
 public class CragDemoApplication {
+
+  /**
+   * 注册实体扫描包 —— 替代 Boot 3 已移除的 @EntityScan.
+   *
+   * <p>crag-storage.entity 不在 @SpringBootApplication 所在包的子包中， 需要显式告知 EntityManagerFactory 扫描该包.
+   */
+  @Bean
+  static BeanDefinitionRegistryPostProcessor entityPackageRegistrar() {
+    return registry ->
+        AutoConfigurationPackages.register(registry, "ai.cerbur.crag.storage.entity");
+  }
 
   public static void main(String[] args) {
     SpringApplication.run(CragDemoApplication.class, args);

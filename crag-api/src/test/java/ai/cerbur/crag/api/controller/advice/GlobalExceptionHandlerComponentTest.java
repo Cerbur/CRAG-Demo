@@ -8,25 +8,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * 轻量组件测试 —— 验证 GlobalExceptionHandler 将四类异常正确转换为业务码与 HTTP 状态.
  *
- * <p>使用 @WebMvcTest 加载 MVC 切片，通过 @Import 显式注册 TestExceptionController 和 GlobalExceptionHandler。Bean
- * Validation 由 AdminRagControllerComponentTest 覆盖。
+ * <p>使用 @WebMvcTest 加载 MVC 切片，通过 @Import 显式注册 TestExceptionController 和 GlobalExceptionHandler。
  */
 @WebMvcTest
 @Import({TestExceptionController.class, GlobalExceptionHandler.class})
 class GlobalExceptionHandlerComponentTest {
 
   @Autowired private MockMvc mockMvc;
-
-  // ═══════════════════════════════════════════════════════════════
-  // IllegalArgumentException → INVALID_ARGUMENT / HTTP 400
-  // ═══════════════════════════════════════════════════════════════
 
   @Nested
   @DisplayName("IllegalArgumentException mapping")
@@ -44,10 +39,6 @@ class GlobalExceptionHandlerComponentTest {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // NoResourceFoundException → NOT_FOUND / HTTP 404
-  // ═══════════════════════════════════════════════════════════════
-
   @Nested
   @DisplayName("NoResourceFoundException mapping")
   class NotFound {
@@ -63,10 +54,6 @@ class GlobalExceptionHandlerComponentTest {
           .andExpect(jsonPath("$.result").isEmpty());
     }
   }
-
-  // ═══════════════════════════════════════════════════════════════
-  // Unhandled exception → INTERNAL_ERROR / HTTP 500
-  // ═══════════════════════════════════════════════════════════════
 
   @Nested
   @DisplayName("Fallback exception mapping")

@@ -3,7 +3,6 @@ rootProject.name = "crag-demo"
 pluginManagement {
     repositories {
         mavenCentral()
-        maven { url = uri("https://repo.spring.io/milestone") }
         gradlePluginPortal()
     }
 }

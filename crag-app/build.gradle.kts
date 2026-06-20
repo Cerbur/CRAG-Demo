@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.4.1"
+    alias(libs.plugins.spring.boot)
 }
 
 java {
@@ -9,7 +9,6 @@ java {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.1"))
     implementation(project(":crag-common"))
     implementation(project(":crag-storage"))
     implementation(project(":crag-ingestion"))
@@ -17,7 +16,7 @@ dependencies {
     implementation(project(":crag-query"))
     implementation(project(":crag-api"))
     runtimeOnly(project(":crag-smoke"))
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.postgresql:postgresql")

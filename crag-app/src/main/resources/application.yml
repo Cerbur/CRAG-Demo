@@ -5,11 +5,6 @@ spring:
   application:
     name: crag-demo
 
-  # plan_1 脚手架阶段排除 Spring AI 自动配置（plan_2 正式接入时移除此项）
-  autoconfigure:
-    exclude:
-      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
-
   datasource:
     url: jdbc:postgresql://localhost:5432/crag_demo
     username: crag_user

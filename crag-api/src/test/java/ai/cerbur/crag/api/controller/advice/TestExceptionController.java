@@ -30,6 +30,7 @@ public class TestExceptionController {
   /** 触发 NoResourceFoundException → NOT_FOUND / HTTP 404. */
   @GetMapping("/not-found")
   String throwNotFound() throws NoResourceFoundException {
-    throw new NoResourceFoundException(HttpMethod.GET, "test resource not found");
+    throw new NoResourceFoundException(
+        HttpMethod.GET, "/api/v1/test/exception/not-found", "test resource not found");
   }
 }

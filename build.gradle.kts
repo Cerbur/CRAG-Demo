@@ -1,9 +1,13 @@
 plugins {
+    `java-base`
     id("com.diffplug.spotless") version "8.7.0" apply false
+    alias(libs.plugins.spring.dependency.management)
 }
 
 group = "ai.cerbur.crag"
 version = "0.1.0"
+
+val bootVersion = libs.versions.spring.boot.get()
 
 val validatePlans by tasks.registering(Exec::class) {
     group = "verification"
@@ -23,16 +27,21 @@ val validateConstraints by tasks.registering(Exec::class) {
     commandLine("python3", "scripts/validate_constraints.py")
 }
 
-tasks.register("check") {
+val validateFrameworkDependencies by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Validates framework version catalog, BOM, module boundaries and forbids old versions."
+    commandLine("python3", "scripts/validate_framework_dependencies.py")
+}
+
+tasks.named("check") {
     group = "verification"
     description = "Runs root project verification."
-    dependsOn(validatePlans, validateModuleDependencies, validateConstraints, subprojects.map { "${it.path}:check" })
+    dependsOn(validatePlans, validateModuleDependencies, validateConstraints, validateFrameworkDependencies, subprojects.map { "${it.path}:check" })
 }
 
 allprojects {
     repositories {
         mavenCentral()
-        maven { url = uri("https://repo.spring.io/milestone") }
     }
 
     tasks.withType<Test> {
@@ -42,6 +51,7 @@ allprojects {
 
 subprojects {
     apply(plugin = "com.diffplug.spotless")
+    apply(plugin = "io.spring.dependency-management")
 
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         java {
@@ -50,6 +60,12 @@ subprojects {
             removeUnusedImports()
             trimTrailingWhitespace()
             endWithNewline()
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:${bootVersion}")
         }
     }
 }

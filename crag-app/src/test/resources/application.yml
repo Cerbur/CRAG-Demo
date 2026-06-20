@@ -20,13 +20,6 @@ spring:
     init:
       mode: never
 
-  # plan_1 脚手架：Spring AI 尚未接入，提供 dummy API key 避免自动配置失败
-  ai:
-    openai:
-      api-key: dummy-plan1-key
-      chat:
-        api-key: dummy-plan1-key
-
 crag:
   embedding:
     sidecar-url: http://localhost:8001

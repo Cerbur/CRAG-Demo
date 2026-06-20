@@ -1,15 +1,19 @@
 package ai.cerbur.crag.ingestion.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
+import ai.cerbur.crag.ingestion.api.MetadataSerializationException;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitData;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitGroup;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitResult;
@@ -17,7 +21,6 @@ import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitService;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.entity.Chunk;
 import ai.cerbur.crag.storage.entity.ChunkStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +33,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * AdminRagService 单元测试 —— 验证入库编排逻辑、分块-实体映射、状态设置.
@@ -361,6 +366,18 @@ class AdminRagServiceTest {
       String metadata = saved.get(0).getMetadata();
       // title 在 JSON 中第一个出现
       assertThat(metadata.indexOf("\"title\"")).isLessThan(metadata.indexOf("\"aaa\""));
+    }
+
+    @Test
+    @DisplayName("metadata 序列化失败 → 抛出 MetadataSerializationException 并保留 Jackson cause")
+    void serializationFailureThrowsWithCausePreserved() {
+      JacksonException jacksonEx = mock(JacksonException.class);
+      doThrow(jacksonEx).when(objectMapper).writeValueAsString(any());
+
+      assertThatThrownBy(() -> adminRagService.ingest("标题", "内容", Map.of()))
+          .isInstanceOf(MetadataSerializationException.class)
+          .hasCause(jacksonEx)
+          .hasMessageContaining("Failed to serialize chunk metadata");
     }
   }
 

@@ -5,8 +5,6 @@ import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitResult;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitService;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.entity.Chunk;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,8 +12,9 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 管理端 RAG 服务 —— 知识库入库编排（分块 + 写入 + 异步向量化）.
@@ -32,13 +31,20 @@ public class AdminRagService {
   private static final Logger log = LoggerFactory.getLogger(AdminRagService.class);
 
   /** 文档分块服务 —— 将纯文本拆分为 parent + child chunks. */
-  @Autowired private ChunkSplitService chunkSplitService;
+  private final ChunkSplitService chunkSplitService;
 
   /** Chunk 表 DAO —— 批量写入 chunk 实体. */
-  @Autowired private ChunkDao chunkDao;
+  private final ChunkDao chunkDao;
 
   /** Jackson ObjectMapper —— 序列化 chunk metadata 为 JSON 字符串. */
-  @Autowired private ObjectMapper objectMapper;
+  private final ObjectMapper objectMapper;
+
+  public AdminRagService(
+      ChunkSplitService chunkSplitService, ChunkDao chunkDao, ObjectMapper objectMapper) {
+    this.chunkSplitService = chunkSplitService;
+    this.chunkDao = chunkDao;
+    this.objectMapper = objectMapper;
+  }
 
   /**
    * 知识入库 —— 接收纯文本，分块后写入 chunk 表，返回入库结果.
@@ -117,8 +123,9 @@ public class AdminRagService {
     }
     try {
       return objectMapper.writeValueAsString(enriched);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize chunk metadata for docId=" + docId, e);
+    } catch (JacksonException e) {
+      throw new MetadataSerializationException(
+          "Failed to serialize chunk metadata for docId=" + docId, e);
     }
   }
 }

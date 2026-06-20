@@ -8,16 +8,14 @@ java {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.1"))
     implementation(project(":crag-common"))
     implementation(project(":crag-storage"))
     implementation(project(":crag-ingestion"))
     implementation(project(":crag-retrieval"))
     implementation(project(":crag-query"))
     implementation(project(":crag-api"))
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("com.fasterxml.jackson.core:jackson-annotations")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
