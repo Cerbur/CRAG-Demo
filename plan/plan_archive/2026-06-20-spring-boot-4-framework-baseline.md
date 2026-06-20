@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | Spring Boot | 4.1.0 | 通过 Gradle version catalog (`libs.versions.toml`) 集中声明，`io.spring.dependency-management` 插件在 root `subprojects` 中导入 Boot BOM |
 | Spring Framework | 7.0.8（由 Boot 4.1.0 BOM 管理） | 不显式覆盖，禁止显式固定版本 |
-| Spring AI | 2.0.0 | 根构建通过 `dependency-management` 统一导入 Spring AI BOM，`crag-ingestion` 仅依赖 `spring-ai-commons` |
+| Spring AI | 2.0.0 | Spring AI BOM 仅在 `crag-ingestion` 子模块中独立导入（通过其自身 `build.gradle.kts` 的 `dependencyManagement` 块），`crag-ingestion` 仅依赖 `spring-ai-commons`；根构建不导入 Spring AI BOM |
 | Jackson | 3.x（由 Boot 4 BOM 管理） | `tools.jackson.databind.ObjectMapper` / `tools.jackson.core.JacksonException`，注解保持 `com.fasterxml.jackson.annotation.*` |
 | 构建治理 | 集中：catalog 为唯一版本源，root subprojects 统一 BOM，框架依赖校验器 + 根 `check` 接线 | 移除 Milestone 仓库、OpenAI Starter、dummy API key |
 | 自动配置 | 无排除、无 dummy key | plan_7 接入 Provider 时再按需管理 |

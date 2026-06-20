@@ -226,7 +226,7 @@ CRAG_QUERY_LLM_STUB_MODE
 ## 未决问题
 
 - `DEEPSEEK_API_KEY` 当前是否可用尚未确认，但只影响 7.7 的真实 Provider 验收，不阻塞前置任务执行。
-- ~~`plan_13` 完成后必须按其实际 Spring AI 2 依赖治理和最终配置属性校准路径。~~ **已解决**（2026-06-20）：`plan_13` 已完成。Spring AI 2.0.0 版本已在 `gradle/libs.versions.toml` 声明为 `libs.versions.spring.ai`；根构建通过 `io.spring.dependency-management` 插件在 `subprojects` 中统一导入 Spring AI BOM，所有子模块自动获得版本管理。`crag-ingestion` 已仅依赖 `spring-ai-commons`。本计划在 `crag-query` 只需新增 DeepSeek Starter 所需模块（不含 `spring-ai-transformers`、Provider 自动配置或旧 OpenAI Starter），版本由根 BOM 统一管理，**不使用 `platform()`**。
+- ~~`plan_13` 完成后必须按其实际 Spring AI 2 依赖治理和最终配置属性校准路径。~~ **已解决**（2026-06-20）：`plan_13` 已完成。Spring AI 2.0.0 版本已在 `gradle/libs.versions.toml` 声明为 `libs.versions.spring.ai`；根构建通过 `io.spring.dependency-management` 插件在 `subprojects` 中统一导入 Boot BOM；Spring AI BOM 仅在 `crag-ingestion` 子模块中导入（通过其自身 `build.gradle.kts` 的 `dependencyManagement` 块），不通过根构建全局导入。`crag-ingestion` 已仅依赖 `spring-ai-commons`。本计划在 `crag-query` 需同样按子模块独立导入 Spring AI BOM 并新增 DeepSeek Starter 所需模块（不含 `spring-ai-transformers`、Provider 自动配置或旧 OpenAI Starter），版本由 Spring AI BOM 统一管理，**不使用 `platform()`**。
 
 ## 风险与回滚
 
