@@ -23,6 +23,9 @@ public enum ResponseCode {
   /** 请求资源不存在. */
   NOT_FOUND(40401, "Resource not found", HttpStatus.NOT_FOUND),
 
+  /** LLM 供应商不可用. */
+  LLM_UNAVAILABLE(50201, "LLM unavailable", HttpStatus.valueOf(502)),
+
   /** 未预期的内部异常. */
   INTERNAL_ERROR(50001, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
 

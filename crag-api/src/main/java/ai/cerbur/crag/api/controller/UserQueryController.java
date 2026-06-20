@@ -1,9 +1,12 @@
 package ai.cerbur.crag.api.controller;
 
+import ai.cerbur.crag.api.dto.query.QuerySourceResponse;
 import ai.cerbur.crag.api.dto.query.UserQueryRequest;
+import ai.cerbur.crag.api.dto.query.UserQueryResponse;
 import ai.cerbur.crag.common.dto.result.Response;
+import ai.cerbur.crag.query.api.UserQueryResult;
+import ai.cerbur.crag.query.api.UserQueryService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,24 +23,30 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class UserQueryController {
 
+  private final UserQueryService userQueryService;
+
+  public UserQueryController(UserQueryService userQueryService) {
+    this.userQueryService = userQueryService;
+  }
+
   /**
-   * 用户问答接口（骨架，plan_3 实现完整检索+生成链路）.
+   * 用户问答接口 —— 委托 UserQueryService 执行检索+生成全链路.
    *
-   * @param request 含 question 字段的请求体，@Valid 校验非空
+   * @param request 含 question 字段的请求体，@Valid 校验非空及长度
    * @return 统一响应，result 含 answer 和 sources
    */
   @PostMapping("/query")
   public Response<UserQueryResponse> query(@Valid @RequestBody UserQueryRequest request) {
-    return Response.success(new UserQueryResponse("OK", List.of()));
+    UserQueryResult result = userQueryService.answer(request.question());
+    UserQueryResponse response =
+        new UserQueryResponse(
+            result.answer(),
+            result.sources().stream()
+                .map(
+                    s ->
+                        new QuerySourceResponse(
+                            s.reference(), s.parentChunkId(), s.matchedChildIds()))
+                .toList());
+    return Response.success(response);
   }
-
-  /**
-   * 用户问答响应体.
-   *
-   * <p>当前仍是查询链路骨架，answer 和 sources 字段用于保持后续 plan_6 全链路响应形态稳定.
-   *
-   * @param answer 生成回答文本
-   * @param sources 引用来源列表
-   */
-  public record UserQueryResponse(String answer, List<String> sources) {}
 }

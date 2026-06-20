@@ -2,6 +2,8 @@ package ai.cerbur.crag.api.controller.advice;
 
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.common.dto.result.ResponseCode;
+import ai.cerbur.crag.query.api.InvalidQueryException;
+import ai.cerbur.crag.query.api.LlmUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +47,31 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Response<?>> handleBadRequest(IllegalArgumentException e) {
     return ResponseEntity.status(ResponseCode.INVALID_ARGUMENT.getHttpStatus())
         .body(Response.error(ResponseCode.INVALID_ARGUMENT));
+  }
+
+  /**
+   * 处理无效查询异常 —— 用户查询为空或超长.
+   *
+   * @param e 无效查询异常
+   * @return ResponseEntity with VALIDATION_ERROR code and HTTP 400
+   */
+  @ExceptionHandler(InvalidQueryException.class)
+  public ResponseEntity<Response<?>> handleInvalidQuery(InvalidQueryException e) {
+    return ResponseEntity.status(ResponseCode.VALIDATION_ERROR.getHttpStatus())
+        .body(Response.error(ResponseCode.VALIDATION_ERROR));
+  }
+
+  /**
+   * 处理 LLM 不可用异常.
+   *
+   * @param e LLM 不可用异常
+   * @return ResponseEntity with LLM_UNAVAILABLE code and HTTP 502
+   */
+  @ExceptionHandler(LlmUnavailableException.class)
+  public ResponseEntity<Response<?>> handleLlmUnavailable(LlmUnavailableException e) {
+    log.warn("LLM unavailable: provider={}", e.getProvider(), e);
+    return ResponseEntity.status(ResponseCode.LLM_UNAVAILABLE.getHttpStatus())
+        .body(Response.error(ResponseCode.LLM_UNAVAILABLE));
   }
 
   /**

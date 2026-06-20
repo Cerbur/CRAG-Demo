@@ -7,6 +7,8 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+val springAiVersion = libs.versions.spring.ai.get()
+
 dependencies {
     implementation(project(":crag-common"))
     implementation(project(":crag-ingestion"))
@@ -16,4 +18,10 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.ai:spring-ai-bom:${springAiVersion}")
+    }
 }

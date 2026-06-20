@@ -42,6 +42,7 @@
 | `VALIDATION_ERROR` | `40001` | Validation failed | 400 |
 | `INVALID_ARGUMENT` | `40002` | Invalid argument | 400 |
 | `NOT_FOUND` | `40401` | Resource not found | 404 |
+| `LLM_UNAVAILABLE` | `50201` | LLM unavailable | 502 |
 | `INTERNAL_ERROR` | `50001` | Internal server error | 500 |
 
 业务码独立稳定，不复用 HTTP 状态码数值语义。默认消息当前不序列化到 JSON 响应。
@@ -68,13 +69,13 @@
 ```text
 ai.cerbur.crag.api
 ├── dto.rag/
-│   ├── AdminRagRequest   — POST /api/v1/admin/rag 请求
-│   └── AdminRagResponse  — POST /api/v1/admin/rag 成功响应
+│   ├── AdminRagRequest     — POST /api/v1/admin/rag 请求
+│   └── AdminRagResponse    — POST /api/v1/admin/rag 成功响应
 └── dto.query/
-    └── UserQueryRequest  — POST /api/v1/query 请求
+    ├── UserQueryRequest    — POST /api/v1/query 请求
+    ├── UserQueryResponse   — POST /api/v1/query 成功响应
+    └── QuerySourceResponse — POST /api/v1/query 来源映射
 ```
-
-`UserQueryResponse` 尚未独立为正式契约；当前由 Controller 内嵌 record 承载，由 `plan_7` 任务 7.6 负责移除。
 
 ---
 

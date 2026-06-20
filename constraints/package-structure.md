@@ -199,7 +199,7 @@ ai.cerbur.crag.api
 ├── controller/                        — AdminRagController / UserQueryController
 ├── controller.advice/                 — GlobalExceptionHandler
 ├── dto.rag/                           — AdminRagRequest / AdminRagResponse
-└── dto.query/                         — UserQueryRequest
+└── dto.query/                         — UserQueryRequest / UserQueryResponse / QuerySourceResponse
 ```
 
 ### `crag-smoke`
