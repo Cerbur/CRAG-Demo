@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-20 (plan_13 BOM 边界修正与提交重整，移交验收)
+> 最后更新：2026-06-20 (plan_13 第三次验收失败，退回进行中)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -81,7 +81,7 @@ plan/
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
-| plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | 🔍 待验收 (0/3) | — | [plan_13.md](../plan_13/plan_13.md) |
+| plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | 🚧 进行中 (0/3) | — | [plan_13.md](../plan_13/plan_13.md) |
 
 ---
 
@@ -92,14 +92,14 @@ plan_13 → plan_7 → plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_13` 已移交独立验收；验收通过前不放行 `plan_7`。
+- `plan_13` 第三次验收失败并退回进行中；修复与重新交接前不放行 `plan_7`。
 
 ---
 
 ## 当前验收队列
 
 ```text
-plan_13
+（空）
 ```
 
 - 仅列出状态为”待验收”的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -213,7 +213,7 @@ plan_13
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_13.md](../plan_13/plan_13.md) | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | 🔍 待验收 (0/3) |
+| [plan_13.md](../plan_13/plan_13.md) | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | 🚧 进行中 (0/3) |
 
 ---
 

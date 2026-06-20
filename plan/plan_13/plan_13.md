@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_13
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-19
 updated: 2026-06-20
 ---
@@ -165,8 +165,8 @@ updated: 2026-06-20
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 13.1 | 原子升级框架、生产代码与测试基线 | ⏳ 待验收 | a83c62b | — |
-| 13.2 | 固定 Boot Jar 并完成 Docker HTTP 回归 | ⏳ 待验收 | 6624b6e | — |
-| 13.3 | 同步技术方向、约束与下游计划并全量收口 | ⏳ 待验收 | 6962275 | — |
+| 13.2 | 固定 Boot Jar 并完成 Docker HTTP 回归 | 🚧 进行中 | 6624b6e | — |
+| 13.3 | 同步技术方向、约束与下游计划并全量收口 | 🚧 进行中 | 6962275 | — |
 
 整体进度：0 / 3（0%）
 
@@ -209,6 +209,7 @@ updated: 2026-06-20
 | 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 / Docker | `./gradlew :crag-app:bootJar`；`docker compose up -d --build` → `admin_rag_contract_test.sh` + `smoke_default_test.sh`；`docker compose --profile smoke up -d --build app-smoke` → `smoke_endpoints_test.sh` + `retrieval_evidence_test.sh`；容器日志检查；`docker compose down` | 通过 | 四套回归全部通过：(1) AdminRag 契约测试 — 成功、Validation、未知路径全 PASS；(2) 默认 Smoke 测试 — 4 个测试端点均返回 404，HTTP 000 正确判定为 FAIL；(3) Smoke 端点测试 — /smoke、/chunk、/retrieval 全 PASS，写入数据含唯一 RUN_ID `smoke-20260620-140920-23690`；(4) Parent Evidence 回归 — 证据结构、parentChunkId 匹配、RUN_ID 内容包含、稳定排序、matchedChildIds 交叉验证全 PASS，RUN_ID=`evidence-1781935771-23743`。构建目录只产生 `crag-demo.jar`（54 MB），无 plain jar；容器以非 root 用户运行；日志确认 Spring Boot v4.1.0 / Spring v7.0.8，无版本混用或敏感信息。`docker compose down` 普通清理，测试数据保留可识别。 |
 | 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew check`；`python3 scripts/validate_framework_dependencies.py`；`python3 -m unittest scripts.tests.test_validate_framework_dependencies -v`；`python3 scripts/validate_plans.py --strict --verify-git`；`git diff --check`；全仓检索旧版本/旧 Starter/milestone 仓库残留 | 通过 | 全量检查通过：(1) `./gradlew check` 全绿，0 错误；(2) 框架依赖校验器及其 9 个单测全过；(3) Plan 严格校验 0 错误；(4) 归档决策记录 `plan/plan_archive/2026-06-20-spring-boot-4-framework-baseline.md` 已创建并修正 `platform()` 描述；(5) `plan_main.md` 补充 Spring AI 2.0.0 版本；(6) README 已含 Boot 4.1.0 / Framework 7 / Spring AI 2.0.0；(7) `plan_7.md` 未决问题已校准为根 `dependency-management` 统一导入 Spring AI BOM，明确 `crag-query` 不使用 `platform()`；(8) `plan/index/README.md` 同步为待验收状态；(9) 全仓检索无 Boot 3.4.1、Spring AI M5/1.0.0-M5、OpenAI Starter、Spring Milestone 仓库残留。 |
 | 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | 提交范围与任务证据核对；`python3 scripts/validate_framework_dependencies.py`；`python3 -m unittest scripts.tests.test_validate_framework_dependencies -v`；`python3 scripts/validate_plans.py --strict --verify-git`；`git diff --check`；`./gradlew check` | 失败 | 静态校验、9 个校验器单测、严格 Plan 校验和 Gradle 全量检查均通过；但实现与 Plan 规范不一致：(1) 根构建向全部子模块导入 Spring AI BOM，而本 Plan 的范围、关键决策及 13.1 验收标准明确要求 Spring AI BOM 只在 `crag-ingestion` 导入，并由 plan_7 后续在 `crag-query` 增加；(2) 任务 13.2 记录的实现提交 `b1c92c3` 只修改 Plan 文档，真正的 Dockerfile 和 HTTP 脚本改动混在 13.1 提交 `d347833`，不满足任务实现证据真实性及“三个任务各自独立实现提交、不共享提交”的关键决策；(3) `d347833` 同时包含 13.1、13.2、13.3 文件范围。上述问题已足以阻断完成，本轮未重复执行 Docker HTTP 回归。 |
+| 2026-06-20 | macOS / Java 21 / Gradle 9.4.1 | 重整后提交范围核对；框架校验器及其 12 个单测；严格 Plan 校验；`git diff --check`；定向 Spring AI `dependencyInsight`；`./gradlew check` | 失败 | BOM 代码边界已修复，Spring AI 2.0.0 仅在 `crag-ingestion` 解析，`crag-query` 无 Spring AI 依赖；三个提交的主要文件组已分离，静态校验与 Gradle 全量检查通过。但仍有两项阻断：(1) `crag-app/build.gradle.kts` 中禁用 plain Jar、固定 `crag-demo.jar` 的 13.2 实现仍位于 13.1 提交 `a83c62b`，13.2 提交 `6624b6e` 未包含任务声明的全部实现文件；(2) `plan_7.md` 与框架归档仍错误声称根构建向所有子模块导入 Spring AI BOM，与当前实现、Plan 13 关键决策及 13.3 文档同步验收标准冲突。上述问题已足以阻断完成，本轮未重复执行 Docker HTTP 回归。 |
 
 ## 阻塞记录
 
@@ -228,3 +229,4 @@ updated: 2026-06-20
 | 2026-06-20 | 独立验收失败，退回进行中 | 实现未提交且无真实任务 hash；Spring AI BOM 的硬编码 `platform()` 与 Plan 验收标准冲突；metadata 序列化异常契约缺少失败路径测试 | 13.1 退回进行中，13.2 与 13.3 恢复待开始；修复后按任务分别提交、回填真实 hash、完成自测与 Docker 回归，再重新交接验收 |
 | 2026-06-20 | 第二次独立验收失败，退回进行中 | Spring AI BOM 被根构建导入全部子模块，违反 Plan 的模块边界；13.2 实现证据指向纯文档提交，且 13.1 提交混入后续任务范围 | 13.1、13.2、13.3 均退回进行中；按既定模块边界修正 BOM 导入，并整理真实、独立的任务实现提交与 hash 后重新交接 |
 | 2026-06-20 | BOM 边界修正与提交重整 | 修正 Spring AI BOM 只在 crag-ingestion 导入（通过 catalog library + dependencyManagement），根构建不再全局导入；校验器更新为禁止根构建含 Spring AI BOM；重整三个任务为独立提交 | 13.1 含 framework/生产/测试/BOM 修正，13.2 含 Dockerfile/HTTP 回归脚本，13.3 含文档同步；旧混合提交 d347833/b1c92c3/40fb33b 已由 soft reset 替换 |
+| 2026-06-20 | 第三次独立验收失败，退回进行中 | 13.2 的 Boot Jar Gradle 配置仍混在 13.1 提交；plan_7 与归档的 Spring AI BOM 描述仍是过期事实 | 保留已通过的 13.1 待验收状态；13.2、13.3 退回进行中，整理提交边界并同步真实文档事实后重新交接 |
