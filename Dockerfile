@@ -47,8 +47,8 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-# 复制构建产物
-COPY --from=builder /workspace/crag-app/build/libs/*.jar app.jar
+# 复制构建产物 —— 精确文件名，构建已固定输出为 crag-demo.jar
+COPY --from=builder /workspace/crag-app/build/libs/crag-demo.jar app.jar
 
 # 非 root 运行
 USER appuser

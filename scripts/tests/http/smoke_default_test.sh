@@ -23,8 +23,11 @@ ENDPOINTS=(
 
 for ep in "${ENDPOINTS[@]}"; do
   status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$ep" || echo "FAIL")
-  if [ "$status" = "404" ] || [ "$status" = "000" ]; then
+  if [ "$status" = "404" ]; then
     echo "PASS: $ep → $status"
+  elif [ "$status" = "000" ]; then
+    echo "FAIL: $ep → connection failed (HTTP 000)"
+    FAILED=1
   else
     echo "FAIL: $ep → expected 404, got $status"
     FAILED=1

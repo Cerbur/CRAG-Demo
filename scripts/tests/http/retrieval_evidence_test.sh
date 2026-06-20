@@ -92,7 +92,10 @@ while [ $WAITED -lt $MAX_WAIT ]; do
   fi
   echo "  Waiting... ${WAITED}s / ${MAX_WAIT}s"
   if [ $WAITED -ge $MAX_WAIT ]; then
-    echo "WARN: Indexing may not be complete after ${MAX_WAIT}s — proceeding with evidence test anyway"
+    echo "FAIL: Indexing did not complete within ${MAX_WAIT}s — aborting"
+    echo "=== Test data preserved with RUN_ID=$RUN_ID ==="
+    echo "=== Parent Evidence HTTP Regression FAILED ==="
+    exit 1
   fi
 done
 

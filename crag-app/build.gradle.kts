@@ -26,3 +26,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("com.h2database:h2")
 }
+
+// 禁用 plain Jar，固定 Boot Jar 文件名供 Dockerfile 精确复制
+tasks.named<Jar>("jar") {
+    enabled = false
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveFileName.set("crag-demo.jar")
+}

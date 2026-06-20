@@ -8,10 +8,12 @@
 set -euo pipefail
 
 BASE_URL="${1:-http://localhost:8081}"
+RUN_ID="smoke-$(date +%Y%m%d-%H%M%S)-$$"
 FAILED=0
 
 echo "=== Smoke Endpoints Test ==="
 echo "BASE_URL=$BASE_URL"
+echo "RUN_ID=$RUN_ID"
 
 # 1. /smoke — 基础连通性
 echo "--- /smoke ---"
@@ -28,7 +30,7 @@ fi
 echo "--- /chunk ---"
 resp=$(curl -s -X POST "$BASE_URL/api/v1/test/chunk" \
   -H "Content-Type: application/json" \
-  -d '{"title":"smoke test","content":"smoke test content for verification"}' || echo '{"code":-1}')
+  -d "{\"title\":\"smoke test $RUN_ID\",\"content\":\"smoke test content for verification $RUN_ID\"}" || echo '{"code":-1}')
 code=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
 if [ "$code" = "0" ]; then
   echo "PASS: /chunk code=$code"
