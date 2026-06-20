@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,14 +370,14 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 进行中 | bc08a15 | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 进行中 | 5815de1 | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 待验收 | bc08a15, ec1577c | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 待验收 | 5815de1, ec1577c | — |
 
 整体进度：6 / 8（75%）
 
 ## 验收状态
 
-2026-06-21 新一轮独立验收仍发现 7.7、7.8 的自动化脚本无法满足验收标准，Plan 保持进行中。修复脚本、公开 DTO 不可变性与验收断言并重新交接后，须由新的独立验收 session 重跑 Stub 成功、Stub 失败/恢复和真实 DeepSeek 验收。
+2026-06-21 7.7/7.8 修复完成（ec1577c）：DeepSeek 脚本重构为零成本索引等待 + 单次调用、唯一验证码断言、ok_ref/ok_matched 判定、安全扫描全面覆盖；AdminRagResponse 添加防御性复制。已交接给独立验收 session，须重跑 Stub 成功、Stub 失败/恢复和真实 DeepSeek 验收。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -476,6 +476,9 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error，Git whitespace 检查与三个 Query HTTP 脚本语法检查通过。 |
 | 2026-06-21 | 静态独立验收 | 审查 `d818f02` 与 Query HTTP 回归脚本 | 失败 | DeepSeek 脚本在索引轮询中最多调用真实模型 30 次，且失败后继续调用，违反单次调用与首次失败停止约束；答案断言由唯一验证码弱化为通用事实；目标 source 检查计算但未使用 reference/matchedChildIds 合法性；安全日志扫描未覆盖完整响应、Prompt、Context 或本次唯一内容；Query 轮询未记录 HTTP 状态。`AdminRagResponse` 的 List 字段未防御性复制，不满足 DTO 默认不可变约束。 |
 | 2026-06-21 | Docker Compose / Stub / DeepSeek | 三个 Query HTTP 回归 | 未执行 | 静态审查已发现阻断缺陷；尤其当前 DeepSeek 脚本可能产生多次付费调用并违反失败停止规则，因此本验收 session 未执行。修复并重新交接后由新的独立验收 session 执行。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test` | 通过 | `BUILD SUCCESSFUL`，34 个 actionable tasks，5 executed、29 up-to-date。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，约束、框架依赖、模块依赖、Spotless、测试和 Plan 校验通过；保留 24 个历史 Plan 兼容 warning。 |
+| 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error；Git whitespace 检查与三个 Query HTTP 脚本语法检查通过。 |
 
 ## 阻塞记录
 
