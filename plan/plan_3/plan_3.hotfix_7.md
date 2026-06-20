@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_3.hotfix_7
 type: hotfix
 parent_plan: plan_3
-status: in_progress
+status: verifying
 created: 2026-06-21
 updated: 2026-06-21
 ---
@@ -54,7 +54,7 @@ updated: 2026-06-21
 
 - 主要责任归属 `plan_3.hotfix_6` 的全局代码风格反转；关联 `plan_9.hotfix_4`、`plan_13` 与执行中的 `plan_7`。
 - 变更跨 API、Ingestion、Query 三个业务模块，但只机械恢复同一依赖注入规则，使用两个任务即可完成，不升级为主 Plan。
-- 任务 3.hotfix_7.1 与 3.hotfix_7.2 紧密耦合，共享实现提交 `eddda3c`：前者恢复规范与 Plan 决策，后者同步修改生产装配、组件测试和架构护栏；拆分提交会产生规范与实现暂时冲突，二者共同构成同一可回滚修复。
+- 任务 3.hotfix_7.1 与 3.hotfix_7.2 紧密耦合，共享实现提交 `eddda3c`：前者恢复规范与 Plan 决策，后者同步修改生产装配、组件测试和架构护栏；拆分提交会产生规范与实现暂时冲突，二者共同构成同一可回滚修复。验收失败修正提交 `23a8f60` 补齐 ArchUnit 例外标记、Docker HTTP 回归证据与文件边界缺口。
 
 ## 关键决策
 
@@ -87,8 +87,8 @@ updated: 2026-06-21
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 3.hotfix_7.1 | 恢复依赖注入规范与计划决策 | 🔄 进行中 | eddda3c | — |
-| 3.hotfix_7.2 | 修复生产代码并增加静态回归检查 | 🔄 进行中 | eddda3c | — |
+| 3.hotfix_7.1 | 恢复依赖注入规范与计划决策 | 🔍 待验收 | eddda3c, 23a8f60 | — |
+| 3.hotfix_7.2 | 修复生产代码并增加静态回归检查 | 🔍 待验收 | eddda3c, 23a8f60 | — |
 
 整体进度：0 / 2（0%）
 
@@ -149,3 +149,4 @@ updated: 2026-06-21
 | 2026-06-21 | 完成实现、自测并交接验收 | 实现提交 `eddda3c` 已创建，规定验证全部通过 | 两项任务转为待验收，Hotfix 转为 `verifying` |
 | 2026-06-21 | 独立验收失败并退回进行中 | 双队列冲突；ArchUnit 抹除代码风格明确例外；Controller/Bean 装配变更缺少 Docker HTTP 回归；两个组件测试遗漏于文件边界；共享提交缺少紧密耦合说明 | 两项任务与 Hotfix 退回 `in_progress`；从验收队列移除并保留执行队首，修正实现、补齐回归证据后重新交接 |
 | 2026-06-21 | 修正验收失败项 | ArchUnit Rule 7 无条件禁止构造器；缺少 Docker HTTP 回归证据；admin_rag_contract_test.sh 断言未覆盖 parentChunkIds | 新增 `@ConstructorInjection` 例外注解，ArchUnit 规则跳过标注类；补齐 AdminRag 契约与 Query Stub 全链路 Docker HTTP 回归（均通过）；修正 admin_rag_contract_test.sh result keys 断言；文件边界补全注解、组件测试与测试脚本 |
+| 2026-06-21 | 回填修正提交并交接验收 | 修正提交 `23a8f60` 已创建，全部验收记录、文件边界和变更记录已补全 | 两项任务转为待验收，Hotfix 转为 `verifying`；索引同步更新 |
