@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_3.hotfix_7
 type: hotfix
 parent_plan: plan_3
-status: in_progress
+status: verifying
 created: 2026-06-21
 updated: 2026-06-21
 ---
@@ -80,8 +80,8 @@ updated: 2026-06-21
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 3.hotfix_7.1 | 恢复依赖注入规范与计划决策 | 🔄 进行中 | — | — |
-| 3.hotfix_7.2 | 修复生产代码并增加静态回归检查 | 🔄 进行中 | — | — |
+| 3.hotfix_7.1 | 恢复依赖注入规范与计划决策 | 🧪 待验收 | eddda3c | — |
+| 3.hotfix_7.2 | 修复生产代码并增加静态回归检查 | 🧪 待验收 | eddda3c | — |
 
 整体进度：0 / 2（0%）
 
@@ -109,6 +109,10 @@ updated: 2026-06-21
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-21 | macOS / Java 25 / Gradle 9.4.1 | `python3 scripts/validate_constraints.py` | 通过 | 约束校验 0 error |
+| 2026-06-21 | macOS / Python 3 | `python3 scripts/validate_plans.py --strict` | 通过 | Plan 校验 0 error；24 个历史兼容 warning |
+| 2026-06-21 | macOS / Java 25 / Gradle 9.4.1 | `./gradlew :crag-query:test :crag-ingestion:test :crag-api:test :crag-app:test --tests '*ArchitectureTest' spotlessCheck` | 通过 | 50 个 task，12 executed、38 up-to-date；相关单元、组件、架构与格式检查通过 |
+| 2026-06-21 | Git | `git diff --check` | 通过 | 无空白错误 |
 
 ## 阻塞记录
 
@@ -124,3 +128,4 @@ updated: 2026-06-21
 | --- | --- | --- | --- |
 | 2026-06-21 | 创建并转为 ready | `plan_3.hotfix_6` 错误反转既有依赖注入规范，后续 Plan 按错误规则扩散 | 中断 `plan_7`，先恢复规范、代码和静态护栏 |
 | 2026-06-21 | 开始执行两个修复任务 | 计划门槛通过，进入规范、代码、测试与架构护栏修复 | Hotfix 转为 `in_progress` |
+| 2026-06-21 | 完成实现、自测并交接验收 | 实现提交 `eddda3c` 已创建，规定验证全部通过 | 两项任务转为待验收，Hotfix 转为 `verifying` |
