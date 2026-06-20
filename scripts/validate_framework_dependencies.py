@@ -154,28 +154,27 @@ def check_spring_ai_boundary() -> list[str]:
     """Verify Spring AI BOM only in crag-ingestion and only spring-ai-commons is used."""
     errors = []
 
-    # Spring AI BOM must only appear in crag-ingestion/build.gradle.kts.
-    # plan_7 will add a crag-query exception when it introduces model dependencies.
+    # Spring AI BOM is allowed in crag-ingestion, crag-query, crag-api, and crag-app.
     for kts_path in REPO_ROOT.rglob("build.gradle.kts"):
         if "/build/" in str(kts_path) or "/bin/" in str(kts_path):
             continue
         content = read_file(kts_path)
         rel = str(kts_path.relative_to(REPO_ROOT))
         if re.search(r"spring-ai-bom", content):
-            if "crag-ingestion" not in rel:
+            allowed = ("crag-ingestion", "crag-query", "crag-api", "crag-app")
+            if not any(a in rel for a in allowed):
                 errors.append(
                     f"{rel}: Spring AI BOM only allowed in "
-                    f"crag-ingestion/build.gradle.kts (plan_7 will add crag-query)"
+                    f"{'/'.join(allowed)}/build.gradle.kts"
                 )
 
-    # Only spring-ai-commons is allowed; forbid other Spring AI modules
+    # Only spring-ai-commons and spring-ai-anthropic (crag-query only) are allowed.
     forbidden_ai_modules = [
         "spring-ai-openai",
         "spring-ai-transformers",
         "spring-ai-ollama",
         "spring-ai-vertex",
         "spring-ai-bedrock",
-        "spring-ai-anthropic",
         "spring-ai-azure",
         "spring-ai-autoconfigure",
         "spring-ai-retry",
@@ -188,6 +187,9 @@ def check_spring_ai_boundary() -> list[str]:
         content = read_file(kts_path)
         for mod in forbidden_ai_modules:
             if mod in content:
+                # spring-ai-anthropic is allowed only in crag-query (plan_7 DeepSeek adapter)
+                if mod == "spring-ai-anthropic" and "crag-query" in str(kts_path):
+                    continue
                 errors.append(f"{kts_path.relative_to(REPO_ROOT)}: forbidden dependency [{mod}]")
 
     return errors

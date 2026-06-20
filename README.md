@@ -84,3 +84,12 @@ Content-Type: multipart/form-data
 ## 开源协议
 
 MIT License — 详见 [LICENSE](./LICENSE)
+
+## 安全注意事项
+
+### Query DEBUG 日志警告
+
+当 `logging.level.ai.cerbur.crag` 设置为 `DEBUG` 时，Query 模块会记录完整的用户问题与模型回答内容。
+**禁止在生产环境开启 DEBUG 日志。** 默认日志级别为 `INFO`，不会记录问题、回答、Context、Prompt 或 parent 内容。
+
+Context、Prompt、parent 内容、thinking 内容和认证信息在任何日志级别下均不记录。

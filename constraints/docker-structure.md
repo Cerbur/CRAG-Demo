@@ -96,6 +96,7 @@ sidecar/main.py                       — FastAPI 服务入口（/health、/embe
 sidecar/download_models.py            — ModelScope 模型下载脚本
 sidecar/requirements.txt              — Python 依赖声明
 scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
+.env.example                          — 环境变量模板（凭据注释，不提交真实值）
 ```
 
 ## 五、当前服务索引
@@ -166,6 +167,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 其他配置 | 数据库与 Sidecar 连接同 `app` |
 | 就绪条件 | `db` 健康 且 `sidecar` 健康 |
 | Compose Profile | `smoke`（不随默认 `docker compose up` 启动） |
+| Query 环境变量 | `CRAG_QUERY_LLM_PROVIDER`（stub）、`CRAG_QUERY_LLM_STUB_MODE`（success）<br>DeepSeek（可选，provider=deepseek 时须设置）：`DEEPSEEK_API_KEY`、`CRAG_QUERY_LLM_DEEPSEEK_BASE_URL`、`CRAG_QUERY_LLM_DEEPSEEK_MODEL`、`CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE`、`CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS`、`CRAG_QUERY_LLM_REQUEST_TIMEOUT` |
 | 网络 | `crag-net` |
 
 ### 5.6 网络

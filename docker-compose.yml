@@ -83,6 +83,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: crag_pass
       CRAG_EMBEDDING_SIDECAR_URL: http://sidecar:8001
       CRAG_RERANK_SIDECAR_URL: http://sidecar:8001
+      # Query LLM — Stub 模式（默认，无需凭据）
+      CRAG_QUERY_LLM_PROVIDER: stub
+      CRAG_QUERY_LLM_STUB_MODE: success
+      # DEEPSEEK_API_KEY: 生产使用 DEEPSEEK_API_KEY 环境变量注入
+      # 设置 CRAG_QUERY_LLM_PROVIDER=deepseek 并定义以下变量以启用 DeepSeek：
+      # CRAG_QUERY_LLM_DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
+      # CRAG_QUERY_LLM_DEEPSEEK_MODEL=deepseek-v4-flash
+      # CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE=0
+      # CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS=4096
+      # CRAG_QUERY_LLM_REQUEST_TIMEOUT=120s
     depends_on:
       db:
         condition: service_healthy
@@ -105,6 +115,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: crag_pass
       CRAG_EMBEDDING_SIDECAR_URL: http://sidecar:8001
       CRAG_RERANK_SIDECAR_URL: http://sidecar:8001
+      # Query LLM — Stub 模式（默认，无需凭据）
+      CRAG_QUERY_LLM_PROVIDER: stub
+      CRAG_QUERY_LLM_STUB_MODE: success
+      # DEEPSEEK_API_KEY: 生产使用 DEEPSEEK_API_KEY 环境变量注入
+      # 设置 CRAG_QUERY_LLM_PROVIDER=deepseek 并定义以下变量以启用 DeepSeek：
+      # CRAG_QUERY_LLM_DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
+      # CRAG_QUERY_LLM_DEEPSEEK_MODEL=deepseek-v4-flash
+      # CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE=0
+      # CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS=4096
+      # CRAG_QUERY_LLM_REQUEST_TIMEOUT=120s
       SPRING_PROFILES_ACTIVE: smoke
     depends_on:
       db:

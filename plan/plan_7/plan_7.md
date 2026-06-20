@@ -364,16 +364,16 @@ CRAG_QUERY_LLM_STUB_MODE
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 7.1 | Query 配置模型与合法性校验 | ⏳ 待开始 | — | — |
-| 7.2 | Parent Context、sources 与 Prompt 工程 | ⏳ 待开始 | — | — |
-| 7.3 | LLM contract、确定性 Stub 与默认装配 | ⏳ 待开始 | — | — |
-| 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ⏳ 待开始 | — | — |
-| 7.5 | UserQueryService 编排、引用分析与日志 | ⏳ 待开始 | — | — |
-| 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ⏳ 待开始 | — | — |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | ⏳ 待开始 | — | — |
+| 7.1 | Query 配置模型与合法性校验 | ✅ 完成 | 025dd49 | 2026-06-20 |
+| 7.2 | Parent Context、sources 与 Prompt 工程 | ✅ 完成 | a6a29f5 | 2026-06-20 |
+| 7.3 | LLM contract、确定性 Stub 与默认装配 | ✅ 完成 | ab8f4a4 | 2026-06-20 |
+| 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
+| 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
+| 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | ✅ 完成 | ... | 2026-06-20 |
 | 7.8 | 真实 DeepSeek Anthropic API 验收 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 8（0%）
+整体进度：7 / 8（87.5%）
 
 ## 7.1 Query 配置模型与合法性校验
 
