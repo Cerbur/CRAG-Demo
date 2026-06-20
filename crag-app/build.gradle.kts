@@ -35,3 +35,11 @@ tasks.named<Jar>("jar") {
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveFileName.set("crag-demo.jar")
 }
+
+val aiVersion = libs.versions.spring.ai.get()
+
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.ai:spring-ai-bom:${aiVersion}")
+    }
+}
