@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_3.hotfix_7
 type: hotfix
 parent_plan: plan_3
-status: verifying
+status: completed
 created: 2026-06-21
 updated: 2026-06-21
 ---
@@ -87,10 +87,10 @@ updated: 2026-06-21
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 3.hotfix_7.1 | 恢复依赖注入规范与计划决策 | 🔍 待验收 | eddda3c, 23a8f60 | — |
-| 3.hotfix_7.2 | 修复生产代码并增加静态回归检查 | 🔍 待验收 | eddda3c, 23a8f60 | — |
+| 3.hotfix_7.1 | 恢复依赖注入规范与计划决策 | ✅ 完成 | eddda3c, 23a8f60 | 2026-06-21 |
+| 3.hotfix_7.2 | 修复生产代码并增加静态回归检查 | ✅ 完成 | eddda3c, 23a8f60 | 2026-06-21 |
 
-整体进度：0 / 2（0%）
+整体进度：2 / 2（100%）
 
 ## 3.hotfix_7.1 恢复依赖注入规范与计划决策
 
@@ -131,6 +131,11 @@ updated: 2026-06-21
 | 2026-06-21 | macOS / Python 3 | `python3 scripts/validate_plans.py --strict` | 通过 | Plan 校验 0 error。 |
 | 2026-06-21 | macOS / Java 25 / Gradle 9.4.1 | `./gradlew :crag-query:test :crag-ingestion:test :crag-api:test :crag-app:test --tests '*ArchitectureTest' spotlessCheck` | 通过 | 42 个 task，9 executed、33 up-to-date；全部单元、组件、架构与格式检查通过。 |
 | 2026-06-21 | Git | `git diff --check` | 通过 | 无空白错误。 |
+| 2026-06-21 | 独立验收 / Git | `git show --stat --summary eddda3c`、`git show --stat --summary 23a8f60`、`git diff d818f02...HEAD` | 通过 | 两个实现提交范围与任务一致；此前失败项均已修正，未发现新的规范或规格阻断。 |
+| 2026-06-21 | 独立验收 / macOS / Java 25 / Gradle 9.4.1 | `./gradlew :crag-query:test :crag-ingestion:test :crag-api:test :crag-app:test --tests '*ArchitectureTest' spotlessCheck --rerun-tasks` | 通过 | 42 个 task 全部强制执行；单元、组件、架构测试与 Spotless 全部通过。 |
+| 2026-06-21 | 独立验收 / Docker Compose | `bash scripts/tests/http/admin_rag_contract_test.sh` | 通过 | runId `contract-20260621-015618-77027`；成功写入、Bean Validation 400、未知路径 404 与 `parentChunkIds` 契约全部通过。 |
+| 2026-06-21 | 独立验收 / Docker Compose | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | runId `qs-1781978194-77232`；写入、索引等待、Query Stub 回答、引用及目标 parent/source 映射全部通过。 |
+| 2026-06-21 | 独立验收 / Python 3 / Git | `python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict`、`git diff --check` | 通过 | 约束与 Plan 校验 0 error，仅保留 24 个历史兼容 warning；无空白错误。 |
 
 ## 阻塞记录
 
@@ -150,3 +155,4 @@ updated: 2026-06-21
 | 2026-06-21 | 独立验收失败并退回进行中 | 双队列冲突；ArchUnit 抹除代码风格明确例外；Controller/Bean 装配变更缺少 Docker HTTP 回归；两个组件测试遗漏于文件边界；共享提交缺少紧密耦合说明 | 两项任务与 Hotfix 退回 `in_progress`；从验收队列移除并保留执行队首，修正实现、补齐回归证据后重新交接 |
 | 2026-06-21 | 修正验收失败项 | ArchUnit Rule 7 无条件禁止构造器；缺少 Docker HTTP 回归证据；admin_rag_contract_test.sh 断言未覆盖 parentChunkIds | 新增 `@ConstructorInjection` 例外注解，ArchUnit 规则跳过标注类；补齐 AdminRag 契约与 Query Stub 全链路 Docker HTTP 回归（均通过）；修正 admin_rag_contract_test.sh result keys 断言；文件边界补全注解、组件测试与测试脚本 |
 | 2026-06-21 | 回填修正提交并交接验收 | 修正提交 `23a8f60` 已创建，全部验收记录、文件边界和变更记录已补全 | 两项任务转为待验收，Hotfix 转为 `verifying`；索引同步更新 |
+| 2026-06-21 | 独立验收通过并完成 | 实现提交范围、规范与规格审查通过；强制重跑 Gradle、两条 Docker HTTP 回归及静态校验全部通过 | 两项任务与 Hotfix 转为完成；从执行和验收队列移除，恢复 `plan_7` 执行 |

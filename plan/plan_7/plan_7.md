@@ -4,7 +4,7 @@ plan_id: plan_7
 type: main
 status: in_progress
 created: 2026-06-18
-updated: 2026-06-20
+updated: 2026-06-21
 ---
 
 # plan_7 — Query Parent Context 与 DeepSeek 问答链路
@@ -479,6 +479,7 @@ CRAG_QUERY_LLM_STUB_MODE
 - **当前进度**：7.1 至 7.6 已完成；7.7 与 7.8 仍在进行中，恢复点不变。
 - **解除条件**：`plan_3.hotfix_7` 通过独立验收并完成。
 - **解除方**：`plan_3.hotfix_7` 独立验收 session。
+- **解除状态**：已于 2026-06-21 通过独立验收并解除。
 - **恢复后的下一步**：继续修复 7.7 Stub HTTP 回归，再执行 7.8 条件验收。
 
 - **日期**：2026-06-19
@@ -509,3 +510,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-20 | 独立验收失败，退回 7.7 与 7.8 | Stub 成功脚本跳过目标 parent 映射；Stub failure readiness 误判导致失败与恢复均未验证；真实调用未获执行环境批准 | Plan 退回 `in_progress`，修复自动化回归后重新交接独立验收 |
 | 2026-06-21 | 被 `plan_3.hotfix_7` 临时中断 | 全局依赖注入规范被错误反转，本 Plan 的 Service 与 Controller 受影响 | 保留 7.7/7.8 恢复点，Hotfix 完成后继续执行 |
 | 2026-06-21 | Hotfix 独立验收失败，中断继续 | `plan_3.hotfix_7` 的架构护栏、文件边界与 Docker HTTP 回归证据不满足完成门槛 | 继续保留 7.7/7.8 恢复点；等待 Hotfix 修正并通过新的独立验收 |
+| 2026-06-21 | `plan_3.hotfix_7` 验收通过，恢复执行 | Hotfix 的规范、代码、架构护栏与 Docker HTTP 回归均通过独立验收 | 中断解除，继续从 7.7/7.8 原恢复点执行 |
