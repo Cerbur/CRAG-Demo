@@ -4,7 +4,7 @@ plan_id: plan_7
 type: main
 status: draft
 created: 2026-06-18
-updated: 2026-06-19
+updated: 2026-06-20
 ---
 
 # plan_7 — Query Parent Context 与 DeepSeek 问答链路
@@ -36,7 +36,7 @@ updated: 2026-06-19
 
 - **执行前置 Plan**：`plan_6.hotfix_6`、`plan_13`
 - `plan_6.hotfix_6` 必须先提供 `RetrievalService.retrieveEvidence()` 与 `ParentEvidenceResult`。
-- `plan_13` 必须先完成 Spring Boot 4.1.0、Spring AI 2.0.0 和现有回归迁移。
+- `plan_13` 必须先完成 Spring Boot 4.1.0、Spring AI 2.0.0、dependency-management/version catalog 基线和现有回归迁移。
 - `plan_9` 已完成 `crag-api`、公开 API 包与 `crag-smoke` 隔离。
 - `plan_9.hotfix_3` 已完成 HTTP DTO 分包、稳定错误码和 API 组件测试基线。
 - DeepSeek 凭据不是 Plan 转为 `ready` 的前提；它只阻塞任务 7.7 的真实供应商验收。
@@ -226,7 +226,7 @@ CRAG_QUERY_LLM_STUB_MODE
 ## 未决问题
 
 - `DEEPSEEK_API_KEY` 当前是否可用尚未确认，但只影响 7.7 的真实 Provider 验收，不阻塞前置任务执行。
-- `plan_6.hotfix_6` 与 `plan_13` 完成后必须按实际公开 API 和 Spring AI 2 最终配置属性校准路径；负责人为 Plan owner，处理时机为本计划转 `ready` 前。
+- `plan_13` 完成后必须按其实际 Spring AI 2 依赖治理和最终配置属性校准路径；`crag-query` 应沿用 catalog 中的 Spring AI 版本，通过 dependency-management 导入 BOM，并只新增 DeepSeek 所需模块。负责人为 Plan owner，处理时机为本计划转 `ready` 前。
 
 ## 风险与回滚
 
@@ -299,7 +299,7 @@ CRAG_QUERY_LLM_STUB_MODE
 
 **目标**：通过 Spring AI 2 `ChatModel` 把中立 LLM contract 转换为 DeepSeek V4 Flash 调用。
 **前置任务**：7.3
-**范围**：引入所需 Spring AI DeepSeek 依赖；实现 system/user Message 与 Prompt 映射、model/temperature/reasoning/timeout 配置、响应提取和异常转换；空或不可解析响应视为不可用。
+**范围**：沿用 `plan_13` 的 version catalog 与 dependency-management 约定，在 `crag-query` 导入 Spring AI BOM 并引入所需 DeepSeek 模块；实现 system/user Message 与 Prompt 映射、model/temperature/reasoning/timeout 配置、响应提取和异常转换；空或不可解析响应视为不可用。
 **非目标**：不实现重试、熔断、Fallback、流式生成、Advisor 或 Memory。
 **验收标准**：默认模型 `deepseek-v4-flash`、temperature 0、reasoning 关闭；Adapter 只实现 `LlmClient`；认证、限流、超时、协议和空响应统一保留 cause 转换；日志不泄露请求和凭据；后续降级 TODO 关联独立 Plan。
 **验证方式**：使用 Mock `ChatModel` 运行 `./gradlew :crag-query:test`，覆盖消息映射、参数、正常响应和各失败类型；运行架构测试确认 Spring AI 类型未穿透。
@@ -362,3 +362,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-19 | 迁移为 workflow v2 | plan_8 工作流治理 | 补齐元信息、边界与固定任务结构 |
 | 2026-06-19 | 适配 plan_9 模块边界 | crag-admin 迁移为 crag-api，公开 API 与 Smoke 隔离完成 | 使用 crag-api 和各领域 api 包 |
 | 2026-06-19 | 完成 grilling 并重写为 7 项任务 | 收敛 Parent Context、三层 LLM 边界、包结构、引用、配置、错误码和验收策略 | 直接前置变为 plan_6.hotfix_6 与 plan_13；凭据只阻塞 7.7 |
+| 2026-06-20 | 预校准 plan_13 依赖治理边界 | plan_13 grilling 确定 version catalog、dependency-management 与按模块导入 Spring AI BOM | 7.4 在 crag-query 导入既定 BOM 并只新增 DeepSeek 模块；Plan 仍等待 plan_13 完成后最终校准 |
