@@ -34,14 +34,15 @@ public class AdminRagController {
    * 知识库上传 —— 接收文档文本，分块写入 chunk 表，返回 docId 及分块数量.
    *
    * @param request 文档 title、content 及可选 metadata（@Valid 自动校验 title/content 非空）
-   * @return Response 包装的 AdminRagResponse（docId、chunks、status）
+   * @return Response 包装的 AdminRagResponse（docId、chunks、status、parentChunkIds）
    */
   @PostMapping("/rag")
   public Response<AdminRagResponse> upload(@Valid @RequestBody AdminRagRequest request) {
     AdminRagResult result =
         adminRagService.ingest(request.title(), request.content(), request.metadata());
     AdminRagResponse response =
-        new AdminRagResponse(result.docId(), result.chunks(), result.status());
+        new AdminRagResponse(
+            result.docId(), result.chunks(), result.status(), result.parentChunkIds());
     return Response.success(response);
   }
 }

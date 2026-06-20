@@ -153,7 +153,8 @@ ai.cerbur.crag.query.api
 ```text
 ai.cerbur.crag.common.dto.result
 ├── Response
-└── ResponseCode（含新增 LLM_UNAVAILABLE = 50201）
+├── ResponseCode
+│   └── 含 LLM_UNAVAILABLE = 50201
 ```
 
 ### `crag-storage`

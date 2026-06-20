@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ai.cerbur.crag.api.controller.advice.GlobalExceptionHandler;
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -54,7 +55,7 @@ class AdminRagControllerComponentTest {
   @DisplayName("successful upload returns AdminRagResponse with correct fields")
   void successfulUpload() throws Exception {
     when(adminRagService.ingest(any(), any(), any()))
-        .thenReturn(new AdminRagResult("abc-123", 5, "PENDING"));
+        .thenReturn(new AdminRagResult("abc-123", 5, "PENDING", List.of("p-1")));
 
     String body =
         """
@@ -67,14 +68,15 @@ class AdminRagControllerComponentTest {
         .andExpect(jsonPath("$.code").value(0))
         .andExpect(jsonPath("$.result.docId").value("abc-123"))
         .andExpect(jsonPath("$.result.chunks").value(5))
-        .andExpect(jsonPath("$.result.status").value("PENDING"));
+        .andExpect(jsonPath("$.result.status").value("PENDING"))
+        .andExpect(jsonPath("$.result.parentChunkIds[0]").value("p-1"));
   }
 
   @Test
   @DisplayName("response JSON has exactly three top-level fields: success, code, result")
   void responseHasExactlyThreeFields() throws Exception {
     when(adminRagService.ingest(any(), any(), any()))
-        .thenReturn(new AdminRagResult("id", 1, "PENDING"));
+        .thenReturn(new AdminRagResult("id", 1, "PENDING", List.of("p-abc")));
 
     String body =
         """
@@ -100,10 +102,11 @@ class AdminRagControllerComponentTest {
   }
 
   @Test
-  @DisplayName("response result has only three business fields: docId, chunks, status")
-  void resultHasThreeBusinessFields() throws Exception {
+  @DisplayName(
+      "response result has exactly four business fields: docId, chunks, status, parentChunkIds")
+  void resultHasFourBusinessFields() throws Exception {
     when(adminRagService.ingest(any(), any(), any()))
-        .thenReturn(new AdminRagResult("id", 3, "PENDING"));
+        .thenReturn(new AdminRagResult("id", 3, "PENDING", List.of("px", "py")));
 
     String body =
         """
@@ -123,7 +126,7 @@ class AdminRagControllerComponentTest {
     Map<?, ?> result = (Map<?, ?>) parsed.get("result");
 
     Set<?> keys = result.keySet();
-    Set<String> expected = Set.of("docId", "chunks", "status");
+    Set<String> expected = Set.of("docId", "chunks", "status", "parentChunkIds");
     if (!keys.equals(expected)) {
       throw new AssertionError("Expected result keys " + expected + " but got " + keys);
     }

@@ -144,8 +144,8 @@ class ModuleBoundaryArchitectureTest {
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * {@code crag-query} 只能通过 {@code crag-retrieval} 的 {@code api} 包访问其公开入口。当前无违反（{@code
-   * UserQueryService} 尚未引用 Retrieval 类型）。
+   * {@code crag-query} 只能通过 {@code crag-retrieval} 的 {@code api} 包访问其公开入口. {@code UserQueryService}
+   * 通过允许的 {@code retrieval.api} 引用 {@code RetrievalService} 与 {@code ParentEvidenceResult}。
    */
   @ArchTest
   static final ArchRule query_only_retrieval_api =

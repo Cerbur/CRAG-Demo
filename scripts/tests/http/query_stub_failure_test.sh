@@ -54,7 +54,7 @@ wait_for_app() {
     # Use curl with short timeout to detect connection refused
     local resp
     resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/query" 2>/dev/null || echo "000")
-    if [ "$resp" != "000" ]; then
+    if [[ "$resp" =~ ^[245][0-9][0-9]$ ]]; then
       echo "  App ready after ${waited}s (HTTP $resp)"
       return 0
     fi

@@ -73,10 +73,11 @@ public class AdminRagService {
 
     if (groups.isEmpty()) {
       log.info("No chunks produced for docId={}, title={}", docId, title);
-      return new AdminRagResult(docId, 0, "PENDING");
+      return new AdminRagResult(docId, 0, "PENDING", List.of());
     }
 
     List<Chunk> allChunks = new ArrayList<>();
+    List<String> parentChunkIds = new ArrayList<>();
     int childCount = 0;
 
     for (ChunkSplitGroup group : groups) {
@@ -88,6 +89,7 @@ public class AdminRagService {
               group.parentChunk().chunkIndex(),
               metadataJson);
       allChunks.add(parent);
+      parentChunkIds.add(parent.getChunkId());
 
       for (var childData : group.childChunks()) {
         Chunk child =
@@ -112,7 +114,7 @@ public class AdminRagService {
         groups.size(),
         childCount);
 
-    return new AdminRagResult(docId, childCount, "PENDING");
+    return new AdminRagResult(docId, childCount, "PENDING", parentChunkIds);
   }
 
   private String buildMetadataJson(String title, Map<String, Object> metadata, String docId) {

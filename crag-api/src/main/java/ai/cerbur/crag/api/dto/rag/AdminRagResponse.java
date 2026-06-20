@@ -1,5 +1,7 @@
 package ai.cerbur.crag.api.dto.rag;
 
+import java.util.List;
+
 /**
  * POST /api/v1/admin/rag 成功响应 DTO.
  *
@@ -8,6 +10,8 @@ package ai.cerbur.crag.api.dto.rag;
  * @param docId 文档唯一标识（UUID 字符串）
  * @param chunks 子级 child chunk 数量（不含 parent）
  * @param status 入库状态，"PENDING" 表示 chunk 已写入，Dense + Sparse 索引异步进行中
+ * @param parentChunkIds 预生成的 parent chunk ID 列表
  * @since 2026-06-19
  */
-public record AdminRagResponse(String docId, int chunks, String status) {}
+public record AdminRagResponse(
+    String docId, int chunks, String status, List<String> parentChunkIds) {}
