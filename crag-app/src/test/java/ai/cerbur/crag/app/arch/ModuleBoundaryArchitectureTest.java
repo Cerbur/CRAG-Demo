@@ -4,6 +4,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import ai.cerbur.crag.common.annotation.ConstructorInjection;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -196,7 +197,11 @@ class ModuleBoundaryArchitectureTest {
   // 规则 7：Spring 组件默认使用字段注入
   // ═══════════════════════════════════════════════════════════════
 
-  /** Service 与 RestController 不得声明带参数构造器，避免再次引入非必要构造器注入。 */
+  /**
+   * Service 与 RestController 默认使用字段注入，不得声明带参数构造器。
+   *
+   * <p>标注 {@link ConstructorInjection} 的类为代码风格明确例外，不受此规则约束。
+   */
   @ArchTest
   static final ArchRule spring_components_use_field_injection =
       classes()
@@ -204,6 +209,8 @@ class ModuleBoundaryArchitectureTest {
           .areAnnotatedWith(Service.class)
           .or()
           .areAnnotatedWith(RestController.class)
+          .and()
+          .areNotAnnotatedWith(ConstructorInjection.class)
           .should(
               new ArchCondition<>("不声明带参数构造器") {
                 @Override
@@ -215,8 +222,12 @@ class ModuleBoundaryArchitectureTest {
                               events.add(
                                   SimpleConditionEvent.violated(
                                       constructor,
-                                      javaClass.getName() + " 应默认使用 @Autowired 字段注入，不应声明依赖构造器")));
+                                      javaClass.getName()
+                                          + " 应默认使用 @Autowired 字段注入，不应声明依赖构造器。"
+                                          + " 若确有代码风格例外理由，请标注 @ConstructorInjection。")));
                 }
               })
-          .because("项目默认使用 @Autowired 字段注入；构造器注入需要明确且必要的例外理由。");
+          .because(
+              "项目默认使用 @Autowired 字段注入；标注 @ConstructorInjection 的组件为规范允许的例外，"
+                  + "详见 constraints/code-style.md §三");
 }

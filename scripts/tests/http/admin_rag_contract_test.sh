@@ -69,7 +69,7 @@ RESULT_KEYS=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin)
 assert_json "AdminRag success field" "success" "True" "$SUCCESS"
 assert_json "AdminRag code" "code" "0" "$CODE"
 assert_json "AdminRag top-level keys" "top-level keys" "code,result,success" "$TOP_KEYS"
-assert_json "AdminRag result keys" "result keys" "chunks,docId,status" "$RESULT_KEYS"
+assert_json "AdminRag result keys" "result keys" "chunks,docId,parentChunkIds,status" "$RESULT_KEYS"
 
 # 验证 result 含 docId（UUID 格式）且非空
 if [ "$DOC_ID" = "PARSE_ERROR" ] || [ -z "$DOC_ID" ]; then

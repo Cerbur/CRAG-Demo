@@ -37,6 +37,7 @@ updated: 2026-06-21
 ## 文件边界
 
 - `constraints/code-style.md`
+- `crag-common/src/main/java/ai/cerbur/crag/common/annotation/ConstructorInjection.java`
 - `crag-api/src/main/java/ai/cerbur/crag/api/controller/**`
 - `crag-api/src/test/java/ai/cerbur/crag/api/controller/AdminRagControllerComponentTest.java`
 - `crag-api/src/test/java/ai/cerbur/crag/api/controller/UserQueryControllerComponentTest.java`
@@ -44,6 +45,7 @@ updated: 2026-06-21
 - `crag-query/src/main/java/ai/cerbur/crag/query/api/UserQueryService.java`
 - `crag-query/src/test/java/ai/cerbur/crag/query/api/UserQueryServiceTest.java`
 - `crag-app/src/test/java/ai/cerbur/crag/app/arch/**`
+- `scripts/tests/http/admin_rag_contract_test.sh`
 - `plan/plan_7/plan_7.md`
 - `plan/plan_3/plan_3.hotfix_7.md`
 - `plan/index/README.md`
@@ -59,7 +61,7 @@ updated: 2026-06-21
 - Spring 管理的生产组件默认使用 `@Autowired` 字段注入。
 - 非必要不新增依赖构造器；框架、配置工厂、不可变值对象或显式手工构造确有需要时可保留。
 - 已完成 Plan 只作为根因证据保留，不追改历史描述；执行中的 `plan_7` 同步修正当前决策。
-- 使用 ArchUnit 静态检查锁定 Controller 与 Service 的默认注入方式。
+- 使用 ArchUnit 静态检查锁定 Controller 与 Service 的默认注入方式；标注 `@ConstructorInjection` 的组件为代码风格明确例外，不受规则约束。
 
 ## 未决问题
 
@@ -108,7 +110,7 @@ updated: 2026-06-21
 **非目标**：不修改配置工厂显式构造的 LLM Adapter，不改变业务行为。  
 **验收标准**：目标生产类使用 `@Autowired` 字段且无依赖构造器；相关单元、组件、架构测试和格式检查通过。  
 **验证方式**：执行测试与验证计划中的 Gradle、Spotless 和 diff 检查命令。  
-**涉及文件**：`crag-api/src/main/java/ai/cerbur/crag/api/controller/**`、`crag-api/src/test/java/ai/cerbur/crag/api/controller/AdminRagControllerComponentTest.java`、`crag-api/src/test/java/ai/cerbur/crag/api/controller/UserQueryControllerComponentTest.java`、`crag-ingestion/src/main/java/ai/cerbur/crag/ingestion/api/AdminRagService.java`、`crag-query/src/main/java/ai/cerbur/crag/query/api/UserQueryService.java`、`crag-query/src/test/java/ai/cerbur/crag/query/api/UserQueryServiceTest.java`、`crag-app/src/test/java/ai/cerbur/crag/app/arch/**`
+**涉及文件**：`crag-common/src/main/java/ai/cerbur/crag/common/annotation/ConstructorInjection.java`、`crag-api/src/main/java/ai/cerbur/crag/api/controller/**`、`crag-api/src/test/java/ai/cerbur/crag/api/controller/AdminRagControllerComponentTest.java`、`crag-api/src/test/java/ai/cerbur/crag/api/controller/UserQueryControllerComponentTest.java`、`crag-ingestion/src/main/java/ai/cerbur/crag/ingestion/api/AdminRagService.java`、`crag-query/src/main/java/ai/cerbur/crag/query/api/UserQueryService.java`、`crag-query/src/test/java/ai/cerbur/crag/query/api/UserQueryServiceTest.java`、`crag-app/src/test/java/ai/cerbur/crag/app/arch/**`、`scripts/tests/http/admin_rag_contract_test.sh`
 
 ## 验收记录
 
@@ -122,6 +124,13 @@ updated: 2026-06-21
 | 2026-06-21 | 独立验收 / Plan 与 Git | `git show --stat eddda3c`、任务提交栏与关联范围核对 | 失败 | 任务 3.hotfix_7.1、3.hotfix_7.2 共享 `eddda3c`，交接时未按提交协议说明紧密耦合；本次退回时已补录事实说明，仍需执行 session 修正实现与验证缺口后重新交接。 |
 | 2026-06-21 | 独立验收 / Docker Compose | `bash scripts/tests/http/admin_rag_contract_test.sh`、`bash scripts/tests/http/query_stub_success_test.sh` | 未执行 | `eddda3c` 修改 Controller 与 Spring Bean 装配，按测试工作流必须执行受影响业务链路的 Docker HTTP 回归；交接验收记录仅包含 Gradle/ArchUnit/Spotless，缺少两条真实运行时回归证据。本轮已由静态审查确认阻断，交由执行 session 补跑并记录。 |
 | 2026-06-21 | 独立验收 / Plan 索引 | `plan_3.hotfix_7` YAML、当前执行队列与当前验收队列交叉核对 | 失败 | `verifying` Hotfix 同时出现在执行和验收队列，违反双队列互斥要求。 |
+| 2026-06-21 | macOS / Java 25 / Gradle 9.4.1 | `./gradlew :crag-app:test --tests '*ArchitectureTest' spotlessCheck` | 通过 | ArchUnit Rule 7 新增 `@ConstructorInjection` 例外标记，允许标注该注解的 @Service/@RestController 使用构造器注入；未标注类仍保持字段注入约束；格式检查通过。 |
+| 2026-06-21 | macOS / Docker Compose | `bash scripts/tests/http/admin_rag_contract_test.sh` | 通过 | AdminRag 契约回归：成功写入、Bean Validation 400、未知路径 404 全部通过；修正 result keys 断言以包含 parentChunkIds。 |
+| 2026-06-21 | macOS / Docker Compose | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | Query Stub 全链路回归：AdminRag 写入 → 索引等待 → Query API 调用 → 回答/引用/来源断言全部通过，8 个来源含匹配 chunk。 |
+| 2026-06-21 | macOS / Python 3 | `python3 scripts/validate_constraints.py` | 通过 | 约束校验 0 error。 |
+| 2026-06-21 | macOS / Python 3 | `python3 scripts/validate_plans.py --strict` | 通过 | Plan 校验 0 error。 |
+| 2026-06-21 | macOS / Java 25 / Gradle 9.4.1 | `./gradlew :crag-query:test :crag-ingestion:test :crag-api:test :crag-app:test --tests '*ArchitectureTest' spotlessCheck` | 通过 | 42 个 task，9 executed、33 up-to-date；全部单元、组件、架构与格式检查通过。 |
+| 2026-06-21 | Git | `git diff --check` | 通过 | 无空白错误。 |
 
 ## 阻塞记录
 
@@ -139,3 +148,4 @@ updated: 2026-06-21
 | 2026-06-21 | 开始执行两个修复任务 | 计划门槛通过，进入规范、代码、测试与架构护栏修复 | Hotfix 转为 `in_progress` |
 | 2026-06-21 | 完成实现、自测并交接验收 | 实现提交 `eddda3c` 已创建，规定验证全部通过 | 两项任务转为待验收，Hotfix 转为 `verifying` |
 | 2026-06-21 | 独立验收失败并退回进行中 | 双队列冲突；ArchUnit 抹除代码风格明确例外；Controller/Bean 装配变更缺少 Docker HTTP 回归；两个组件测试遗漏于文件边界；共享提交缺少紧密耦合说明 | 两项任务与 Hotfix 退回 `in_progress`；从验收队列移除并保留执行队首，修正实现、补齐回归证据后重新交接 |
+| 2026-06-21 | 修正验收失败项 | ArchUnit Rule 7 无条件禁止构造器；缺少 Docker HTTP 回归证据；admin_rag_contract_test.sh 断言未覆盖 parentChunkIds | 新增 `@ConstructorInjection` 例外注解，ArchUnit 规则跳过标注类；补齐 AdminRag 契约与 Query Stub 全链路 Docker HTTP 回归（均通过）；修正 admin_rag_contract_test.sh result keys 断言；文件边界补全注解、组件测试与测试脚本 |
