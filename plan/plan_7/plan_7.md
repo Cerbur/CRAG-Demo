@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: ready
+status: 待验收
 created: 2026-06-18
 updated: 2026-06-20
 ---
@@ -371,9 +371,13 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
 | 7.7 | Stub Docker HTTP 回归与运行配置收口 | ✅ 完成 | bc08a15 | 2026-06-20 |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | ⏳ 待开始 | — | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | ✅ 完成 | 5815de1 | 2026-06-20 |
 
-整体进度：7 / 8（87.5%）
+整体进度：8/8（100%）
+
+## 验收状态
+
+全部 8 项任务已实现完成。真实 DeepSeek 验收需独立 session 执行 `query_deepseek_acceptance_test.sh`。
 
 ## 7.1 Query 配置模型与合法性校验
 
