@@ -194,7 +194,7 @@ public class UserQueryService {
             0,
             false,
             elapsed,
-            "evidence_insufficient");
+            evidenceWasEmpty ? "retrieval_empty" : "context_budget_empty");
 
         return new UserQueryResult(INSUFFICIENT_EVIDENCE_ANSWER, List.of());
       }
@@ -242,12 +242,18 @@ public class UserQueryService {
             elapsed,
             "llm_unavailable");
 
-        throw new LlmUnavailableException("LLM provider failure: " + e.getCategory(), e);
+        throw new LlmUnavailableException("LLM provider failure: " + e.getCategory(), e, provider);
       }
 
       // 9. Reference analysis
-      ReferenceAnalysis refAnalysis =
-          referenceAnalyzer.analyze(llmResult.answer(), context.sources().size());
+      ReferenceAnalysis refAnalysis;
+      try {
+        refAnalysis = referenceAnalyzer.analyze(llmResult.answer(), context.sources().size());
+      } catch (Exception e) {
+        log.warn(
+            "requestId={} Reference analysis failed, using default all-zero counts", requestId, e);
+        refAnalysis = new ReferenceAnalysis(0, 0, 0, java.util.List.of(), 0);
+      }
 
       // 10. Build result
       UserQueryResult result = new UserQueryResult(llmResult.answer(), context.sources());
@@ -330,7 +336,7 @@ public class UserQueryService {
             buildSourceMap(context.sources()),
             buildValidSourceMap(context.sources()),
             refAnalysis.invalidReferences(),
-            "[]");
+            buildSkippedParents(safeEvidence, context.sources()));
       }
 
       return result;
@@ -374,6 +380,22 @@ public class UserQueryService {
     }
     return sources.stream()
         .map(s -> s.reference() + "→" + s.parentChunkId())
+        .collect(Collectors.joining(", "));
+  }
+
+  /** 构建被跳过的 parent 映射字符串用于 DEBUG 日志（evidence 中存在但未进入最终 sources 的 parent）. */
+  static String buildSkippedParents(
+      List<ParentEvidenceResult> evidence, List<QuerySource> sources) {
+    if (evidence == null || evidence.isEmpty()) {
+      return "";
+    }
+    java.util.Set<String> includedParents =
+        sources.stream()
+            .map(QuerySource::parentChunkId)
+            .collect(java.util.stream.Collectors.toSet());
+    return evidence.stream()
+        .filter(e -> !includedParents.contains(e.parentChunkId()))
+        .map(e -> e.parentChunkId() + "→" + e.content().length())
         .collect(Collectors.joining(", "));
   }
 

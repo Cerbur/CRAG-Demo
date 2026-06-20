@@ -34,6 +34,18 @@ public class LlmUnavailableException extends RuntimeException {
   }
 
   /**
+   * 构造 LLM 不可用异常（指定提供商）.
+   *
+   * @param message 异常描述
+   * @param cause 根因
+   * @param provider 提供商标识，如 "stub" 或 "deepseek"
+   */
+  public LlmUnavailableException(String message, Throwable cause, String provider) {
+    super(message, cause);
+    this.provider = provider;
+  }
+
+  /**
    * 返回提供商标识.
    *
    * @return "stub", "deepseek" 或 "unknown"
@@ -50,9 +62,9 @@ public class LlmUnavailableException extends RuntimeException {
    */
   private static String extractProvider(Throwable cause) {
     if (cause instanceof LlmProviderException) {
-      // We cannot actually determine stub vs deepseek from the exception itself
-      // but the caller sets the message/cause to indicate which provider
-      return "unknown";
+      // Use the category name as a proxy for provider identity
+      String category = ((LlmProviderException) cause).getCategory().name().toLowerCase();
+      return "provider_" + category;
     }
     return "unknown";
   }

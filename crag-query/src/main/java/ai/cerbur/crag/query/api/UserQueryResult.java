@@ -28,6 +28,27 @@ public record UserQueryResult(String answer, List<QuerySource> sources) {
       throw new IllegalArgumentException("sources must not be null");
     }
     sources = List.copyOf(sources);
+    validateContinuity(sources);
+  }
+
+  /** 校验 sources 的引用编号为连续的 S1, S2, ..., Sn */
+  private static void validateContinuity(List<QuerySource> sources) {
+    if (sources.isEmpty()) {
+      return;
+    }
+    for (int i = 0; i < sources.size(); i++) {
+      String expected = "S" + (i + 1);
+      String actual = sources.get(i).reference();
+      if (!expected.equals(actual)) {
+        throw new IllegalArgumentException(
+            "sources references must be consecutive S1..Sn, expected "
+                + expected
+                + " but got "
+                + actual
+                + " at index "
+                + i);
+      }
+    }
   }
 
   /**
