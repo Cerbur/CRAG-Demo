@@ -22,6 +22,24 @@ RUN_ID="deepseek-accept-$(date +%s)-$$"
 VERIFICATION_CODE="deepseek-verify-${RUN_ID}-xyz789"
 FAILED=0
 COMPOSE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+_STUB_RESTORED=0
+
+# ── Trap: ensure Stub success mode is restored on ANY exit path ──
+restore_stub_on_exit() {
+  if [ "$_STUB_RESTORED" -eq 1 ]; then
+    return
+  fi
+  _STUB_RESTORED=1
+  echo ""
+  echo "=== Trap: restoring Stub success mode ==="
+  cd "$COMPOSE_DIR" || return
+  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
+  CRAG_QUERY_LLM_PROVIDER=stub \
+  CRAG_QUERY_LLM_STUB_MODE=success \
+  docker compose up -d --build app 2>/dev/null || true
+  wait_for_app "restored stub (trap)" 2>/dev/null || true
+}
+trap restore_stub_on_exit EXIT
 
 # ── Helper: GET request ──
 # Sets globals RESP_BODY, RESP_CODE.
@@ -147,6 +165,7 @@ if ! wait_for_app "stub mode"; then
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: BLOCKED"
+  _STUB_RESTORED=1
   exit 2
 fi
 
@@ -177,6 +196,7 @@ else
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: FAILED"
+  _STUB_RESTORED=1
   exit 1
 fi
 
@@ -239,6 +259,7 @@ if [ "$INDEXED" -eq 0 ]; then
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: FAILED"
+  _STUB_RESTORED=1
   exit 1
 fi
 
@@ -272,6 +293,7 @@ if ! wait_for_app "deepseek mode"; then
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: BLOCKED"
+  _STUB_RESTORED=1
   exit 2
 fi
 
@@ -281,12 +303,18 @@ fi
 echo ""
 echo "=== Phase 3: Execute single DeepSeek query (exactly 1 real API call) ==="
 
-QUERY_RESP=$(curl -s -X POST "$BASE_URL/api/v1/query" \
+QUERY_RAW=$(curl -s -w '\n%{http_code}' -X POST "$BASE_URL/api/v1/query" \
   -H "Content-Type: application/json" \
-  -d "{\"question\":\"${VERIFICATION_CODE} CRAG-Demo 使用什么数据库？\"}" || echo '{"code":-1}')
+  -d "{\"question\":\"${VERIFICATION_CODE} CRAG-Demo 使用什么数据库？\"}" || printf '{"code":-1}\n000')
 
-QUERY_HTTP=$(echo "$QUERY_RESP" | python3 -c "import sys,json; json.load(sys.stdin); print('OK')" 2>/dev/null && echo "200" || echo "000")
+QUERY_HTTP=$(printf '%s' "$QUERY_RAW" | tail -1)
+QUERY_RESP=$(printf '%s' "$QUERY_RAW" | sed '$d')
 echo "DeepSeek query complete — HTTP $QUERY_HTTP"
+
+if [ "$QUERY_HTTP" != "200" ]; then
+  echo "FAIL: DeepSeek query returned HTTP $QUERY_HTTP (expected 200)"
+  FAILED=1
+fi
 
 # ═══════════════════════════════════════════════════════════════
 # Phase 4: Verify Query response
@@ -409,7 +437,8 @@ fi
 
 # 4i. Target source exists with valid reference AND non-empty matchedChildIds
 #     ok_ref and ok_matched are now computed AND enforced in the judgment
-TARGET_SOURCE_OUTPUT=$(echo "$QUERY_RESP" | python3 -c "
+#     Use if/else to safely capture exit code under set -e
+if TARGET_SOURCE_OUTPUT=$(echo "$QUERY_RESP" | python3 -c "
 import sys, json, re
 resp = json.load(sys.stdin)
 sources = resp.get('result', {}).get('sources', [])
@@ -424,8 +453,11 @@ for src in sources:
         sys.exit(0 if (ok_ref and ok_matched) else 1)
 print('NOT_FOUND')
 sys.exit(1)
-" 2>/dev/null)
-TARGET_SOURCE_EXIT=$?
+" 2>/dev/null); then
+  TARGET_SOURCE_EXIT=0
+else
+  TARGET_SOURCE_EXIT=$?
+fi
 
 if [ "$TARGET_SOURCE_EXIT" -eq 0 ]; then
   echo "PASS: Target source found with valid reference and non-empty matchedChildIds"
@@ -521,6 +553,7 @@ DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
 CRAG_QUERY_LLM_PROVIDER=stub \
 CRAG_QUERY_LLM_STUB_MODE=success \
 docker compose up -d --build app
+_STUB_RESTORED=1
 echo "App rebuild initiated (stub success mode restore)"
 
 # Wait for restored app
@@ -553,5 +586,6 @@ if [ "$FAILED" -eq 0 ]; then
   exit 0
 else
   echo "Result: FAILED"
+  _STUB_RESTORED=1
   exit 1
 fi
