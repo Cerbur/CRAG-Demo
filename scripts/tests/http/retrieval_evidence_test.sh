@@ -233,13 +233,13 @@ print(f'Child retrieval returned {child_count} unique chunk IDs')
 all_verified = True
 for er in evidence_results:
     matched = set(er.get('matchedChildIds', []))
-    overlap = matched & child_ids
+    extra = matched - child_ids
     pid = er.get('parentChunkId', '?')
-    if not overlap:
-        print(f'FAIL: evidence parent {pid} matchedChildIds {sorted(matched)} have no overlap with child retrieval IDs')
+    if extra:
+        print(f'FAIL: evidence parent {pid} matchedChildIds {sorted(extra)} not found in child retrieval IDs')
         all_verified = False
     else:
-        print(f'OK: parent {pid} matchedChildIds {len(overlap)}/{len(matched)} found in child retrieval')
+        print(f'OK: parent {pid} all {len(matched)} matchedChildIds found in child retrieval')
 
 if all_verified:
     print('ALL_VERIFIED')

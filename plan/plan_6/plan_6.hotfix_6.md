@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_6.hotfix_6
 type: hotfix
 parent_plan: plan_6
-status: in_progress
+status: verifying
 created: 2026-06-19
 updated: 2026-06-20
 ---
@@ -114,9 +114,9 @@ updated: 2026-06-20
 | --- | --- | --- | --- | --- |
 | 6.hotfix_6.1 | 建立 Parent Evidence 公共契约与聚合规则 | ✅ 完成 | 3b4cc6f | 2026-06-20 |
 | 6.hotfix_6.2 | 实现 parent 批量回表与稳定 Evidence 输出 | ✅ 完成 | 1eb8cbb | 2026-06-20 |
-| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | 🚧 进行中 | 5c2d27d, 895efdf | — |
+| 6.hotfix_6.3 | 补齐架构护栏、Docker 回归与约束同步 | 待验收 | 5c2d27d, 895efdf, ef97f66 | — |
 
-整体进度：2 / 3（67%）
+整体进度：2 / 3（67%），待验收：1
 
 ## 6.hotfix_6.1 建立 Parent Evidence 公共契约与聚合规则
 
@@ -190,3 +190,4 @@ updated: 2026-06-20
 | 2026-06-20 | 第二次独立验收失败，退回进行中 | 真实 Docker 回归中相同 Evidence 请求连续两次返回不同的后续 parent，稳定顺序验收失败 | 任务 6.hotfix_6.3 退回进行中；定位检索/Rerank 非确定性并补充回归后重新交接，继续阻止 plan_13 |
 | 2026-06-20 | 修复 DB 查询非确定性与 HTTP 回归脚本缺陷 | (1) FTS/Dense native SQL ORDER BY 均缺乏分数平局时的确定性次级排序，导致相同查询重复执行时 RRF/Rerank 输入顺序不同；(2) 相邻 child 批量查询无 ORDER BY，DB 行序漂移影响候选集顺序；(3) HTTP 回归脚本未断言 HTTP 状态码；(4) `matchedChildIds` 仅检查非空，未与 child retrieval 交叉验证以证明来自真实 RRF 命中 | (1) `ChunkFtsRepository.searchFts` ORDER BY 增加 `, c.chunk_id ASC`；(2) `ChunkEmbeddingRepository.searchSimilar` ORDER BY 增加 `, c.chunk_id ASC`；(3) `RetrievalService.findAdjacentChunks` 在 DB 结果后按 chunkId 排序；(4) `retrieval_evidence_test.sh` 为所有 curl 调用添加 HTTP 200 断言，新增 Section 7 通过 child retrieval 端点交叉验证 matchedChildIds |
 | 2026-06-20 | 第三次独立验收未完成 | 真实 Docker 链路与稳定顺序已通过，但 Section 7 只证明部分交集，且实现提交 `ef97f66` 尚未通过独立交接提交回填并转入 `verifying` | 任务保持进行中；将断言改为所有 `matchedChildIds` 均属于 child ID 集合，完成实现 hash 回填与交接后重新验收 |
+| 2026-06-20 | 修正 Section 7 子集断言并正式交接 | (1) Section 7 交叉验证将交集检查改为子集检查，确保所有 `matchedChildIds` 均属于 child retrieval ID 集合；(2) 回填实现提交 `ef97f66`，将任务 6.hotfix_6.3 与 Plan 转为待验收，同步索引和执行/验收队列 | 实现已完整，移交独立验收 session |
