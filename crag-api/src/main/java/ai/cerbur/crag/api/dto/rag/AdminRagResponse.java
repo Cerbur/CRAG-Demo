@@ -1,5 +1,6 @@
 package ai.cerbur.crag.api.dto.rag;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -14,4 +15,22 @@ import java.util.List;
  * @since 2026-06-19
  */
 public record AdminRagResponse(
-    String docId, int chunks, String status, List<String> parentChunkIds) {}
+    String docId, int chunks, String status, List<String> parentChunkIds) {
+
+  /** 紧凑构造器 —— 确保 parentChunkIds 永远不为 null. */
+  public AdminRagResponse {
+    if (parentChunkIds == null) {
+      parentChunkIds = List.of();
+    }
+  }
+
+  /**
+   * 返回不可修改的 parentChunkIds.
+   *
+   * @return 不可修改的 parent chunk ID 列表
+   */
+  @Override
+  public List<String> parentChunkIds() {
+    return Collections.unmodifiableList(parentChunkIds);
+  }
+}

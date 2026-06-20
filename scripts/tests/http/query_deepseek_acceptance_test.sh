@@ -11,7 +11,7 @@
 #
 # 安全约束:
 #   - 凭据只从宿主环境变量 DEEPSEEK_API_KEY 临时注入，禁止写入 .env、脚本、Plan 或验收记录
-#   - 首次 API 调用失败后立即停止，不再自动重试
+#   - 仅执行一次真实 DeepSeek API 调用；数据写入与索引等待在 Stub 模式下完成
 #   - 不保存完整响应、Prompt、Context 或认证信息到日志
 #   - 验收后恢复 Stub success 模式
 
@@ -125,10 +125,128 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Phase 1: Rebuild app with DeepSeek provider
+# Phase 1: Build with Stub, write test data, wait for indexing
 # ═══════════════════════════════════════════════════════════════
 echo ""
-echo "=== Phase 1: Rebuild app with DeepSeek provider ==="
+echo "=== Phase 1: Build app with Stub, write data and wait for indexing ==="
+
+cd "$COMPOSE_DIR"
+DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
+CRAG_QUERY_LLM_PROVIDER=stub \
+CRAG_QUERY_LLM_STUB_MODE=success \
+docker compose up -d --build app
+
+echo "App rebuild initiated with provider=stub (indexing phase)"
+
+# Wait for app to be ready
+echo "--- Wait for app readiness (stub mode) ---"
+if ! wait_for_app "stub mode"; then
+  echo "FAIL: App did not become ready in stub mode — aborting"
+  FAILED=1
+  echo ""
+  echo "=== Acceptance Test Complete ==="
+  echo "RUN_ID=$RUN_ID"
+  echo "Result: BLOCKED"
+  exit 2
+fi
+
+# ── Phase 1a: Write test data via AdminRag ──
+echo ""
+echo "--- Phase 1a: Write test data via AdminRag (stub mode) ---"
+http_post "$BASE_URL/api/v1/admin/rag" \
+  "{\"title\":\"deepseek-accept-${RUN_ID}\",\"content\":\"${VERIFICATION_CODE} CRAG-Demo 是一个基于 RAG 的问答机器人，使用 PostgreSQL 数据库和 pgvector 向量扩展进行混合检索。\"}" \
+  "AdminRag write"
+
+WRITE_CODE=$(json_code "$RESP_BODY")
+PARENT_CHUNK_ID=""
+if [ "$WRITE_CODE" = "0" ]; then
+  PARENT_CHUNK_ID=$(echo "$RESP_BODY" | python3 -c "import sys,json; r=json.load(sys.stdin); ids=r['result']['parentChunkIds']; print(ids[0] if ids else '')" 2>/dev/null || echo "")
+  echo "PASS: AdminRag write success, parentChunkId=$PARENT_CHUNK_ID"
+else
+  echo "FAIL: AdminRag returned code=$WRITE_CODE, resp=$RESP_BODY"
+  FAILED=1
+  echo ""
+  echo "=== Attempting restore before FAILED exit ==="
+  cd "$COMPOSE_DIR"
+  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
+  CRAG_QUERY_LLM_PROVIDER=stub \
+  CRAG_QUERY_LLM_STUB_MODE=success \
+  docker compose up -d --build app 2>/dev/null || true
+  wait_for_app "restored stub" 2>/dev/null || true
+  echo ""
+  echo "=== Acceptance Test Complete ==="
+  echo "RUN_ID=$RUN_ID"
+  echo "Result: FAILED"
+  exit 1
+fi
+
+# ── Phase 1b: Poll Query API in Stub mode until target chunk is indexed ──
+echo ""
+echo "--- Phase 1b: Wait for indexing (polling via Stub — zero DeepSeek cost) ---"
+
+MAX_INDEX_ATTEMPTS=30  # 30 attempts * 3s = 90s max
+INDEX_ATTEMPT=0
+INDEXED=0
+
+while [ $INDEX_ATTEMPT -lt $MAX_INDEX_ATTEMPTS ]; do
+  INDEX_ATTEMPT=$((INDEX_ATTEMPT + 1))
+  sleep 3
+
+  # Poll query — Stub mode, so NO real LLM call, but Retrieval + sources are real
+  INDEX_RESP=$(curl -s -X POST "$BASE_URL/api/v1/query" \
+    -H "Content-Type: application/json" \
+    -d "{\"question\":\"${VERIFICATION_CODE} 使用什么数据库？\"}" || echo '{"code":-1}')
+  INDEX_CODE=$(json_code "$INDEX_RESP")
+
+  if [ "$INDEX_CODE" = "0" ]; then
+    TARGET_IN_SOURCES=$(echo "$INDEX_RESP" | python3 -c "
+import sys, json
+resp = json.load(sys.stdin)
+sources = resp.get('result', {}).get('sources', [])
+target = '${PARENT_CHUNK_ID}'
+found = False
+for src in sources:
+    if src.get('parentChunkId', '') == target:
+        found = True
+        break
+    if target in src.get('matchedChildIds', []):
+        found = True
+        break
+print('FOUND' if found else 'WAITING')
+" 2>/dev/null || echo "WAITING")
+    if [ "$TARGET_IN_SOURCES" = "FOUND" ]; then
+      echo "Indexing complete after ${INDEX_ATTEMPT} attempts (target chunk indexed)"
+      INDEXED=1
+      break
+    fi
+  fi
+
+  echo "  Waiting for indexing... attempt ${INDEX_ATTEMPT}/${MAX_INDEX_ATTEMPTS}"
+done
+
+if [ "$INDEXED" -eq 0 ]; then
+  echo "FAIL: Data did not index within ${MAX_INDEX_ATTEMPTS} attempts — aborting"
+  FAILED=1
+  echo ""
+  echo "=== Attempting restore before FAILED exit ==="
+  cd "$COMPOSE_DIR"
+  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
+  CRAG_QUERY_LLM_PROVIDER=stub \
+  CRAG_QUERY_LLM_STUB_MODE=success \
+  docker compose up -d --build app 2>/dev/null || true
+  wait_for_app "restored stub" 2>/dev/null || true
+  echo ""
+  echo "=== Acceptance Test Complete ==="
+  echo "RUN_ID=$RUN_ID"
+  echo "Result: FAILED"
+  exit 1
+fi
+
+# ═══════════════════════════════════════════════════════════════
+# Phase 2: Rebuild app with DeepSeek provider
+# ═══════════════════════════════════════════════════════════════
+echo ""
+echo "=== Phase 2: Rebuild app with DeepSeek provider ==="
 
 cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
@@ -138,11 +256,10 @@ docker compose up -d --build app
 echo "App rebuild initiated with provider=deepseek"
 
 # Wait for app to be ready
-echo "--- Wait for app readiness ---"
+echo "--- Wait for app readiness (deepseek mode) ---"
 if ! wait_for_app "deepseek mode"; then
   echo "FAIL: App did not become ready after DeepSeek rebuild — aborting"
   FAILED=1
-  # Attempt restore before final exit
   echo ""
   echo "=== Attempting restore before BLOCKED exit ==="
   cd "$COMPOSE_DIR"
@@ -159,106 +276,17 @@ if ! wait_for_app "deepseek mode"; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Phase 2: Write test data via AdminRag
+# Phase 3: Single DeepSeek Query (exactly ONE real API call)
 # ═══════════════════════════════════════════════════════════════
 echo ""
-echo "=== Phase 2: Write test data via AdminRag ==="
-http_post "$BASE_URL/api/v1/admin/rag" \
-  "{\"title\":\"deepseek-accept-${RUN_ID}\",\"content\":\"${VERIFICATION_CODE} CRAG-Demo 是一个基于 RAG 的问答机器人，使用 PostgreSQL 数据库和 pgvector 向量扩展进行混合检索。\"}" \
-  "AdminRag write"
+echo "=== Phase 3: Execute single DeepSeek query (exactly 1 real API call) ==="
 
-WRITE_CODE=$(json_code "$RESP_BODY")
-PARENT_CHUNK_ID=""
-if [ "$WRITE_CODE" = "0" ]; then
-  PARENT_CHUNK_ID=$(echo "$RESP_BODY" | python3 -c "import sys,json; r=json.load(sys.stdin); ids=r['result']['parentChunkIds']; print(ids[0] if ids else '')" 2>/dev/null || echo "")
-  echo "PASS: AdminRag write success, parentChunkId=$PARENT_CHUNK_ID"
-else
-  echo "FAIL: AdminRag returned code=$WRITE_CODE, resp=$RESP_BODY"
-  FAILED=1
-  # Cannot proceed without written data
-  echo ""
-  echo "=== Attempting restore before FAILED exit ==="
-  cd "$COMPOSE_DIR"
-  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
-  CRAG_QUERY_LLM_PROVIDER=stub \
-  CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose up -d --build app 2>/dev/null || true
-  wait_for_app "restored stub" 2>/dev/null || true
-  echo ""
-  echo "=== Acceptance Test Complete ==="
-  echo "RUN_ID=$RUN_ID"
-  echo "Result: FAILED"
-  exit 1
-fi
+QUERY_RESP=$(curl -s -X POST "$BASE_URL/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"${VERIFICATION_CODE} CRAG-Demo 使用什么数据库？\"}" || echo '{"code":-1}')
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 3: Wait for indexing + Phase 4: Query and Assert
-# ═══════════════════════════════════════════════════════════════
-echo ""
-echo "=== Phase 3: Poll Query API for results ==="
-
-MAX_ATTEMPTS=30  # 30 attempts * 3s = 90s max
-ATTEMPT=0
-QUERY_RESP=""
-
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  ATTEMPT=$((ATTEMPT + 1))
-  sleep 3
-
-  # Phase 3 poll query — this becomes the acceptance query
-  QUERY_RESP=$(curl -s -X POST "$BASE_URL/api/v1/query" \
-    -H "Content-Type: application/json" \
-    -d "{\"question\":\"${VERIFICATION_CODE} CRAG-Demo 使用什么数据库？\"}" || echo '{"code":-1}')
-  QUERY_CODE=$(json_code "$QUERY_RESP")
-
-	  if [ "$QUERY_CODE" = "0" ]; then
-	    # Check if our written chunk appears in sources (parentChunkId or matchedChildIds)
-	    TARGET_IN_SOURCES=$(echo "$QUERY_RESP" | python3 -c "
-	import sys, json
-	resp = json.load(sys.stdin)
-	sources = resp.get('result', {}).get('sources', [])
-	target = '${PARENT_CHUNK_ID}'
-	found = False
-	for src in sources:
-	    if src.get('parentChunkId', '') == target:
-	        found = True
-	        break
-	    if target in src.get('matchedChildIds', []):
-	        found = True
-	        break
-	print('FOUND' if found else 'WAITING')
-	" 2>/dev/null || echo "WAITING")
-	    if [ "$TARGET_IN_SOURCES" = "FOUND" ]; then
-	      echo "Query ready after ${ATTEMPT} attempts (target chunk indexed)"
-	      break
-	    fi
-  fi
-
-  echo "  Waiting... attempt ${ATTEMPT}/${MAX_ATTEMPTS}"
-  if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
-    echo "FAIL: Query did not return results within ${MAX_ATTEMPTS} attempts — aborting"
-    # Do NOT print full response — safety constraint
-    echo "FAIL: Last response code=$QUERY_CODE (full response hidden for safety)"
-    FAILED=1
-  fi
-done
-
-# If Phase 3 timed out, bail out
-if [ "$FAILED" -ne 0 ]; then
-  echo ""
-  echo "=== Attempting restore before FAILED exit ==="
-  cd "$COMPOSE_DIR"
-  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
-  CRAG_QUERY_LLM_PROVIDER=stub \
-  CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose up -d --build app 2>/dev/null || true
-  wait_for_app "restored stub" 2>/dev/null || true
-  echo ""
-  echo "=== Acceptance Test Complete ==="
-  echo "RUN_ID=$RUN_ID"
-  echo "Result: FAILED"
-  exit 1
-fi
+QUERY_HTTP=$(echo "$QUERY_RESP" | python3 -c "import sys,json; json.load(sys.stdin); print('OK')" 2>/dev/null && echo "200" || echo "000")
+echo "DeepSeek query complete — HTTP $QUERY_HTTP"
 
 # ═══════════════════════════════════════════════════════════════
 # Phase 4: Verify Query response
@@ -266,7 +294,7 @@ fi
 echo ""
 echo "=== Phase 4: Verify query response ==="
 
-# 4a. HTTP status already 200 from curl; check code=0
+# 4a. Check code=0
 QUERY_RESP_CODE=$(echo "$QUERY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
 if [ "$QUERY_RESP_CODE" != "0" ]; then
   echo "FAIL: Query returned code=$QUERY_RESP_CODE (expected 0)"
@@ -290,29 +318,23 @@ import sys, json
 resp = json.load(sys.stdin)
 result = resp.get('result', {})
 answer = result.get('answer', '')
-# Escape newlines for safe display, limit length for terminal safety
 truncated = answer[:200] + ('...' if len(answer) > 200 else '')
 print(repr(truncated))
 " 2>/dev/null || echo "''")
 echo "Answer (repr, truncated 200): $ANSWER_REPR"
 
-# 4d. Answer contains key facts from our content (PostgreSQL + pgvector)
-#     Proves real LLM processed our specific data without requiring it to echo
-#     the verification code marker. Combined with 4e (not "知识库证据不足"),
-#     4f (valid [Sx] references), and 4i (target source found), this provides
-#     strong evidence the LLM used the correct context.
-ANSWER_HAS_FACTS=$(echo "$QUERY_RESP" | python3 -c "
+# 4d. Answer contains the unique VERIFICATION_CODE — proves LLM processed our specific data
+ANSWER_HAS_CODE=$(echo "$QUERY_RESP" | python3 -c "
 import sys, json
 resp = json.load(sys.stdin)
 answer = resp.get('result', {}).get('answer', '')
-has_pg = 'PostgreSQL' in answer
-has_vec = 'pgvector' in answer
-print('OK' if (has_pg and has_vec) else 'MISSING')
+verification = '${VERIFICATION_CODE}'
+print('OK' if verification in answer else 'MISSING')
 " 2>/dev/null || echo "ERROR")
-if [ "$ANSWER_HAS_FACTS" = "OK" ]; then
-  echo "PASS: Answer contains key content facts (PostgreSQL + pgvector)"
+if [ "$ANSWER_HAS_CODE" = "OK" ]; then
+  echo "PASS: Answer contains unique VERIFICATION_CODE"
 else
-  echo "FAIL: Answer missing key content facts (expected PostgreSQL + pgvector)"
+  echo "FAIL: Answer does not contain VERIFICATION_CODE — model did not process specific test data"
   FAILED=1
 fi
 
@@ -385,7 +407,8 @@ else
   FAILED=1
 fi
 
-# 4i. Target source (matching our written parentChunkId) exists with correct reference
+# 4i. Target source exists with valid reference AND non-empty matchedChildIds
+#     ok_ref and ok_matched are now computed AND enforced in the judgment
 TARGET_SOURCE_OUTPUT=$(echo "$QUERY_RESP" | python3 -c "
 import sys, json, re
 resp = json.load(sys.stdin)
@@ -395,17 +418,25 @@ for src in sources:
     if src.get('parentChunkId', '') == target_parent:
         ref = src.get('reference', '')
         matched = src.get('matchedChildIds', [])
-        ok_ref = bool(re.match(r'^S\d+$', ref))
+        ok_ref = bool(re.match(r'^S\d+\$', ref))
         ok_matched = isinstance(matched, list) and len(matched) > 0
-        print(f'FOUND ref={ref} matchedChildIds={matched}')
-        sys.exit(0)
+        print(f'FOUND ref={ref} ok_ref={ok_ref} ok_matched={ok_matched} matchedChildIds={matched}')
+        sys.exit(0 if (ok_ref and ok_matched) else 1)
 print('NOT_FOUND')
-" 2>/dev/null || echo "ERROR")
-if echo "$TARGET_SOURCE_OUTPUT" | grep -q "^FOUND"; then
-  echo "PASS: Target source found with reference and matchedChildIds"
+sys.exit(1)
+" 2>/dev/null)
+TARGET_SOURCE_EXIT=$?
+
+if [ "$TARGET_SOURCE_EXIT" -eq 0 ]; then
+  echo "PASS: Target source found with valid reference and non-empty matchedChildIds"
   echo "  $TARGET_SOURCE_OUTPUT"
 else
-  echo "FAIL: Target source (parentChunkId=$PARENT_CHUNK_ID) not found in sources"
+  if echo "$TARGET_SOURCE_OUTPUT" | grep -q "^FOUND"; then
+    echo "FAIL: Target source found but reference or matchedChildIds invalid"
+    echo "  $TARGET_SOURCE_OUTPUT"
+  else
+    echo "FAIL: Target source (parentChunkId=$PARENT_CHUNK_ID) not found in sources"
+  fi
   FAILED=1
 fi
 
@@ -430,14 +461,53 @@ docker logs crag-app 2>&1 | grep -i "usage" | tail -5 || echo "No usage log line
 echo "--- request_id/result/total_time_ms ---"
 docker logs crag-app 2>&1 | grep -E "(requestId|result=|totalTime)" | tail -10 || echo "No request_id/result/totalTime log lines found"
 
-# Safety check: ensure NO full response, prompt, context, API key, or auth headers in logs
+# Safety check: ensure NO sensitive data in logs
+# Prohibited: API keys, auth headers, full Context/Prompt, full response, unique test content
 echo "--- Safety: scan for prohibited patterns in logs ---"
-SAFETY_VIOLATIONS=$(docker logs crag-app 2>&1 | grep -ciE "(x-api-key|authorization|api_key|deepseek_api_key)" || true)
-if [ "$SAFETY_VIOLATIONS" -eq 0 ]; then
-  echo "PASS: No API key or auth header leakage detected in container logs"
+SAFETY_FAILED=0
+ALL_LOGS=$(docker logs crag-app 2>&1 || true)
+
+# Check 1: Auth credentials
+AUTH_LEAK=$(echo "$ALL_LOGS" | grep -ciE "(x-api-key|authorization|api_key|deepseek_api_key)" || true)
+if [ "$AUTH_LEAK" -ne 0 ]; then
+  echo "FAIL: Found $AUTH_LEAK potential credential leakage(s) in container logs"
+  SAFETY_FAILED=1
 else
-  echo "FAIL: Found $SAFETY_VIOLATIONS potential credential leakage(s) in container logs"
+  echo "PASS: No API key or auth header leakage detected"
+fi
+
+# Check 2: Unique test content (VERIFICATION_CODE, RUN_ID must not leak into logs)
+CONTENT_LEAK=$(echo "$ALL_LOGS" | grep -cF "$VERIFICATION_CODE" || true)
+if [ "$CONTENT_LEAK" -ne 0 ]; then
+  echo "FAIL: VERIFICATION_CODE found in logs ($CONTENT_LEAK occurrence(s)) — unique test content must not leak"
+  SAFETY_FAILED=1
+else
+  echo "PASS: VERIFICATION_CODE not found in logs"
+fi
+
+# Check 3: Context boundary markers (must not appear in logs)
+CONTEXT_LEAK=$(echo "$ALL_LOGS" | grep -ciE "<CRAG:[a-f0-9]{6}:S[0-9]+>" || true)
+if [ "$CONTEXT_LEAK" -ne 0 ]; then
+  echo "FAIL: Context boundary markers found in logs ($CONTEXT_LEAK occurrence(s))"
+  SAFETY_FAILED=1
+else
+  echo "PASS: No Context boundary markers in logs"
+fi
+
+# Check 4: Prompt structural patterns (must not appear in logs)
+PROMPT_LEAK=$(echo "$ALL_LOGS" | grep -ciE "(system prompt|SystemMessage|user prompt|UserMessage|system_prompt|user_prompt)" || true)
+if [ "$PROMPT_LEAK" -ne 0 ]; then
+  echo "FAIL: Prompt structural content found in logs ($PROMPT_LEAK occurrence(s))"
+  SAFETY_FAILED=1
+else
+  echo "PASS: No Prompt structural content in logs"
+fi
+
+if [ "$SAFETY_FAILED" -ne 0 ]; then
   FAILED=1
+  echo "FAIL: Safety scan detected prohibited content in container logs"
+else
+  echo "PASS: All safety checks passed"
 fi
 
 # ═══════════════════════════════════════════════════════════════

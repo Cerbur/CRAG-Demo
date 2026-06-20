@@ -517,3 +517,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | Hotfix 独立验收失败，中断继续 | `plan_3.hotfix_7` 的架构护栏、文件边界与 Docker HTTP 回归证据不满足完成门槛 | 继续保留 7.7/7.8 恢复点；等待 Hotfix 修正并通过新的独立验收 |
 | 2026-06-21 | `plan_3.hotfix_7` 验收通过，恢复执行 | Hotfix 的规范、代码、架构护栏与 Docker HTTP 回归均通过独立验收 | 中断解除，继续从 7.7/7.8 原恢复点执行 |
 | 2026-06-21 | plan_7 再次独立验收失败 | `d818f02` 修复了 parent ID 暴露、Compose 密钥映射和 readiness 误判，但 DeepSeek 脚本仍违反单次真实调用、首次失败停止与唯一验证码断言，source/日志断言也不完整；新增 HTTP DTO 未保持不可变 | Plan 保持 `in_progress`，7.7/7.8 保持进行中；修复后重新交接新的独立验收 session |
+| 2026-06-21 | 修复 7.7/7.8 验收缺陷 | 脚本重构为 Stub 模式索引等待（零 DeepSeek 成本）+ DeepSeek 单次调用；答案断言恢复唯一验证码；target source 判定使用 ok_ref/ok_matched；安全扫描覆盖 Context/Prompt/验证码/响应泄露；AdminRagResponse 添加 Collections.unmodifiableList 防御性复制 | 修复后交接新的独立验收 session；DeepSeek 真实回归仍为单次调用 |
