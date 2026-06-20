@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-20 (plan_7 独立验收失败，7.7 与 7.8 退回进行中)
+> 最后更新：2026-06-21 (plan_3.hotfix_7 修复依赖注入规范偏差，中断 plan_7)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -71,7 +71,7 @@ plan/
 | plan_main | 项目定位、技术方向、阶段路线和协作约束入口 | ✅ 已收敛 | — | [plan_main.md](../plan_main.md) |
 | plan_1 | 项目脚手架、基础设施、分包结构、DAO、Docker 基础环境 | ✅ 完成 | — | [plan_1.md](../plan_1/plan_1.md) |
 | plan_2 | AdminRag 写入链路、Chunk 分块、Dense Embedding Cron、Sidecar 支撑 | ✅ 完成 | — | [plan_2.md](../plan_2/plan_2.md) |
-| plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
+| plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | [plan_3.hotfix_7](../plan_3/plan_3.hotfix_7.md) 🟡 待开始 (0/2) | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
@@ -88,12 +88,13 @@ plan/
 ## 当前执行队列
 
 ```text
+plan_3.hotfix_7
 plan_7
 plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_7` 独立验收失败，已退回队首；`plan_10` 继续等待 `plan_7` 完成。
+- `plan_3.hotfix_7` 修复工程规范反转导致的依赖注入偏差；完成后从原恢复点继续 `plan_7`，`plan_10` 继续等待。
 
 ---
 
@@ -140,6 +141,7 @@ plan_10
 | [plan_3.hotfix_4.md](../plan_3/plan_3.hotfix_4.md) | Plan 工作流约束抽取 | ✅ 完成 |
 | [plan_3.hotfix_5.md](../plan_3/plan_3.hotfix_5.md) | Plan 目录整理、索引抽取、plan_main 收敛和工作流约束更新 | ✅ 完成 |
 | [plan_3.hotfix_6.md](../plan_3/plan_3.hotfix_6.md) | Java 工程规范分层、约束路由更新与 Spotless 自动格式化 | ✅ 完成 (4/4) |
+| [plan_3.hotfix_7.md](../plan_3/plan_3.hotfix_7.md) | 恢复 @Autowired 默认依赖注入规范并修复扩散代码 | 🟡 待开始 (0/2) |
 
 ## Plan_4 明细
 

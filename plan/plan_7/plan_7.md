@@ -139,7 +139,7 @@ HTTP Adapter → Query 公开 API → Query 业务逻辑 → 项目 LLM contract
                                     AnthropicChatModel（配置层创建）
 ```
 
-- `UserQueryService` 保持单一具体 `@Service`，使用构造器注入，不创建机械的 Interface/Impl。
+- `UserQueryService` 保持单一具体 `@Service`，依赖按项目规范使用 `@Autowired` 字段注入，不创建机械的 Interface/Impl。
 - Query 业务层决定 Retrieval、Context、Prompt、sources 和失败语义。
 - `llm.contract` 只表达供应商无关的生成能力，不出现 Spring AI、DeepSeek、Anthropic、HTTP 或模型名。
 - DeepSeek Adapter 明确处理 Anthropic 协议和 Anthropic 专属 options，但依赖 Spring AI `ChatModel` 接口。
@@ -474,6 +474,13 @@ CRAG_QUERY_LLM_STUB_MODE
 
 ## 阻塞记录
 
+- **日期**：2026-06-21
+- **原因**：`plan_3.hotfix_7` 修复全局依赖注入规范反转，并同步修正本 Plan 已实现的 Controller 与 Service。
+- **当前进度**：7.1 至 7.6 已完成；7.7 与 7.8 仍在进行中，恢复点不变。
+- **解除条件**：`plan_3.hotfix_7` 完成实现与验收交接。
+- **解除方**：`plan_3.hotfix_7` 执行 session。
+- **恢复后的下一步**：继续修复 7.7 Stub HTTP 回归，再执行 7.8 条件验收。
+
 - **日期**：2026-06-19
 - **原因**：历史架构阻塞来自 `plan_9` 模块迁移，随后发现 Parent Evidence 与框架基线需要独立前置计划。
 - **当前进度**：8 个新任务均未开始。
@@ -500,3 +507,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-20 | 收口 usage 观测与方向归档 | ready 审查发现 LlmResult 与 UserQueryService usage 日志之间缺少数据通路，且 plan_main 技术方向变更缺少归档 | 新增供应商中立 LlmUsage；补充 LLM 韧性候选归档记录 |
 | 2026-06-20 | 对照仓库与官方协议补全执行接缝 | Spring AI 2.0.0 Anthropic 已基于官方 SDK，原双超时配置无法由计划指定的 builder 准确兑现；Docker 回归文件和恢复行为未固定 | 收敛为单一 request timeout；固定实现/测试/脚本文件；协议测试必须穿过真实配置 Bean；Stub/DeepSeek 回归结束后恢复默认成功模式 |
 | 2026-06-20 | 独立验收失败，退回 7.7 与 7.8 | Stub 成功脚本跳过目标 parent 映射；Stub failure readiness 误判导致失败与恢复均未验证；真实调用未获执行环境批准 | Plan 退回 `in_progress`，修复自动化回归后重新交接独立验收 |
+| 2026-06-21 | 被 `plan_3.hotfix_7` 临时中断 | 全局依赖注入规范被错误反转，本 Plan 的 Service 与 Controller 受影响 | 保留 7.7/7.8 恢复点，Hotfix 完成后继续执行 |
