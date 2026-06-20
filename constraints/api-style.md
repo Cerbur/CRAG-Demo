@@ -74,7 +74,7 @@ ai.cerbur.crag.api
     └── UserQueryRequest  — POST /api/v1/query 请求
 ```
 
-`UserQueryResponse` 尚未独立为正式契约；当前由 Controller 内嵌 record 承载，由 `plan_7` 任务 7.4 负责移除。
+`UserQueryResponse` 尚未独立为正式契约；当前由 Controller 内嵌 record 承载，由 `plan_7` 任务 7.6 负责移除。
 
 ---
 
