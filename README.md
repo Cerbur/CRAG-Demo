@@ -1,95 +1,151 @@
 # CRAG-Demo
 
-基于 RAG（检索增强生成）的开箱即用问答机器人后端服务。
+开箱即用的 RAG 全链路学习项目。Clone → `docker compose up` → 5 分钟看懂检索增强生成的每一步。
 
-## 项目简介
+![Java](https://img.shields.io/badge/Java-21-red?logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f?logo=springboot)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17%20%2B%20pgvector-4169e1?logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ed?logo=docker)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-CRAG-Demo 是一个基于 Java 21 + Spring Boot 4.1.0 构建的 RAG 问答系统后端，使用 PostgreSQL + pgvector 作为向量数据库，通过 Docker Compose 一键部署所有依赖服务。
+## ⚡ 5 分钟快速开始
 
-## 全链路架构
+### 前置条件
+
+- Docker Desktop 或 Docker Engine
+- Git
+
+### 一键启动
+
+```bash
+git clone <repo-url> && cd CRAG-Demo
+docker compose up -d --build
+```
+
+等待健康检查通过（约 90 秒，首次需下载模型约 2 分钟）。
+
+### 写入知识 + 发起问答
+
+```bash
+# 1. 写入一篇中文知识
+curl -X POST http://localhost:8080/api/v1/admin/rag \
+  -H "Content-Type: application/json" \
+  -d '{"title":"RAG 介绍","content":"RAG（检索增强生成）是一种结合信息检索与文本生成的技术架构。它先从知识库中检索相关文档片段，再将这些片段作为上下文交给大语言模型生成答案，从而有效减少幻觉、提升回答的事实准确性。"}'
+
+# 2. 等待索引构建完成（约 10 秒）
+sleep 10
+
+# 3. 发起问答
+curl -X POST http://localhost:8080/api/v1/query \
+  -H "Content-Type: application/json" \
+  -d '{"question":"什么是 RAG？"}'
+```
+
+> 💡 默认使用 **Stub 模式**，无需任何 API Key 即可跑通全链路。想接入真实 LLM？设置 `CRAG_QUERY_LLM_PROVIDER=deepseek` 并配置相关环境变量即可（详见 `.env.example`）。
+>
+> 也可以启动 Smoke 诊断模式验证全链路：`docker compose --profile smoke up -d --build app-smoke`，然后 `curl http://localhost:8081/api/v1/test/smoke`。
+
+## 🗺️ 全链路架构
 
 ![CRAG-Demo 全链路架构](./doc/assets/crag-demo-architecture.svg)
 
-更多项目介绍内容后续沉淀在 [项目介绍文档](./doc/project_intro.md)。
+> 上图是完整的 DDD 领域架构。下面沿着 RAG 主链路逐段走一遍——编号对应图上标注。
 
-## 特性
+## 🔢 RAG 管道：7 步走通检索增强生成
 
-- 🔌 **开箱即用**：Docker Compose 一键启动，包含所有中间件
-- 🧠 **RAG 架构**：文档分块 → 向量化 → 语义检索 → 重排序 → LLM 生成
-- 📦 **全容器化**：PostgreSQL + pgvector + Spring Boot 全部 Docker 化
-- 🔗 **统一 LLM 接口**：磨平不同 LLM 提供商差异，可灵活切换
-- 📐 **清晰分层**：`crag-app` 统一启动，`crag-api` 承载 HTTP 入口，领域能力按 module 隔离
+### 写入链路（图上左侧）
 
-## 技术栈
+**① 文档入库** `POST /api/v1/admin/rag` → `crag-ingestion`
 
-- **语言**：Java 21
-- **框架**：Spring Boot 4.1.0（Spring Framework 7 + Spring AI 2.0.0）
-- **构建**：Gradle（Kotlin DSL）
-- **向量数据库**：PostgreSQL + pgvector
-- **容器化**：Docker + Docker Compose
+你上传的文本存入 `document` 表，状态标记 `PENDING_CHUNK`。
+👉 代码入口：`crag-api` Controller → `crag-ingestion` AdminRagService
 
-## 快速开始
+**② 文档分块** Cron: `DocChunkSplitListener`
 
-```bash
-# 克隆项目
-git clone <repo-url>
-cd CRAG-Demo
+定时扫描待处理的文档，按句子边界切分为 Chunk，写入 `chunk` 表。
+👉 代码入口：`crag-ingestion` / Cron / DocChunkSplitListener
 
-# 一键启动（默认模式，不暴露诊断端点）
-docker compose up -d --build
+**③ 索引构建** Cron: `SparseIndexListener` + `DenseIndexListener`
 
-# 验证正式 API
-curl -X POST http://localhost:8080/api/v1/admin/rag \
-  -H "Content-Type: application/json" \
-  -d '{"title":"test","content":"hello world"}'
+Chunk 变更后，分别构建：
+- **Dense 向量索引**：调用 Python Sidecar `/embed`（gte 中文模型）→ 写入 pgvector
+- **Sparse 全文索引**：分词后写入 `sparse_index` 表
+👉 代码入口：`crag-ingestion` / Cron，Sidecar 交互见 `crag-retrieval` EmbeddingClient
 
-# Smoke 诊断模式（显式启用 /api/v1/test/** 诊断端点）
-docker compose --profile smoke up -d --build app-smoke
-curl http://localhost:8081/api/v1/test/smoke
+### 查询链路（图上右侧）
+
+**④ 双路召回** `POST /api/v1/query` → `crag-retrieval`
+
+用户问题同时走两路：
+- **Dense 语义召回**：问题向量化 → pgvector 余弦相似度 Top-K
+- **Sparse 关键词召回**：分词 → 全文检索 Top-K
+👉 代码入口：`crag-retrieval` / SparseRetrievalService、DenseRetrievalService
+
+**⑤ RRF 融合** `crag-retrieval` / RRF
+
+Reciprocal Rank Fusion 合并双路结果，去重后重排。
+👉 代码入口：`crag-retrieval` / RrfService
+
+**⑥ Rerank 重排序** `crag-retrieval` → Sidecar `/rerank`
+
+用 bge-reranker-v2-m3 模型对候选 Chunk 精排，取 Top-N。
+👉 代码入口：`crag-retrieval` / RerankClient
+
+**⑦ LLM 生成** `crag-query` → LLM
+
+精排后的 Chunk 作为 Context 拼入 Prompt，调用 LLM 生成最终答案 + 来源引用。
+👉 代码入口：`crag-query` / QueryService → LLM Client
+
+### 一张图总结
+
+| 步骤 | 阶段 | 模块 | 关键动作 |
+|------|------|------|----------|
+| ① | 写入 | ingestion | 文档入库 |
+| ② | 写入 | ingestion | 分块（Cron） |
+| ③ | 写入 | ingestion + retrieval | Dense / Sparse 索引 |
+| ④ | 查询 | retrieval | 双路召回 |
+| ⑤ | 查询 | retrieval | RRF 融合 |
+| ⑥ | 查询 | retrieval | Rerank 重排 |
+| ⑦ | 查询 | query | LLM 生成答案 |
+
+## 📦 项目结构
+
+```
+├── crag-common/      # 跨模块共享：统一响应结构、基础异常类型
+├── crag-storage/     # 持久层：JPA Entity、Repository、DAO、表结构（schema.sql）
+├── crag-ingestion/   # 写入链路：AdminRag、ChunkSplit、Sparse/Dense 索引 Cron
+├── crag-retrieval/   # 检索层：Sparse/Dense 查询、RRF 融合、Rerank、Embedding Client
+├── crag-query/       # 查询编排：UserQuery、Prompt 组装、LLM 调用
+├── crag-admin/       # 管理端：知识库管理、文档 CRUD 的领域服务
+├── crag-api/         # HTTP 层：Controller、请求 DTO、异常映射
+├── crag-app/         # 唯一启动模块：application.yml、Docker 入口、数据初始化
+├── crag-smoke/       # Smoke 诊断：独立 Profile 的诊断端点与验证脚本
+├── sidecar/          # Python 模型 Sidecar：/embed（gte）、/rerank（bge-reranker）
+├── plan/             # 项目规划文档与设计决策
+├── constraints/      # 编码规范与架构约束
+└── scripts/          # 运维与验收脚本
 ```
 
-## API 接口
+> 💡 **学习路径**：建议从 `crag-api`（HTTP 入口）→ `crag-query`（核心编排）→ `crag-retrieval`（检索细节）→ `crag-ingestion`（写入链路）的顺序阅读代码。
 
-### 用户查询
+## 🛠️ 技术栈
 
-```http
-POST /api/v1/query
-Content-Type: application/json
+| 层次 | 技术 | 说明 |
+|------|------|------|
+| 语言 | Java 21 | 虚拟线程、Record、密封类 |
+| 框架 | Spring Boot 4.1 | Spring Framework 7 + Spring AI 2.0 |
+| 构建 | Gradle (Kotlin DSL) | 多模块项目统一管理 |
+| ORM | Spring Data JPA | 基于 Hibernate 的声明式持久层 |
+| 向量库 | PostgreSQL 17 + pgvector | 向量存储、余弦相似度检索 |
+| 嵌入模型 | gte (GTE Chinese) | 中文句向量，Python Sidecar 托管 |
+| 重排模型 | bge-reranker-v2-m3 | 跨语言重排序，Python Sidecar 托管 |
+| LLM | Stub / DeepSeek | Stub 免 Key 调试；DeepSeek 生产可用 |
+| 容器 | Docker + Compose | 4 个服务一键编排 |
 
-{
-  "question": "什么是 RAG？"
-}
-```
-
-### 管理端上传
-
-```http
-POST /api/v1/admin/rag
-Content-Type: multipart/form-data
-```
-
-## 项目结构
-
-```
-├── crag-common/      # 跨模块共享的基础类型、统一响应结构
-├── crag-storage/     # JPA entity、repository、dao
-├── crag-ingestion/   # AdminRag 写入链路、ChunkSplit、Dense/Sparse 索引写入 Cron
-├── crag-retrieval/   # Sparse/Dense 查询召回、RRF、Rerank、Embedding client
-├── crag-query/       # UserQuery 编排、Prompt 组装、LLM 调用
-├── crag-api/         # HTTP API service：Controller、请求 DTO、异常处理
-├── crag-app/         # 唯一 Spring Boot 启动模块，承载 application.yml/schema.sql/data.sql
-└── plan/             # 项目规划文档（plan_main + index + plan_N 目录）
-```
-
-## 开源协议
+## 📄 许可证
 
 MIT License — 详见 [LICENSE](./LICENSE)
 
-## 安全注意事项
+## ⚠️ 安全提示
 
-### Query DEBUG 日志警告
-
-当 `logging.level.ai.cerbur.crag` 设置为 `DEBUG` 时，Query 模块会记录完整的用户问题与模型回答内容。
-**禁止在生产环境开启 DEBUG 日志。** 默认日志级别为 `INFO`，不会记录问题、回答、Context、Prompt 或 parent 内容。
-
-Context、Prompt、parent 内容、thinking 内容和认证信息在任何日志级别下均不记录。
+DEBUG 日志会记录用户问题与模型回答。**禁止在生产环境开启。** 默认 `INFO` 级别不记录任何问答内容。Context、Prompt、认证信息在任何日志级别下均不记录。
