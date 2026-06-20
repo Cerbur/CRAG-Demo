@@ -62,10 +62,22 @@ DeepSeek 使用其 Anthropic 兼容 API；Spring AI 的 Anthropic 模型实现�
 - `constraints/package-structure.md`
 - `constraints/docker-structure.md`
 - `README.md`
-- `plan/plan_main.md`
-- `plan/plan_archive/2026-06-20-llm-resilience-candidate.md`
 - `plan/plan_7/plan_7.md`
 - `plan/index/README.md`
+
+## 实施文件映射
+
+以下文件名在开始编码前固定，避免执行阶段临时发明同职责类型或把不同测试层混在一个文件中。测试方法可按实现细节微调，但测试文件职责不得漂移。
+
+| 职责 | 创建或修改 |
+| --- | --- |
+| Query 配置与装配 | 创建 `crag-query/src/main/java/ai/cerbur/crag/query/llm/config/QueryProperties.java`、`DeepSeekApiKey.java`、`QueryLlmConfiguration.java`；修改 `crag-query/build.gradle.kts`、`crag-app/src/main/resources/application.yml`、`crag-app/src/test/resources/application.yml` |
+| Context 与 Prompt | 创建 `crag-query/src/main/java/ai/cerbur/crag/query/context/ContextBuilder.java`、`QueryContext.java`、`SourceBoundaryFactory.java`、`crag-query/src/main/java/ai/cerbur/crag/query/prompt/PromptBuilder.java`、`crag-query/src/main/java/ai/cerbur/crag/query/api/QuerySource.java` |
+| LLM contract 与 Adapter | 创建 `crag-query/src/main/java/ai/cerbur/crag/query/llm/contract/*.java`、`llm/adapter/stub/StubLlmAdapter.java`、`llm/adapter/deepseek/DeepSeekAnthropicLlmAdapter.java`；删除 `crag-query/src/main/java/ai/cerbur/crag/query/llm/ChatClient.java` |
+| Query 编排与引用 | 修改 `crag-query/src/main/java/ai/cerbur/crag/query/api/UserQueryService.java`；创建同包 `UserQueryResult.java`、`InvalidQueryException.java`、`LlmUnavailableException.java` 及 `reference/ReferenceAnalyzer.java`、`ReferenceAnalysis.java` |
+| HTTP API | 修改 `crag-api/src/main/java/ai/cerbur/crag/api/controller/UserQueryController.java`、`controller/advice/GlobalExceptionHandler.java`、`dto/query/UserQueryRequest.java`、`crag-common/src/main/java/ai/cerbur/crag/common/dto/result/ResponseCode.java`；创建 `dto/query/UserQueryResponse.java`、`QuerySourceResponse.java` |
+| 自动化回归 | 创建 `scripts/tests/http/query_stub_success_test.sh`、`query_stub_failure_test.sh`、`query_deepseek_acceptance_test.sh`；创建 `.env.example`；修改 `docker-compose.yml` |
+| 文档与约束 | 修改 `README.md`、`constraints/api-style.md`、`constraints/package-structure.md`、`constraints/docker-structure.md` |
 
 ## 包结构与依赖流
 
@@ -206,13 +218,16 @@ UserQueryController
 - API key trim 后校验与发送；Stub 模式完全不校验 DeepSeek key、base URL、model 或其他 DeepSeek 配置。
 - DeepSeek 模式在启动期校验 key、base URL、model、temperature、max tokens 与超时，但不探测网络连通性。
 - DeepSeek 密钥配置使用自定义不可变类并覆盖安全 `toString()`；其余无密钥配置可使用嵌套 record。
-- 连接超时默认 5 秒，响应超时默认 120 秒；自动重试为 0。协议组件测试必须证明失败时仅发出一次请求。
+- Spring AI 2.0.0 的 `spring-ai-anthropic` 基于官方 Anthropic Java SDK，`AnthropicChatModel.builder()` 暴露单一请求 `timeout` 而非独立连接/响应双超时。本计划只配置 `request-timeout`，默认 120 秒；`maxRetries=0`。不得保留无法实际生效的 `connect-timeout` 配置。
+- 协议组件测试必须通过 `QueryLlmConfiguration` 创建真实 `AnthropicChatModel`，对本地 JDK `HttpServer` 发请求，并证明超时或 5xx 失败时仅发出一次请求；只 Mock `ChatModel` 不能作为 Header、URL、JSON 或零重试证据。
 - Adapter 按顺序提取全部最终 text blocks，以单个 `\n` 拼接后整体 trim；保留内部 Markdown、换行和引用位置。
 - thinking blocks 忽略且绝不记录内容；出现 tool-use/tool-result block、多个 generation 或不可识别结构视为 `PROTOCOL`。
 - 0 generation、无 text block 或 trim 后空白为 `EMPTY_RESPONSE`。
 - stop reason 表示 `max_tokens` 等截断时，即使已有文本也归类 `TRUNCATED_RESPONSE` 并返回 502；只有正常 stop/end_turn 才接受答案。
 - Spring AI 2.0.0 无法可靠解析 DeepSeek thinking + text fixture 时，7.4 与 Plan 进入阻塞；不得在编码中静默改用原始 HTTP。若需薄 HTTP Client，必须先更新并提交本 Plan 的关键决策。
-- 官方环境不识别或无权访问 `deepseek-v4-flash` 时，7.8 与 Plan 进入阻塞；不得静默切换模型。
+- 官方环境拒绝或无权访问 `deepseek-v4-flash` 时，7.8 与 Plan 进入阻塞；不得静默切换模型。
+- DeepSeek Anthropic API 会把不支持的模型名自动映射到 `deepseek-v4-flash`。因此本计划不以“请求成功”证明模型名正确：7.4 必须断言请求 JSON 中的 `model` 精确为配置值，7.8 日志中的 model 只表示客户端配置，不宣称供应商实际路由结果。
+- DeepSeek Anthropic API 官方允许 temperature `0.0..2.0`；本项目有意收紧为 `0.0..1.0`，属于服务端配置治理边界，不是对供应商能力上限的描述。
 
 ### 引用分析
 
@@ -249,8 +264,7 @@ crag:
       max-characters: 12000
     llm:
       provider: stub
-      connect-timeout: 5s
-      response-timeout: 120s
+      request-timeout: 120s
       deepseek:
         api-key: ${DEEPSEEK_API_KEY:}
         base-url: https://api.deepseek.com/anthropic
@@ -270,8 +284,7 @@ CRAG_QUERY_LLM_DEEPSEEK_BASE_URL
 CRAG_QUERY_LLM_DEEPSEEK_MODEL
 CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE
 CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS
-CRAG_QUERY_LLM_CONNECT_TIMEOUT
-CRAG_QUERY_LLM_RESPONSE_TIMEOUT
+CRAG_QUERY_LLM_REQUEST_TIMEOUT
 CRAG_QUERY_LLM_STUB_MODE
 ```
 
@@ -322,7 +335,7 @@ CRAG_QUERY_LLM_STUB_MODE
 
 - Parent Context 过长：通过完整 parent 跳过、UTF-16 字符预算和配置上限控制；日志不记录正文。
 - 固定边界被原文伪造：使用短请求级 nonce，并在所有原文中碰撞检测；这不替代 system prompt 的不可信 Context 规则。
-- 默认 thinking 增加延迟和输出预算：响应超时提高为 120 秒，max output tokens 默认 4096；截断明确失败，不返回半截答案。
+- 默认 thinking 增加延迟和输出预算：request timeout 设为 120 秒，max output tokens 默认 4096；截断明确失败，不返回半截答案。
 - Spring AI Anthropic 实现与 DeepSeek thinking blocks 不兼容：先以去敏 fixture 和协议组件测试验证；失败时阻塞并先更新 Plan，不临时换协议实现。
 - Provider 不可用或模型权限不足：统一 502，保留安全分类和 cause，不自动重试或切换 Stub。
 - sources 与 Context 漂移：两者从同一 `QueryContext` 生成，并以强不变量、连续编号和映射测试约束。
@@ -333,13 +346,14 @@ CRAG_QUERY_LLM_STUB_MODE
 
 ## 测试与验证计划
 
-- 纯单元测试：`./gradlew :crag-query:test`，覆盖配置值、Context 预算/边界/碰撞/并发、sources、Prompt、Stub、DeepSeek 映射、响应 blocks、失败分类、业务编排与引用分析。
+- 纯单元测试：`./gradlew :crag-query:test`。固定创建 `QueryPropertiesTest`、`QuerySourceTest`、`QueryContextTest`、`ContextBuilderTest`、`PromptBuilderTest`、`LlmContractTest`、`StubLlmAdapterTest`、`DeepSeekAnthropicLlmAdapterTest`、`ReferenceAnalyzerTest`、`UserQueryServiceTest`，分别覆盖配置值、强不变量、Context 预算/边界/碰撞/并发、Prompt、Stub、DeepSeek `ChatResponse` 映射、失败分类、引用分析与业务编排。
 - 轻量组件测试：`./gradlew :crag-query:test :crag-api:test :crag-app:test`，覆盖配置绑定、默认 Stub、DeepSeek 条件 Bean、启动校验、MVC 请求校验、DTO 映射与 400/502/500。
-- Anthropic 协议组件测试使用 JDK `HttpServer`，不新增 Mock Server 依赖；验证 path、`x-api-key`、`anthropic-version`、请求 JSON、temperature、max tokens、超时、零重试和 thinking + text 去敏 fixture。
+- 轻量组件测试固定创建 `QueryLlmConfigurationComponentTest`、`DeepSeekAnthropicProtocolComponentTest` 和 `UserQueryControllerComponentTest`。协议测试使用 JDK `HttpServer`，不新增 Mock Server 依赖；经真实 `QueryLlmConfiguration → AnthropicChatModel → HttpServer` 路径验证 `/anthropic/v1/messages`、`x-api-key`、`anthropic-version`、请求 JSON 中的 system/user/model/temperature/max_tokens、request timeout、零重试和 thinking + text 去敏 fixture。
 - 架构测试：`./gradlew :crag-app:test --tests '*ArchitectureTest'`，确认 API 只依赖 `query.api`，Query 只依赖 `retrieval.api`，Spring AI/Anthropic 类型只存在于 `llm.adapter` 与 `llm.config`。
 - 全量测试：`./gradlew test` 与 `./gradlew check`。
 - Stub Docker HTTP 成功回归：通过正式 AdminRag API 写入含唯一 runId 和不可猜测验证码的短文；轮询正式 Query API，每 3 秒一次、最长 90 秒，直到 sources 非空；断言固定 Stub answer、reference、目标 parentChunkId 和 matchedChildIds。
 - Stub 失败回归：以 `CRAG_QUERY_LLM_STUB_MODE=failure` 启动正式应用，断言 HTTP 502 与 `50201`，不增加测试专用 HTTP 参数。
+- Stub 成功与失败脚本各自负责重建 `app` 容器并等待正式 `/api/v1/query` 可用；失败脚本结束时必须恢复 `CRAG_QUERY_LLM_STUB_MODE=success` 并再次确认应用可用，避免把共享开发环境留在故障模式。脚本不得启动 `app-smoke` 或调用 `/api/v1/test/**`。
 - 真实 DeepSeek 验收：使用默认官方 base URL、`deepseek-v4-flash`、temperature 0、max tokens 4096 和宿主临时注入的 `DEEPSEEK_API_KEY`；只主动执行一次真实调用，通过正式 API 断言 HTTP 200、`code=0`、answer 包含本次唯一验证码、至少一个合法有效 `[Sx]`、无无效引用、sources 非空且目标 source 映射正确。
 - 真实验收首次失败后立即停止自动调用，保留脱敏失败证据并先诊断；任何再次调用都需要用户明确批准。模型不可用或账号无权限时必须阻塞，不得切换模型、端点、协议或 Stub。
 - 真实验收允许读取容器日志作为补充证据：只记录脱敏后的 provider/protocol/model、引用、usage 和结果摘要；禁止保存完整响应、Prompt、Context 或认证信息。HTTP 响应仍是业务成功的主证据。
@@ -365,10 +379,10 @@ CRAG_QUERY_LLM_STUB_MODE
 
 **目标**：建立 Query 自有配置契约、默认值和可预测的启动校验边界。
 **前置任务**：无
-**范围**：定义 `QueryProperties`、Provider/Stub mode 枚举及 DeepSeek 安全密钥配置类；绑定 topN、Context 预算、超时、DeepSeek 与 Stub 配置；实现单字段和跨字段校验；只增加配置绑定/校验所需依赖。
+**范围**：定义 `QueryProperties`、Provider/Stub mode 枚举及 DeepSeek 安全密钥配置类；绑定 topN、Context 预算、单一 request timeout、DeepSeek 与 Stub 配置；实现单字段和跨字段校验；注册不可变 `@ConfigurationProperties`；只增加配置处理器与校验所需依赖。
 **非目标**：不引入 Spring AI Anthropic 模块，不实现 Adapter、条件 Bean、Context、Prompt 或业务编排。
-**验收标准**：默认值和合法范围与配置契约一致；枚举大小写不敏感；Stub 模式不被 DeepSeek 配置阻断；DeepSeek 模式缺少 key 或存在非法 URL/model/temperature/max tokens/timeout 时启动失败；错误与 `toString()` 不泄露密钥。
-**验证方式**：运行 `./gradlew :crag-query:test :crag-app:test`，覆盖默认值、环境变量覆盖、合法/非法配置和密钥脱敏。
+**验收标准**：默认值和合法范围与配置契约一致；枚举大小写不敏感；Stub 模式不被 DeepSeek 配置阻断；DeepSeek 模式缺少 key 或存在非法 URL/model/temperature/max tokens/request timeout 时启动失败；错误与 `toString()` 不泄露密钥；仓库不存在声明后未被 SDK 消费的连接超时配置。
+**验证方式**：运行 `./gradlew :crag-query:test :crag-app:test`，由 `QueryPropertiesTest` 与应用 Context 测试覆盖默认值、`CRAG_QUERY_LLM_REQUEST_TIMEOUT` 环境变量覆盖、合法/非法配置、条件校验和密钥脱敏。
 **涉及文件**：`crag-query/build.gradle.kts`、`crag-query/src/main/**/llm/config/**`、`crag-query/src/test/**`、`crag-app/src/main/resources/application.yml`、`crag-app/src/test/**`
 
 ## 7.2 Parent Context、sources 与 Prompt 工程
@@ -395,10 +409,10 @@ CRAG_QUERY_LLM_STUB_MODE
 
 **目标**：通过 Spring AI 2 Anthropic 模型实现调用 DeepSeek V4 Flash 的 Anthropic 兼容 API。
 **前置任务**：7.3
-**范围**：按 `plan_13` 约定在 `crag-query` 独立导入 Spring AI BOM，并引入非 Starter 的 Anthropic model 模块；手动构造零重试 `AnthropicChatModel`；实现 `DeepSeekAnthropicLlmAdapter`、system/user Message 与 options 映射、Header/URL/超时、text/thinking/tool/generation/stop reason/usage 解析和失败分类；增加 JDK `HttpServer` 协议组件测试及去敏 fixture。
+**范围**：按 `plan_13` 约定在 `crag-query` 独立导入 Spring AI BOM，并引入非 Starter 的 `spring-ai-anthropic` 模块；使用 2.0.0 builder API 手动构造 `request-timeout=120s`、`maxRetries=0` 的 `AnthropicChatModel`；实现 `DeepSeekAnthropicLlmAdapter`、system/user Message 与 options 映射、Header/URL、text/thinking/tool/generation/stop reason/usage 解析和失败分类；增加 JDK `HttpServer` 协议组件测试及去敏 fixture。
 **非目标**：不实现自动重试、熔断、Fallback、流式生成、Advisor、Memory、工具调用或原始 HTTP 备选实现。
-**验收标准**：默认官方 URL、`deepseek-v4-flash`、temperature 0、max tokens 4096、thinking 默认开启；请求发送 `x-api-key` 和 `anthropic-version`；失败只请求一次；最终 text block 正确拼接，thinking 不泄露，tool/multi-generation/截断/空响应正确分类；Spring AI 类型不穿透边界。
-**验证方式**：运行 `./gradlew :crag-query:test :crag-app:test --tests '*ArchitectureTest'`；Mock `ChatModel` 验证 Adapter 映射，JDK `HttpServer` 验证真实协议请求与响应 fixture。
+**验收标准**：默认官方 URL、`deepseek-v4-flash`、temperature 0、max tokens 4096、thinking 使用供应商默认开启；请求发送 `x-api-key` 和 `anthropic-version`，且 JSON 中 model 精确为配置值；失败只请求一次；最终 text block 正确拼接，thinking 不泄露，tool/multi-generation/截断/空响应正确分类；Spring AI 类型不穿透边界。
+**验证方式**：运行 `./gradlew :crag-query:test :crag-app:test --tests '*ArchitectureTest'`；`DeepSeekAnthropicLlmAdapterTest` 使用 Fake/Mock `ChatModel` 验证 Spring AI 响应映射，`DeepSeekAnthropicProtocolComponentTest` 使用真实配置 Bean 与 JDK `HttpServer` 验证协议请求、fixture、request timeout 和零重试。
 **涉及文件**：`crag-query/build.gradle.kts`、`crag-query/src/main/**/llm/adapter/deepseek/**`、`crag-query/src/main/**/llm/config/**`、`crag-query/src/test/**`、`crag-app/src/test/**`
 
 ## 7.5 UserQueryService 编排、引用分析与日志
@@ -425,21 +439,21 @@ CRAG_QUERY_LLM_STUB_MODE
 
 **目标**：从正式 HTTP 入口证明确定性 Query 全链路可重复，并完成无真实凭据的运行配置、日志与文档收口。
 **前置任务**：7.1、7.2、7.3、7.4、7.5、7.6
-**范围**：Compose 环境变量、`.env.example`、application 配置、Stub 成功/失败脚本、AdminRag 唯一 runId 数据准备、索引等待、日志扫描、README 和 Docker 约束同步；归档并更新 `plan_main` 中的 LLM 韧性治理未来候选。
+**范围**：Compose 环境变量、创建 `.env.example`、application 配置、`query_stub_success_test.sh`、`query_stub_failure_test.sh`、AdminRag 唯一 runId 数据准备、索引等待、日志扫描、README 和 Docker 约束同步。LLM 韧性治理候选已在 Plan ready 前完成归档与 `plan_main` 更新，本任务不重复修改。
 **非目标**：不调用真实 DeepSeek，不新增 Smoke Controller，不以手工 curl 为唯一证据，不删除共享 volume。
-**验收标准**：Stub 成功回归确定断言固定 answer、reference、目标 parentChunkId 和 matchedChildIds；failure 返回 502/50201；配置覆盖生效但 HTTP 未知字段无法覆盖；默认日志不含问题/答案、Context、Prompt、parent 内容、密钥或 Header；README 说明 DEBUG 风险；全量检查通过。
-**验证方式**：运行 `./gradlew test`、`./gradlew check`；通过 Compose 执行 Query Stub 成功/失败脚本；运行 Plan 严格校验和 `git diff --check`。
-**涉及文件**：`docker-compose.yml`、`.env.example`、`scripts/tests/http/**`、`crag-app/src/main/resources/**`、`README.md`、`constraints/docker-structure.md`、`plan/plan_main.md`、`plan/plan_archive/2026-06-20-llm-resilience-candidate.md`、`plan/plan_7/plan_7.md`、`plan/index/README.md`
+**验收标准**：Stub 成功回归确定断言固定 answer、reference、目标 parentChunkId 和 matchedChildIds；failure 返回 502/50201 且脚本结束后恢复 success；配置覆盖生效但 HTTP 未知字段无法覆盖；默认日志不含问题/答案、Context、Prompt、parent 内容、密钥或 Header；README 说明 DEBUG 风险；全量检查通过。
+**验证方式**：运行 `./gradlew test`、`./gradlew check`；运行 `docker compose up -d --build app` 后执行 `bash scripts/tests/http/query_stub_success_test.sh` 与 `bash scripts/tests/http/query_stub_failure_test.sh`；再次执行成功脚本确认环境恢复；运行 Plan 严格校验和 `git diff --check`。
+**涉及文件**：`docker-compose.yml`、`.env.example`、`scripts/tests/http/query_stub_success_test.sh`、`scripts/tests/http/query_stub_failure_test.sh`、`crag-app/src/main/resources/application.yml`、`README.md`、`constraints/docker-structure.md`、`plan/plan_7/plan_7.md`、`plan/index/README.md`
 
 ## 7.8 真实 DeepSeek Anthropic API 验收
 
 **目标**：证明默认官方 DeepSeek Anthropic 兼容端点、模型、认证、thinking 响应和引用 Prompt 在真实服务上可用。
 **前置任务**：7.7
-**范围**：从宿主环境变量临时注入 `DEEPSEEK_API_KEY`，使用官方默认 base URL 和 `deepseek-v4-flash` 启动 Compose；写入唯一 runId 与不可猜测验证码；通过正式 Query API 验证答案、引用、sources、usage 与安全日志；记录脱敏的真实环境证据和无法清理时的数据残留范围。
+**范围**：创建 `query_deepseek_acceptance_test.sh`；从宿主环境变量临时注入 `DEEPSEEK_API_KEY`，使用官方默认 base URL 和 `deepseek-v4-flash` 重建 `app` 容器；写入唯一 runId 与不可猜测验证码；通过正式 Query API 验证答案、引用、sources、usage 与安全日志；记录脱敏的真实环境证据和无法清理时的数据残留范围；结束后恢复 Stub success 配置。
 **非目标**：不把凭据写入任何文件；不静默切换模型、地址、协议或 Stub；不逐字断言自然语言措辞；首次失败后不自动重试。
-**验收标准**：HTTP 200、`code=0`、answer 包含本次验证码且不是证据不足、至少一个合法有效引用、没有无效引用、目标 source 映射正确；日志显示 provider=deepseek、protocol=anthropic、实际 model 和 usage 可用性，且无完整响应、Prompt、Context、凭据或认证 Header。凭据、额度、网络、模型权限或官方协议不满足时任务和 Plan 按阻塞规范记录，不能完成，也不得切换模型。
-**验证方式**：通过 Compose 主动执行一次真实 DeepSeek 自动化验收；核对 HTTP 主证据与脱敏容器日志补充证据。首次失败时停止调用、保留证据并诊断，任何再次调用须经用户明确批准；最终运行 `./gradlew check`、`python3 scripts/validate_plans.py --strict --verify-git` 和 `git diff --check`。
-**涉及文件**：`scripts/tests/http/**`、`docker-compose.yml`、`.env.example`、`README.md`、`plan/plan_7/plan_7.md`、`plan/index/README.md`
+**验收标准**：HTTP 200、`code=0`、answer 包含本次验证码且不是证据不足、至少一个合法有效引用、没有无效引用、目标 source 映射正确；日志显示 provider=deepseek、protocol=anthropic、配置 model 和 usage 可用性，且无完整响应、Prompt、Context、凭据或认证 Header；验收后 `app` 恢复 Stub success。凭据、额度、网络、模型权限或官方协议不满足时任务和 Plan 按阻塞规范记录，不能完成，也不得切换模型。
+**验证方式**：确认 `DEEPSEEK_API_KEY` 非空后，通过 `bash scripts/tests/http/query_deepseek_acceptance_test.sh` 主动执行一次真实 DeepSeek 自动化验收；核对 HTTP 主证据与脱敏容器日志补充证据。首次失败时停止调用、保留证据并诊断，任何再次调用须经用户明确批准；最终运行 `./gradlew check`、`python3 scripts/validate_plans.py --strict --verify-git` 和 `git diff --check`。
+**涉及文件**：`scripts/tests/http/query_deepseek_acceptance_test.sh`、`docker-compose.yml`、`.env.example`、`README.md`、`plan/plan_7/plan_7.md`、`plan/index/README.md`
 
 ## 验收记录
 
@@ -472,3 +486,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-20 | 完成 plan_7 细节 grilling 并转为待开始 | 128 项设计问题全部收敛，前置计划均已完成 | 改用 DeepSeek Anthropic 兼容 API；新增随机 Context 边界、安全日志、协议测试和独立真实验收任务 7.8；整体任务变为 8 项 |
 | 2026-06-20 | 补充 7.8 执行授权与安全边界 | 用户确认凭据、少量费用、单次调用、失败停止、密钥注入、日志与测试数据策略 | 真实验收仅主动调用一次；失败后再次调用须明确批准；禁止持久化凭据和敏感证据 |
 | 2026-06-20 | 收口 usage 观测与方向归档 | ready 审查发现 LlmResult 与 UserQueryService usage 日志之间缺少数据通路，且 plan_main 技术方向变更缺少归档 | 新增供应商中立 LlmUsage；补充 LLM 韧性候选归档记录 |
+| 2026-06-20 | 对照仓库与官方协议补全执行接缝 | Spring AI 2.0.0 Anthropic 已基于官方 SDK，原双超时配置无法由计划指定的 builder 准确兑现；Docker 回归文件和恢复行为未固定 | 收敛为单一 request timeout；固定实现/测试/脚本文件；协议测试必须穿过真实配置 Bean；Stub/DeepSeek 回归结束后恢复默认成功模式 |
