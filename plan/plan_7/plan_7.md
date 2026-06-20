@@ -377,7 +377,7 @@ CRAG_QUERY_LLM_STUB_MODE
 
 ## 验收状态
 
-独立验收发现 7.7、7.8 的自动化脚本无法满足验收标准，Plan 已退回进行中。修复脚本并重新交接后，须由新的独立验收 session 重跑 Stub 成功、Stub 失败/恢复和真实 DeepSeek 验收。
+2026-06-21 新一轮独立验收仍发现 7.7、7.8 的自动化脚本无法满足验收标准，Plan 保持进行中。修复脚本、公开 DTO 不可变性与验收断言并重新交接后，须由新的独立验收 session 重跑 Stub 成功、Stub 失败/恢复和真实 DeepSeek 验收。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -471,6 +471,11 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-20 | Docker Compose / DeepSeek | `source ~/.zshrc; bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 执行环境拒绝从 `.zshrc` 读取密钥并向第三方服务发送本地业务数据；未发起真实调用。再次尝试前需用户在知悉数据外发风险后明确批准，且应先修复与 Stub 脚本同源的 parent ID/readiness 缺陷。 |
 | 2026-06-20 | macOS / Python 3 / Git | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check` | 通过 | 验收失败状态、进度和队列同步后严格 Plan 校验为 0 error；仅保留 24 个历史 Plan 兼容 warning。 |
 | 2026-06-20 | Docker Compose / Stub success | 正式 `POST /api/v1/query` 恢复检查 | 通过 | 失败脚本结束后等待应用稳定，正式 Query API 返回 HTTP 200、`code=0`，共享环境已恢复 Stub success。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test` | 通过 | `BUILD SUCCESSFUL`，34 个 actionable tasks，4 executed、30 up-to-date。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，约束、框架依赖、模块依赖、Spotless、测试和 Plan 校验通过；保留 24 个历史 Plan 兼容 warning。 |
+| 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error，Git whitespace 检查与三个 Query HTTP 脚本语法检查通过。 |
+| 2026-06-21 | 静态独立验收 | 审查 `d818f02` 与 Query HTTP 回归脚本 | 失败 | DeepSeek 脚本在索引轮询中最多调用真实模型 30 次，且失败后继续调用，违反单次调用与首次失败停止约束；答案断言由唯一验证码弱化为通用事实；目标 source 检查计算但未使用 reference/matchedChildIds 合法性；安全日志扫描未覆盖完整响应、Prompt、Context 或本次唯一内容；Query 轮询未记录 HTTP 状态。`AdminRagResponse` 的 List 字段未防御性复制，不满足 DTO 默认不可变约束。 |
+| 2026-06-21 | Docker Compose / Stub / DeepSeek | 三个 Query HTTP 回归 | 未执行 | 静态审查已发现阻断缺陷；尤其当前 DeepSeek 脚本可能产生多次付费调用并违反失败停止规则，因此本验收 session 未执行。修复并重新交接后由新的独立验收 session 执行。 |
 
 ## 阻塞记录
 
@@ -511,3 +516,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | 被 `plan_3.hotfix_7` 临时中断 | 全局依赖注入规范被错误反转，本 Plan 的 Service 与 Controller 受影响 | 保留 7.7/7.8 恢复点，Hotfix 完成后继续执行 |
 | 2026-06-21 | Hotfix 独立验收失败，中断继续 | `plan_3.hotfix_7` 的架构护栏、文件边界与 Docker HTTP 回归证据不满足完成门槛 | 继续保留 7.7/7.8 恢复点；等待 Hotfix 修正并通过新的独立验收 |
 | 2026-06-21 | `plan_3.hotfix_7` 验收通过，恢复执行 | Hotfix 的规范、代码、架构护栏与 Docker HTTP 回归均通过独立验收 | 中断解除，继续从 7.7/7.8 原恢复点执行 |
+| 2026-06-21 | plan_7 再次独立验收失败 | `d818f02` 修复了 parent ID 暴露、Compose 密钥映射和 readiness 误判，但 DeepSeek 脚本仍违反单次真实调用、首次失败停止与唯一验证码断言，source/日志断言也不完整；新增 HTTP DTO 未保持不可变 | Plan 保持 `in_progress`，7.7/7.8 保持进行中；修复后重新交接新的独立验收 session |
