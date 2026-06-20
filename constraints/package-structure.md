@@ -88,7 +88,11 @@ ai.cerbur.crag.retrieval.api
     └── EmbeddingException
 
 ai.cerbur.crag.query.api
-└── UserQueryService
+├── UserQueryService
+├── UserQueryResult
+├── QuerySource
+├── InvalidQueryException
+└── LlmUnavailableException
 ```
 
 `EmbeddingClient` 是 Retrieval 对外提供的能力契约。当前实现可以调用 HTTP Sidecar；未来可迁移为 RPC 或独立 SDK，但 `crag-ingestion` 只能依赖 `retrieval.api.embedding`，不得依赖具体传输实现。
@@ -149,7 +153,7 @@ ai.cerbur.crag.query.api
 ```text
 ai.cerbur.crag.common.dto.result
 ├── Response
-└── ResponseCode
+└── ResponseCode（含新增 LLM_UNAVAILABLE = 50201）
 ```
 
 ### `crag-storage`
@@ -188,8 +192,16 @@ ai.cerbur.crag.retrieval
 
 ```text
 ai.cerbur.crag.query
-├── api/                               — UserQueryService（跨模块公开入口）
-└── llm/                               — ChatClient 契约骨架
+├── api/                               — UserQueryService / UserQueryResult / QuerySource / InvalidQueryException / LlmUnavailableException（跨模块公开入口）
+├── context/                           — ContextBuilder / QueryContext / SourceBoundaryFactory（抗伪造边界与预算控制）
+├── prompt/                            — PromptBuilder（System/User Message 与不可信 Context 规则）
+├── reference/                         — ReferenceAnalyzer / ReferenceAnalysis（严格 [Sx] 引用统计）
+└── llm/
+    ├── contract/                      — LlmClient / LlmRequest / LlmResult / LlmUsage / LlmProviderException / LlmFailureCategory（供应商中立 LLM 契约）
+    ├── adapter/
+    │   ├── stub/                      — StubLlmAdapter（确定性测试替身）
+    │   └── deepseek/                  — DeepSeekAnthropicLlmAdapter（Spring AI 2.0.0 Anthropic 协议）
+    └── config/                        — QueryProperties / DeepSeekApiKey / QueryLlmConfiguration
 ```
 
 ### `crag-api`
