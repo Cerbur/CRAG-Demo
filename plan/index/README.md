@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-20 (plan_13 执行细节完成 grilling，保持待开始并细化为 5 项任务)
+> 最后更新：2026-06-20 (plan_13 二次 grilling 完成，保持待开始并收敛为 3 项原子任务)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -81,7 +81,7 @@ plan/
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
-| plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ⏳ 待开始 (0/5) | — | [plan_13.md](../plan_13/plan_13.md) |
+| plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ⏳ 待开始 (0/3) | — | [plan_13.md](../plan_13/plan_13.md) |
 
 ---
 
@@ -213,7 +213,7 @@ plan_13 → plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_13.md](../plan_13/plan_13.md) | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ⏳ 待开始 (0/5) |
+| [plan_13.md](../plan_13/plan_13.md) | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ⏳ 待开始 (0/3) |
 
 ---
 
