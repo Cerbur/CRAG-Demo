@@ -14,8 +14,7 @@ import ai.cerbur.crag.query.llm.contract.LlmResult;
  * <p>两种模式：
  *
  * <ul>
- *   <li>{@code SUCCESS}：当 {@code request.sourceCount() > 0} 时返回固定中文回答，usage 为 null； 当 {@code
- *       sourceCount <= 0} 时抛出 {@link IllegalArgumentException}。
+ *   <li>{@code SUCCESS}：返回固定中文回答，usage 为 null。
  *   <li>{@code FAILURE}：抛出 {@link LlmProviderException}，分类为 {@link LlmFailureCategory#UNKNOWN}。
  * </ul>
  *
@@ -36,12 +35,6 @@ public class StubLlmAdapter implements LlmClient {
   public LlmResult generate(LlmRequest request) throws LlmProviderException {
     if (mode == StubMode.FAILURE) {
       throw new LlmProviderException(LlmFailureCategory.UNKNOWN, "Stub failure mode", null);
-    }
-
-    // SUCCESS mode
-    if (request.sourceCount() <= 0) {
-      throw new IllegalArgumentException(
-          "sourceCount must be positive, got " + request.sourceCount());
     }
 
     return new LlmResult(FIXED_ANSWER, null);

@@ -50,7 +50,7 @@ class StubLlmAdapterTest {
     }
 
     @Test
-    @DisplayName("sourceCount = 1 时正常返回")
+    @DisplayName("sourceCount = 1 时正常返回（最小有效值）")
     void sourceCountOne() {
       var adapter = new StubLlmAdapter(propsWithMode(StubMode.SUCCESS));
       var result = adapter.generate(new LlmRequest("system", "user", 1));
@@ -58,21 +58,11 @@ class StubLlmAdapterTest {
     }
 
     @Test
-    @DisplayName("sourceCount = 0 抛出 IllegalArgumentException")
-    void sourceCountZero() {
+    @DisplayName("sourceCount = N (N > 1) 时正常返回")
+    void sourceCountGreaterThanOne() {
       var adapter = new StubLlmAdapter(propsWithMode(StubMode.SUCCESS));
-      assertThatThrownBy(() -> adapter.generate(new LlmRequest("system", "user", 0)))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("sourceCount");
-    }
-
-    @Test
-    @DisplayName("sourceCount 为负值抛出 IllegalArgumentException")
-    void sourceCountNegative() {
-      var adapter = new StubLlmAdapter(propsWithMode(StubMode.SUCCESS));
-      assertThatThrownBy(() -> adapter.generate(new LlmRequest("system", "user", -1)))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("sourceCount");
+      var result = adapter.generate(new LlmRequest("system", "user", 5));
+      assertThat(result.answer()).isEqualTo(FIXED_ANSWER);
     }
 
     @Test
