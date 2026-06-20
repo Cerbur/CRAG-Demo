@@ -508,3 +508,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-20 | 对照仓库与官方协议补全执行接缝 | Spring AI 2.0.0 Anthropic 已基于官方 SDK，原双超时配置无法由计划指定的 builder 准确兑现；Docker 回归文件和恢复行为未固定 | 收敛为单一 request timeout；固定实现/测试/脚本文件；协议测试必须穿过真实配置 Bean；Stub/DeepSeek 回归结束后恢复默认成功模式 |
 | 2026-06-20 | 独立验收失败，退回 7.7 与 7.8 | Stub 成功脚本跳过目标 parent 映射；Stub failure readiness 误判导致失败与恢复均未验证；真实调用未获执行环境批准 | Plan 退回 `in_progress`，修复自动化回归后重新交接独立验收 |
 | 2026-06-21 | 被 `plan_3.hotfix_7` 临时中断 | 全局依赖注入规范被错误反转，本 Plan 的 Service 与 Controller 受影响 | 保留 7.7/7.8 恢复点，Hotfix 完成后继续执行 |
+| 2026-06-21 | Hotfix 独立验收失败，中断继续 | `plan_3.hotfix_7` 的架构护栏、文件边界与 Docker HTTP 回归证据不满足完成门槛 | 继续保留 7.7/7.8 恢复点；等待 Hotfix 修正并通过新的独立验收 |
