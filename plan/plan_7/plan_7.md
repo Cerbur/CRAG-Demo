@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,14 +370,14 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 待验收 | bc08a15, ec1577c | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 待验收 | 5815de1, ec1577c | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 进行中 | bc08a15, ec1577c | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 进行中 | 5815de1, ec1577c | — |
 
 整体进度：6 / 8（75%）
 
 ## 验收状态
 
-2026-06-21 7.7/7.8 修复完成（ec1577c）：DeepSeek 脚本重构为零成本索引等待 + 单次调用、唯一验证码断言、ok_ref/ok_matched 判定、安全扫描全面覆盖；AdminRagResponse 添加防御性复制。已交接给独立验收 session，须重跑 Stub 成功、Stub 失败/恢复和真实 DeepSeek 验收。
+2026-06-21 独立复验确认 Stub 成功、Stub 失败/恢复及恢复后再次成功均通过，但 7.7/7.8 仍存在 DTO 不可变性与 DeepSeek 脚本控制流缺陷，Plan 已退回进行中。修复并重新交接后，须由新的独立验收 session 重跑完整门禁与一次真实 DeepSeek 验收。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -479,6 +479,11 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | macOS / Java 21 | `./gradlew test` | 通过 | `BUILD SUCCESSFUL`，34 个 actionable tasks，5 executed、29 up-to-date。 |
 | 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，约束、框架依赖、模块依赖、Spotless、测试和 Plan 校验通过；保留 24 个历史 Plan 兼容 warning。 |
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error；Git whitespace 检查与三个 Query HTTP 脚本语法检查通过。 |
+| 2026-06-21 | Docker Compose / Stub success | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | HTTP 200、`code=0`、固定 Stub answer、目标 parentChunkId、合法 reference 与非空 matchedChildIds 均通过。runId：`qs-1781981094-25040`；测试数据保留。 |
+| 2026-06-21 | Docker Compose / Stub failure + restore | `bash scripts/tests/http/query_stub_failure_test.sh` | 通过 | Failure 模式返回 HTTP 502、`code=50201`、`success=false`；恢复后正式 Query API 返回 HTTP 200、`code=0`。runId：`qf-1781981164-25477`。 |
+| 2026-06-21 | Docker Compose / Stub success after restore | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | 恢复后再次验证完整 Stub 成功链路，目标 source 映射通过。runId：`qs-1781981316-27339`；测试数据保留。 |
+| 2026-06-21 | 静态独立复验 | 审查 `ec1577c`、复现 DTO 可变性和 Shell `set -e` 控制流 | 失败 | `AdminRagResponse` 仅返回 `Collections.unmodifiableList` 视图，未复制传入列表；构造后修改原 `ArrayList` 会改变响应内容。DeepSeek 脚本以 JSON 可解析性伪造 HTTP 200，未读取 curl 的真实状态码；target source 的 Python 返回非零时，赋值命令在 `set -e` 下直接终止脚本，后续失败记录和 Stub 恢复不会执行。 |
+| 2026-06-21 | Docker Compose / DeepSeek | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | `DEEPSEEK_API_KEY` 已设置，但脚本仍有会导致唯一调用证据失真和失败后不恢复环境的阻断缺陷，因此未消耗本轮真实调用。 |
 
 ## 阻塞记录
 
@@ -521,3 +526,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | `plan_3.hotfix_7` 验收通过，恢复执行 | Hotfix 的规范、代码、架构护栏与 Docker HTTP 回归均通过独立验收 | 中断解除，继续从 7.7/7.8 原恢复点执行 |
 | 2026-06-21 | plan_7 再次独立验收失败 | `d818f02` 修复了 parent ID 暴露、Compose 密钥映射和 readiness 误判，但 DeepSeek 脚本仍违反单次真实调用、首次失败停止与唯一验证码断言，source/日志断言也不完整；新增 HTTP DTO 未保持不可变 | Plan 保持 `in_progress`，7.7/7.8 保持进行中；修复后重新交接新的独立验收 session |
 | 2026-06-21 | 修复 7.7/7.8 验收缺陷 | 脚本重构为 Stub 模式索引等待（零 DeepSeek 成本）+ DeepSeek 单次调用；答案断言恢复唯一验证码；target source 判定使用 ok_ref/ok_matched；安全扫描覆盖 Context/Prompt/验证码/响应泄露；AdminRagResponse 添加 Collections.unmodifiableList 防御性复制 | 修复后交接新的独立验收 session；DeepSeek 真实回归仍为单次调用 |
+| 2026-06-21 | plan_7 第三次独立验收失败 | Stub 三段回归通过；但 `AdminRagResponse` 未真正防御性复制，DeepSeek 脚本未读取真实 HTTP 状态且 `set -e` 会使 source 校验失败时跳过恢复 | Plan 退回 `in_progress`；使用 `List.copyOf` 固化 DTO，使用 curl `-w` 分离 body/status，并把预期非零校验放入 `if` 或临时关闭 errexit，确保所有退出路径恢复 Stub |
