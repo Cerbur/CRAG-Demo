@@ -31,3 +31,9 @@ crag:
     rerank-path: /rerank
     connect-timeout: 5s
     read-timeout: 30s
+
+  query:
+    llm:
+      provider: stub
+      stub:
+        mode: success
