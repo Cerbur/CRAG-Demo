@@ -63,5 +63,5 @@ crag:
 
 logging:
   level:
-    ai.cerbur.crag: DEBUG
+    ai.cerbur.crag: INFO
     org.springframework.web: INFO
