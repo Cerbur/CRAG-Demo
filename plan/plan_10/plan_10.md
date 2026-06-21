@@ -123,9 +123,11 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
   - 脚本停止 `db`，在限定时间内验证两个 App readiness 为 HTTP 503、liveness 为 HTTP 200、Compose 状态为 unhealthy；恢复 `db` 后验证状态重新为 healthy。
   - 脚本通过正式 AdminRag HTTP 写入唯一文档，普通 down/up 后以只读 SQL 确认文档仍存在。
 - 既有业务回归：
+  - readiness 专用脚本结束并清理服务后，执行 `docker compose --profile smoke up -d --build --wait`，重新启动默认与 Smoke App 并等待健康。
   - `bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`
   - `bash scripts/tests/http/smoke_default_test.sh http://localhost:8080`
   - `bash scripts/tests/http/smoke_endpoints_test.sh http://localhost:8081`
+  - 三条既有业务回归结束后执行普通 `docker compose down`，不使用 `-v`。
 - 最终工程校验：
   - `./gradlew check`
   - `python3 scripts/validate_constraints.py`
@@ -235,13 +237,15 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 1. 更新 `constraints/docker-structure.md`：记录 App liveness/readiness、Compose healthcheck 参数和 `curl`；删除“App 尚无正式健康检查”的已知偏差。
 2. 更新 `constraints/package-structure.md`：将 Smoke 激活示例统一为 `docker compose --profile smoke up -d --build app-smoke`，不再描述为覆盖默认 App 的 `SPRING_PROFILES_ACTIVE`。
 3. 更新中文 README：说明默认健康等待、正式健康端点、双 App 并存、Smoke 命令、端口和故障诊断入口。
-4. 执行 readiness 专用脚本、既有 AdminRag/默认 Smoke/Smoke 端点回归和最终工程校验，记录环境、命令、结果与摘要。
+4. 执行 readiness 专用脚本；该脚本最终清理服务后，使用 `docker compose --profile smoke up -d --build --wait` 重新启动默认与 Smoke App。
+5. 在两个 App 健康后执行既有 AdminRag、默认 Smoke 和 Smoke 端点回归；回归结束后执行普通 `docker compose down`，不使用 `-v`。
+6. 执行最终工程校验，记录环境、命令、结果与摘要。
 
 **非目标**：不修改运行时代码、Compose 或 Dockerfile；不重写项目介绍、API 文档或测试分类；不运行真实 DeepSeek；不清理持久化数据。
 
 **验收标准**：README 可指导默认与 Smoke App 同时启动并定位正式健康端点；两份约束准确描述最终实现且无受控偏差残留；既有正式与 Smoke HTTP 回归通过；Gradle、约束、Plan 和 diff 校验全部通过。
 
-**验证方式**：运行 `bash scripts/tests/http/docker_readiness_test.sh`、`bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`、`bash scripts/tests/http/smoke_default_test.sh http://localhost:8080`、`bash scripts/tests/http/smoke_endpoints_test.sh http://localhost:8081`、`./gradlew check`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict`、`rg -n '/actuator/health|app-smoke|尚无正式健康检查' README.md constraints plan/plan_10/plan_10.md` 和 `git diff --check`；预期脚本与工程校验全部通过，检索只保留符合当前实现的表述。
+**验证方式**：依次运行 `bash scripts/tests/http/docker_readiness_test.sh`、`docker compose --profile smoke up -d --build --wait`、`bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`、`bash scripts/tests/http/smoke_default_test.sh http://localhost:8080`、`bash scripts/tests/http/smoke_endpoints_test.sh http://localhost:8081`、`docker compose down`、`./gradlew check`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict`、`rg -n '/actuator/health|app-smoke|尚无正式健康检查' README.md constraints plan/plan_10/plan_10.md` 和 `git diff --check`；预期 Compose 重启并等待健康后，三条既有 HTTP 回归与工程校验全部通过，检索只保留符合当前实现的表述。
 
 **涉及文件**：`constraints/docker-structure.md`、`constraints/package-structure.md`、`README.md`、`plan/plan_10/plan_10.md`、`plan/index/README.md`
 
@@ -272,3 +276,4 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 2026-06-19 | 增加 Plan 7 前置并收窄 Smoke 职责 | Query/LLM 配置影响部署契约，Smoke 机制由 Plan 9 交付 | 执行顺序调整为 Plan 9 → Plan 7 → Plan 10 |
 | 2026-06-21 | 解除 Plan 7 前置阻塞 | Plan 7 第七次独立验收通过 | Plan 恢复为 draft，等待最终校准 |
 | 2026-06-21 | 按批准设计收缩范围并转为 ready | Plan 12 已完成 Docker 约束治理；剩余真实缺口为 App 正式健康检查、Compose 就绪链和部署验收 | 任务重排为 3 项；新增 Actuator probes、双 App 并存、故障恢复和持久化自动验收；可开始执行 10.1 |
+| 2026-06-21 | 补齐最终业务回归的 Compose 生命周期 | readiness 专用脚本按设计在结束时清理服务，原 10.3 命令序列未在既有 HTTP 回归前重新启动服务 | 明确以 Smoke Profile 重启并等待默认与 Smoke App 健康，完成三条回归后普通 down |
