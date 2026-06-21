@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: ready
+status: verifying
 created: 2026-06-19
 updated: 2026-06-21
 ---
@@ -139,9 +139,9 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 10.1 | 接入 Actuator 正式健康能力 | ⏳ 待开始 | — | — |
-| 10.2 | 建立 Compose readiness 与自动化故障回归 | ⏳ 待开始 | — | — |
-| 10.3 | 同步部署文档并完成全量验收 | ⏳ 待开始 | — | — |
+| 10.1 | 接入 Actuator 正式健康能力 | ✅ 待验收 | c36658e | — |
+| 10.2 | 建立 Compose readiness 与自动化故障回归 | ✅ 待验收 | 2e6bf86 | — |
+| 10.3 | 同步部署文档并完成全量验收 | ✅ 待验收 | 8b264ad | — |
 
 整体进度：0 / 3（0%）
 
@@ -253,6 +253,16 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-21 | macOS, Docker Compose | `./gradlew :crag-app:test --tests '*ApplicationHealthComponentTest'` | ✅ 通过 | 4 个健康端点组件测试全部通过 |
+| 2026-06-21 | macOS, Docker Compose | `./gradlew :crag-app:test --tests '*ArchitectureTest'` | ✅ 通过 | 架构边界无回归 |
+| 2026-06-21 | macOS, Docker Compose | `bash scripts/tests/http/docker_readiness_test.sh` | ✅ 通过 | 配置校验、健康端点、双 App 并存、故障恢复、持久化全部通过 |
+| 2026-06-21 | macOS, Docker Compose | `bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080` | ✅ 通过 | AdminRag 写入契约正常 |
+| 2026-06-21 | macOS, Docker Compose | `bash scripts/tests/http/smoke_default_test.sh http://localhost:8080` | ✅ 通过 | 默认模式不暴露 Smoke 端点 |
+| 2026-06-21 | macOS, Docker Compose | `bash scripts/tests/http/smoke_endpoints_test.sh http://localhost:8081` | ✅ 通过 | Smoke 诊断端点正常 |
+| 2026-06-21 | macOS, Docker Compose | `./gradlew check` | ✅ 通过 | 全量 Gradle 校验通过 |
+| 2026-06-21 | macOS, Docker Compose | `python3 scripts/validate_constraints.py` | ✅ 通过 | 0 error |
+| 2026-06-21 | macOS, Docker Compose | `python3 scripts/validate_plans.py --strict --verify-git` | ✅ 通过 | 0 error, 24 warning（历史 Plan） |
+| 2026-06-21 | macOS, Docker Compose | `git diff --check` | ✅ 通过 | 无空白问题 |
 
 ## 阻塞记录
 
