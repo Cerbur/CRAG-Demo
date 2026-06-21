@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-19
-updated: 2026-06-21
+updated: 2026-06-22
 ---
 
 # plan_10 — Docker 正式健康检查与部署验收
@@ -139,11 +139,11 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 10.1 | 接入 Actuator 正式健康能力 | ✅ 待验收 | c36658e | — |
-| 10.2 | 建立 Compose readiness 与自动化故障回归 | ✅ 待验收 | 2e6bf86 | — |
-| 10.3 | 同步部署文档并完成全量验收 | ✅ 待验收 | 8b264ad | — |
+| 10.1 | 接入 Actuator 正式健康能力 | ✅ 完成 | c36658e | 2026-06-22 |
+| 10.2 | 建立 Compose readiness 与自动化故障回归 | 🚧 进行中 | 2e6bf86 | — |
+| 10.3 | 同步部署文档并完成全量验收 | 🚧 进行中 | 8b264ad | — |
 
-整体进度：0 / 3（0%）
+整体进度：1 / 3（33%）
 
 ## 10.1 接入 Actuator 正式健康能力
 
@@ -263,6 +263,7 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 2026-06-21 | macOS, Docker Compose | `python3 scripts/validate_constraints.py` | ✅ 通过 | 0 error |
 | 2026-06-21 | macOS, Docker Compose | `python3 scripts/validate_plans.py --strict --verify-git` | ✅ 通过 | 0 error, 24 warning（历史 Plan） |
 | 2026-06-21 | macOS, Docker Compose | `git diff --check` | ✅ 通过 | 无空白问题 |
+| 2026-06-22 | macOS, Docker Compose | 独立验收：组件/架构测试、约束与 Plan 校验、Compose 配置、`docker_readiness_test.sh` | ❌ 未通过 | 功能断言最终通过，但停库后的 readiness 使用固定等待后无超时单次 `curl`；两个请求各阻塞约 60 秒，未实现计划要求的有上限轮询，存在脚本无界挂起风险。失败清理还会先 `down` 再读取日志，无法可靠保留故障证据。10.1 验收通过；10.2、10.3 退回执行。 |
 
 ## 阻塞记录
 
@@ -287,3 +288,4 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 2026-06-21 | 解除 Plan 7 前置阻塞 | Plan 7 第七次独立验收通过 | Plan 恢复为 draft，等待最终校准 |
 | 2026-06-21 | 按批准设计收缩范围并转为 ready | Plan 12 已完成 Docker 约束治理；剩余真实缺口为 App 正式健康检查、Compose 就绪链和部署验收 | 任务重排为 3 项；新增 Actuator probes、双 App 并存、故障恢复和持久化自动验收；可开始执行 10.1 |
 | 2026-06-21 | 补齐最终业务回归的 Compose 生命周期 | readiness 专用脚本按设计在结束时清理服务，原 10.3 命令序列未在既有 HTTP 回归前重新启动服务 | 明确以 Smoke Profile 重启并等待默认与 Smoke App 健康，完成三条回归后普通 down |
+| 2026-06-22 | 第一次独立验收未通过 | 停库阶段未按计划实现有上限 readiness 轮询，宿主机 `curl` 无请求超时，且失败清理在读取日志前执行 `down`；实测两个 readiness 请求各阻塞约 60 秒 | 10.1 标记完成；10.2、10.3 与 Plan 退回 `in_progress`，修复有界轮询、请求超时和失败证据保留后重新交接独立验收 |
