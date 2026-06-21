@@ -377,7 +377,7 @@ CRAG_QUERY_LLM_STUB_MODE
 
 ## 验收状态
 
-2026-06-21 第四次独立验收确认 DTO 防御性复制与真实 HTTP 状态读取已修复，但 DeepSeek 脚本的 target source 正则错误地匹配字面量 `$`，正常 `S1` 永远无法通过；恢复流程还会在 readiness 确认前把 `_STUB_RESTORED` 标记为 1，使 EXIT trap 无法在恢复失败时补救。由于当前脚本即使真实调用成功也会必然判失败，且不能保证所有退出路径恢复 Stub，本轮未消耗真实调用，Plan 已退回进行中。
+2026-06-21 第五次独立验收确认 source 正则与 Phase 6 正常恢复路径已修复，但其他提前退出路径仍会在恢复 readiness 未确认或被 `|| true` 忽略后无条件设置 `_STUB_RESTORED=1`，导致 EXIT trap 无法补救。提交 `02fc812` 也未回填到 7.7/7.8，Plan 未转为 `verifying`，索引验收队列为空，不满足独立验收交接门槛。本轮未消耗真实调用，Plan 保持进行中。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -496,6 +496,10 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，54 个 actionable tasks，4 executed、50 up-to-date；约束、依赖、Spotless、测试与 Plan 校验通过。 |
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_deepseek_acceptance_test.sh` | 通过 | Plan 严格校验 0 error；Git whitespace 与脚本语法检查通过。 |
 | 2026-06-21 | 静态修复 | 修正 source 正则与 EXIT trap 恢复状态 | 通过 | `r'^S\d+\$'` → `r'^S\d+$'`，移除多余反斜杠使 `S1` 等合法 reference 通过校验；Phase 6 `_STUB_RESTORED=1` 移至 `wait_for_app` 与 stub query 双确认成功后，失败分支 EXIT trap 保持可触发。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks，全部 up-to-date；`check`：54 个 actionable tasks，4 executed、50 up-to-date。 |
+| 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与三个 Query 脚本语法检查通过。 |
+| 2026-06-21 | 静态独立验收 | 审查 `02fc812` 与 Plan 交接状态 | 失败 | source 正则已正确匹配 `S1`；但 stub readiness、AdminRag 失败、索引超时和 DeepSeek readiness 失败分支仍在恢复验证未成功或被忽略后设置 `_STUB_RESTORED=1`，EXIT trap 会被短路。7.7/7.8 未回填 `02fc812`、未转待验收，Plan 仍为 `in_progress`，验收队列为空。 |
+| 2026-06-21 | Docker Compose / DeepSeek | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 尚未满足可靠恢复与 workflow v3 验收交接门槛；为避免消耗唯一真实调用后无法安全恢复，本轮未发起真实 DeepSeek 调用。 |
 
 ## 阻塞记录
 
@@ -541,3 +545,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | plan_7 第三次独立验收失败 | Stub 三段回归通过；但 `AdminRagResponse` 未真正防御性复制，DeepSeek 脚本未读取真实 HTTP 状态且 `set -e` 会使 source 校验失败时跳过恢复 | Plan 退回 `in_progress`；使用 `List.copyOf` 固化 DTO，使用 curl `-w` 分离 body/status，并把预期非零校验放入 `if` 或临时关闭 errexit，确保所有退出路径恢复 Stub |
 | 2026-06-21 | 修复 DTO 不可变性与脚本控制流缺陷 | `347ad19`：`AdminRagResponse` compact constructor 改用 `List.copyOf` 防御性复制，删除只读视图自定义 accessor，新增不可变性单元测试；DeepSeek 脚本使用 `curl -w` 获取真实 HTTP 状态并在 Phase 3 显式断言 200，Phase 4 target source 检查以 `if`/`else` 安全捕获退出码，新增 `trap restore_stub_on_exit EXIT` 保证所有退出路径恢复 Stub | Plan 状态改为 `verifying`；7.7/7.8 改为待验收；交接给新的独立验收 session |
 | 2026-06-21 | plan_7 第四次独立验收失败 | `347ad19` 修复了 DTO 不可变性、HTTP 状态读取和 `set -e` 捕获，但 target source 正则把结束锚点写成字面量 `$`；恢复标志又在 readiness 验证前置为完成，EXIT trap 无法保证失败补救 | Plan 退回 `in_progress`；修正 reference 正则并让恢复完成标志只在 readiness 与 Stub Query 均确认后设置，失败时保留 trap 补救能力 |
+| 2026-06-21 | plan_7 第五次独立验收失败 | `02fc812` 修正了 source 正则和 Phase 6 标志位置，但未覆盖其他提前退出分支；实现提交也未按 workflow v3 回填并交接待验收 | 所有恢复分支必须仅在 readiness 与 Stub Query 均确认后标记恢复完成；随后回填 `02fc812` 及后续修复 hash，将 7.7/7.8 与 Plan 转为待验收并同步验收队列 |
