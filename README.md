@@ -24,6 +24,8 @@ docker compose up -d --build
 
 等待健康检查通过（约 90 秒，首次需下载模型约 2 分钟）。
 
+> 💡 Compose 会等待 `db`、`sidecar` 和 `app` 全部健康后才就绪。`app` 使用 Spring Boot Actuator readiness 端点（`/actuator/health/readiness`）判断是否可服务。
+
 ### 写入知识 + 发起问答
 
 ```bash
@@ -42,8 +44,30 @@ curl -X POST http://localhost:8080/api/v1/query \
 ```
 
 > 💡 默认使用 **Stub 模式**，无需任何 API Key 即可跑通全链路。想接入真实 LLM？设置 `CRAG_QUERY_LLM_PROVIDER=deepseek` 并配置相关环境变量即可（详见 `.env.example`）。
->
-> 也可以启动 Smoke 诊断模式验证全链路：`docker compose --profile smoke up -d --build app-smoke`，然后 `curl http://localhost:8081/api/v1/test/smoke`。
+
+### 健康检查
+
+| 端点 | 说明 | 默认暴露 |
+| --- | --- | --- |
+| `/actuator/health` | 整体健康状态 | ✅ |
+| `/actuator/health/liveness` | JVM/Spring 存活（不检查数据库） | ✅ |
+| `/actuator/health/readiness` | 应用 + 数据库可服务状态 | ✅ |
+| `/actuator/env` 等 | 管理端点 | ❌ 不暴露 |
+
+### Smoke 诊断模式
+
+Smoke 模式提供分阶段诊断端点，可与默认 App 同时运行：
+
+```bash
+# 启动 Smoke App（端口 8081）
+docker compose --profile smoke up -d --build app-smoke
+
+# 验证全链路
+curl http://localhost:8081/api/v1/test/smoke
+
+# 默认 App 仍在 8080 正常服务
+curl http://localhost:8080/actuator/health
+```
 
 ## 🗺️ 全链路架构
 

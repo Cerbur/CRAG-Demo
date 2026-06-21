@@ -139,7 +139,7 @@ ai.cerbur.crag.query.api
 
 - Controller 和相关 Bean 必须统一受 `@Profile("smoke")` 限制。
 - 默认应用启动不得暴露 `/api/v1/test/**`。
-- 只允许通过显式 smoke Docker Compose 启动方式激活，例如设置 `SPRING_PROFILES_ACTIVE=smoke`。
+- 只允许通过显式 smoke Docker Compose 启动方式激活：`docker compose --profile smoke up -d --build app-smoke`。
 - 允许直接调用 DAO、Sparse/Dense/RRF/Rerank 等内部组件，但每个端点必须明确标注验证阶段。
 - 禁止在冒烟端点中实现正式业务规则，禁止被正式 API 复用。
 - 单元测试仍保留在各业务模块；`crag-smoke` 不替代单元测试或正式 API 的端到端测试。

@@ -153,6 +153,9 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 数据库连接 | `jdbc:postgresql://db:5432/crag_demo`（通过 Compose 服务名） |
 | Sidecar 连接 | `http://sidecar:8001`（Embedding + Rerank，通过 Compose 服务名） |
 | 就绪条件 | `db` 健康 且 `sidecar` 健康 |
+| 健康检查 | `curl --fail --silent --show-error http://localhost:8080/actuator/health/readiness`，间隔 10s，超时 5s，重试 12 次，启动宽限期 30s |
+| Actuator | 只暴露 `health`；liveness 仅含 `livenessState`；readiness 含 `readinessState,db`；`show-details=never` |
+| 运行镜像工具 | 显式安装 `curl`（健康检查探针使用） |
 | 网络 | `crag-net` |
 
 ### 5.5 `app-smoke` — Spring Boot 应用（Smoke 诊断模式）
@@ -166,6 +169,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | Profile | `SPRING_PROFILES_ACTIVE=smoke`（显式激活诊断端点） |
 | 其他配置 | 数据库与 Sidecar 连接同 `app` |
 | 就绪条件 | `db` 健康 且 `sidecar` 健康 |
+| 健康检查 | 与 `app` 相同（同一镜像、同一正式健康端点） |
 | Compose Profile | `smoke`（不随默认 `docker compose up` 启动） |
 | Query 环境变量 | `CRAG_QUERY_LLM_PROVIDER`（stub）、`CRAG_QUERY_LLM_STUB_MODE`（success）<br>DeepSeek（可选，provider=deepseek 时须设置）：`DEEPSEEK_API_KEY`、`CRAG_QUERY_LLM_DEEPSEEK_BASE_URL`、`CRAG_QUERY_LLM_DEEPSEEK_MODEL`、`CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE`、`CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS`、`CRAG_QUERY_LLM_REQUEST_TIMEOUT` |
 | 网络 | `crag-net` |
@@ -179,9 +183,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 
 ## 六、已知偏差
 
-| 偏差 | 受控边界 | 退出条件 |
-| --- | --- | --- |
-| `app` 与 `app-smoke` 尚无正式健康检查，Compose 不检查 `app`/`app-smoke` 健康状态 | 当前 Compose `app`/`app-smoke` 的 `depends_on` 仅等待 `db` 和 `sidecar`，未声明自身 `healthcheck` | `plan_10` 接入 Spring Boot 正式健康能力并为 `app`/`app-smoke` 增加 Compose 健康检查 |
+无。`plan_10` 已完成 Actuator 健康端点和 Compose healthcheck 接入。
 
 ## 七、维护与自动校验
 
