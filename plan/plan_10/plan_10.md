@@ -2,161 +2,248 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: draft
+status: ready
 created: 2026-06-19
 updated: 2026-06-21
 ---
 
-# plan_10 — Docker 部署契约升级与实现对齐
+# plan_10 — Docker 正式健康检查与部署验收
 
 ## 背景与目标
 
-当前 `constraints/docker-structure.md` 只列出 `docker-compose.yml`、`Dockerfile` 和两个主要服务，未覆盖实际存在的 `model-init`、Python Sidecar、模型缓存、服务依赖、健康检查、配置注入、Smoke 启动方式和验收门槛。它更接近不完整的文件索引，无法作为部署变更的项目级约束，也已经与当前 Compose 实现和测试工作流产生漂移。
+CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smoke`、PostgreSQL、模型初始化、Python Sidecar、非 root 运行和本地持久化。`plan_7` 已完成 Query/LLM 配置，`plan_9` 已完成 Smoke 隔离，`plan_12` 已将 `constraints/docker-structure.md` 重写为部署硬约束、当前实现索引和已知偏差。
 
-本计划在 `plan_9` 完成模块边界与 `crag-smoke` 落地、`plan_7` 完成 Query/LLM 部署需求后，将 Docker 文档升级为面向本地开发、测试和 Demo 的部署契约，区分长期硬约束、当前实现索引和已知偏差；同时补齐正式应用健康检查、构建与运行约束，并让 Compose、Dockerfile 与 README 保持一致。
+当前剩余缺口集中在 Spring Boot 应用本身：`app` 与 `app-smoke` 没有正式健康检查，Compose 只能等待数据库和 Sidecar，不能判断应用是否真正可服务；Plan 10 草稿仍包含 Plan 12 已完成的治理范围，且部分 Smoke 启动描述与当前 `app-smoke` Compose Profile 实现不一致。
+
+本计划不再重复全面 Docker 文档治理，而是完成三个结果：
+
+1. 通过 Spring Boot Actuator 建立最小暴露面的 liveness/readiness 健康能力。
+2. 让 `app` 与 `app-smoke` 使用 readiness 进入 Compose 健康状态，并支持二者同时运行。
+3. 以自动化 Docker 回归证明默认/Smoke 模式、数据库故障恢复和持久化行为，并同步唯一事实文档。
 
 ## 范围
 
-- 将 Docker 文档从文件清单升级为本地开发、测试和 Demo 部署契约。
-- 定义服务职责、依赖顺序、网络访问、端口、健康检查、配置注入、持久化、镜像构建、安全和验收规则。
-- 验证并文档化 `plan_9` 已建立的单 Compose Smoke 切换机制，不重复设计第二套机制。
-- 为 Spring Boot 应用提供不依赖诊断端点的正式健康检查，并纳入 Compose 就绪判断。
-- 对齐 `docker-compose.yml`、应用与 Sidecar Dockerfile、忽略规则和必要的环境变量示例。
-- 同步中文 README 与受影响的部署说明；测试分类和触发规则继续路由到 `constraints/test-workflow.md`。
-- 分别完成默认模式和 Smoke 模式的 Docker Compose 验收。
+- 在 `crag-app` 接入 Spring Boot Actuator，只暴露 `health`。
+- 建立 `/actuator/health/liveness` 与 `/actuator/health/readiness`。
+- liveness 只反映 JVM/Spring 存活；readiness 反映 Spring 应用与数据库可服务状态。
+- 为 `app` 与 `app-smoke` 增加相同的 Compose readiness healthcheck。
+- 在应用运行镜像中显式安装健康检查所需的 `curl`，不依赖基础镜像隐含工具。
+- 保持 `app:8080` 与 `app-smoke:8081` 可同时运行。
+- 保持 `db:5432` 与 `sidecar:8001` 对宿主机开放，用于本地学习和诊断。
+- 新增自动化 Docker readiness 回归脚本，覆盖健康端点、最小暴露面、双 App 并存、数据库故障恢复和 bind mount 持久化。
+- 同步 README、Docker 约束、Smoke 包结构说明和计划索引。
 
 ## 非目标
 
-- 不提供生产可直接使用的部署方案，不引入 Kubernetes、Helm、云服务编排或高可用配置。
-- 不拆分第二份长期维护的 Compose 文件。
-- 不改变 Retrieval、Embedding、Rerank 或 Query 的业务算法与 HTTP 协议。
-- 不更换 PostgreSQL、pgvector、Java、Python 或模型供应方案。
-- 不将 Demo 默认凭据包装为生产密钥管理方案。
-- 不删除本地数据库或模型缓存，不以清理持久化数据作为常规验收步骤。
+- 不新增业务健康 Controller。
+- 不在健康检查中执行 Retrieval、Embedding、Rerank、LLM 或其他业务请求。
+- 不将 Sidecar 可用性纳入 App readiness；Sidecar 继续由自身 `/health` 和 Compose healthcheck 独立判断。
+- 不改变 Query、Retrieval、Embedding、Rerank、Sidecar 或正式 HTTP API 协议。
+- 不新增第二份 Compose 文件，不用环境变量覆盖默认 `app` 来模拟 Smoke 模式。
+- 不引入 Kubernetes、Helm、高可用、生产密钥管理、生产监控或生产部署承诺。
+- 不增加资源限制、只读根文件系统、镜像 digest 等生产级加固。
+- 不删除、重建或清空 `data/pgdata/` 与 `.models/modelscope/`。
 
 ## 前置依赖
 
-- **执行前置 Plan**：`plan_9`、`plan_7`
-- `plan_9` 必须完成，由其先落地 `crag-api`、`crag-smoke`、默认禁用诊断端点及显式 Smoke Profile 装配。
-- `plan_7` 必须完成，由其先落地 Spring AI、DeepSeek/Stub 配置、环境变量和 Query HTTP 回归。
-- `plan_7` 的当前上游顺序为 `plan_6.hotfix_6 → plan_13 → plan_7`；本计划不重复声明传递依赖，但转为 `ready` 时必须读取这些计划的最终事实。
-- `plan_10` 在 `plan_9` 与 `plan_7` 完成前保持 `draft`，不得与二者并行修改共享 Docker、配置或 README 文件。
-- 转为 `ready` 前重新读取 `plan_9` 与 `plan_7` 的最终提交和验收记录，并按实际模块名、配置、健康端点与启动方式校准本计划。
+- **执行前置 Plan**：`plan_7`、`plan_9`、`plan_12`
+- `plan_7` 已完成 Stub/DeepSeek Query 配置、正式 UserQuery API 和 Query HTTP 回归。
+- `plan_9` 已完成 `crag-api`、`crag-smoke`、默认禁用诊断端点及 `app-smoke` Compose Profile。
+- `plan_12` 已完成 Docker 当前事实、服务索引、受控偏差和机械防漂移校验。
+- 三项执行前置 Plan 均已完成；本计划不存在外部执行阻塞。
 
 ## 文件边界
 
-- `constraints/docker-structure.md`
-- `constraints/package-structure.md`
-- `docker-compose.yml`
-- `Dockerfile`
-- `.dockerignore`
-- `.gitignore`
-- `.env.example`（仅在需要说明可配置项时新增）
-- `sidecar/Dockerfile`
-- `sidecar/.dockerignore`
 - `crag-app/build.gradle.kts`
 - `crag-app/src/main/resources/application.yml`
-- `crag-app/src/test/**`
+- `crag-app/src/test/java/ai/cerbur/crag/app/ApplicationHealthComponentTest.java`（新增）
+- `Dockerfile`
+- `docker-compose.yml`
+- `scripts/tests/http/docker_readiness_test.sh`（新增）
+- `constraints/docker-structure.md`
+- `constraints/package-structure.md`
 - `README.md`
 - `plan/plan_10/plan_10.md`
 - `plan/index/README.md`
 
-若 `plan_9` 或 `plan_7` 完成后模块、配置或健康检查路径变化，转为 `ready` 前按最终实现更新本节，不保留失效路径。
+本计划不修改 Sidecar 源码、Sidecar Dockerfile、业务模块源码、数据库 schema、`.env.example` 或既有业务 HTTP 回归脚本。
 
 ## 关键决策
 
-- 本部署契约只覆盖本地开发、自动化测试、手工联调和 Demo，不承诺生产适用性。
-- 默认入口保持 `docker compose up -d --build`，必须完整编排 `db`、`model-init`、`sidecar` 和 `app`，不得要求用户预先手工运行模型下载脚本。
-- 允许按服务启动用于诊断，但局部启动不构成完整部署验收。
-- 只维护一个 `docker-compose.yml`。沿用并验证 `plan_9` 交付的 Smoke 显式激活方式；本计划不重新定义 Profile 机制。
-- 文档分为“架构硬约束”“当前实现索引”“已知偏差”三类；服务名、端口和镜像标签属于当前实现索引，依赖方向、健康检查、非 root、配置注入和持久化边界属于硬约束。
-- 本地数据库数据继续持久化到 `data/pgdata/`，模型缓存继续持久化到 `.models/modelscope/`；实际数据不得进入 Git 或 Docker build context。
-- Demo 默认数据库凭据可以保留，但必须标注仅供本地和 Demo 使用；真实密钥不得写入 Compose，新增敏感项通过环境变量注入。
-- `app:8080`、`sidecar:8001` 和 `db:5432` 默认暴露给宿主机用于本地访问和诊断；容器间调用必须使用 `db`、`sidecar` 等 Compose 服务名，不得绕经 `localhost` 或宿主机映射端口。
-- `db`、`sidecar`、`app` 等长期运行服务必须具有验证真实可服务状态的健康检查；`model-init` 以成功退出作为就绪条件，不伪造健康检查。
-- 启动关系固定为 `model-init` 成功后启动 `sidecar`，`db` 与 `sidecar` 健康后启动 `app`。
-- `app` 使用独立正式健康端点，不得依赖 `/api/v1/test/**` 或其他 Smoke 诊断端点。
-- 基础镜像不得使用 `latest`；当前阶段固定明确发行标签，不强制 digest。应用继续使用多阶段构建，运行镜像不得包含 JDK、源码或构建缓存。
-- `app` 和 `sidecar` 默认以非 root 用户运行；一次性 `model-init` 只有在共享模型目录写权限确有需要时才可显式使用 root，并必须保留原因说明。
-- Compose 只通过环境变量覆盖部署配置，不复制或挂载修改后的 `application.yml`、源码或 Jar 来掩盖镜像内容。
-- 新增服务依赖时，必须同时处理配置项、Compose 网络、启动依赖、健康检查和验收方式。
-- 未来如需生产部署，必须建立独立部署方案；不得把生产差异隐式塞入默认 Demo Compose。
+- 使用 Spring Boot Actuator 正式健康能力，不新增业务 Controller。
+- Actuator Web 只暴露 `health`，`show-details` 固定为 `never`；`env`、`beans`、`configprops`、`metrics` 等端点不得对外暴露。
+- 启用 Actuator probes：
+  - liveness group 只包含 `livenessState`。
+  - readiness group 明确包含 `readinessState` 与 `db`。
+- 数据库不可用时 readiness 必须失败；liveness 必须保持成功。数据库恢复后 readiness 必须无需重建 App 镜像即可恢复。
+- App readiness 不访问 Sidecar。Sidecar 首次模型下载、模型加载和运行状态继续由 `model-init` 成功退出与 Sidecar `/health` 负责。
+- Compose 健康检查固定调用容器内 `http://localhost:8080/actuator/health/readiness`。
+- 为避免依赖 Alpine/Temurin 镜像中不稳定的隐含工具，应用运行阶段显式安装 `curl`，并继续在安装后切换为 `appuser` 非 root 运行。
+- `app` 与 `app-smoke` 使用相同镜像和相同正式健康端点，可以同时运行；Smoke 仅通过 `docker compose --profile smoke up -d --build app-smoke` 显式启用。
+- 默认 `docker compose up -d --build` 不启动 `app-smoke`。
+- `db:5432`、`sidecar:8001`、`app:8080` 保持宿主机端口映射；`app-smoke` 使用 `8081:8080`。
+- Docker readiness 回归使用确定性 LLM Stub，不调用真实 DeepSeek。
+- 持久化验收通过正式 AdminRag HTTP 写入带唯一 `runId` 的文档，普通 `docker compose down` 后重新启动，再以只读数据库查询确认该文档仍存在；数据库查询只作为 HTTP 写入后的持久化辅助证据。
+- 验收禁止 `docker compose down -v`、清表、删除 bind mount 或删除模型缓存。
 
 ## 未决问题
 
-- `plan_9`、`plan_7` 完成后的正式应用健康端点路径、Query/LLM 配置与环境变量需要在本计划转为 `ready` 前按最终实现确认。当前推荐使用 Spring Boot Actuator 的正式健康能力，而不是新增业务 Controller。
+无。健康语义、Actuator 暴露面、Sidecar 边界、双 App 并存、宿主机端口、Smoke 启动方式、探针工具和验收范围均已确认。
 
 ## 风险与回滚
 
-- `plan_9` 可能改变模块名、Docker 构建复制路径或 Smoke 装配方式，`plan_7` 会增加 LLM 配置与环境变量：本计划禁止提前执行，并在转为 `ready` 前基于两者最终提交重新校准。
-- 新增应用健康检查可能因数据库初始化或启动时序导致容器长时间处于 unhealthy：健康端点必须反映数据库真实状态，并设置与首次启动成本匹配的 `start_period`、超时和重试次数。
-- Sidecar 首次下载和加载模型耗时较长：保留模型 bind mount，验收不得默认删除 `.models/modelscope/`；健康检查继续等待模型真正加载完成。
-- 固定镜像标签仍不能提供 digest 级供应链复现：该风险在 Demo 范围内接受，未来生产方案另行处理。
-- 宿主机固定端口可能与本地服务冲突：文档明确默认端口和覆盖方式；完整验收前检查端口占用，不通过改容器间地址规避。
-- 所有修改按任务独立提交。失败时可逆序撤销文档契约、健康检查和 Compose 对齐提交；本计划不迁移数据库结构，回滚无需删除 `data/pgdata/` 或模型缓存。
+- Spring Boot readiness 默认分组可能不包含数据库：配置中显式声明 `readinessState,db`，并同时使用 H2 组件测试和真实 PostgreSQL 故障回归验证。
+- 数据库连接池在停止或恢复数据库后可能存在短暂状态延迟：自动化脚本使用有上限的轮询并输出最后状态，不使用无上限等待或一次性立即断言。
+- 安装 `curl` 会小幅增加运行镜像体积：该成本换取确定、可审查的健康检查工具；不额外安装诊断工具包。
+- App 启动和 schema 初始化可能超过普通探针宽限期：Compose 为 App 设置 `start_period: 30s`、`interval: 10s`、`timeout: 5s`、`retries: 12`；Sidecar 模型首次加载仍由其现有 120 秒宽限期和 30 次重试负责。
+- `app` 与 `app-smoke` 共享数据库，回归数据可能影响后续观察：脚本使用唯一 `runId`，只做精确只读确认，不清理其他数据。
+- 停止数据库的故障测试会暂时影响两个 App：脚本必须使用 `trap` 恢复 `db`、重新等待健康并执行普通 `docker compose down`；恢复失败时保留日志并返回非零。
+- 所有实现按任务独立提交。失败时可逆序撤销文档、回归脚本、Compose healthcheck、Actuator 配置与依赖；本计划无 schema 迁移，回滚不得删除数据库或模型缓存。
 
 ## 测试与验证计划
 
-- Plan 校验：`python3 scripts/validate_plans.py --strict`。
-- Compose 静态校验：默认和 Smoke 环境分别运行 `docker compose config`。
-- 镜像构建验证：重新构建 `app`、`sidecar` 和 `model-init` 镜像，确认基础镜像标签、构建上下文和多阶段产物正确。
-- 默认部署：`docker compose up -d --build`，确认长期服务均健康、正式健康端点可用、数据库与 Sidecar 状态正常，且 `/api/v1/test/**` 不存在。
-- Smoke 部署：先停止默认容器，再运行 `SPRING_PROFILES_ACTIVE=smoke docker compose up -d --build`，确认正式健康端点仍可用且 Smoke 诊断端点仅在该模式出现。
-- 容器内连通性：从 `app` 容器验证通过 Compose 服务名访问 `sidecar`，不得使用宿主机回环地址。
-- 持久化检查：普通 `docker compose down` 后重新启动，确认数据库目录与模型缓存未被删除。
-- 验收清理：执行 `docker compose down`，不附带 `-v`，不删除仓库内 bind mount 数据。
-- 最终检查：`./gradlew check`、`python3 scripts/validate_plans.py --strict --verify-git` 和 `git diff --check`。
+测试按 `constraints/test-workflow.md` 分层执行：
+
+- 纯单元测试：本计划不新增纯业务逻辑，无新增 `*Test`。
+- 轻量组件测试：
+  - 新增 `ApplicationHealthComponentTest`，使用 Spring Context、MockMvc 与 H2。
+  - 验证 `/actuator/health`、`/actuator/health/liveness`、`/actuator/health/readiness` 返回 HTTP 200 与 `status=UP`。
+  - 验证响应不含 `components` 详情。
+  - 验证 `/actuator/env` 不暴露并返回 HTTP 404。
+  - 精确命令：`./gradlew :crag-app:test --tests '*ApplicationHealthComponentTest'`。
+- 架构测试：不新增架构规则；最终运行 `./gradlew :crag-app:test --tests '*ArchitectureTest'` 防止模块边界回归。
+- Compose 静态校验：
+  - `docker compose config --services` 预期包含默认 `db`、`model-init`、`sidecar`、`app`，不包含 `app-smoke`。
+  - `docker compose --profile smoke config --services` 预期额外包含 `app-smoke`。
+  - 两份配置中的 App 服务均必须包含 readiness healthcheck。
+- Docker HTTP 回归：
+  - 运行 `bash scripts/tests/http/docker_readiness_test.sh`。
+  - 脚本必须构建并启动默认栈，等待 `db`、`sidecar`、`app` 健康；验证正式健康端点、最小 Actuator 暴露面和默认 Smoke 端点 404。
+  - 脚本随后启用 `app-smoke`，验证两个 App 同时健康、端口互不冲突、Smoke App 正式健康端点与诊断端点均可用。
+  - 脚本停止 `db`，在限定时间内验证两个 App readiness 为 HTTP 503、liveness 为 HTTP 200、Compose 状态为 unhealthy；恢复 `db` 后验证状态重新为 healthy。
+  - 脚本通过正式 AdminRag HTTP 写入唯一文档，普通 down/up 后以只读 SQL 确认文档仍存在。
+- 既有业务回归：
+  - `bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`
+  - `bash scripts/tests/http/smoke_default_test.sh http://localhost:8080`
+  - `bash scripts/tests/http/smoke_endpoints_test.sh http://localhost:8081`
+- 最终工程校验：
+  - `./gradlew check`
+  - `python3 scripts/validate_constraints.py`
+  - `python3 scripts/validate_plans.py --strict`
+  - 独立交接前执行 `python3 scripts/validate_plans.py --strict --verify-git`
+  - `git diff --check`
 
 ## 进度追踪
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 10.1 | 升级 Docker 部署契约与当前实现索引 | ⏳ 待开始 | — | — |
-| 10.2 | 建立正式应用健康检查与 Compose 就绪链 | ⏳ 待开始 | — | — |
-| 10.3 | 对齐 Compose、镜像构建、配置和持久化规则 | ⏳ 待开始 | — | — |
-| 10.4 | 同步使用文档并完成默认与 Smoke 全量验收 | ⏳ 待开始 | — | — |
+| 10.1 | 接入 Actuator 正式健康能力 | ⏳ 待开始 | — | — |
+| 10.2 | 建立 Compose readiness 与自动化故障回归 | ⏳ 待开始 | — | — |
+| 10.3 | 同步部署文档并完成全量验收 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 4（0%）
+整体进度：0 / 3（0%）
 
-## 10.1 升级 Docker 部署契约与当前实现索引
+## 10.1 接入 Actuator 正式健康能力
 
-**目标**：让 `constraints/docker-structure.md` 成为可指导实现和审查的唯一 Docker 部署契约，而不是不完整的文件清单。  
-**前置任务**：`plan_9`、`plan_7` 已完成；本计划已根据其最终实现从 `draft` 转为 `ready`
-**范围**：按“文档定位与适用环境、架构硬约束、当前文件与服务索引、服务依赖、网络与端口、健康检查、配置与密钥、数据与模型持久化、镜像构建与运行身份、默认与 Smoke 启动、验收门槛、已知偏差、维护同步矩阵”重写 Docker 约束；准确记录 `db`、`model-init`、`sidecar`、`app`、Query/LLM 配置的当前职责和值；列出重写时发现但将在 10.2、10.3 修复的偏差。
-**非目标**：本任务不修改 Compose、Dockerfile 或应用代码，不把当前端口和镜像标签定义为永久不可变架构。  
-**验收标准**：文档明确区分硬约束、当前实现和已知偏差；覆盖本计划全部关键决策；不存在尚未实现却被写成“当前事实”的结构；所有内部链接有效。  
-**验证方式**：逐项对照 `docker-compose.yml`、两个 Dockerfile、忽略规则、`application.yml` 及 `plan_9`、`plan_7` 最终提交；运行 `rg -n 'TODO|TBD|待定' constraints/docker-structure.md`、`python3 scripts/validate_plans.py --strict` 和 `git diff --check`。
-**涉及文件**：`constraints/docker-structure.md`、`plan/plan_10/plan_10.md`
+**目标**：通过测试先行接入最小暴露面的 liveness/readiness，并明确数据库只影响 readiness。
 
-## 10.2 建立正式应用健康检查与 Compose 就绪链
+**前置任务**：无
 
-**目标**：让 Compose 能通过不依赖 Smoke 后门的正式端点判断 Spring Boot 应用及其数据库依赖是否真正可服务。  
-**前置任务**：10.1  
-**范围**：按 `plan_9` 最终模块结构接入 Spring Boot 正式健康能力，配置只暴露必要健康信息；增加 `*ComponentTest`，验证默认 Profile 下健康能力可用且不依赖 `crag-smoke`；为 `app` 增加健康检查；确认 `model-init → sidecar → app` 与 `db → app` 的就绪条件完整。
-**非目标**：不新增业务健康 Controller，不把 Retrieval 全链路或模型推理请求塞入应用存活检查，不改变 Sidecar `/health` 协议。  
-**验收标准**：默认 Profile 下正式健康端点返回成功并反映数据库连接状态；禁用 Smoke 时仍可检查应用健康；`app` 成为 Compose 中具有健康状态的长期服务；任一必要依赖未就绪时 App 不会被误判为完整部署可用。  
-**验证方式**：运行受影响的 `crag-app` 测试和 `./gradlew check`；运行 `docker compose config`；启动 `db`、`sidecar`、`app` 后检查 `docker compose ps` 与正式健康端点；停止数据库后确认应用健康状态能够反映依赖异常。  
-**涉及文件**：`crag-app/build.gradle.kts`、`crag-app/src/main/resources/application.yml`、`crag-app/src/test/**`、`docker-compose.yml`、`constraints/docker-structure.md`
+**范围**：
 
-## 10.3 对齐 Compose、镜像构建、配置和持久化规则
+1. 新增 `ApplicationHealthComponentTest`，先断言三个健康入口、隐藏详情和 `/actuator/env` 404；运行目标测试确认在未接入 Actuator 时失败。
+2. 在 `crag-app/build.gradle.kts` 增加 `org.springframework.boot:spring-boot-starter-actuator`。
+3. 在 `application.yml` 增加以下等价配置：
 
-**目标**：消除当前 Docker 实现与部署契约之间除正式健康检查外的偏差，并保持默认一键启动。  
-**前置任务**：10.2  
-**范围**：验证 `plan_9` 的 Smoke Profile 注入并核对、修正服务名、端口、内部 URL、Query/LLM 环境变量、依赖条件、健康检查参数、bind mount、基础镜像明确标签、多阶段构建、运行镜像内容和非 root 用户；仅在需要解释可覆盖配置时新增无秘密的 `.env.example`；保证 `data/`、`.models/`、`.env` 同时被 Git 和对应 build context 排除。
-**非目标**：不重新设计 Smoke 激活机制，不新增第二份 Compose，不引入生产 secret manager，不强制镜像 digest，不删除或重建本地持久化数据。
-**验收标准**：默认 `docker compose config` 不激活 Smoke；既有显式 Smoke 方式保持可用；Query/LLM 配置与 plan_7 一致；容器间地址全部使用服务名；长期服务健康检查、一次性任务退出条件、非 root 运行、固定基础镜像标签和持久化排除规则与契约一致。
-**验证方式**：比较默认与 Smoke 两次 `docker compose config` 输出；运行 `docker compose build --no-cache app sidecar model-init`；检查构建上下文不包含 `data/`、`.models/`、`.env`；启动服务后使用容器身份与网络连通性检查验证运行用户和 `app → sidecar` 服务名访问。  
-**涉及文件**：`docker-compose.yml`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.env.example`（按需）、`sidecar/Dockerfile`、`sidecar/.dockerignore`、`constraints/docker-structure.md`
+   ```yaml
+   management:
+     endpoints:
+       web:
+         exposure:
+           include: health
+     endpoint:
+       health:
+         show-details: never
+         probes:
+           enabled: true
+         group:
+           liveness:
+             include: livenessState
+           readiness:
+             include: readinessState,db
+   ```
 
-## 10.4 同步使用文档并完成默认与 Smoke 全量验收
+4. 运行目标组件测试，确认健康端点成功、无详情且其他管理端点不暴露。
 
-**目标**：让使用者、测试约束和实际部署方式一致，并以可复现证据完成部署契约升级。  
-**前置任务**：10.3  
-**范围**：更新中文 README 的默认启动、正式健康检查、Smoke 显式启动、Query/LLM 配置、端口与本地数据说明；检查 `package-structure.md` 中 Smoke Docker 描述与最终方式一致；执行默认与 Smoke 两套完整验收并记录结果。
-**非目标**：不重写项目介绍、API 文档或测试分类，不把局部服务启动当作完整验收，不清除数据库和模型缓存。
-**验收标准**：README 可让新使用者用单一 Compose 完成默认和 Smoke 两种启动；默认模式诊断端点不可见、Smoke 模式可见；`db`、`sidecar`、`app` 均健康；App 正式健康端点、数据库状态、Sidecar 健康和容器内调用均通过；普通 down/up 后持久化数据仍存在；约束、实现和命令示例无冲突。  
-**验证方式**：依次运行默认与 Smoke 环境的 `docker compose config`、`docker compose up -d --build`、`docker compose ps`、正式健康端点和诊断端点检查、容器内 Sidecar 调用、`docker compose down`；运行 `./gradlew check`、`python3 scripts/validate_plans.py --strict --verify-git`、`rg -n 'docker compose|SPRING_PROFILES_ACTIVE|/api/v1/test|health' README.md constraints` 和 `git diff --check`。  
-**涉及文件**：`README.md`、`constraints/package-structure.md`、`constraints/docker-structure.md`、`plan/plan_10/plan_10.md`、`plan/index/README.md`
+**非目标**：不新增 Controller；不修改 Sidecar；不让 readiness 调用 Sidecar；不修改 Docker 镜像或 Compose。
+
+**验收标准**：目标组件测试先失败后通过；Actuator 只暴露 health；三个健康入口均返回 `status=UP` 且不含 `components`；readiness 显式包含 `readinessState,db`；liveness 只包含 `livenessState`；`/actuator/env` 返回 404。
+
+**验证方式**：运行 `./gradlew :crag-app:test --tests '*ApplicationHealthComponentTest'` 和 `./gradlew :crag-app:test --tests '*ArchitectureTest'`；预期目标组件测试和既有架构测试均通过。
+
+**涉及文件**：`crag-app/build.gradle.kts`、`crag-app/src/main/resources/application.yml`、`crag-app/src/test/java/ai/cerbur/crag/app/ApplicationHealthComponentTest.java`
+
+## 10.2 建立 Compose readiness 与自动化故障回归
+
+**目标**：让默认与 Smoke App 使用同一正式 readiness healthcheck，并以自动化脚本证明双 App 并存、数据库故障恢复和 bind mount 持久化。
+
+**前置任务**：10.1
+
+**范围**：
+
+1. 在 `Dockerfile` runtime 阶段以 root 执行 `apk add --no-cache curl`，随后继续使用既有 `appuser` 运行应用。
+2. 为 `app` 与 `app-smoke` 增加同一 healthcheck：
+
+   ```yaml
+   healthcheck:
+     test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8080/actuator/health/readiness"]
+     interval: 10s
+     timeout: 5s
+     retries: 12
+     start_period: 30s
+   ```
+
+3. 新增 `scripts/tests/http/docker_readiness_test.sh`，使用 `set -euo pipefail`、唯一 `runId`、有上限轮询和 `trap` 恢复环境。
+4. 脚本依次执行并断言：
+   - 默认配置不包含运行中的 `app-smoke`，Smoke 配置包含该服务。
+   - 默认栈启动后 `db`、`sidecar`、`app` 为 healthy。
+   - `app` 的 health/liveness/readiness 为 HTTP 200 且 `status=UP`，响应不含 `components`；`/actuator/env` 与 `/api/v1/test/smoke` 为 HTTP 404。
+   - 启用 `app-smoke` 后，两个 App 同时 healthy；`8080` 与 `8081` 的正式健康端点均成功；只有 `8081` 的 Smoke 诊断端点成功。
+   - 通过 `POST /api/v1/admin/rag` 写入标题含 `runId` 的文档并保存 `docId`。
+   - 停止 `db` 后，在限定时间内两个 readiness 返回 HTTP 503、两个 liveness 返回 HTTP 200、两个容器状态变为 unhealthy。
+   - 恢复 `db` 后，数据库与两个 App 重新 healthy。
+   - 执行普通 `docker compose down` 后重新启动，使用 `docker compose exec -T db psql` 的只读查询按 `docId` 确认 HTTP 写入文档仍存在。
+   - 最终普通 `docker compose down`，不使用 `-v`。
+5. 构建 App 镜像，并确认镜像中 `curl` 可执行、运行用户仍为 `appuser`。
+
+**非目标**：不把数据库只读查询当作业务入口回归；不修改健康语义、Sidecar、业务 API 或 LLM；不运行真实 DeepSeek；不删除测试数据、volume、数据库目录或模型缓存。
+
+**验收标准**：默认与 Smoke Compose 配置可解析；两个 App 都具备相同 healthcheck；镜像以 `appuser` 运行且探针命令可执行；专用脚本可重复执行并以非零退出码表达失败；默认 App 与 Smoke App 可并存；数据库故障只影响 readiness，不影响 liveness；恢复后自动重新健康；普通 down/up 后 HTTP 写入数据仍存在。
+
+**验证方式**：运行 `docker compose config`、`docker compose --profile smoke config`、`docker compose build app`、`APP_IMAGE_ID=$(docker compose images -q app) && docker run --rm --entrypoint curl "$APP_IMAGE_ID" --version`、`APP_IMAGE_ID=$(docker compose images -q app) && docker image inspect "$APP_IMAGE_ID" --format '{{.Config.User}}'` 和 `bash scripts/tests/http/docker_readiness_test.sh`；预期配置可解析、curl 成功、镜像用户为 `appuser`、专用脚本通过。
+
+**涉及文件**：`Dockerfile`、`docker-compose.yml`、`scripts/tests/http/docker_readiness_test.sh`
+
+## 10.3 同步部署文档并完成全量验收
+
+**目标**：让 README、Docker 约束、包结构约束和最终实现一致，并完成全部工程与既有业务回归。
+
+**前置任务**：10.2
+
+**范围**：
+
+1. 更新 `constraints/docker-structure.md`：记录 App liveness/readiness、Compose healthcheck 参数和 `curl`；删除“App 尚无正式健康检查”的已知偏差。
+2. 更新 `constraints/package-structure.md`：将 Smoke 激活示例统一为 `docker compose --profile smoke up -d --build app-smoke`，不再描述为覆盖默认 App 的 `SPRING_PROFILES_ACTIVE`。
+3. 更新中文 README：说明默认健康等待、正式健康端点、双 App 并存、Smoke 命令、端口和故障诊断入口。
+4. 执行 readiness 专用脚本、既有 AdminRag/默认 Smoke/Smoke 端点回归和最终工程校验，记录环境、命令、结果与摘要。
+
+**非目标**：不修改运行时代码、Compose 或 Dockerfile；不重写项目介绍、API 文档或测试分类；不运行真实 DeepSeek；不清理持久化数据。
+
+**验收标准**：README 可指导默认与 Smoke App 同时启动并定位正式健康端点；两份约束准确描述最终实现且无受控偏差残留；既有正式与 Smoke HTTP 回归通过；Gradle、约束、Plan 和 diff 校验全部通过。
+
+**验证方式**：运行 `bash scripts/tests/http/docker_readiness_test.sh`、`bash scripts/tests/http/admin_rag_contract_test.sh http://localhost:8080`、`bash scripts/tests/http/smoke_default_test.sh http://localhost:8080`、`bash scripts/tests/http/smoke_endpoints_test.sh http://localhost:8081`、`./gradlew check`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict`、`rg -n '/actuator/health|app-smoke|尚无正式健康检查' README.md constraints plan/plan_10/plan_10.md` 和 `git diff --check`；预期脚本与工程校验全部通过，检索只保留符合当前实现的表述。
+
+**涉及文件**：`constraints/docker-structure.md`、`constraints/package-structure.md`、`README.md`、`plan/plan_10/plan_10.md`、`plan/index/README.md`
 
 ## 验收记录
 
@@ -166,23 +253,22 @@ updated: 2026-06-21
 ## 阻塞记录
 
 - **日期**：2026-06-21
-- **原因**：`plan_7` 已交接待验收（`verifying`），尚未完成独立验收。`plan_9` 已完成。
-- **当前进度**：0/4 任务未开始（草稿状态）。
+- **原因**：`plan_7` 尚未完成独立验收，最终 Query/LLM 配置和部署环境变量未冻结。
+- **当前进度**：0/4，Plan 保持草稿，未修改运行时实现。
 - **解除条件**：`plan_7` 通过独立验收并标记 `completed`。
 - **解除方**：`plan_7` 独立验收 session。
-- **解除状态**：已于 2026-06-21 通过 `plan_7` 第七次独立验收解除；Plan 按既定恢复路径转为 `draft`。
-- **恢复后的下一步**：校准 `plan_7` 最终实现，将 Plan 转为 `ready` 并开始执行。
+- **解除结果**：`plan_7` 已于 2026-06-21 通过第七次独立验收；随后基于 Plan 7、Plan 9、Plan 12 和当前仓库事实完成范围校准。
+- **恢复状态与下一步**：Plan 已从 `draft` 转为 `ready`，下一步执行 10.1。
 
 ## 废弃任务记录
 
-无。
+无。本 Plan 在进入 `in_progress` 前重排任务；旧草稿任务编号不构成稳定执行历史。
 
 ## 变更记录
 
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
-| 2026-06-19 | 创建 draft 计划 | Docker 约束 grilling 已完成，决定将全面部署契约升级与 `plan_9` 串行拆分 | 建立 4 项任务；`plan_9` 完成前不得执行 |
-| 2026-06-19 | 增加 plan_7 前置并收窄 Smoke 职责 | Query/LLM 配置会改变最终部署契约，Smoke 机制由 plan_9 交付 | 执行顺序固定为 plan_9 → plan_7 → plan_10 |
-| 2026-06-19 | 记录上游治理链 | constraints 复核新增 plan_12 与 plan_9.hotfix_3，二者先于 Query 执行 | 本计划直接依赖仍为 plan_9、plan_7；完整队列为 plan_12 → plan_9.hotfix_3 → plan_7 → plan_10 |
-| 2026-06-19 | 同步 Query 新增前置 | Parent Evidence 修正与 Boot 4 / Spring AI 2 升级先于 Query | 当前执行队列为 plan_6.hotfix_6 → plan_13 → plan_7 → plan_10 |
-| 2026-06-21 | 解除 plan_7 前置阻塞 | plan_7 第七次独立验收通过并完成 | Plan 转回 `draft`，下一步按最终 Query/LLM 实现校准后转为 `ready` |
+| 2026-06-19 | 创建 draft 计划 | Docker 部署契约存在缺口，且需等待模块边界与 Query/LLM 最终实现 | 初始建立 4 项全面部署治理任务 |
+| 2026-06-19 | 增加 Plan 7 前置并收窄 Smoke 职责 | Query/LLM 配置影响部署契约，Smoke 机制由 Plan 9 交付 | 执行顺序调整为 Plan 9 → Plan 7 → Plan 10 |
+| 2026-06-21 | 解除 Plan 7 前置阻塞 | Plan 7 第七次独立验收通过 | Plan 恢复为 draft，等待最终校准 |
+| 2026-06-21 | 按批准设计收缩范围并转为 ready | Plan 12 已完成 Docker 约束治理；剩余真实缺口为 App 正式健康检查、Compose 就绪链和部署验收 | 任务重排为 3 项；新增 Actuator probes、双 App 并存、故障恢复和持久化自动验收；可开始执行 10.1 |
