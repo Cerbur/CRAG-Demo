@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-21 (plan_7 第四次独立验收失败，DeepSeek source 正则与恢复状态仍需修复)
+> 最后更新：2026-06-21 (plan_7 已修复 source 正则与 EXIT trap 恢复状态，待第五次验收)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -93,7 +93,7 @@ plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_7` 的 DeepSeek source 正则与失败恢复状态仍需修复，`plan_10` 继续等待。
+- `plan_7` 已修复 source 正则与 EXIT trap 恢复状态，待第五次独立验收；`plan_10` 继续等待。
 
 ---
 

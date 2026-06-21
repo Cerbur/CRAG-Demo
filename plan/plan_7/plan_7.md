@@ -492,6 +492,10 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_deepseek_acceptance_test.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与脚本语法检查通过。 |
 | 2026-06-21 | 静态独立验收 | 审查 `347ad19` 与 `query_deepseek_acceptance_test.sh` | 失败 | `r'^S\d+\$'` 要求 reference 以字面量 `$` 结尾，正常 `S1` 无法通过 target source 校验；Phase 6 在 Stub readiness 与 Query 确认前设置 `_STUB_RESTORED=1`，恢复失败时 EXIT trap 被短路，不能满足“所有退出路径恢复 Stub”。 |
 | 2026-06-21 | Docker Compose / DeepSeek | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 静态缺陷会使成功响应必然被判失败，且失败恢复不可靠；为遵守单次真实调用与首次失败停止约束，本轮未发起真实 DeepSeek 调用。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test` | 通过 | `BUILD SUCCESSFUL`，34 个 actionable tasks，全部 up-to-date。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，54 个 actionable tasks，4 executed、50 up-to-date；约束、依赖、Spotless、测试与 Plan 校验通过。 |
+| 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_deepseek_acceptance_test.sh` | 通过 | Plan 严格校验 0 error；Git whitespace 与脚本语法检查通过。 |
+| 2026-06-21 | 静态修复 | 修正 source 正则与 EXIT trap 恢复状态 | 通过 | `r'^S\d+\$'` → `r'^S\d+$'`，移除多余反斜杠使 `S1` 等合法 reference 通过校验；Phase 6 `_STUB_RESTORED=1` 移至 `wait_for_app` 与 stub query 双确认成功后，失败分支 EXIT trap 保持可触发。 |
 
 ## 阻塞记录
 

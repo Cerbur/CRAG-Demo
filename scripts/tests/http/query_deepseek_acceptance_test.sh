@@ -447,7 +447,7 @@ for src in sources:
     if src.get('parentChunkId', '') == target_parent:
         ref = src.get('reference', '')
         matched = src.get('matchedChildIds', [])
-        ok_ref = bool(re.match(r'^S\d+\$', ref))
+        ok_ref = bool(re.match(r'^S\d+$', ref))
         ok_matched = isinstance(matched, list) and len(matched) > 0
         print(f'FOUND ref={ref} ok_ref={ok_ref} ok_matched={ok_matched} matchedChildIds={matched}')
         sys.exit(0 if (ok_ref and ok_matched) else 1)
@@ -553,7 +553,6 @@ DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
 CRAG_QUERY_LLM_PROVIDER=stub \
 CRAG_QUERY_LLM_STUB_MODE=success \
 docker compose up -d --build app
-_STUB_RESTORED=1
 echo "App rebuild initiated (stub success mode restore)"
 
 # Wait for restored app
@@ -570,6 +569,7 @@ http_post_raw "$BASE_URL/api/v1/query" "{\"question\":\"确认恢复问题\"}" "
 RESTORE_CODE=$(json_code "$RESP_BODY")
 if [ "$RESTORE_CODE" = "0" ]; then
   echo "PASS: Restored stub success mode confirmed (code=0)"
+  _STUB_RESTORED=1
 else
   echo "FAIL: Restored app returned code=$RESTORE_CODE (expected 0)"
   FAILED=1
@@ -586,6 +586,5 @@ if [ "$FAILED" -eq 0 ]; then
   exit 0
 else
   echo "Result: FAILED"
-  _STUB_RESTORED=1
   exit 1
 fi
