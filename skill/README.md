@@ -8,17 +8,19 @@
 | Skill | 作用 | 状态 | 入口 |
 | --- | --- | --- | --- |
 | crag-benchmark | 生成随机 benchmark 数据、运行 Docker-only Retrieval / Query 验证、评分并维护报告 | ✅ 可用 | [crag-benchmark/SKILL.md](crag-benchmark/SKILL.md) |
-| execute-plan-with-opencode | 通过隔离 SubAgent 驱动 OpenCode，按任务执行、Review、测试并验收指定 Plan | ✅ 可用 | [execute-plan-with-opencode/SKILL.md](execute-plan-with-opencode/SKILL.md) |
+| execute-crag-plan | 按 workflow v3 执行、恢复或修复指定 Plan，并交接独立验收 | ✅ 可用 | [execute-crag-plan/SKILL.md](execute-crag-plan/SKILL.md) |
+| execute-plan-with-opencode | 历史 OpenCode 编排流程 | ⛔ 停用 | [execute-plan-with-opencode/SKILL.md](execute-plan-with-opencode/SKILL.md) |
 
-## execute-plan-with-opencode 显式调用
+## execute-crag-plan 路由
 
-该 Skill 是本项目维护工具，不配置关键词自动触发。只有显式调用时才使用：
+以下意图必须路由到 [`execute-crag-plan/SKILL.md`](execute-crag-plan/SKILL.md)：
 
-```text
-使用 $execute-plan-with-opencode 执行 plan/plan_7/plan_7.md
-```
+- “执行 plan7”“实现 Plan 7”。
+- “继续 / 恢复 plan_7”。
+- 独立验收退回后修复指定 Plan。
+- 继续完成 Plan 中未完成任务并交接验收。
 
-调用后由 ParentAgent 负责 Plan 完整度检查、模型选择、Review、测试执行、Plan 进度和最终验收；隔离 SubAgent 负责驱动外部 OpenCode CLI 修改代码。
+该 Skill 是执行 session 流程，不负责最终独立验收。旧 `execute-plan-with-opencode` 不再使用。
 
 ## crag-benchmark 任务入口
 

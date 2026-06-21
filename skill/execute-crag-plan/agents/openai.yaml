@@ -1,0 +1,4 @@
+interface:
+  display_name: "Execute CRAG Plan"
+  short_description: "Execute and hand off CRAG-Demo plans safely"
+  default_prompt: "Use $execute-crag-plan to execute plan_7 and hand it off for independent acceptance."
