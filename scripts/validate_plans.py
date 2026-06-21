@@ -419,7 +419,7 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
     execution_ids = {
         plan_id
         for plan_id, (_, metadata, _) in plans.items()
-        if metadata.get("status") not in {"completed", "abandoned"}
+        if metadata.get("status") not in {"completed", "abandoned", "verifying"}
     }
     acceptance_ids = {
         plan_id
@@ -448,8 +448,11 @@ def validate_index(repo_root: Path, plan_files: list[Path]) -> list[Diagnostic]:
         )
     else:
         positions = {plan_id: index for index, plan_id in enumerate(queue)}
-        for plan_id, (_, _, body) in plans.items():
+        for plan_id, (_, metadata, body) in plans.items():
             if plan_id not in execution_ids:
+                continue
+            # Blocked plans are waiting on dependencies; skip dependency order check
+            if metadata.get("status") == "blocked":
                 continue
             for dependency in parse_plan_dependencies(body):
                 if dependency not in plans:

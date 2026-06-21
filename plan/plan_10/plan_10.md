@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: draft
+status: blocked
 created: 2026-06-19
-updated: 2026-06-19
+updated: 2026-06-21
 ---
 
 # plan_10 — Docker 部署契约升级与实现对齐
@@ -165,7 +165,13 @@ updated: 2026-06-19
 
 ## 阻塞记录
 
-无。当前处于 `draft` 是因为已声明的前置依赖 `plan_9` 与 `plan_7` 尚未完成，不记为运行中阻塞；转为 `ready` 前按两者最终实现重新校准。
+- **日期**：2026-06-21
+- **原因**：`plan_7` 已交接待验收（`verifying`），尚未完成独立验收。`plan_9` 已完成。
+- **当前进度**：0/4 任务未开始（草稿状态）。
+- **解除条件**：`plan_7` 通过独立验收并标记 `completed`。
+- **解除方**：`plan_7` 独立验收 session。
+- **解除状态**：待解除。
+- **恢复后的下一步**：校准 `plan_7` 最终实现，将 Plan 转为 `ready` 并开始执行。
 
 ## 废弃任务记录
 

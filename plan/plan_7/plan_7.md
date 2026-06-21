@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,10 +370,10 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 进行中 | bc08a15, ec1577c, 347ad19 | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 进行中 | 5815de1, ec1577c, 347ad19 | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔍 待验收 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔍 待验收 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
 
-整体进度：6 / 8（75%）
+整体进度：6 / 8（75%），待验收：2
 
 ## 验收状态
 
@@ -500,6 +500,9 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与三个 Query 脚本语法检查通过。 |
 | 2026-06-21 | 静态独立验收 | 审查 `02fc812` 与 Plan 交接状态 | 失败 | source 正则已正确匹配 `S1`；但 stub readiness、AdminRag 失败、索引超时和 DeepSeek readiness 失败分支仍在恢复验证未成功或被忽略后设置 `_STUB_RESTORED=1`，EXIT trap 会被短路。7.7/7.8 未回填 `02fc812`、未转待验收，Plan 仍为 `in_progress`，验收队列为空。 |
 | 2026-06-21 | Docker Compose / DeepSeek | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 尚未满足可靠恢复与 workflow v3 验收交接门槛；为避免消耗唯一真实调用后无法安全恢复，本轮未发起真实 DeepSeek 调用。 |
+| 2026-06-21 | 静态修复 | 移除全部提前退出分支的 `_STUB_RESTORED=1` | 通过 | Phase 1 readiness、AdminRag 失败、索引超时和 Phase 2 readiness 四条路径的提前 `_STUB_RESTORED=1` 与冗余内联恢复已移除；EXIT trap 成为所有退出路径的唯一恢复守卫。Phase 6 双确认后设置的 `_STUB_RESTORED=1`（`02fc812`）保留不变。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks，全部 up-to-date；`check`：54 个 actionable tasks，4 executed、50 up-to-date。 |
+| 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与三个 Query 脚本语法检查通过。 |
 
 ## 阻塞记录
 
@@ -546,3 +549,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | 修复 DTO 不可变性与脚本控制流缺陷 | `347ad19`：`AdminRagResponse` compact constructor 改用 `List.copyOf` 防御性复制，删除只读视图自定义 accessor，新增不可变性单元测试；DeepSeek 脚本使用 `curl -w` 获取真实 HTTP 状态并在 Phase 3 显式断言 200，Phase 4 target source 检查以 `if`/`else` 安全捕获退出码，新增 `trap restore_stub_on_exit EXIT` 保证所有退出路径恢复 Stub | Plan 状态改为 `verifying`；7.7/7.8 改为待验收；交接给新的独立验收 session |
 | 2026-06-21 | plan_7 第四次独立验收失败 | `347ad19` 修复了 DTO 不可变性、HTTP 状态读取和 `set -e` 捕获，但 target source 正则把结束锚点写成字面量 `$`；恢复标志又在 readiness 验证前置为完成，EXIT trap 无法保证失败补救 | Plan 退回 `in_progress`；修正 reference 正则并让恢复完成标志只在 readiness 与 Stub Query 均确认后设置，失败时保留 trap 补救能力 |
 | 2026-06-21 | plan_7 第五次独立验收失败 | `02fc812` 修正了 source 正则和 Phase 6 标志位置，但未覆盖其他提前退出分支；实现提交也未按 workflow v3 回填并交接待验收 | 所有恢复分支必须仅在 readiness 与 Stub Query 均确认后标记恢复完成；随后回填 `02fc812` 及后续修复 hash，将 7.7/7.8 与 Plan 转为待验收并同步验收队列 |
+| 2026-06-21 | 修复全部提前退出分支恢复守卫 | `30cbb46`：移除 Phase 1 readiness、AdminRag 失败、索引超时和 Phase 2 readiness 四条路径的提前 `_STUB_RESTORED=1` 与冗余内联恢复，EXIT trap 成为所有退出路径的唯一恢复守卫；同步 CLAUDE.md 修复约束校验 | 回填 `02fc812` 与 `30cbb46` 到 7.7/7.8，Plan 转为 `verifying`，交接独立验收 session |
