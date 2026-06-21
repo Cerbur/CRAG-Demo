@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-21 (plan_8.hotfix_3 已创建项目级 Plan 执行 Skill，等待独立验收)
+> 最后更新：2026-06-21 (plan_8.hotfix_3 独立验收完成)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -76,7 +76,7 @@ plan/
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | 🔄 进行中 (6/8) | — | [plan_7.md](../plan_7/plan_7.md) |
-| plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | plan_8.hotfix_3 | [plan_8.md](../plan_8/plan_8.md) |
+| plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | 📝 草稿 (0/4)，等待 plan_7 | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
@@ -100,7 +100,7 @@ plan_10
 ## 当前验收队列
 
 ```text
-plan_8.hotfix_3
+(empty)
 ```
 
 - 仅列出状态为”待验收”的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -181,7 +181,7 @@ plan_8.hotfix_3
 | [plan_8.md](../plan_8/plan_8.md) | Plan 工作流 v2 工程治理，包含约束、模板、静态校验、Gradle 接入和 plan_7 迁移 | ✅ 完成 (6/6) |
 | [plan_8.hotfix_1.md](../plan_8/plan_8.hotfix_1.md) | 收敛 Plan 依赖顺序、状态机与跨约束冲突，增强依赖图和执行队列校验 | ✅ 完成 (4/4) |
 | [plan_8.hotfix_2.md](../plan_8/plan_8.hotfix_2.md) | workflow v3 独立执行与验收 session、Plan 待验收状态、双队列和 v2 全量迁移 | ✅ 完成 (4/4) |
-| [plan_8.hotfix_3.md](../plan_8/plan_8.hotfix_3.md) | 创建项目级 Plan 执行 Skill，覆盖首次执行、恢复和验收退回修复 | 🔍 待验收 (0/1) |
+| [plan_8.hotfix_3.md](../plan_8/plan_8.hotfix_3.md) | 创建项目级 Plan 执行 Skill，覆盖首次执行、恢复和验收退回修复 | ✅ 完成 (1/1) |
 
 ## Plan_9 明细
 
