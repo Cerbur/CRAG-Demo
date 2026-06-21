@@ -143,7 +143,7 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 10.2 | 建立 Compose readiness 与自动化故障回归 | 🔍 待验收 | 2e6bf86, 1ee7903 | — |
 | 10.3 | 同步部署文档并完成全量验收 | 🚧 进行中 | 8b264ad | — |
 
-整体进度：2 / 3（67%）
+整体进度：1 / 3（33%）
 
 ## 10.1 接入 Actuator 正式健康能力
 
