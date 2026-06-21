@@ -62,13 +62,35 @@ wait_for_unhealthy() {
   return 1
 }
 
+# 等待 HTTP 端点返回指定状态码（有上限轮询）
+wait_for_http_status() {
+  local url="$1"
+  local expected="$2"
+  local desc="$3"
+  local max_wait="${4:-60}"
+  local elapsed=0
+  echo "等待 $desc 返回 HTTP $expected（最多 ${max_wait}s）..."
+  while [ $elapsed -lt "$max_wait" ]; do
+    local status
+    status=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+    if [ "$status" = "$expected" ]; then
+      echo "  $desc 已返回 HTTP $expected（${elapsed}s）"
+      return 0
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+  echo "  FAIL: $desc 在 ${max_wait}s 内未返回 HTTP $expected（最后状态: $status）"
+  return 1
+}
+
 # 检查 HTTP 端点状态码
 check_http_status() {
   local url="$1"
   local expected="$2"
   local desc="$3"
   local status
-  status=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+  status=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
   if [ "$status" = "$expected" ]; then
     echo "  PASS: $desc → $status"
     return 0
@@ -86,7 +108,7 @@ check_health_endpoint() {
   local desc="$4"
   local response status body
 
-  response=$(curl -s -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null || echo -e "\n000")
+  response=$(curl -s -m 5 -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null || echo -e "\n000")
   status=$(echo "$response" | tail -1)
   body=$(echo "$response" | sed '$d')
 
@@ -116,6 +138,13 @@ cleanup_on_exit() {
   echo ""
   echo "=== 清理阶段 ==="
 
+  # 如果测试失败，先保留日志
+  if [ $exit_code -ne 0 ]; then
+    echo ""
+    echo "=== 测试失败，保留日志 ==="
+    docker compose --profile smoke logs --tail=50 2>/dev/null || true
+  fi
+
   # 恢复 db（如果已停止）
   if docker compose ps db --format json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('State','')=='exited' else 1)" 2>/dev/null; then
     echo "恢复 db 容器..."
@@ -128,12 +157,6 @@ cleanup_on_exit() {
 
   echo "执行 docker compose down..."
   docker compose --profile smoke down 2>/dev/null || docker compose down 2>/dev/null || true
-
-  if [ $exit_code -ne 0 ]; then
-    echo ""
-    echo "=== 测试失败，保留日志 ==="
-    docker compose --profile smoke logs --tail=50 2>/dev/null || true
-  fi
 
   exit $exit_code
 }
@@ -251,7 +274,7 @@ echo ""
 echo "=== 测试 5: AdminRag 写入 ==="
 
 # 通过 POST /api/v1/admin/rag 写入标题含 runId 的文档
-admin_response=$(curl -s -X POST "http://localhost:8080/api/v1/admin/rag" \
+admin_response=$(curl -s -m 10 -X POST "http://localhost:8080/api/v1/admin/rag" \
   -H "Content-Type: application/json" \
   -d "{\"title\":\"readiness-test-$RUN_ID\",\"content\":\"Docker readiness regression test document\",\"metadata\":{\"source\":\"readiness-test\"}}" 2>/dev/null)
 
@@ -275,16 +298,9 @@ echo "=== 测试 6: 数据库故障恢复 ==="
 echo "停止 db 容器..."
 docker compose stop db
 
-# 等待两个 App readiness 变为 503
-echo "等待 App readiness 变为 503..."
-sleep 15  # 给连接池时间感知断连
-
+# 等待两个 App readiness 变为 503（有上限轮询）
 for port in 8080 8081; do
-  local_status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/actuator/health/readiness" 2>/dev/null || echo "000")
-  if [ "$local_status" = "503" ]; then
-    echo "  PASS: :$port readiness → 503"
-  else
-    echo "  FAIL: :$port readiness → expected 503, got $local_status"
+  if ! wait_for_http_status "http://localhost:$port/actuator/health/readiness" "503" ":$port readiness" 120; then
     FAILED=1
   fi
 done
