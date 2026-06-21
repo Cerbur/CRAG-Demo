@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,14 +370,14 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔍 待验收 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔍 待验收 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🚧 进行中 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🚧 进行中 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
 
-整体进度：6 / 8（75%），待验收：2
+整体进度：6 / 8（75%）
 
 ## 验收状态
 
-2026-06-21 第五次独立验收确认 source 正则与 Phase 6 正常恢复路径已修复，但其他提前退出路径仍会在恢复 readiness 未确认或被 `|| true` 忽略后无条件设置 `_STUB_RESTORED=1`，导致 EXIT trap 无法补救。提交 `02fc812` 也未回填到 7.7/7.8，Plan 未转为 `verifying`，索引验收队列为空，不满足独立验收交接门槛。本轮未消耗真实调用，Plan 保持进行中。
+2026-06-21 第六次独立验收确认最新恢复守卫、Gradle 全量检查和 Stub 三段 Docker HTTP 回归均通过；经用户明确批准后只执行一次真实 DeepSeek 调用，HTTP 200、唯一验证码、sources、目标 source 映射、usage 与恢复 Stub success 均通过，但模型回答未生成任何 `[Sx]` 引用。容器日志同时证明 `application.yml` 默认把 `ai.cerbur.crag` 设为 `DEBUG`，导致问题与回答中的唯一验证码进入日志，违反默认 INFO 与真实验收安全标准。未自动重试真实调用；7.7、7.8 与 Plan 退回进行中。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -498,6 +498,11 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | 静态修复 | 修正 source 正则与 EXIT trap 恢复状态 | 通过 | `r'^S\d+\$'` → `r'^S\d+$'`，移除多余反斜杠使 `S1` 等合法 reference 通过校验；Phase 6 `_STUB_RESTORED=1` 移至 `wait_for_app` 与 stub query 双确认成功后，失败分支 EXIT trap 保持可触发。 |
 | 2026-06-21 | macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks，全部 up-to-date；`check`：54 个 actionable tasks，4 executed、50 up-to-date。 |
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与三个 Query 脚本语法检查通过。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks，全部 up-to-date；`check`：54 个 actionable tasks，4 executed、50 up-to-date；约束、依赖、Spotless、测试与 Plan 校验通过。 |
+| 2026-06-21 | Docker Compose / Stub success | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | HTTP 200、`code=0`、固定 Stub answer、目标 parentChunkId、合法 reference 与非空 matchedChildIds 均通过。runId：`qs-1782025361-89985`；测试数据保留。 |
+| 2026-06-21 | Docker Compose / Stub failure + restore | `bash scripts/tests/http/query_stub_failure_test.sh` | 通过 | Failure 模式返回 HTTP 502、`code=50201`、`success=false`；恢复后正式 Query API 返回 HTTP 200、`code=0`。runId：`qf-1782025427-90420`。 |
+| 2026-06-21 | Docker Compose / Stub success after restore | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | 恢复后再次验证完整 Stub 成功链路，目标 source 映射通过。runId：`qs-1782025577-89983`；测试数据保留。 |
+| 2026-06-21 | Docker Compose / DeepSeek official Anthropic API | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 失败 | 经用户明确批准后只执行一次真实模型调用，未自动重试。HTTP 200、`code=0`、唯一验证码、8 个 sources、目标 parent 映射和 usage 均通过；回答未包含任何 `[Sx]`，不满足引用验收标准。容器默认启用 Query DEBUG，唯一验证码随完整问题和回答进入日志，不满足默认 INFO 与安全日志标准。脚本最终确认恢复 Stub success。runId：`deepseek-accept-1782025718-95820`；测试数据保留。 |
 | 2026-06-21 | 静态独立验收 | 审查 `02fc812` 与 Plan 交接状态 | 失败 | source 正则已正确匹配 `S1`；但 stub readiness、AdminRag 失败、索引超时和 DeepSeek readiness 失败分支仍在恢复验证未成功或被忽略后设置 `_STUB_RESTORED=1`，EXIT trap 会被短路。7.7/7.8 未回填 `02fc812`、未转待验收，Plan 仍为 `in_progress`，验收队列为空。 |
 | 2026-06-21 | Docker Compose / DeepSeek | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 尚未满足可靠恢复与 workflow v3 验收交接门槛；为避免消耗唯一真实调用后无法安全恢复，本轮未发起真实 DeepSeek 调用。 |
 | 2026-06-21 | 静态修复 | 移除全部提前退出分支的 `_STUB_RESTORED=1` | 通过 | Phase 1 readiness、AdminRag 失败、索引超时和 Phase 2 readiness 四条路径的提前 `_STUB_RESTORED=1` 与冗余内联恢复已移除；EXIT trap 成为所有退出路径的唯一恢复守卫。Phase 6 双确认后设置的 `_STUB_RESTORED=1`（`02fc812`）保留不变。 |
@@ -550,3 +555,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | plan_7 第四次独立验收失败 | `347ad19` 修复了 DTO 不可变性、HTTP 状态读取和 `set -e` 捕获，但 target source 正则把结束锚点写成字面量 `$`；恢复标志又在 readiness 验证前置为完成，EXIT trap 无法保证失败补救 | Plan 退回 `in_progress`；修正 reference 正则并让恢复完成标志只在 readiness 与 Stub Query 均确认后设置，失败时保留 trap 补救能力 |
 | 2026-06-21 | plan_7 第五次独立验收失败 | `02fc812` 修正了 source 正则和 Phase 6 标志位置，但未覆盖其他提前退出分支；实现提交也未按 workflow v3 回填并交接待验收 | 所有恢复分支必须仅在 readiness 与 Stub Query 均确认后标记恢复完成；随后回填 `02fc812` 及后续修复 hash，将 7.7/7.8 与 Plan 转为待验收并同步验收队列 |
 | 2026-06-21 | 修复全部提前退出分支恢复守卫 | `30cbb46`：移除 Phase 1 readiness、AdminRag 失败、索引超时和 Phase 2 readiness 四条路径的提前 `_STUB_RESTORED=1` 与冗余内联恢复，EXIT trap 成为所有退出路径的唯一恢复守卫；同步 CLAUDE.md 修复约束校验 | 回填 `02fc812` 与 `30cbb46` 到 7.7/7.8，Plan 转为 `verifying`，交接独立验收 session |
+| 2026-06-21 | plan_7 第六次独立验收失败 | 最新恢复守卫、Gradle 与 Stub 回归通过；唯一一次真实 DeepSeek 调用返回成功内容但没有 `[Sx]` 引用，且默认 DEBUG 配置把完整问题与回答写入日志 | Plan、7.7 与 7.8 退回 `in_progress`；修复默认日志级别和真实 Provider 引用遵循问题后重新交接，未经用户再次批准不得重跑真实调用 |
