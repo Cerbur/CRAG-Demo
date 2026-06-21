@@ -45,6 +45,9 @@ FROM eclipse-temurin:21-jre-alpine AS runtime
 # 创建非 root 用户
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
+# 安装健康检查所需的 curl（以 root 执行）
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 # 复制构建产物 —— 精确文件名，构建已固定输出为 crag-demo.jar
