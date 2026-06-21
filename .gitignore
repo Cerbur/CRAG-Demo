@@ -17,6 +17,7 @@ build/
 # Local AI tool config
 .claude/
 .opencode/
+.superpowers/
 
 # OS
 .DS_Store
