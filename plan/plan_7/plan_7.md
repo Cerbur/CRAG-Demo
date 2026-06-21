@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,14 +370,14 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 待验收 | bc08a15, ec1577c, 347ad19 | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 待验收 | 5815de1, ec1577c, 347ad19 | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🔄 进行中 | bc08a15, ec1577c, 347ad19 | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🔄 进行中 | 5815de1, ec1577c, 347ad19 | — |
 
 整体进度：6 / 8（75%）
 
 ## 验收状态
 
-2026-06-21 独立复验确认 Stub 成功、Stub 失败/恢复及恢复后再次成功均通过，但 7.7/7.8 仍存在 DTO 不可变性与 DeepSeek 脚本控制流缺陷，Plan 已退回进行中。2026-06-21 已修复：AdminRagResponse 改用 List.copyOf 防御性复制并补充不可变性单元测试；DeepSeek 脚本使用 curl -w 获取真实 HTTP 状态、if/else 安全捕获 Python 退出码、trap EXIT 保证所有退出路径恢复 Stub。修复后重新交接，须由新的独立验收 session 重跑完整门禁与一次真实 DeepSeek 验收。
+2026-06-21 第四次独立验收确认 DTO 防御性复制与真实 HTTP 状态读取已修复，但 DeepSeek 脚本的 target source 正则错误地匹配字面量 `$`，正常 `S1` 永远无法通过；恢复流程还会在 readiness 确认前把 `_STUB_RESTORED` 标记为 1，使 EXIT trap 无法在恢复失败时补救。由于当前脚本即使真实调用成功也会必然判失败，且不能保证所有退出路径恢复 Stub，本轮未消耗真实调用，Plan 已退回进行中。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -487,6 +487,11 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | macOS / Java 21 | `./gradlew test` | 通过 | `BUILD SUCCESSFUL`，34 个 actionable tasks，3 executed、31 up-to-date。新增 `AdminRagResponseTest` 三项不可变性测试通过。 |
 | 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，约束、框架依赖、模块依赖、Spotless、测试和 Plan 校验通过。 |
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_deepseek_acceptance_test.sh` | 通过 | Plan 严格校验 0 error；Git whitespace 检查与 DeepSeek 脚本语法检查通过。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew test` | 通过 | `BUILD SUCCESSFUL`，34 个 actionable tasks，34 up-to-date。 |
+| 2026-06-21 | macOS / Java 21 | `./gradlew check` | 通过 | `BUILD SUCCESSFUL`，54 个 actionable tasks，4 executed、50 up-to-date；约束、依赖、Spotless、测试与 Plan 校验通过。 |
+| 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_deepseek_acceptance_test.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与脚本语法检查通过。 |
+| 2026-06-21 | 静态独立验收 | 审查 `347ad19` 与 `query_deepseek_acceptance_test.sh` | 失败 | `r'^S\d+\$'` 要求 reference 以字面量 `$` 结尾，正常 `S1` 无法通过 target source 校验；Phase 6 在 Stub readiness 与 Query 确认前设置 `_STUB_RESTORED=1`，恢复失败时 EXIT trap 被短路，不能满足“所有退出路径恢复 Stub”。 |
+| 2026-06-21 | Docker Compose / DeepSeek | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 未执行 | 静态缺陷会使成功响应必然被判失败，且失败恢复不可靠；为遵守单次真实调用与首次失败停止约束，本轮未发起真实 DeepSeek 调用。 |
 
 ## 阻塞记录
 
@@ -531,3 +536,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | 修复 7.7/7.8 验收缺陷 | 脚本重构为 Stub 模式索引等待（零 DeepSeek 成本）+ DeepSeek 单次调用；答案断言恢复唯一验证码；target source 判定使用 ok_ref/ok_matched；安全扫描覆盖 Context/Prompt/验证码/响应泄露；AdminRagResponse 添加 Collections.unmodifiableList 防御性复制 | 修复后交接新的独立验收 session；DeepSeek 真实回归仍为单次调用 |
 | 2026-06-21 | plan_7 第三次独立验收失败 | Stub 三段回归通过；但 `AdminRagResponse` 未真正防御性复制，DeepSeek 脚本未读取真实 HTTP 状态且 `set -e` 会使 source 校验失败时跳过恢复 | Plan 退回 `in_progress`；使用 `List.copyOf` 固化 DTO，使用 curl `-w` 分离 body/status，并把预期非零校验放入 `if` 或临时关闭 errexit，确保所有退出路径恢复 Stub |
 | 2026-06-21 | 修复 DTO 不可变性与脚本控制流缺陷 | `347ad19`：`AdminRagResponse` compact constructor 改用 `List.copyOf` 防御性复制，删除只读视图自定义 accessor，新增不可变性单元测试；DeepSeek 脚本使用 `curl -w` 获取真实 HTTP 状态并在 Phase 3 显式断言 200，Phase 4 target source 检查以 `if`/`else` 安全捕获退出码，新增 `trap restore_stub_on_exit EXIT` 保证所有退出路径恢复 Stub | Plan 状态改为 `verifying`；7.7/7.8 改为待验收；交接给新的独立验收 session |
+| 2026-06-21 | plan_7 第四次独立验收失败 | `347ad19` 修复了 DTO 不可变性、HTTP 状态读取和 `set -e` 捕获，但 target source 正则把结束锚点写成字面量 `$`；恢复标志又在 readiness 验证前置为完成，EXIT trap 无法保证失败补救 | Plan 退回 `in_progress`；修正 reference 正则并让恢复完成标志只在 readiness 与 Stub Query 均确认后设置，失败时保留 trap 补救能力 |
