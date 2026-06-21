@@ -100,15 +100,16 @@ check_http_status() {
   fi
 }
 
-# 检查健康端点状态和内容
+# 检查健康端点状态和内容（单次，带 curl 超时）
 check_health_endpoint() {
   local port="$1"
   local path="$2"
   local expected_status="$3"
   local desc="$4"
+  local curl_timeout="${5:-10}"
   local response status body
 
-  response=$(curl -s -m 10 -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null) || response=$'\n000'
+  response=$(curl -s -m "$curl_timeout" -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null) || response=$'\n000'
   status=$(echo "$response" | tail -1)
   body=$(echo "$response" | sed '$d')
 
@@ -132,17 +133,56 @@ check_health_endpoint() {
   return 0
 }
 
+# 等待健康端点返回指定状态码并验证内容（有上限轮询）
+wait_for_health_endpoint() {
+  local port="$1"
+  local path="$2"
+  local expected_status="$3"
+  local desc="$4"
+  local max_wait="${5:-60}"
+  local curl_timeout="${6:-10}"
+  local elapsed=0
+  echo "等待 $desc 返回 HTTP ${expected_status}（最多 ${max_wait}s）..."
+  while [ $elapsed -lt "$max_wait" ]; do
+    local response status body
+    response=$(curl -s -m "$curl_timeout" -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null) || response=$'\n000'
+    status=$(echo "$response" | tail -1)
+    body=$(echo "$response" | sed '$d')
+    if [ "$status" = "$expected_status" ]; then
+      if [ "$expected_status" = "200" ]; then
+        if echo "$body" | grep -q '"status":"UP"' && ! echo "$body" | grep -q '"components"'; then
+          echo "  $desc 已返回 HTTP ${expected_status}（${elapsed}s）"
+          return 0
+        fi
+      else
+        echo "  $desc 已返回 HTTP ${expected_status}（${elapsed}s）"
+        return 0
+      fi
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+  echo "  FAIL: $desc 在 ${max_wait}s 内未返回 HTTP ${expected_status}（最后状态: ${status:-none}）"
+  return 1
+}
+
 # 恢复环境的 trap
 cleanup_on_exit() {
   local exit_code=$?
   echo ""
   echo "=== 清理阶段 ==="
 
-  # 如果测试失败，先保留日志
+  # 如果测试失败，先保留日志（在 down 之前捕获）
   if [ $exit_code -ne 0 ]; then
     echo ""
     echo "=== 测试失败，保留日志 ==="
-    docker compose --profile smoke logs --tail=50 2>/dev/null || true
+    docker compose --profile smoke logs --tail=80 2>/dev/null || true
+    echo "=== app 日志 ==="
+    docker compose logs --tail=50 app 2>/dev/null || true
+    echo "=== app-smoke 日志 ==="
+    docker compose --profile smoke logs --tail=50 app-smoke 2>/dev/null || true
+    echo "=== db 日志 ==="
+    docker compose logs --tail=20 db 2>/dev/null || true
   fi
 
   # 恢复 db（如果已停止）
@@ -305,9 +345,11 @@ for port in 8080 8081; do
   fi
 done
 
-# liveness 仍为 200
+# liveness 仍为 200（有上限轮询，curl 超时 10s）
 for port in 8080 8081; do
-  check_health_endpoint "$port" "/actuator/health/liveness" "200" ":$port liveness (db 停止)" || FAILED=1
+  if ! wait_for_health_endpoint "$port" "/actuator/health/liveness" "200" ":$port liveness (db 停止)" 60 10; then
+    FAILED=1
+  fi
 done
 
 # 容器状态变为 unhealthy（healthcheck retries=12, interval=10s，最多 120s）
