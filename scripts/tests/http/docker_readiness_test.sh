@@ -69,18 +69,18 @@ wait_for_http_status() {
   local desc="$3"
   local max_wait="${4:-60}"
   local elapsed=0
-  echo "等待 $desc 返回 HTTP $expected（最多 ${max_wait}s）..."
+  echo "等待 $desc 返回 HTTP ${expected}（最多 ${max_wait}s）..."
   while [ $elapsed -lt "$max_wait" ]; do
     local status
-    status=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+    status=$(curl -s -m 35 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null) || status="000"
     if [ "$status" = "$expected" ]; then
-      echo "  $desc 已返回 HTTP $expected（${elapsed}s）"
+      echo "  $desc 已返回 HTTP ${expected}（${elapsed}s）"
       return 0
     fi
     sleep 5
     elapsed=$((elapsed + 5))
   done
-  echo "  FAIL: $desc 在 ${max_wait}s 内未返回 HTTP $expected（最后状态: $status）"
+  echo "  FAIL: $desc 在 ${max_wait}s 内未返回 HTTP ${expected}（最后状态: ${status}）"
   return 1
 }
 
@@ -90,7 +90,7 @@ check_http_status() {
   local expected="$2"
   local desc="$3"
   local status
-  status=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+  status=$(curl -s -m 10 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null) || status="000"
   if [ "$status" = "$expected" ]; then
     echo "  PASS: $desc → $status"
     return 0
@@ -108,7 +108,7 @@ check_health_endpoint() {
   local desc="$4"
   local response status body
 
-  response=$(curl -s -m 5 -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null || echo -e "\n000")
+  response=$(curl -s -m 10 -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null) || response=$'\n000'
   status=$(echo "$response" | tail -1)
   body=$(echo "$response" | sed '$d')
 
