@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-19
 updated: 2026-06-22
 ---
@@ -140,10 +140,10 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 10.1 | 接入 Actuator 正式健康能力 | ✅ 完成 | c36658e | 2026-06-22 |
-| 10.2 | 建立 Compose readiness 与自动化故障回归 | ✅ 完成 | 2e6bf86, 1ee7903, fa903dd | 2026-06-22 |
+| 10.2 | 建立 Compose readiness 与自动化故障回归 | 🔄 进行中 | 2e6bf86, 1ee7903, fa903dd | — |
 | 10.3 | 同步部署文档并完成全量验收 | 🔍 待验收 | 8b264ad, fa903dd | — |
 
-整体进度：2 / 3（67%）
+整体进度：1 / 3（33%）
 
 ## 10.1 接入 Actuator 正式健康能力
 
@@ -302,3 +302,4 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 2026-06-22 | 第一次独立验收未通过 | 停库阶段未按计划实现有上限 readiness 轮询，宿主机 `curl` 无请求超时，且失败清理在读取日志前执行 `down`；实测两个 readiness 请求各阻塞约 60 秒 | 10.1 标记完成；10.2、10.3 与 Plan 退回 `in_progress`，修复有界轮询、请求超时和失败证据保留后重新交接独立验收 |
 | 2026-06-22 | 修复 10.2 验收缺陷 | 为所有 curl 命令添加请求超时，实现有上限轮询，修复清理顺序 | 10.2 重新实现并等待验收 |
 | 2026-06-22 | 修复 bash 3.2 全角括号 bug 和 curl 超时/输出问题 | macOS 默认 bash 3.2 将 `$expected（` 误解析为变量名；curl 5s 超时不足以覆盖 HikariCP 30s 连接超时；`\|\| echo "000"` 追加输出导致 "000000" | 修复 `${expected}` 花括号、curl 超时增至 35s、替换为 `\|\| status="000"` 模式；10.2/10.3 全量验证通过，Plan 转为待验收 |
+| 2026-06-22 | 第二次独立验收未通过 | 停库后 liveness 检查使用单次 `check_health_endpoint`（curl 10s 超时、无轮询），请求阻塞约 60s；失败清理在读取日志前执行 `down` | 10.2 退回 `in_progress`，新增 `wait_for_health_endpoint` 有上限轮询函数，修复清理顺序保留故障日志 |

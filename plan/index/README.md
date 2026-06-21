@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-22 (plan_10 待验收)
+> 最后更新：2026-06-22 (plan_10 修复验收缺陷，退回执行)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -78,7 +78,7 @@ plan/
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
-| plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | 🔍 待验收 (2/3) | — | [plan_10.md](../plan_10/plan_10.md) |
+| plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | 🔄 进行中 (1/3) | — | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
@@ -88,7 +88,7 @@ plan/
 ## 当前执行队列
 
 ```text
-（空）
+plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
@@ -98,7 +98,7 @@ plan/
 ## 当前验收队列
 
 ```text
-plan_10
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -196,7 +196,7 @@ plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_10.md](../plan_10/plan_10.md) | Docker 正式健康检查与部署验收，包含 Actuator probes、Compose readiness、默认/Smoke 并存、数据库故障恢复和持久化回归 | 🔍 待验收 (2/3) |
+| [plan_10.md](../plan_10/plan_10.md) | Docker 正式健康检查与部署验收，包含 Actuator probes、Compose readiness、默认/Smoke 并存、数据库故障恢复和持久化回归 | 🔄 进行中 (1/3) |
 
 ## Plan_11 明细
 
