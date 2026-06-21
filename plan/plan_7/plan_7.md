@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: verifying
+status: completed
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,26 +370,22 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | ✅ 待验收 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46, db472e3 | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | ✅ 待验收 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46, db472e3 | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | ✅ 完成 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46, db472e3 | 2026-06-21 |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | ✅ 完成 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46, db472e3 | 2026-06-21 |
 
-整体进度：6 / 8（75%）
+整体进度：8 / 8（100%）
 
 ## 验收状态
 
-2026-06-21 第七次交接：修复第六次验收发现的两项阻断缺陷后重新交接独立验收。
+2026-06-21 第七次独立验收通过，Plan 完成。
 
-修复内容：
-- `PromptBuilder` 系统消息新增 `[Sx]` 具体示例、禁止省略引用规则；用户消息末尾增加引用标注提醒，确保 DeepSeek V4 Flash 生成符合格式的引用。
-- `application.yml` 默认日志级别从 `DEBUG` 改为 `INFO`，避免默认记录完整问题和回答。
-
-自测证据：
-- `./gradlew test`：34 个 actionable tasks，全部通过。
-- `./gradlew check`：54 个 actionable tasks，全部通过（含 Spotless、Plan 校验）。
-- `python3 scripts/validate_plans.py --strict --verify-git`：0 error，24 个历史兼容 warning。
-- `git diff --check`：无 whitespace 问题。
-- Stub Docker HTTP 回归（第六次验收已通过，本次未重跑，代码路径未变）。
-- 真实 DeepSeek 调用未执行，等待独立验收 session 在修复后执行。
+验收结论：
+- Standards 与 Spec 审查均未发现阻断问题；声明的实现 commit 均存在且服务对应任务。
+- Gradle 测试、全量检查、Plan 严格校验、Git whitespace 与脚本语法检查全部通过。
+- Stub 成功、Stub failure + restore、恢复后 Stub 成功三段 Docker HTTP 回归全部通过。
+- 经用户明确批准只执行一次真实 DeepSeek 调用：HTTP 200、`code=0`、回答包含本次唯一验证码和合法 `[S1]`，8 个 sources、目标 parent 映射、非空 matchedChildIds 与 usage 均通过。
+- 容器日志未发现凭据、认证 Header、唯一验证码、Context 边界或 Prompt 结构泄漏。
+- 验收脚本最终恢复 Stub success，并通过正式 Query API 确认 `code=0`。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -510,6 +506,10 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | 静态修复 | 修正 source 正则与 EXIT trap 恢复状态 | 通过 | `r'^S\d+\$'` → `r'^S\d+$'`，移除多余反斜杠使 `S1` 等合法 reference 通过校验；Phase 6 `_STUB_RESTORED=1` 移至 `wait_for_app` 与 stub query 双确认成功后，失败分支 EXIT trap 保持可触发。 |
 | 2026-06-21 | macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks，全部 up-to-date；`check`：54 个 actionable tasks，4 executed、50 up-to-date。 |
 | 2026-06-21 | macOS / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与三个 Query 脚本语法检查通过。 |
+| 2026-06-21 | 第七次独立验收 / macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks 全部通过；`check`：54 个 actionable tasks，4 executed、50 up-to-date，约束、依赖、Spotless、测试与 Plan 校验全部通过。 |
+| 2026-06-21 | 第七次独立验收 / Docker Compose / Stub | `bash scripts/tests/http/query_stub_success_test.sh`、`bash scripts/tests/http/query_stub_failure_test.sh`、再次执行 success 脚本 | 通过 | 三段回归全部通过；runId 分别为 `qs-1782026998-50752`、`qf-1782027028-51004`、`qs-1782027166-50741`，测试数据保留。 |
+| 2026-06-21 | 第七次独立验收 / Docker Compose / DeepSeek official Anthropic API | `bash scripts/tests/http/query_deepseek_acceptance_test.sh` | 通过 | 经用户明确批准只执行一次真实模型调用；HTTP 200、`code=0`、唯一验证码、合法 `[S1]`、8 个 sources、目标 parent 映射、非空 matchedChildIds 和 usage 全部通过；安全日志扫描通过，结束后恢复 Stub success。runId：`deepseek-accept-1782027838-59905`；测试数据保留。 |
+| 2026-06-21 | 第七次独立验收 / Python 3 / Git / Bash | `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`、`bash -n scripts/tests/http/query_*.sh` | 通过 | Plan 严格校验 0 error、24 个历史兼容 warning；Git whitespace 与脚本语法检查通过。 |
 | 2026-06-21 | macOS / Java 21 | `./gradlew test`、`./gradlew check` | 通过 | `test`：34 个 actionable tasks，全部 up-to-date；`check`：54 个 actionable tasks，4 executed、50 up-to-date；约束、依赖、Spotless、测试与 Plan 校验通过。 |
 | 2026-06-21 | Docker Compose / Stub success | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | HTTP 200、`code=0`、固定 Stub answer、目标 parentChunkId、合法 reference 与非空 matchedChildIds 均通过。runId：`qs-1782025361-89985`；测试数据保留。 |
 | 2026-06-21 | Docker Compose / Stub failure + restore | `bash scripts/tests/http/query_stub_failure_test.sh` | 通过 | Failure 模式返回 HTTP 502、`code=50201`、`success=false`；恢复后正式 Query API 返回 HTTP 200、`code=0`。runId：`qf-1782025427-90420`。 |
@@ -569,3 +569,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | 修复全部提前退出分支恢复守卫 | `30cbb46`：移除 Phase 1 readiness、AdminRag 失败、索引超时和 Phase 2 readiness 四条路径的提前 `_STUB_RESTORED=1` 与冗余内联恢复，EXIT trap 成为所有退出路径的唯一恢复守卫；同步 CLAUDE.md 修复约束校验 | 回填 `02fc812` 与 `30cbb46` 到 7.7/7.8，Plan 转为 `verifying`，交接独立验收 session |
 | 2026-06-21 | plan_7 第六次独立验收失败 | 最新恢复守卫、Gradle 与 Stub 回归通过；唯一一次真实 DeepSeek 调用返回成功内容但没有 `[Sx]` 引用，且默认 DEBUG 配置把完整问题与回答写入日志 | Plan、7.7 与 7.8 退回 `in_progress`；修复默认日志级别和真实 Provider 引用遵循问题后重新交接，未经用户再次批准不得重跑真实调用 |
 | 2026-06-21 | 修复引用遵循与默认日志级别 | `db472e3`：PromptBuilder 系统消息新增 `[Sx]` 示例与禁止省略规则，用户消息增加引用提醒；`application.yml` 默认 `ai.cerbur.crag` 从 `DEBUG` 改为 `INFO` | 7.7/7.8 转为待验收，Plan 转为 `verifying`，交接独立验收 session |
+| 2026-06-21 | 第七次独立验收通过 | Gradle、静态校验、Stub 三段回归与经明确授权的单次真实 DeepSeek 回归全部通过；引用、source、usage、安全日志和 Stub 恢复均满足验收标准 | 7.7、7.8 与 Plan 标记完成，解除 plan_10 前置阻塞 |

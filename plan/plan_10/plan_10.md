@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: blocked
+status: draft
 created: 2026-06-19
 updated: 2026-06-21
 ---
@@ -170,7 +170,7 @@ updated: 2026-06-21
 - **当前进度**：0/4 任务未开始（草稿状态）。
 - **解除条件**：`plan_7` 通过独立验收并标记 `completed`。
 - **解除方**：`plan_7` 独立验收 session。
-- **解除状态**：待解除。
+- **解除状态**：已于 2026-06-21 通过 `plan_7` 第七次独立验收解除；Plan 按既定恢复路径转为 `draft`。
 - **恢复后的下一步**：校准 `plan_7` 最终实现，将 Plan 转为 `ready` 并开始执行。
 
 ## 废弃任务记录
@@ -185,3 +185,4 @@ updated: 2026-06-21
 | 2026-06-19 | 增加 plan_7 前置并收窄 Smoke 职责 | Query/LLM 配置会改变最终部署契约，Smoke 机制由 plan_9 交付 | 执行顺序固定为 plan_9 → plan_7 → plan_10 |
 | 2026-06-19 | 记录上游治理链 | constraints 复核新增 plan_12 与 plan_9.hotfix_3，二者先于 Query 执行 | 本计划直接依赖仍为 plan_9、plan_7；完整队列为 plan_12 → plan_9.hotfix_3 → plan_7 → plan_10 |
 | 2026-06-19 | 同步 Query 新增前置 | Parent Evidence 修正与 Boot 4 / Spring AI 2 升级先于 Query | 当前执行队列为 plan_6.hotfix_6 → plan_13 → plan_7 → plan_10 |
+| 2026-06-21 | 解除 plan_7 前置阻塞 | plan_7 第七次独立验收通过并完成 | Plan 转回 `draft`，下一步按最终 Query/LLM 实现校准后转为 `ready` |
