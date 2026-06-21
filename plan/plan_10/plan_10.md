@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_10
 type: main
-status: verifying
+status: completed
 created: 2026-06-19
 updated: 2026-06-22
 ---
@@ -140,10 +140,10 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 10.1 | 接入 Actuator 正式健康能力 | ✅ 完成 | c36658e | 2026-06-22 |
-| 10.2 | 建立 Compose readiness 与自动化故障回归 | 🔍 待验收 | 2e6bf86, 1ee7903, fa903dd, b7734a0 | — |
-| 10.3 | 同步部署文档并完成全量验收 | 🔍 待验收 | 8b264ad, fa903dd | — |
+| 10.2 | 建立 Compose readiness 与自动化故障回归 | ✅ 完成 | 2e6bf86, 1ee7903, fa903dd, b7734a0 | 2026-06-22 |
+| 10.3 | 同步部署文档并完成全量验收 | ✅ 完成 | 8b264ad, fa903dd | 2026-06-22 |
 
-整体进度：1 / 3（33%）
+整体进度：3 / 3（100%）
 
 ## 10.1 接入 Actuator 正式健康能力
 
@@ -282,6 +282,7 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 2026-06-22 | macOS, Docker Compose | 修复验收缺陷后自测：`python3 scripts/validate_constraints.py` | ✅ 通过 | 0 error |
 | 2026-06-22 | macOS, Docker Compose | 修复验收缺陷后自测：`python3 scripts/validate_plans.py --strict --verify-git` | ✅ 通过 | 0 error, 24 warning（历史 Plan） |
 | 2026-06-22 | macOS, Docker Compose | 修复验收缺陷后自测：`git diff --check` | ✅ 通过 | 无空白问题 |
+| 2026-06-22 | macOS, Docker Compose | 第三次独立验收：组件/架构测试、readiness 回归、三条既有 HTTP 回归、镜像检查、`./gradlew check`、约束/Plan/diff 校验 | ✅ 通过 | readiness/liveness 有界轮询在停库后首轮返回预期状态；双 App、故障恢复、持久化、业务契约均通过；镜像包含 curl 8.19.0 且运行用户为 appuser；Plan 完成。 |
 
 ## 阻塞记录
 
@@ -311,3 +312,4 @@ CRAG-Demo 已具备单一 `docker-compose.yml`、默认 `app`、显式 `app-smok
 | 2026-06-22 | 修复 bash 3.2 全角括号 bug 和 curl 超时/输出问题 | macOS 默认 bash 3.2 将 `$expected（` 误解析为变量名；curl 5s 超时不足以覆盖 HikariCP 30s 连接超时；`\|\| echo "000"` 追加输出导致 "000000" | 修复 `${expected}` 花括号、curl 超时增至 35s、替换为 `\|\| status="000"` 模式；10.2/10.3 全量验证通过，Plan 转为待验收 |
 | 2026-06-22 | 第二次独立验收未通过 | 停库后 liveness 检查使用单次 `check_health_endpoint`（curl 10s 超时、无轮询），请求阻塞约 60s；失败清理在读取日志前执行 `down` | 10.2 退回 `in_progress`，新增 `wait_for_health_endpoint` 有上限轮询函数，修复清理顺序保留故障日志 |
 | 2026-06-22 | 修复验收缺陷并重新交接 | 新增 `wait_for_health_endpoint` 有上限轮询函数替换单次 liveness 检查，`check_health_endpoint` 增加 curl 超时参数，cleanup 先捕获日志再 down | 10.2 实现提交 b7734a0，自测全部通过，Plan 转为 `verifying` |
+| 2026-06-22 | 第三次独立验收通过 | 全部验收标准、Docker HTTP 回归、既有业务回归、工程校验和镜像运行身份均通过 | 10.2、10.3 与 Plan 标记完成，移出验收队列 |
