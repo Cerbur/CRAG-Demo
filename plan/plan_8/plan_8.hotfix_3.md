@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_8.hotfix_3
 type: hotfix
 parent_plan: plan_8
-status: ready
+status: verifying
 created: 2026-06-21
 updated: 2026-06-21
 ---
@@ -72,7 +72,7 @@ updated: 2026-06-21
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 8.hotfix_3.1 | 创建并路由项目级 Plan 执行 Skill | ⏳ 待开始 | — | — |
+| 8.hotfix_3.1 | 创建并路由项目级 Plan 执行 Skill | 🔍 待验收 | 8f3baf1 | — |
 
 整体进度：0 / 1（0%）
 
@@ -90,6 +90,7 @@ updated: 2026-06-21
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-21 | macOS / Git | 目录结构、frontmatter、路由文本与实现提交范围检查 | 通过 | `execute-crag-plan` 由官方初始化脚本创建；Skill、UI 元数据、项目索引和 AGENTS 路由均已提交到 `8f3baf1`。按用户要求未执行模型前向测试或额外 Skill 验证。 |
 
 ## 阻塞记录
 
@@ -104,3 +105,5 @@ updated: 2026-06-21
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-21 | 创建 Hotfix 并设为待开始 | 旧 OpenCode Skill 已停用，通用路由不足以约束便宜模型完成 workflow v3 交接 | 暂时中断 plan_7，先建立项目级执行入口 |
+| 2026-06-21 | 开始执行 Skill 创建任务 | Plan 基线提交 `0b39b1d` 已创建 | 创建新 Skill、更新项目入口并停用旧索引 |
+| 2026-06-21 | 完成实现并交接独立验收 | Skill 与路由实现提交 `8f3baf1` 已创建 | 任务与 Hotfix 转为待验收；恢复 plan_7 执行队列 |
