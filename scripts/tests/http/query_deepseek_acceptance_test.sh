@@ -165,7 +165,6 @@ if ! wait_for_app "stub mode"; then
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: BLOCKED"
-  _STUB_RESTORED=1
   exit 2
 fi
 
@@ -185,18 +184,9 @@ else
   echo "FAIL: AdminRag returned code=$WRITE_CODE, resp=$RESP_BODY"
   FAILED=1
   echo ""
-  echo "=== Attempting restore before FAILED exit ==="
-  cd "$COMPOSE_DIR"
-  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
-  CRAG_QUERY_LLM_PROVIDER=stub \
-  CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose up -d --build app 2>/dev/null || true
-  wait_for_app "restored stub" 2>/dev/null || true
-  echo ""
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: FAILED"
-  _STUB_RESTORED=1
   exit 1
 fi
 
@@ -248,18 +238,9 @@ if [ "$INDEXED" -eq 0 ]; then
   echo "FAIL: Data did not index within ${MAX_INDEX_ATTEMPTS} attempts — aborting"
   FAILED=1
   echo ""
-  echo "=== Attempting restore before FAILED exit ==="
-  cd "$COMPOSE_DIR"
-  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
-  CRAG_QUERY_LLM_PROVIDER=stub \
-  CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose up -d --build app 2>/dev/null || true
-  wait_for_app "restored stub" 2>/dev/null || true
-  echo ""
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: FAILED"
-  _STUB_RESTORED=1
   exit 1
 fi
 
@@ -282,18 +263,9 @@ if ! wait_for_app "deepseek mode"; then
   echo "FAIL: App did not become ready after DeepSeek rebuild — aborting"
   FAILED=1
   echo ""
-  echo "=== Attempting restore before BLOCKED exit ==="
-  cd "$COMPOSE_DIR"
-  DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
-  CRAG_QUERY_LLM_PROVIDER=stub \
-  CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose up -d --build app 2>/dev/null || true
-  wait_for_app "restored stub" 2>/dev/null || true
-  echo ""
   echo "=== Acceptance Test Complete ==="
   echo "RUN_ID=$RUN_ID"
   echo "Result: BLOCKED"
-  _STUB_RESTORED=1
   exit 2
 fi
 

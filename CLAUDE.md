@@ -36,6 +36,7 @@
 ## 对话约定
 
 - 涉及计划创建、命名、执行和进度更新时，必须遵守 `constraints/plan-workflow.md`。
+- 用户要求执行、继续、恢复或修复某个 Plan（包括“执行 plan7”一类短提示）时，必须先读取 `skill/execute-crag-plan/SKILL.md` 并按其执行 session 流程完成实现提交与独立交接；独立验收请求不使用该执行流程。
 - 查询计划状态时优先查看 `plan/index/README.md`；不要把执行计划索引写回 `plan/plan_main.md`。
 - 涉及 Java 代码时，必须遵守 `constraints/code-style.md`。
 - 涉及 Controller、HTTP DTO、统一响应或异常映射时，必须遵守 `constraints/api-style.md`。
