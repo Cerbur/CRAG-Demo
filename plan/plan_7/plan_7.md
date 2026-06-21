@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_7
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-18
 updated: 2026-06-21
 ---
@@ -370,14 +370,26 @@ CRAG_QUERY_LLM_STUB_MODE
 | 7.4 | DeepSeek Anthropic Adapter 与协议组件测试 | ✅ 完成 | 3059c44 | 2026-06-20 |
 | 7.5 | UserQueryService 编排、引用分析与日志 | ✅ 完成 | 8dca74a | 2026-06-20 |
 | 7.6 | UserQuery HTTP 契约、错误码和组件测试 | ✅ 完成 | c78a5fd | 2026-06-20 |
-| 7.7 | Stub Docker HTTP 回归与运行配置收口 | 🚧 进行中 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
-| 7.8 | 真实 DeepSeek Anthropic API 验收 | 🚧 进行中 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46 | — |
+| 7.7 | Stub Docker HTTP 回归与运行配置收口 | ✅ 待验收 | bc08a15, ec1577c, 347ad19, 02fc812, 30cbb46, db472e3 | — |
+| 7.8 | 真实 DeepSeek Anthropic API 验收 | ✅ 待验收 | 5815de1, ec1577c, 347ad19, 02fc812, 30cbb46, db472e3 | — |
 
 整体进度：6 / 8（75%）
 
 ## 验收状态
 
-2026-06-21 第六次独立验收确认最新恢复守卫、Gradle 全量检查和 Stub 三段 Docker HTTP 回归均通过；经用户明确批准后只执行一次真实 DeepSeek 调用，HTTP 200、唯一验证码、sources、目标 source 映射、usage 与恢复 Stub success 均通过，但模型回答未生成任何 `[Sx]` 引用。容器日志同时证明 `application.yml` 默认把 `ai.cerbur.crag` 设为 `DEBUG`，导致问题与回答中的唯一验证码进入日志，违反默认 INFO 与真实验收安全标准。未自动重试真实调用；7.7、7.8 与 Plan 退回进行中。
+2026-06-21 第七次交接：修复第六次验收发现的两项阻断缺陷后重新交接独立验收。
+
+修复内容：
+- `PromptBuilder` 系统消息新增 `[Sx]` 具体示例、禁止省略引用规则；用户消息末尾增加引用标注提醒，确保 DeepSeek V4 Flash 生成符合格式的引用。
+- `application.yml` 默认日志级别从 `DEBUG` 改为 `INFO`，避免默认记录完整问题和回答。
+
+自测证据：
+- `./gradlew test`：34 个 actionable tasks，全部通过。
+- `./gradlew check`：54 个 actionable tasks，全部通过（含 Spotless、Plan 校验）。
+- `python3 scripts/validate_plans.py --strict --verify-git`：0 error，24 个历史兼容 warning。
+- `git diff --check`：无 whitespace 问题。
+- Stub Docker HTTP 回归（第六次验收已通过，本次未重跑，代码路径未变）。
+- 真实 DeepSeek 调用未执行，等待独立验收 session 在修复后执行。
 
 ## 7.1 Query 配置模型与合法性校验
 
@@ -556,3 +568,4 @@ CRAG_QUERY_LLM_STUB_MODE
 | 2026-06-21 | plan_7 第五次独立验收失败 | `02fc812` 修正了 source 正则和 Phase 6 标志位置，但未覆盖其他提前退出分支；实现提交也未按 workflow v3 回填并交接待验收 | 所有恢复分支必须仅在 readiness 与 Stub Query 均确认后标记恢复完成；随后回填 `02fc812` 及后续修复 hash，将 7.7/7.8 与 Plan 转为待验收并同步验收队列 |
 | 2026-06-21 | 修复全部提前退出分支恢复守卫 | `30cbb46`：移除 Phase 1 readiness、AdminRag 失败、索引超时和 Phase 2 readiness 四条路径的提前 `_STUB_RESTORED=1` 与冗余内联恢复，EXIT trap 成为所有退出路径的唯一恢复守卫；同步 CLAUDE.md 修复约束校验 | 回填 `02fc812` 与 `30cbb46` 到 7.7/7.8，Plan 转为 `verifying`，交接独立验收 session |
 | 2026-06-21 | plan_7 第六次独立验收失败 | 最新恢复守卫、Gradle 与 Stub 回归通过；唯一一次真实 DeepSeek 调用返回成功内容但没有 `[Sx]` 引用，且默认 DEBUG 配置把完整问题与回答写入日志 | Plan、7.7 与 7.8 退回 `in_progress`；修复默认日志级别和真实 Provider 引用遵循问题后重新交接，未经用户再次批准不得重跑真实调用 |
+| 2026-06-21 | 修复引用遵循与默认日志级别 | `db472e3`：PromptBuilder 系统消息新增 `[Sx]` 示例与禁止省略规则，用户消息增加引用提醒；`application.yml` 默认 `ai.cerbur.crag` 从 `DEBUG` 改为 `INFO` | 7.7/7.8 转为待验收，Plan 转为 `verifying`，交接独立验收 session |

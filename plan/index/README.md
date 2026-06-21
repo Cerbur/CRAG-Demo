@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-21 (plan_7 第六次独立验收失败)
+> 最后更新：2026-06-21 (plan_7 第七次独立验收交接)
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -75,7 +75,7 @@ plan/
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | 🚧 进行中 (6/8) | — | [plan_7.md](../plan_7/plan_7.md) |
+| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 待验收 (6/8) | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 部署契约升级与实现对齐，包含健康检查、单 Compose Smoke 切换和部署验收 | ⛔ 阻塞 (0/4)，等待 plan_7 验收完成 | — | [plan_10.md](../plan_10/plan_10.md) |
@@ -88,18 +88,18 @@ plan/
 ## 当前执行队列
 
 ```text
-plan_7 → plan_10
+plan_10
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
-- `plan_7` 第六次独立验收发现真实回答缺少引用且默认 DEBUG 泄露完整问题与回答，已退回执行修复；`plan_10` 在 `plan_7` 验收完成后推进。
+- `plan_7` 已修复引用遵循与默认日志级别问题并重新交接验收；`plan_10` 在 `plan_7` 验收完成后推进。
 
 ---
 
 ## 当前验收队列
 
 ```text
-（空）
+plan_7
 ```
 
 - 仅列出状态为”待验收”的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -171,7 +171,7 @@ plan_7 → plan_10
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_7.md](../plan_7/plan_7.md) | Query Parent Context、引用、LLM contract/adapter、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化 HTTP 回归 | 🚧 进行中 (6/8) |
+| [plan_7.md](../plan_7/plan_7.md) | Query Parent Context、引用、LLM contract/adapter、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化 HTTP 回归 | ✅ 待验收 (6/8) |
 
 ## Plan_8 明细
 
