@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-22
 updated: 2026-06-22
 ---
@@ -369,13 +369,17 @@ public interface GrpcChannelFactory {
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
-| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
-| 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1 | — |
-| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
-| 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
+| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | 🔄 进行中 | 0ea145d | — |
+| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | 🔄 进行中 | d31ba42 | — |
+| 14.3 | 建立 Console/Open API 与下游 Probe readiness | 🔄 进行中 | 8473bb1 | — |
+| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | 🔄 进行中 | 2991aea | — |
+| 14.5 | 收口回归、架构约束与项目文档 | 🔄 进行中 | 90f5a99 | — |
+| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待开始 | — | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待开始 | — | — |
+| 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待开始 | — | — |
+| 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 5（0%），待验收：5
+整体进度：0 / 9（0%）
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -525,6 +529,46 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 - [ ] 运行 `./gradlew check`、全部 Python 校验器与单测、严格 Plan 校验、`git diff --check` 和残留检索；确认无跳过、无占位、无旧运行入口。
 - [ ] 创建实现提交 `test(plan_14/14.5): verify distributed platform baseline`；随后按执行 Skill 创建独立交接提交，回填五个真实实现 hash 并转入待验收。
 
+## 14.6 修复 gRPC 配置边界并补齐 Probe 行为测试
+
+**目标**：修复独立验收发现的 Runtime/Application 配置与行为覆盖缺口，使服务身份、Probe 响应和 readiness 聚合由可重复测试证明。
+**前置任务**：14.5
+**范围**：移除 `GrpcServerConfiguration` 对具体调用方名称的硬编码，使用结构化配置绑定读取完整 allowed-callers；Console/Open 校验 Probe 返回的 `serviceName` 与 `callerService`；总预算到期时取消未完成 Future；为 Access/Knowledge/RAG 的真实 Probe、Console/Open 下游聚合和应用 Bean 边界补充组件/单元测试。
+**非目标**：不新增领域 RPC、重试、TLS/mTLS、业务 Controller 或新的服务身份。
+**验收标准**：Runtime 不包含 `console-api`、`open-api` 等 Application 身份常量；任意合法结构化 caller 配置可加载，空/非法配置启动失败且不泄漏 token；三个真实 Probe 返回规范服务名和认证 caller；Console/Open 对错误服务名、错误 caller、鉴权失败、deadline、单目标失败和总预算超时返回 DOWN，并取消未完成任务；组件测试证明 API 无 DataSource/RAG Bean，Access/Knowledge 无 RAG 业务 Bean，RAG 保留既有业务 Bean。
+**验证方式**：运行 `:crag-grpc-runtime:test`、`:crag-access-service:test`、`:crag-knowledge-service:test`、`:crag-rag-service:test`、`:crag-console-api:test`、`:crag-open-api:test` 和 `./gradlew test`；检查测试报告无跳过。
+**涉及文件**：`crag-grpc-runtime/**`、`crag-access-service/src/test/**`、`crag-knowledge-service/src/test/**`、`crag-rag-service/src/test/**`、`crag-console-api/**`、`crag-open-api/**`
+
+## 14.7 补齐 Docker 与 Schema 拓扑验收
+
+**目标**：补齐真实 Compose、服务身份、数据库权限和镜像边界的自动化验收，并清除旧单应用 Docker 入口。
+**前置任务**：14.6
+**范围**：新增 `platform_topology_test.sh`；删除已被通用镜像替代的根 `Dockerfile`；验证默认七个长期服务、五个 Java 容器正确 Jar/非 root、内部端口不暴露、管理员凭据不进入 Java 容器、合法 Probe 链路、三个 Schema owner、同 Schema 成功以及跨 Schema SELECT/CREATE 失败。
+**非目标**：不暴露内部 gRPC 端口，不删除持久化目录，不引入业务表或版本化迁移。
+**验收标准**：脚本可重复执行且任一断言失败时非零退出；`docker compose up -d --build` 后七个长期服务 healthy；普通 down 后 `data/pgdata-platform` 保留且 `data/pgdata` 未修改；根 `Dockerfile` 不再存在。
+**验证方式**：运行 `docker compose config`、`docker compose up -d --build`、`bash scripts/tests/http/platform_topology_test.sh` 和普通 `docker compose down`；记录 runId、环境、结果与残留数据。
+**涉及文件**：`Dockerfile`（删除）、`docker-compose.yml`、`docker/java-service.Dockerfile`、`docker/postgres/init/001-platform.sh`、`scripts/tests/http/platform_topology_test.sh`
+
+## 14.8 迁移并执行完整 HTTP 回归
+
+**目标**：让既有稳定回归适配 `rag-service`/`rag-service-smoke` 和 8082/8083，并以 Docker HTTP 入口证明旧 RAG 行为未退化。
+**前置任务**：14.7
+**范围**：所有 RAG HTTP 脚本统一支持 `CRAG_RAG_BASE_URL` 且正式入口默认 8082；Smoke 脚本默认或显式使用 8083；重写 `docker_readiness_test.sh` 的服务名、端口、故障恢复和日志收集；修正 DeepSeek 条件脚本中的容器名；执行 AdminRag、Query Stub 成功/失败、默认 Smoke、Smoke Profile 与 Retrieval Evidence。
+**非目标**：不调用真实 DeepSeek，不修改业务行为迎合脚本，不清空共享数据库。
+**验收标准**：脚本中不存在当前态 `app`、`app-smoke`、`crag-app` 或错误的 8080/8081 RAG 默认入口；写入脚本生成唯一 runId；所有必跑回归无跳过并以非零退出表达失败。
+**验证方式**：在默认 Compose 与 smoke Profile 下依次运行计划列出的全部 HTTP 脚本；保留每项命令、runId、结果和失败诊断。
+**涉及文件**：`scripts/tests/http/**`
+
+## 14.9 收口约束文档、校验器与交接证据
+
+**目标**：消除单应用旧事实和校验盲区，使约束、README、索引、实现及最终交接证据一致。
+**前置任务**：14.8
+**范围**：修正 `package-structure.md` 中 `crag-app` 唯一组合根、旧依赖白名单和 `app-smoke` 命令；修正 `docker-structure.md` 硬约束中的旧 `app/app-smoke`、启动关系和 `data/pgdata`；修正 README 旧目录树；增强约束校验器及其单测，拒绝上述旧事实、缺失拓扑脚本、错误 RAG 端口/服务名和内部端口暴露；补全真实 Gradle/Docker 验收记录。
+**非目标**：不改写长期方向文档为当前实现索引，不登记尚未实现的领域模块。
+**验收标准**：当前事实文档无矛盾；`./gradlew check`、全部 Python 校验器与单测、严格 Plan 校验和 `git diff --check` 全部通过；验收记录包含 14.6-14.8 的真实命令和结果，索引状态与 Plan 一致。
+**验证方式**：运行 `./gradlew check`、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v`、全部校验器、`python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check` 和旧术语残留检索。
+**涉及文件**：`constraints/package-structure.md`、`constraints/docker-structure.md`、`constraints/test-workflow.md`、`README.md`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
+
 ## 验收记录
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
@@ -540,6 +584,10 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 本地开发 | `./gradlew :crag-open-api:test` | 通过 (2/2) | Context、spring.application.name |
 | 2026-06-22 | 本地开发 | `./gradlew check` | 通过 | 五进程拓扑约束校验、全量静态检查 |
 | 2026-06-22 | 本地开发 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies -v` | 通过 | 14 模块白名单和边界校验 |
+| 2026-06-22 | 独立验收 / macOS / Java 21 | `./gradlew check` | 失败 | `validatePlans` 报 P304：索引将 plan_14 写为 5/5，但 Plan 真实进度为 0/5；构建在执行测试前失败 |
+| 2026-06-22 | 独立验收 / Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (42/42) | 现有校验器单测通过，但未覆盖旧单应用文档、缺失拓扑脚本和旧 HTTP 脚本入口，属于校验盲区 |
+| 2026-06-22 | 独立验收 / 静态检查 | `docker compose config --services`、`docker compose --profile smoke config --services`、`bash -n scripts/tests/http/*.sh docker/postgres/init/001-platform.sh` | 部分通过 | Compose 可解析且 Shell 语法通过；未执行 Docker HTTP 回归，因为必需的 `platform_topology_test.sh` 不存在且既有脚本仍引用旧服务/端口 |
+| 2026-06-22 | 独立验收 / Git 与源码审查 | 核对五个实现提交、Plan 验收标准、测试源码、约束和回归脚本 | 失败 | 14.3 关键行为测试缺失；14.4 根 Dockerfile 未删除且无 Schema 拓扑自动化证据；14.5 提交仅修改 README/包结构文档，未实现声明的脚本、校验器和完整回归 |
 
 ## 阻塞记录
 
@@ -557,3 +605,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 细化契约归属、Runtime 边界、身份、Probe、Schema、Docker 与逐任务实施步骤 | Grilling 逐项确认了领域 Contracts 按 Server 归属、通用基础契约与协议无关 Runtime 边界、最小权限数据库和五进程验证策略 | 不改变五任务范围与状态；消除执行期架构决策，更新文件地图、接口、测试先行步骤和精确验收 |
 | 2026-06-22 | 校准基础契约职责并移除 14.5 对长期方向文档的实现态回写 | `crag-platform-contracts` 承载跨领域通用基础契约，领域契约仍按服务提供方归属；`plan_main` 与方向归档不作为当前实现索引 | 14.1 当前仍只落地 Platform Probe；14.5 只同步当前实现约束、README 与索引 |
 | 2026-06-22 | 锁定基础契约命名、迁移机制归属、临时端口退出与前置依赖 | 通用契约职责不应使用 Probe 模块名；plan_14 不拥有 Access/Knowledge 业务迁移；兼容和诊断端口需要明确生命周期；框架基线依赖应进入依赖图 | 模块统一为 `crag-platform-contracts`；版本化迁移归 plan_17/18/19；8082 由 plan_20 移除、8083 由 plan_20 评估、8001 保留为本地诊断例外；执行前置改为 plan_13 |
+| 2026-06-22 | 独立验收失败，退回进行中并追加 14.6-14.9 | 关键行为测试、平台拓扑脚本、HTTP 回归迁移、Docker 清理、约束同步和真实验收证据均未完成；现有校验器未阻止这些缺口 | 14.1-14.5 退回进行中；新增四个修复任务，完成实现、自测、任务提交与交接后再进入独立验收 |

@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-22（plan_14 任务 14.1 交接验收）
+> 最后更新：2026-06-22（plan_14 独立验收失败，追加 14.6-14.9）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -84,14 +84,14 @@ plan/
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
-| plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | ✅ 待验收 (5/5) | — | [plan_14.md](../plan_14/plan_14.md) |
+| plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | 🔄 进行中 (0/9) | — | [plan_14.md](../plan_14/plan_14.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
-（空）
+plan_14（进行中，0/9）
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
@@ -101,7 +101,7 @@ plan/
 ## 当前验收队列
 
 ```text
-plan_14（待验收，5/5）
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -223,7 +223,7 @@ plan_14（待验收，5/5）
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_14.md](../plan_14/plan_14.md) | 多服务骨架、Protobuf/gRPC、服务身份、独立 Schema、五进程 Compose 与兼容回归 | ✅ 待验收 (5/5) |
+| [plan_14.md](../plan_14/plan_14.md) | 多服务骨架、Protobuf/gRPC、服务身份、独立 Schema、五进程 Compose 与兼容回归 | 🔄 进行中 (0/9) |
 
 ---
 
