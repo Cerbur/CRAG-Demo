@@ -375,7 +375,7 @@ public interface GrpcChannelFactory {
 | 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | 🔄 进行中 | 2991aea | — |
 | 14.5 | 收口回归、架构约束与项目文档 | 🔄 进行中 | 90f5a99 | — |
 | 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待开始 | — | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4 | — |
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待开始 | — | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待开始 | — | — |
 
@@ -592,6 +592,8 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 执行 session | `./gradlew :crag-console-api:test` | 通过 | 补充 HealthIndicator 单元测试：全成功、单目标失败、UNAUTHENTICATED、TIMEOUT、token 脱敏 |
 | 2026-06-22 | 执行 session | `./gradlew :crag-open-api:test` | 通过 | 补充 HealthIndicator 单元测试：全成功、单目标失败、UNAUTHENTICATED、TIMEOUT、token 脱敏 |
 | 2026-06-22 | 执行 session | `./gradlew check` | 通过 | 全量静态检查、格式化、测试 |
+| 2026-06-22 | 执行 session | 创建 `platform_topology_test.sh` | 完成 | 覆盖七服务健康、五容器 Jar/非 root、端口暴露、凭据隔离、Probe 链路、Schema owner、同 Schema 成功、跨 Schema 拒绝、日志脱敏 |
+| 2026-06-22 | 执行 session | 删除根 `Dockerfile` | 完成 | 已由 `docker/java-service.Dockerfile` 替代 |
 
 ## 阻塞记录
 
