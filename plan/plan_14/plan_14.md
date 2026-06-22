@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-22
-updated: 2026-06-22
+updated: 2026-06-23
 ---
 
 # plan_14 — 多服务骨架、gRPC 契约与数据边界基线
@@ -369,16 +369,16 @@ public interface GrpcChannelFactory {
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | 🚧 进行中 | 0ea145d | — |
+| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
 | 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
 | 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1 | — |
-| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | 🚧 进行中 | 2991aea | — |
+| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
 | 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
 | 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | 🚧 进行中 | 2f18ea4 | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4 | — |
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4 | — |
-| 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏸️ 待开始 | — | — |
+| 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
 
 整体进度：0 / 10（0%）
 
@@ -614,6 +614,16 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 独立验收 / Gradle dependency insight | `./gradlew :crag-rag-service:dependencyInsight --dependency io.grpc:grpc-core --configuration runtimeClasspath` | 失败 | 声明的 gRPC `1.82.0` 被 Spring Boot 依赖管理规则降级为实际运行时 `1.80.0` |
 | 2026-06-22 | 独立验收 / Gradle dependency insight | `./gradlew :crag-rag-service:dependencyInsight --dependency com.google.protobuf:protobuf-java --configuration runtimeClasspath` | 失败 | Contracts/Runtime 请求 `3.25.8`，实际运行时被规则替换为 `4.34.2`，均不符合 Plan 固定的 Protocol Buffers `35.1` 基线 |
 | 2026-06-22 | 独立验收 / Docker Desktop Linux ARM64 | `docker compose up -d --build` | 失败 | `:crag-platform-contracts:generateProto` 无法执行 `protoc-gen-grpc-java-1.82.0-linux-aarch_64.exe`，五个 Java 镜像未完成构建且未创建容器 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-platform-contracts:generateProto` | 通过 | protobuf 4.35.1 + protoc 4.35.1 + grpc-java 1.82.0 生成成功 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-rag-service:dependencyInsight --dependency io.grpc:grpc-core --configuration runtimeClasspath` | 通过 | gRPC `1.82.0`（selected by rule），不再被 BOM 降级 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-rag-service:dependencyInsight --dependency io.grpc:grpc-stub --configuration runtimeClasspath` | 通过 | gRPC stub `1.82.0`（selected by rule） |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-rag-service:dependencyInsight --dependency io.grpc:grpc-netty-shaded --configuration runtimeClasspath` | 通过 | gRPC netty-shaded `1.82.0`（selected by rule） |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-rag-service:dependencyInsight --dependency io.grpc:grpc-services --configuration runtimeClasspath` | 通过 | gRPC services `1.82.0`（selected by rule） |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-rag-service:dependencyInsight --dependency com.google.protobuf:protobuf-java --configuration runtimeClasspath` | 通过 | protobuf-java `4.35.1`（selected by rule），不再被 BOM 降级为 4.34.2 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew check` | 通过 | 100 tasks，全量静态检查、格式化、Plan 校验、模块依赖校验、框架依赖校验 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (48/48) | 校验器已更新 protobuf 版本为 4.35.1 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict` | 通过 | 0 errors, 24 warnings |
+| 2026-06-23 | 执行 session / macOS ARM64 | `docker/java-service.Dockerfile` builder 镜像变更 | 完成 | `eclipse-temurin:21-jdk-alpine` → `eclipse-temurin:21-jdk`，Debian glibc 替代 Alpine musl，解决 ARM64 protoc-gen-grpc-java 执行问题 |
 
 ## 阻塞记录
 
@@ -634,3 +644,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 独立验收失败，退回进行中并追加 14.6-14.9 | 关键行为测试、平台拓扑脚本、HTTP 回归迁移、Docker 清理、约束同步和真实验收证据均未完成；现有校验器未阻止这些缺口 | 14.1-14.5 退回进行中；新增四个修复任务，完成实现、自测、任务提交与交接后再进入独立验收 |
 | 2026-06-22 | 完成 14.8-14.9 实现，全部任务转入待验收，Plan 转为 verifying | HTTP 脚本已适配五服务拓扑；约束文档、校验器和 README 已同步当前实现事实 | 全部 9 个任务待验收；Plan 进入独立验收队列 |
 | 2026-06-22 | 独立验收失败，追加 14.10 并退回进行中 | 实际运行时 gRPC/Protobuf 版本与固定基线不符，且 Linux ARM64 Docker 构建无法执行 gRPC Proto 插件 | 14.1、14.4、14.7 退回进行中；新增 14.10，修复后须重新执行完整 Gradle、Docker 拓扑与 HTTP 验收 |
+| 2026-06-23 | 完成 14.10 实现，全部任务转入待验收，Plan 转为 verifying | eachDependency 强制 gRPC 1.82.0 和 protobuf 4.35.1 覆盖 BOM；Docker builder 从 Alpine 切换为 Debian JDK 解决 ARM64 glibc 兼容 | 14.1、14.4、14.7 恢复待验收；全部 10 个任务待验收 |
