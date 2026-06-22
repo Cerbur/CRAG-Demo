@@ -10,7 +10,7 @@ java {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.25.8"
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.version.get()}"
     }
     plugins {
         create("grpc") {

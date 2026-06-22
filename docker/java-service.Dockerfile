@@ -8,7 +8,7 @@
 ARG SERVICE_MODULE
 
 # --- Stage 1: Build ---
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk AS builder
 
 ARG SERVICE_MODULE
 

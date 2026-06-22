@@ -9,6 +9,8 @@ group = "ai.cerbur.crag"
 version = "0.1.0"
 
 val bootVersion = libs.versions.spring.boot.get()
+val grpcVersion: String = libs.versions.grpc.get().toString()
+val protobufVersion: String = libs.versions.protobuf.version.get().toString()
 
 val validatePlans by tasks.registering(Exec::class) {
     group = "verification"
@@ -67,6 +69,17 @@ subprojects {
     dependencyManagement {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:${bootVersion}")
+        }
+    }
+
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "io.grpc") {
+                useVersion(grpcVersion)
+            }
+            if (requested.group == "com.google.protobuf") {
+                useVersion(protobufVersion)
+            }
         }
     }
 }

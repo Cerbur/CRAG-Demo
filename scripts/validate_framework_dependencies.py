@@ -55,7 +55,7 @@ def check_catalog_versions() -> list[str]:
         "spring-ai": "2.0.0",
         "spring-dependency-management": "1.1.7",
         "grpc": "1.82.0",
-        "protobuf": "3.25.8",
+        "protobuf-version": "4.35.1",
         "protobuf-plugin": "0.10.0",
     }
     for key, expected in required.items():
