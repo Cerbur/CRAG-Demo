@@ -3,15 +3,15 @@
 # 验证 Stub Failure 模式下 Query API 返回 502/50201，并自动恢复 Success 模式。
 #
 # 用法: bash scripts/tests/http/query_stub_failure_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8080
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082
 #
 # 注意事项:
-#   - 本脚本会重建 app 容器，请确保已在目标 Compose 目录中（docker compose 可用）。
+#   - 本脚本会重建 rag-service 容器，请确保已在目标 Compose 目录中（docker compose 可用）。
 #   - 脚本结束时自动将应用恢复为 CRAG_QUERY_LLM_STUB_MODE=success。
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8080}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 RUN_ID="qf-$(date +%s)-$$"
 FAILED=0
 COMPOSE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -41,13 +41,13 @@ json_code() {
   printf '%s' "$1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1"
 }
 
-# ── Helper: wait for app to be ready ──
+# ── Helper: wait for rag-service to be ready ──
 # Polls /api/v1/query until any response (not connection refused).
 wait_for_app() {
   local label="$1"
   local max_wait=120
   local waited=0
-  echo "  Waiting for app to be ready ($label)..."
+  echo "  Waiting for rag-service to be ready ($label)..."
   while [ $waited -lt $max_wait ]; do
     sleep 3
     waited=$((waited + 3))
@@ -55,12 +55,12 @@ wait_for_app() {
     local resp
     resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/query" 2>/dev/null || echo "000")
     if [[ "$resp" =~ ^[245][0-9][0-9]$ ]]; then
-      echo "  App ready after ${waited}s (HTTP $resp)"
+      echo "  rag-service ready after ${waited}s (HTTP $resp)"
       return 0
     fi
     echo "  Waiting... ${waited}s / ${max_wait}s"
   done
-  echo "FAIL: App did not become ready within ${max_wait}s"
+  echo "FAIL: rag-service did not become ready within ${max_wait}s"
   return 1
 }
 
@@ -70,17 +70,17 @@ wait_for_app() {
 echo ""
 echo "=== Phase 1: Failure mode test ==="
 
-# 1. Rebuild app with CRAG_QUERY_LLM_STUB_MODE=failure
-echo "--- 1. Rebuilding app in failure mode ---"
+# 1. Rebuild rag-service with CRAG_QUERY_LLM_STUB_MODE=failure
+echo "--- 1. Rebuilding rag-service in failure mode ---"
 cd "$COMPOSE_DIR"
-CRAG_QUERY_LLM_STUB_MODE=failure docker compose up -d --build app
-echo "App rebuild initiated (failure mode)"
+CRAG_QUERY_LLM_STUB_MODE=failure docker compose up -d --build rag-service
+echo "rag-service rebuild initiated (failure mode)"
 
-# 2. Wait for app to be ready
-echo "--- 2. Wait for app readiness ---"
+# 2. Wait for rag-service to be ready
+echo "--- 2. Wait for rag-service readiness ---"
 if ! wait_for_app "failure mode"; then
   FAILED=1
-  echo "FAIL: App did not become ready after failure mode rebuild"
+  echo "FAIL: rag-service did not become ready after failure mode rebuild"
 fi
 
 # 3. Send query and assert 502 / 50201
@@ -119,11 +119,11 @@ echo "=== Phase 2: Restore success mode ==="
 echo "Attempting restore..."
 
 cd "$COMPOSE_DIR"
-CRAG_QUERY_LLM_STUB_MODE=success docker compose up -d --build app
-echo "App rebuild initiated (success mode restore)"
+CRAG_QUERY_LLM_STUB_MODE=success docker compose up -d --build rag-service
+echo "rag-service rebuild initiated (success mode restore)"
 
-# Wait for restored app
-echo "--- Wait for restored app readiness ---"
+# Wait for restored rag-service
+echo "--- Wait for restored rag-service readiness ---"
 if ! wait_for_app "restored success mode"; then
   echo "CRITICAL: environment may be in failure mode"
   FAILED=1
@@ -137,7 +137,7 @@ RESTORE_CODE=$(json_code "$RESP_BODY")
 if [ "$RESTORE_CODE" = "0" ]; then
   echo "PASS: Restored success mode confirmed (code=0)"
 else
-  echo "FAIL: Restored app returned code=$RESTORE_CODE (expected 0)"
+  echo "FAIL: Restored rag-service returned code=$RESTORE_CODE (expected 0)"
   FAILED=1
 fi
 

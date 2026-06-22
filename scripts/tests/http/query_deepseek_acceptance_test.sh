@@ -7,7 +7,7 @@
 #   - Docker Compose 服务正在运行
 #
 # 用法: DEEPSEEK_API_KEY=<key> bash scripts/tests/http/query_deepseek_acceptance_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8080
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082
 #
 # 安全约束:
 #   - 凭据只从宿主环境变量 DEEPSEEK_API_KEY 临时注入，禁止写入 .env、脚本、Plan 或验收记录
@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8080}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 RUN_ID="deepseek-accept-$(date +%s)-$$"
 VERIFICATION_CODE="deepseek-verify-${RUN_ID}-xyz789"
 FAILED=0
@@ -36,7 +36,7 @@ restore_stub_on_exit() {
   DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
   CRAG_QUERY_LLM_PROVIDER=stub \
   CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose up -d --build app 2>/dev/null || true
+  docker compose up -d --build rag-service 2>/dev/null || true
   wait_for_app "restored stub (trap)" 2>/dev/null || true
 }
 trap restore_stub_on_exit EXIT
@@ -97,24 +97,24 @@ json_code() {
   printf '%s' "$1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1"
 }
 
-# ── Helper: wait for app to respond to queries ──
+# ── Helper: wait for rag-service to respond to queries ──
 wait_for_app() {
   local label="$1"
   local max_wait=120
   local waited=0
-  echo "  Waiting for app to be ready ($label)..."
+  echo "  Waiting for rag-service to be ready ($label)..."
   while [ $waited -lt $max_wait ]; do
     sleep 5
     waited=$((waited + 5))
     local resp
     resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/query" 2>/dev/null || echo "000")
     if [[ "$resp" =~ ^[245][0-9][0-9]$ ]]; then
-      echo "  App ready after ${waited}s (HTTP $resp)"
+      echo "  rag-service ready after ${waited}s (HTTP $resp)"
       return 0
     fi
     echo "  Waiting... ${waited}s / ${max_wait}s"
   done
-  echo "FAIL: App did not become ready within ${max_wait}s"
+  echo "FAIL: rag-service did not become ready within ${max_wait}s"
   return 1
 }
 
@@ -146,18 +146,18 @@ fi
 # Phase 1: Build with Stub, write test data, wait for indexing
 # ═══════════════════════════════════════════════════════════════
 echo ""
-echo "=== Phase 1: Build app with Stub, write data and wait for indexing ==="
+echo "=== Phase 1: Build rag-service with Stub, write data and wait for indexing ==="
 
 cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
 CRAG_QUERY_LLM_PROVIDER=stub \
 CRAG_QUERY_LLM_STUB_MODE=success \
-docker compose up -d --build app
+docker compose up -d --build rag-service
 
-echo "App rebuild initiated with provider=stub (indexing phase)"
+echo "rag-service rebuild initiated with provider=stub (indexing phase)"
 
 # Wait for app to be ready
-echo "--- Wait for app readiness (stub mode) ---"
+echo "--- Wait for rag-service readiness (stub mode) ---"
 if ! wait_for_app "stub mode"; then
   echo "FAIL: App did not become ready in stub mode — aborting"
   FAILED=1
@@ -248,17 +248,17 @@ fi
 # Phase 2: Rebuild app with DeepSeek provider
 # ═══════════════════════════════════════════════════════════════
 echo ""
-echo "=== Phase 2: Rebuild app with DeepSeek provider ==="
+echo "=== Phase 2: Rebuild rag-service with DeepSeek provider ==="
 
 cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
 CRAG_QUERY_LLM_PROVIDER=deepseek \
-docker compose up -d --build app
+docker compose up -d --build rag-service
 
-echo "App rebuild initiated with provider=deepseek"
+echo "rag-service rebuild initiated with provider=deepseek"
 
 # Wait for app to be ready
-echo "--- Wait for app readiness (deepseek mode) ---"
+echo "--- Wait for rag-service readiness (deepseek mode) ---"
 if ! wait_for_app "deepseek mode"; then
   echo "FAIL: App did not become ready after DeepSeek rebuild — aborting"
   FAILED=1
@@ -451,25 +451,25 @@ echo ""
 echo "=== Phase 5: Container logs (sanitized supplementary evidence) ==="
 
 echo "--- provider=deepseek ---"
-docker logs crag-app 2>&1 | grep -i "provider=deepseek" | tail -5 || echo "No provider=deepseek log lines found"
+docker logs crag-rag-service 2>&1 | grep -i "provider=deepseek" | tail -5 || echo "No provider=deepseek log lines found"
 
 echo "--- protocol=anthropic ---"
-docker logs crag-app 2>&1 | grep -i "protocol=anthropic\|anthropic" | tail -5 || echo "No anthropic protocol log lines found"
+docker logs crag-rag-service 2>&1 | grep -i "protocol=anthropic\|anthropic" | tail -5 || echo "No anthropic protocol log lines found"
 
 echo "--- model ---"
-docker logs crag-app 2>&1 | grep -i "model=" | tail -5 || echo "No model log lines found"
+docker logs crag-rag-service 2>&1 | grep -i "model=" | tail -5 || echo "No model log lines found"
 
 echo "--- usage ---"
-docker logs crag-app 2>&1 | grep -i "usage" | tail -5 || echo "No usage log lines found"
+docker logs crag-rag-service 2>&1 | grep -i "usage" | tail -5 || echo "No usage log lines found"
 
 echo "--- request_id/result/total_time_ms ---"
-docker logs crag-app 2>&1 | grep -E "(requestId|result=|totalTime)" | tail -10 || echo "No request_id/result/totalTime log lines found"
+docker logs crag-rag-service 2>&1 | grep -E "(requestId|result=|totalTime)" | tail -10 || echo "No request_id/result/totalTime log lines found"
 
 # Safety check: ensure NO sensitive data in logs
 # Prohibited: API keys, auth headers, full Context/Prompt, full response, unique test content
 echo "--- Safety: scan for prohibited patterns in logs ---"
 SAFETY_FAILED=0
-ALL_LOGS=$(docker logs crag-app 2>&1 || true)
+ALL_LOGS=$(docker logs crag-rag-service 2>&1 || true)
 
 # Check 1: Auth credentials
 AUTH_LEAK=$(echo "$ALL_LOGS" | grep -ciE "(x-api-key|authorization|api_key|deepseek_api_key)" || true)
@@ -524,11 +524,11 @@ cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
 CRAG_QUERY_LLM_PROVIDER=stub \
 CRAG_QUERY_LLM_STUB_MODE=success \
-docker compose up -d --build app
-echo "App rebuild initiated (stub success mode restore)"
+docker compose up -d --build rag-service
+echo "rag-service rebuild initiated (stub success mode restore)"
 
 # Wait for restored app
-echo "--- Wait for restored app readiness ---"
+echo "--- Wait for restored rag-service readiness ---"
 if ! wait_for_app "restored stub mode"; then
   echo "CRITICAL: environment may be in DeepSeek mode after failed restore"
   FAILED=1
@@ -543,7 +543,7 @@ if [ "$RESTORE_CODE" = "0" ]; then
   echo "PASS: Restored stub success mode confirmed (code=0)"
   _STUB_RESTORED=1
 else
-  echo "FAIL: Restored app returned code=$RESTORE_CODE (expected 0)"
+  echo "FAIL: Restored rag-service returned code=$RESTORE_CODE (expected 0)"
   FAILED=1
 fi
 

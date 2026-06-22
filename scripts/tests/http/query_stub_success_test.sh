@@ -3,11 +3,11 @@
 # 验证 Stub 模式下的完整 Query 链路：AdminRag 写入 → 索引等待 → Query API 调用
 #
 # 用法: bash scripts/tests/http/query_stub_success_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8080
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8080}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 RUN_ID="qs-$(date +%s)-$$"
 FAILED=0
 VERIFICATION_CODE="verify-${RUN_ID}-abc123"  # unique, unguessable code

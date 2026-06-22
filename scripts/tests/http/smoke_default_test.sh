@@ -3,11 +3,11 @@
 # 验证默认启动（无 smoke Profile）下 /api/v1/test/** 不可访问。
 #
 # 用法: bash scripts/tests/http/smoke_default_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8080
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8080}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 FAILED=0
 
 echo "=== Smoke Default Test ==="

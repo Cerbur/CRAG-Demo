@@ -3,11 +3,11 @@
 # 验证显式 smoke Profile 启动后诊断端点可用。
 #
 # 用法: bash scripts/tests/http/smoke_endpoints_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8081（app-smoke 服务端口）
+#       BASE_URL 默认 http://localhost:8083（rag-service-smoke 服务端口）
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8081}"
+BASE_URL="${1:-http://localhost:8083}"
 RUN_ID="smoke-$(date +%Y%m%d-%H%M%S)-$$"
 FAILED=0
 

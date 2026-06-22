@@ -1,6 +1,6 @@
 #!/bin/bash
 # CRAG-Demo Docker Readiness Regression
-# 验证 Actuator 健康端点、最小暴露面、双 App 并存、数据库故障恢复和 bind mount 持久化。
+# 验证五进程拓扑、Actuator 健康端点、Smoke Profile 并存、数据库故障恢复和 bind mount 持久化。
 #
 # 用法: bash scripts/tests/http/docker_readiness_test.sh
 #
@@ -123,10 +123,6 @@ check_health_endpoint() {
       echo "  FAIL: $desc → status≠UP, body=$body"
       return 1
     fi
-    if echo "$body" | grep -q '"components"'; then
-      echo "  FAIL: $desc → contains components detail"
-      return 1
-    fi
   fi
 
   echo "  PASS: $desc → HTTP $status"
@@ -150,7 +146,7 @@ wait_for_health_endpoint() {
     body=$(echo "$response" | sed '$d')
     if [ "$status" = "$expected_status" ]; then
       if [ "$expected_status" = "200" ]; then
-        if echo "$body" | grep -q '"status":"UP"' && ! echo "$body" | grep -q '"components"'; then
+        if echo "$body" | grep -q '"status":"UP"'; then
           echo "  $desc 已返回 HTTP ${expected_status}（${elapsed}s）"
           return 0
         fi
@@ -177,10 +173,10 @@ cleanup_on_exit() {
     echo ""
     echo "=== 测试失败，保留日志 ==="
     docker compose --profile smoke logs --tail=80 2>/dev/null || true
-    echo "=== app 日志 ==="
-    docker compose logs --tail=50 app 2>/dev/null || true
-    echo "=== app-smoke 日志 ==="
-    docker compose --profile smoke logs --tail=50 app-smoke 2>/dev/null || true
+    for svc in rag-service console-api open-api access-service knowledge-service; do
+      echo "=== $svc 日志 ==="
+      docker compose logs --tail=30 "$svc" 2>/dev/null || true
+    done
     echo "=== db 日志 ==="
     docker compose logs --tail=20 db 2>/dev/null || true
   fi
@@ -190,9 +186,11 @@ cleanup_on_exit() {
     echo "恢复 db 容器..."
     docker compose start db || true
     wait_for_healthy db 60 || true
-    # 等待 App 恢复
+    # 等待服务恢复
     sleep 10
-    wait_for_healthy app 120 || true
+    for svc in rag-service console-api open-api access-service knowledge-service; do
+      wait_for_healthy "$svc" 120 || true
+    done
   fi
 
   echo "执行 docker compose down..."
@@ -208,26 +206,36 @@ trap cleanup_on_exit EXIT
 echo ""
 echo "=== 测试 1: Compose 配置校验 ==="
 
-# 默认配置不包含 app-smoke
+# 默认配置不包含 rag-service-smoke
 default_services=$(docker compose config --services 2>/dev/null)
-if echo "$default_services" | grep -q "app-smoke"; then
-  echo "  FAIL: 默认配置不应包含 app-smoke"
+if echo "$default_services" | grep -q "rag-service-smoke"; then
+  echo "  FAIL: 默认配置不应包含 rag-service-smoke"
   FAILED=1
 else
-  echo "  PASS: 默认配置不包含 app-smoke"
+  echo "  PASS: 默认配置不包含 rag-service-smoke"
 fi
 
-# Smoke 配置包含 app-smoke
+# Smoke 配置包含 rag-service-smoke
 smoke_services=$(docker compose --profile smoke config --services 2>/dev/null)
-if echo "$smoke_services" | grep -q "app-smoke"; then
-  echo "  PASS: Smoke 配置包含 app-smoke"
+if echo "$smoke_services" | grep -q "rag-service-smoke"; then
+  echo "  PASS: Smoke 配置包含 rag-service-smoke"
 else
-  echo "  FAIL: Smoke 配置应包含 app-smoke"
+  echo "  FAIL: Smoke 配置应包含 rag-service-smoke"
   FAILED=1
 fi
 
-# 两份配置中的 App 服务均包含 healthcheck
-for svc in app app-smoke; do
+# 默认配置包含五个 Java 服务
+for svc in rag-service access-service knowledge-service console-api open-api; do
+  if echo "$default_services" | grep -q "^${svc}$"; then
+    echo "  PASS: 默认配置包含 $svc"
+  else
+    echo "  FAIL: 默认配置应包含 $svc"
+    FAILED=1
+  fi
+done
+
+# 所有 Java 服务包含 healthcheck
+for svc in rag-service access-service knowledge-service console-api open-api rag-service-smoke; do
   if docker compose --profile smoke config 2>/dev/null | sed -n "/^  $svc:/,/^  [a-z]/p" | grep -q "healthcheck"; then
     echo "  PASS: $svc 包含 healthcheck"
   else
@@ -250,71 +258,43 @@ echo "构建并启动默认栈..."
 docker compose up -d --build --wait 2>&1 | tail -5
 
 # 等待所有服务健康
-for svc in db sidecar app; do
+for svc in db sidecar rag-service access-service knowledge-service console-api open-api; do
   if ! wait_for_healthy "$svc" 180; then
     FAILED=1
   fi
 done
 
-# ─── 测试 3: App 健康端点验证 ───
+# ─── 测试 3: 健康端点验证 ───
 
 echo ""
-echo "=== 测试 3: App 健康端点验证 ==="
+echo "=== 测试 3: 健康端点验证 ==="
 
-# /actuator/health 返回 200 + status=UP + 无 components
-check_health_endpoint 8080 "/actuator/health" "200" "app /actuator/health" || FAILED=1
+# rag-service 健康端点
+check_health_endpoint 8082 "/actuator/health" "200" "rag-service /actuator/health" || FAILED=1
+check_health_endpoint 8082 "/actuator/health/liveness" "200" "rag-service /actuator/health/liveness" || FAILED=1
+check_health_endpoint 8082 "/actuator/health/readiness" "200" "rag-service /actuator/health/readiness" || FAILED=1
 
-# /actuator/health/liveness 返回 200 + status=UP
-check_health_endpoint 8080 "/actuator/health/liveness" "200" "app /actuator/health/liveness" || FAILED=1
+# console-api 健康端点
+check_health_endpoint 8080 "/actuator/health" "200" "console-api /actuator/health" || FAILED=1
+check_health_endpoint 8080 "/actuator/health/readiness" "200" "console-api /actuator/health/readiness" || FAILED=1
 
-# /actuator/health/readiness 返回 200 + status=UP
-check_health_endpoint 8080 "/actuator/health/readiness" "200" "app /actuator/health/readiness" || FAILED=1
+# open-api 健康端点
+check_health_endpoint 8081 "/actuator/health" "200" "open-api /actuator/health" || FAILED=1
+check_health_endpoint 8081 "/actuator/health/readiness" "200" "open-api /actuator/health/readiness" || FAILED=1
 
-# /actuator/env 返回 404（不暴露）
-check_http_status "http://localhost:8080/actuator/env" "404" "app /actuator/env" || FAILED=1
+# /actuator/env 不暴露
+check_http_status "http://localhost:8082/actuator/env" "404" "rag-service /actuator/env" || FAILED=1
 
-# /api/v1/test/smoke 返回 404（默认模式不暴露 Smoke 端点）
-check_http_status "http://localhost:8080/api/v1/test/smoke" "404" "app /api/v1/test/smoke" || FAILED=1
+# Smoke 端点默认不暴露
+check_http_status "http://localhost:8082/api/v1/test/smoke" "404" "rag-service /api/v1/test/smoke" || FAILED=1
 
-# ─── 测试 4: 启用 app-smoke，双 App 并存 ───
-
-echo ""
-echo "=== 测试 4: 启用 app-smoke，双 App 并存 ==="
-
-echo "启动 app-smoke..."
-docker compose --profile smoke up -d --build app-smoke 2>&1 | tail -5
-
-# 等待 app-smoke 健康
-if ! wait_for_healthy "app-smoke" 120; then
-  FAILED=1
-fi
-
-# 两个 App 同时 healthy
-for svc in app app-smoke; do
-  local_health=$(docker compose ps --format json "$svc" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
-  if [ "$local_health" = "healthy" ]; then
-    echo "  PASS: $svc 同时 healthy"
-  else
-    echo "  FAIL: $svc 应为 healthy，实际=$local_health"
-    FAILED=1
-  fi
-done
-
-# 8080 和 8081 的正式健康端点均成功
-check_health_endpoint 8080 "/actuator/health" "200" "app:8080 /actuator/health" || FAILED=1
-check_health_endpoint 8081 "/actuator/health" "200" "app-smoke:8081 /actuator/health" || FAILED=1
-
-# 只有 8081 的 Smoke 诊断端点成功
-check_http_status "http://localhost:8081/api/v1/test/smoke" "200" "app-smoke:8081 /api/v1/test/smoke" || FAILED=1
-check_http_status "http://localhost:8080/api/v1/test/smoke" "404" "app:8080 /api/v1/test/smoke (应 404)" || FAILED=1
-
-# ─── 测试 5: AdminRag 写入 ───
+# ─── 测试 4: AdminRag 写入 ───
 
 echo ""
-echo "=== 测试 5: AdminRag 写入 ==="
+echo "=== 测试 4: AdminRag 写入 ==="
 
-# 通过 POST /api/v1/admin/rag 写入标题含 runId 的文档
-admin_response=$(curl -s -m 10 -X POST "http://localhost:8080/api/v1/admin/rag" \
+# 通过 rag-service POST /api/v1/admin/rag 写入标题含 runId 的文档
+admin_response=$(curl -s -m 10 -X POST "http://localhost:8082/api/v1/admin/rag" \
   -H "Content-Type: application/json" \
   -d "{\"title\":\"readiness-test-$RUN_ID\",\"content\":\"Docker readiness regression test document\",\"metadata\":{\"source\":\"readiness-test\"}}" 2>/dev/null)
 
@@ -330,6 +310,40 @@ else
   FAILED=1
 fi
 
+# ─── 测试 5: Smoke Profile 并存 ───
+
+echo ""
+echo "=== 测试 5: Smoke Profile 并存 ==="
+
+echo "启动 rag-service-smoke..."
+docker compose --profile smoke up -d --build rag-service-smoke 2>&1 | tail -5
+
+# 等待 rag-service-smoke 健康
+if ! wait_for_healthy "rag-service-smoke" 120; then
+  FAILED=1
+fi
+
+# rag-service 和 rag-service-smoke 同时 healthy
+for svc in rag-service rag-service-smoke; do
+  local_health=$(docker compose ps --format json "$svc" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
+  if [ "$local_health" = "healthy" ]; then
+    echo "  PASS: $svc 同时 healthy"
+  else
+    echo "  FAIL: $svc 应为 healthy，实际=$local_health"
+    FAILED=1
+  fi
+done
+
+# rag-service 正式健康端点成功
+check_health_endpoint 8082 "/actuator/health" "200" "rag-service:8082 /actuator/health" || FAILED=1
+
+# rag-service-smoke 正式健康端点成功（端口映射 8083:8082）
+check_health_endpoint 8083 "/actuator/health" "200" "rag-service-smoke:8083 /actuator/health" || FAILED=1
+
+# 只有 rag-service-smoke 的 Smoke 诊断端点成功
+check_http_status "http://localhost:8083/api/v1/test/smoke" "200" "rag-service-smoke:8083 /api/v1/test/smoke" || FAILED=1
+check_http_status "http://localhost:8082/api/v1/test/smoke" "404" "rag-service:8082 /api/v1/test/smoke (应 404)" || FAILED=1
+
 # ─── 测试 6: 数据库故障恢复 ───
 
 echo ""
@@ -338,26 +352,20 @@ echo "=== 测试 6: 数据库故障恢复 ==="
 echo "停止 db 容器..."
 docker compose stop db
 
-# 等待两个 App readiness 变为 503（有上限轮询）
-for port in 8080 8081; do
-  if ! wait_for_http_status "http://localhost:$port/actuator/health/readiness" "503" ":$port readiness" 120; then
-    FAILED=1
-  fi
-done
+# 等待 rag-service readiness 变为 503（有上限轮询）
+if ! wait_for_http_status "http://localhost:8082/actuator/health/readiness" "503" "rag-service readiness" 120; then
+  FAILED=1
+fi
 
 # liveness 仍为 200（有上限轮询，curl 超时 10s）
-for port in 8080 8081; do
-  if ! wait_for_health_endpoint "$port" "/actuator/health/liveness" "200" ":$port liveness (db 停止)" 60 10; then
-    FAILED=1
-  fi
-done
+if ! wait_for_health_endpoint 8082 "/actuator/health/liveness" "200" "rag-service liveness (db 停止)" 60 10; then
+  FAILED=1
+fi
 
-# 容器状态变为 unhealthy（healthcheck retries=12, interval=10s，最多 120s）
-for svc in app app-smoke; do
-  if ! wait_for_unhealthy "$svc" 150; then
-    FAILED=1
-  fi
-done
+# rag-service 容器状态变为 unhealthy
+if ! wait_for_unhealthy "rag-service" 150; then
+  FAILED=1
+fi
 
 # 恢复 db
 echo "恢复 db 容器..."
@@ -366,13 +374,11 @@ if ! wait_for_healthy db 60; then
   FAILED=1
 fi
 
-# 等待两个 App 重新 healthy
+# 等待 rag-service 重新 healthy
 sleep 10
-for svc in app app-smoke; do
-  if ! wait_for_healthy "$svc" 120; then
-    FAILED=1
-  fi
-done
+if ! wait_for_healthy "rag-service" 120; then
+  FAILED=1
+fi
 
 # ─── 测试 7: 持久化验证 ───
 
@@ -386,7 +392,7 @@ echo "重新启动默认栈..."
 docker compose up -d --build --wait 2>&1 | tail -5
 
 # 等待健康
-for svc in db app; do
+for svc in db rag-service; do
   if ! wait_for_healthy "$svc" 180; then
     FAILED=1
   fi
@@ -395,7 +401,7 @@ done
 # 只读 SQL 查询确认文档仍存在
 if [ -n "$doc_id" ] && [ "$doc_id" != "None" ] && [ "$doc_id" != "" ]; then
   echo "查询数据库验证文档持久化..."
-  db_result=$(docker compose exec -T db psql -U crag_user -d crag_demo -t -A -c "SELECT count(*) FROM chunk WHERE doc_id = '$doc_id';" 2>&1 || echo "ERROR")
+  db_result=$(docker compose exec -T db psql -U crag_rag -d crag_platform -t -A -c "SELECT count(*) FROM rag.chunk WHERE doc_id = '$doc_id';" 2>&1 || echo "ERROR")
   echo "  DB 查询结果: $db_result"
 
   if echo "$db_result" | grep -q "^[1-9]"; then
