@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-22
 updated: 2026-06-22
 ---
@@ -373,9 +373,9 @@ public interface GrpcChannelFactory {
 | 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
 | 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1 | — |
 | 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
-| 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待开始 | — | — |
+| 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
 
-整体进度：0 / 5（0%），待验收：4
+整体进度：0 / 5（0%），待验收：5
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -539,6 +539,7 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 本地开发 | `./gradlew :crag-console-api:test` | 通过 (2/2) | Context、spring.application.name |
 | 2026-06-22 | 本地开发 | `./gradlew :crag-open-api:test` | 通过 (2/2) | Context、spring.application.name |
 | 2026-06-22 | 本地开发 | `./gradlew check` | 通过 | 五进程拓扑约束校验、全量静态检查 |
+| 2026-06-22 | 本地开发 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies -v` | 通过 | 14 模块白名单和边界校验 |
 
 ## 阻塞记录
 
