@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -369,18 +369,20 @@ public interface GrpcChannelFactory {
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
+| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | 🚧 进行中 | 0ea145d | — |
 | 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
-| 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1 | — |
+| 14.3 | 建立 Console/Open API 与下游 Probe readiness | 🚧 进行中 | 8473bb1 | — |
 | 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
 | 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
-| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4 | — |
+| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | 🚧 进行中 | 4adeae7 | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | 🚧 进行中 | 2f18ea4 | — |
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
-| 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4 | — |
+| 14.9 | 收口约束文档、校验器与交接证据 | 🚧 进行中 | f664bf4 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
+| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⬜ 待开始 | — | — |
+| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⬜ 待开始 | — | — |
 
-整体进度：0 / 10（0%）
+整体进度：0 / 12（0%）
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -580,6 +582,26 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 **验证方式**：运行五个 Application 的 gRPC/Protobuf `dependencyInsight`、`./gradlew check`、框架依赖校验器及单测、`docker compose build --no-cache`、`docker compose up -d`、`bash scripts/tests/http/platform_topology_test.sh` 和 plan14 列出的完整 HTTP 回归；记录宿主架构、镜像架构、命令和结果。
 **涉及文件**：`build.gradle.kts`、`gradle/libs.versions.toml`、`crag-platform-contracts/build.gradle.kts`、`crag-grpc-runtime/build.gradle.kts`、五个 Application 构建文件、`docker/java-service.Dockerfile`、`scripts/validate_framework_dependencies.py`、`scripts/tests/test_validate_framework_dependencies.py`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
 
+## 14.11 修复 Probe 身份校验、超时取消与固定时长凭据比较
+
+**目标**：补齐独立验收发现的 gRPC 身份与超时语义缺口，确保 readiness 不会把错误服务或错误调用方响应判为成功，并使凭据比较满足固定时长要求。
+**前置任务**：14.10
+**范围**：Console/Open 的 `DownstreamConnectivityHealthIndicator` 必须校验每个目标返回的 `serviceName` 等于目标名、`callerService` 等于当前应用身份；总预算到期或 Future 失败时取消全部未完成任务；为错误服务名、错误 caller、总预算取消和正确多目标响应补充测试；修复 `GrpcServiceAuthenticationInterceptor.constantTimeEquals` 在长度不同时提前返回的问题，并增加不同长度凭据比较的回归测试。
+**非目标**：不新增 Probe 字段、领域 RPC、重试、TLS/mTLS 或业务授权矩阵；不改变 2 秒单目标 deadline 和 3 秒总预算。
+**验收标准**：错误 `serviceName` 或 `callerService` 必须使对应目标 readiness 为 DOWN；所有目标返回各自正确身份时才为 UP；总预算到期后未完成 Future 均收到取消；不同长度 token 走不提前返回的固定工作量比较且认证结果仍为 `UNAUTHENTICATED`；Health details 与日志不泄漏 token。
+**验证方式**：先补充失败测试，再运行 `./gradlew :crag-grpc-runtime:test :crag-console-api:test :crag-open-api:test --rerun-tasks`、`./gradlew test --rerun-tasks` 和 `./gradlew check`；检查测试报告无跳过。
+**涉及文件**：`crag-grpc-runtime/src/main/java/ai/cerbur/crag/grpc/runtime/server/GrpcServiceAuthenticationInterceptor.java`、`crag-grpc-runtime/src/test/**`、`crag-console-api/src/main/java/ai/cerbur/crag/console/probe/DownstreamConnectivityHealthIndicator.java`、`crag-console-api/src/test/**`、`crag-open-api/src/main/java/ai/cerbur/crag/open/probe/DownstreamConnectivityHealthIndicator.java`、`crag-open-api/src/test/**`
+
+## 14.12 修复平台拓扑脚本与持久化约束漂移
+
+**目标**：让平台拓扑脚本可在真实 PostgreSQL 中重复执行并以硬断言证明 Probe、三账号 Schema 权限和凭据隔离，同时消除 Docker 持久化路径约束的当前态矛盾。
+**前置任务**：14.11
+**范围**：将测试表标识改为合法且唯一的 PostgreSQL 标识符；覆盖 Access、Knowledge、RAG 三个账号的同 Schema 成功与跨 Schema `SELECT/CREATE` 拒绝；将 Console/Open `downstreamConnectivity` 缺失从 warning 改为失败，并验证 readiness 为 UP；管理员凭据隔离同时检查变量名和值且输出保持脱敏；修正 `constraints/docker-structure.md` 中仍要求 `data/pgdata/` 的硬约束为当前 `data/pgdata-platform/`，明确旧目录仅保留回滚；为脚本关键断言和约束漂移增加静态校验测试。
+**非目标**：不删除任何数据库目录或 Volume，不暴露内部端口，不新增业务表，不修改 Compose 拓扑。
+**验收标准**：`platform_topology_test.sh` 在真实 Compose 环境可连续运行两次；任一账号越权、Probe details 缺失/非 UP、管理员凭据进入 Java 容器或断言命令异常时脚本非零退出；临时表只清理本次 runId 数据；Docker 持久化硬约束与当前实现索引一致。
+**验证方式**：运行 `bash -n scripts/tests/http/platform_topology_test.sh`、相关 Python 校验器单测、`docker compose up -d --build`、连续两次 `bash scripts/tests/http/platform_topology_test.sh`、完整 HTTP 回归、`docker compose --profile smoke down`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict --verify-git` 和 `git diff --check`。
+**涉及文件**：`scripts/tests/http/platform_topology_test.sh`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`constraints/docker-structure.md`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
+
 ## 验收记录
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
@@ -624,6 +646,10 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (48/48) | 校验器已更新 protobuf 版本为 4.35.1 |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict` | 通过 | 0 errors, 24 warnings |
 | 2026-06-23 | 执行 session / macOS ARM64 | `docker/java-service.Dockerfile` builder 镜像变更 | 完成 | `eclipse-temurin:21-jdk-alpine` → `eclipse-temurin:21-jdk`，Debian glibc 替代 Alpine musl，解决 ARM64 protoc-gen-grpc-java 执行问题 |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew check`、`./gradlew test --rerun-tasks` | 通过 | `check` 100 个任务成功；全量测试强制重跑 68 个任务成功，无测试失败 |
+| 2026-06-23 | 独立验收 / Gradle dependency insight | 核对 `grpc-core`、`grpc-stub`、`grpc-protobuf`、`grpc-netty-shaded`、`grpc-services` 与 `protobuf-java` | 通过 | gRPC 均解析为 1.82.0，protobuf-java 解析为 4.35.1，14.10 的版本漂移已修复 |
+| 2026-06-23 | 独立验收 / 源码与测试审查 | 核对 14.1、14.3、14.6、14.7、14.9 验收标准与实现 | 失败 | Probe readiness 未校验返回的 serviceName/callerService，未取消超时 Future；token 长度不同时提前返回；拓扑脚本 runId 含连字符并直接用于表名，且 Probe 缺失仅 warning；Docker 持久化硬约束仍写旧 `data/pgdata/` |
+| 2026-06-23 | 独立验收 / Docker Desktop Linux ARM64 | `docker compose build --no-cache` | 未执行完成 | 构建已进入 ARM64 Java/Proto 与 Sidecar 依赖下载阶段；因源码与脚本审查已确定验收失败而停止，不能作为镜像构建通过证据；14.12 修复后必须重新执行无缓存构建、启动、拓扑脚本和完整 HTTP 回归 |
 
 ## 阻塞记录
 
@@ -645,3 +671,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 完成 14.8-14.9 实现，全部任务转入待验收，Plan 转为 verifying | HTTP 脚本已适配五服务拓扑；约束文档、校验器和 README 已同步当前实现事实 | 全部 9 个任务待验收；Plan 进入独立验收队列 |
 | 2026-06-22 | 独立验收失败，追加 14.10 并退回进行中 | 实际运行时 gRPC/Protobuf 版本与固定基线不符，且 Linux ARM64 Docker 构建无法执行 gRPC Proto 插件 | 14.1、14.4、14.7 退回进行中；新增 14.10，修复后须重新执行完整 Gradle、Docker 拓扑与 HTTP 验收 |
 | 2026-06-23 | 完成 14.10 实现，全部任务转入待验收，Plan 转为 verifying | eachDependency 强制 gRPC 1.82.0 和 protobuf 4.35.1 覆盖 BOM；Docker builder 从 Alpine 切换为 Debian JDK 解决 ARM64 glibc 兼容 | 14.1、14.4、14.7 恢复待验收；全部 10 个任务待验收 |
+| 2026-06-23 | 独立验收失败，追加 14.11-14.12 并退回进行中 | Probe 身份响应未校验、超时任务未取消、不同长度 token 比较提前返回；平台拓扑脚本生成非法表名且关键 Probe 断言仅 warning；Docker 持久化硬约束仍保留旧路径 | 14.1、14.3、14.6、14.7、14.9 退回进行中；新增两项修复任务，完成实现、自测、真实 Docker 回归与交接后再进入独立验收 |
