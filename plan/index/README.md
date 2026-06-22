@@ -223,7 +223,7 @@ plan_14（14.14：修复 Access/Knowledge 非 Web 进程启动后退出）
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_14.md](../plan_14/plan_14.md) | 多服务骨架、Protobuf/gRPC、服务身份、独立 Schema、五进程 Compose 与兼容回归 | ✅ 待验收 (0/13) |
+| [plan_14.md](../plan_14/plan_14.md) | 多服务骨架、Protobuf/gRPC、服务身份、独立 Schema、五进程 Compose 与兼容回归 | 🔄 进行中 (0/14) |
 
 ---
 
