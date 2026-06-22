@@ -11,6 +11,7 @@ java {
 dependencies {
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     runtimeOnly("org.postgresql:postgresql")
