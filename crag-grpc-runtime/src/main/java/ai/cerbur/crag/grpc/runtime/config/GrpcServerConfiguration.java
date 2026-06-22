@@ -19,7 +19,7 @@ import org.springframework.core.env.Environment;
 @Configuration
 public class GrpcServerConfiguration {
 
-  private static final String[] KNOWN_CALLERS = {"console-api", "open-api", "test-caller"};
+  private static final String ALLOWED_CALLERS_PREFIX = "crag.grpc.server.allowed-callers.";
 
   @Autowired private Environment env;
 
@@ -36,8 +36,10 @@ public class GrpcServerConfiguration {
           java.time.Duration.parse(timeoutStr.startsWith("PT") ? timeoutStr : "PT" + timeoutStr));
     }
     Map<String, String> callers = new LinkedHashMap<>();
-    for (String caller : KNOWN_CALLERS) {
-      String token = env.getProperty("crag.grpc.server.allowed-callers." + caller);
+    // Dynamically read all allowed-callers from environment without hardcoding caller names
+    for (String propertyName : getPropertiesWithPrefix(ALLOWED_CALLERS_PREFIX)) {
+      String caller = propertyName.substring(ALLOWED_CALLERS_PREFIX.length());
+      String token = env.getProperty(propertyName);
       if (token != null && !token.isBlank()) {
         callers.put(caller, token);
       }
@@ -46,6 +48,23 @@ public class GrpcServerConfiguration {
       props.setAllowedCallers(callers);
     }
     return props;
+  }
+
+  private List<String> getPropertiesWithPrefix(String prefix) {
+    List<String> result = new java.util.ArrayList<>();
+    if (env instanceof org.springframework.core.env.ConfigurableEnvironment configurableEnv) {
+      for (org.springframework.core.env.PropertySource<?> source :
+          configurableEnv.getPropertySources()) {
+        if (source instanceof org.springframework.core.env.EnumerablePropertySource<?> enumerable) {
+          for (String name : enumerable.getPropertyNames()) {
+            if (name.startsWith(prefix)) {
+              result.add(name);
+            }
+          }
+        }
+      }
+    }
+    return result.stream().distinct().toList();
   }
 
   @Bean
