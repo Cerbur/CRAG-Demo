@@ -1,55 +1,68 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-20（补充 LLM 韧性治理未来演进候选）
+> 最后更新：2026-06-22（确立多租户知识平台演进方向）
 
 ---
 
 ## 一、项目定位
 
-实现一个**开箱即用**的基于 RAG（Retrieval-Augmented Generation）的问答机器人后端服务。
+CRAG-Demo 是一个用于展示完整 RAG（Retrieval-Augmented Generation）链路的后端项目。
 
-目标不是一次性做完完整知识库产品，而是先做一个能清楚演示 RAG 后端核心链路的 Demo：从纯文本入库，到混合检索，再到重排与 LLM 生成，开发者可以用 Docker Compose 在本地快速跑通。
+当前已完成从纯文本入库、Parent/Child Chunk、Dense/Sparse 混合检索、RRF、Rerank、Context 组装到 LLM 回答与引用返回的单进程基线。下一阶段在保留 RAG 链路可理解、可运行、可验证的前提下，将项目演进为支持租户、用户、知识库、文件上传和 API Key 查询的多租户知识平台。
 
-架构上按 DDD 领域边界设计，长期形态可以拆成多个微服务；当前阶段先以单个 Spring Boot 服务承载这些领域模块，所有异步监听统一用 Cron 定时扫表实现。
+目标形态不是将每个内部步骤都拆成微服务，而是围绕稳定业务边界形成五个独立进程：
+
+- `crag-console-api`：管理控制台 HTTP 入口。
+- `crag-open-api`：API Key 开放查询入口。
+- `crag-access-service`：身份、租户、成员关系、会话和 API Key。
+- `crag-knowledge-service`：KnowledgeBase、Document 和文件生命周期。
+- `crag-rag-service`：Ingestion、Retrieval 和 Query。
 
 核心原则：
 
-- 一键部署：Docker Compose 包含应用、PostgreSQL + pgvector、模型 sidecar。
-- 零鉴权：Demo 阶段对外 API 直接可用。
-- 接口简洁：围绕 `UserQuery` 与 `AdminRag` 两个核心接口推进。
-- 检索可解释：保留 sources，让用户能看到回答依据。
+- RAG 主链路仍是项目核心，服务化不掩盖 Chunk、索引、检索、重排和生成过程。
+- Access、Knowledge、RAG 各自拥有独立数据边界，禁止跨 Schema 查询、写入和外键。
+- 同步服务通信使用 gRPC，生命周期事件使用 Redis Streams。
+- 跨服务状态变化采用可靠投递、幂等消费、补偿扫描和可观测性闭环。
+- Docker Compose 继续提供本地可复现的完整运行与验收环境。
 
-当前阶段非目标：
-
-- 不实现用户、租户、权限、计费、多知识库管理；但在架构边界中为 Access 与 KnowledgeBase 领域预留位置。
-- 不做文件解析、OCR、网页抓取等复杂采集链路。
-- 不做企业级消息队列、分布式调度或多副本一致性。
-- 不为了抽象而抽象；Demo 阶段优先保持链路清楚、可运行、可验证。
+完整架构决策见 [`多租户知识平台架构设计`](../docs/superpowers/specs/2026-06-22-multi-tenant-knowledge-platform-design.md)。
 
 ---
 
 ## 二、产品边界
 
-### 2.1 AdminRag
+### 2.1 管理面
 
-管理端只负责把一段纯文本放进 RAG 知识库：
+管理面由 `crag-console-api` 暴露，面向注册用户，覆盖：
 
-```text
-POST /api/v1/admin/rag
-```
+- 注册、登录、刷新和退出。
+- Tenant Membership 与 `OWNER / MEMBER` 权限。
+- KnowledgeBase 创建、查看和删除。
+- `.txt`、`.md` Document 上传、状态查看和删除。
+- API Key 创建、禁用、轮换和吊销。
 
-输入包含标题、正文和可选 metadata。接口同步完成 chunk 写入后返回；Embedding 和检索索引通过异步任务继续处理。
+KnowledgeBase 必须归 Tenant 所有。用户通过 Membership 访问 Tenant 资源，首版不提供个人 KnowledgeBase。
 
-### 2.2 UserQuery
+### 2.2 开放查询面
 
-用户端只负责对知识库提问并拿到答案：
+开放查询面由 `crag-open-api` 暴露：
 
-```text
-POST /api/v1/query
-```
+- 调用方使用 API Key 提交问题。
+- 一个 API Key 只绑定一个 KnowledgeBase。
+- 调用方不能在请求中指定或覆盖 `knowledgeBaseId`。
+- 返回完整 RAG 答案和引用，不暴露内部原始 Retrieval 结果。
 
-输出包含 answer 和 sources。sources 用于解释答案依据，避免 Demo 变成一个不可追溯的黑盒问答接口。
+### 2.3 首版非目标
+
+- 不迁移当前 Demo 数据，允许重建数据库。
+- 不支持 PDF、Word、网页抓取、OCR 和断点续传。
+- 不支持修改 Document 内容；修改通过上传新 Document、删除旧 Document 表达。
+- 不将 Ingestion、Retrieval、Query 分别部署为独立服务。
+- 不实现一个 API Key 访问多个 KnowledgeBase。
+- 不引入 Kafka 等重量级消息系统。
+- 不实现计费、配额和复杂组织层级。
 
 ---
 
@@ -57,185 +70,182 @@ POST /api/v1/query
 
 | 层级 | 方向 | 说明 |
 | --- | --- | --- |
-| 后端 | Java 21 + Spring Boot 4.1.0 (Framework 7) | Demo 主服务 |
-| 构建 | Gradle Kotlin DSL | 统一构建入口 |
-| 数据 | PostgreSQL + pgvector | 元数据、全文检索、向量检索 |
-| Embedding | Python Sidecar `/embed` | gte 中文 embedding，768 维 |
-| Rerank | Python Sidecar `/rerank` | bge-reranker-v2-m3 |
-| LLM | DeepSeek API + Spring AI 2.0.0 | 一期接入 DeepSeek，integration 层保留扩展空间 |
-| 部署 | Docker + Docker Compose | 本地一键启动 |
+| 后端 | Java 21 + Spring Boot 4.1.0 + Spring Framework 7 | API 与业务服务 |
+| 构建 | Gradle Kotlin DSL | 多模块统一构建 |
+| 同步通信 | gRPC + Protobuf | 服务命令、查询和文件流式读取 |
+| 异步通信 | Redis Streams | 生命周期事件、状态回传和缓存失效 |
+| 数据 | PostgreSQL + pgvector | Access、Knowledge、RAG 使用独立 Schema 与账号 |
+| ID | Snowflake `long / BIGINT` | HTTP、gRPC、事件边界使用十进制字符串 |
+| 文件存储 | 存储契约 + Docker Volume | 文件路径仅限 Knowledge 内部 |
+| Embedding / Rerank | Python Sidecar | 继续承载本地模型能力 |
+| LLM | DeepSeek API + Spring AI 2.0.0 | 由 RAG Query 模块调用 |
+| 部署 | Docker + Docker Compose | 本地完整环境和故障验收 |
 
 ---
 
-## 四、RAG 主链路
-
-### 4.1 入库链路
+## 四、目标架构与职责
 
 ```text
-AdminRag HTTP
-  -> ChunkSplit(parent + child)
-  -> 写入 chunk 表
-  -> HTTP 返回 PENDING
-  -> Dense Cron 扫 child chunk
-  -> Sidecar /embed
-  -> 写入 chunk_embedding
-  -> Sparse Cron / FTS 索引构建
+                    HTTP
+        ┌─────────────────────────┐
+        │ crag-console-api        │
+        │ JWT 验签、管理用例编排   │
+        └───────┬─────────┬───────┘
+                │ gRPC    │ gRPC
+                ▼         ▼
+     ┌────────────────┐  ┌──────────────────┐
+     │ Access Service │  │ Knowledge Service│
+     │ identity/auth  │  │ KB/doc/file      │
+     └────────────────┘  └────────┬─────────┘
+                                  │ Redis Streams
+                                  ▼
+                         ┌──────────────────┐
+                         │ RAG Service      │
+                         │ ingest/retrieve/ │
+                         │ query            │
+                         └────────┬─────────┘
+                                  ▲
+                                  │ gRPC
+        ┌─────────────────────────┴┐
+        │ crag-open-api            │
+        │ API Key 鉴权、查询入口    │
+        └──────────────────────────┘
 ```
 
-方向约束：
+### 4.1 HTTP 入口
 
-- 一期只支持纯文本，不做文件解析。
-- chunk 使用 parent + child 结构：parent 保存上下文窗口，child 作为检索粒度。
-- parent chunk 不做 embedding，不参与 FTS；child chunk 才进入 Dense 和 Sparse 检索索引。
-- Dense 与 Sparse 两条索引链路独立推进，状态独立、失败可重试。
-- HTTP 请求不阻塞在 embedding 上；Demo 阶段用 Cron 处理异步任务。
+- `crag-console-api` 负责 Cookie、Header、HTTP DTO、统一响应、本地 JWT 验签和跨服务管理用例编排，不拥有业务数据。
+- `crag-open-api` 负责 API Key 接入、短 TTL 鉴权缓存、RAG 查询调用和答案响应，不接受客户端指定的 KnowledgeBase。
 
-### 4.2 查询链路
+### 4.2 Access
+
+- User、Tenant、Tenant Membership。
+- 密码认证、Access JWT 与 Refresh Session。
+- API Key 创建、哈希、禁用、轮换、吊销和鉴权。
+- KnowledgeBase 的最小授权投影 `api_key_scope`。
+- Tenant 权限矩阵和敏感操作实时校验。
+
+### 4.3 Knowledge
+
+- KnowledgeBase 与 Document 生命周期。
+- 文件校验、存储、流式读取和物理清理。
+- 用户可见的 Ingestion 状态。
+- 上传、删除和补偿相关领域事件。
+
+### 4.4 RAG
+
+- Ingestion：解析文件、Chunk Split、Dense/Sparse 索引构建。
+- Retrieval：Sparse、Dense、RRF、Rerank 和 Parent Evidence。
+- Query：Context、Prompt、LLM 和引用组装。
+
+三个模块保持窄公开接口和单向依赖，但首版共同部署于 `crag-rag-service`。
+
+### 4.5 契约与数据边界
+
+- `crag-contracts` 只保存 Protobuf 契约和稳定事件信封，不包含业务实现。
+- Access、Knowledge、RAG 使用独立 Schema、数据库账号和迁移脚本。
+- 服务间只保存对方资源 ID，不建立跨 Schema 外键。
+- Console API 可以编排多个服务，业务服务不得形成同步循环调用。
+- 所有消息采用至少一次投递，消费者必须幂等。
+
+---
+
+## 五、RAG 主链路
+
+### 5.1 上传与索引
 
 ```text
-UserQuery HTTP
-  -> question embedding
-  -> Dense Query(pgvector, child chunk)
-  -> Sparse Query(PostgreSQL FTS, child chunk)
-  -> RRF 融合(child chunk)
-  -> top RRF child + 相邻 child 扩展
-  -> Rerank(child chunk candidates)
-  -> LLM 生成
+Console API
+  -> Knowledge 保存 File + Document(PENDING) + Outbox
+  -> Redis Streams: DOC_UPLOADED
+  -> RAG 创建 Ingestion Job
+  -> Knowledge gRPC 流式读取文件
+  -> Parent/Child Chunk Split
+  -> Dense + Sparse 索引
+  -> Redis Streams: PROCESSING / READY / FAILED
+  -> Knowledge 更新用户可见状态
+```
+
+### 5.2 查询
+
+```text
+Open API
+  -> Access 校验 API Key
+  -> 获取唯一绑定的 knowledgeBaseId
+  -> RAG Query
+  -> Dense + Sparse（强制 knowledgeBaseId）
+  -> RRF + Parent Evidence + Rerank
+  -> Context + LLM
   -> answer + sources
 ```
 
-方向约束：
+RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先按 Chunk ID 查询后再补做隔离判断。
 
-- Dense 检索与 Sparse 检索都以 child chunk 为命中粒度。
-- RRF 保持 child chunk 维度，只负责融合双路检索排名，不直接做语义判断。
-- Rerank 候选由 top RRF child chunk 及其同 parent 下相邻 child chunk 组成，避免孤立 child 截断上下文。
-- Rerank 对 child chunk 候选重新排序后，再交给 LLM 生成答案。
-- Demo 阶段不做流式返回和用户鉴权。
+### 5.3 删除
 
----
+删除分为同步封禁和异步物理清理：
 
-## 五、关键设计决策
-
-| 决策 | 当前方向 |
-| --- | --- |
-| 检索方案 | BM25/FTS Sparse + pgvector Dense，然后 RRF 融合 |
-| Chunk 策略 | parent + child；child 检索，parent 提供上下文 |
-| Embedding 范围 | 仅 child chunk 存储向量 |
-| Sparse 范围 | 仅 child chunk 进入 FTS |
-| 异步方式 | Demo 阶段使用 Spring `@Scheduled` Cron |
-| 架构形态 | DDD 领域模块优先，当前单服务承载，未来可按领域拆微服务 |
-| Sidecar 模型 | Embedding 与 Rerank 放在 Python Sidecar |
-| LLM 方案 | 一期 DeepSeek API，Spring AI 管理 |
-| 数据迁移 | 一期使用 `schema.sql`，不引入迁移框架 |
+- 删除请求成功返回前，Access 必须禁用相关 API Key，RAG 必须建立 `deletion_guard`。
+- Knowledge 使用 `DELETE_REQUESTED → DOWNSTREAM_NOTIFIED → DOWNSTREAM_DELETED → DELETED` 状态机。
+- RAG 幂等清理 Chunk、Dense、Sparse 和任务数据。
+- Knowledge 在下游完成后清理文件，并保留最小 tombstone。
+- Reconciler、死信、指标和告警处理长期未完成状态。
 
 ---
 
-## 六、架构边界
+## 六、关键设计决策
 
-### 6.1 DDD 领域边界架构图
-
-```text
-当前实现形态：Modular Monolith / 单 Spring Boot 服务
-未来演进方向：按领域拆分为 Access、KnowledgeBase、Ingestion、Retrieval、Query 微服务
-
-┌────────────────────────────────────────────────────────────────────────────┐
-│ CRAG-Demo Application                                                     │
-│ 单服务承载多个 DDD 领域模块；模块间通过应用服务/领域接口协作              │
-└────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────┐       keychain / tenant context
-│ Access（未规划）             │──────────────────────────────────────┐
-│ - 用户、租户、成员关系        │                                      │
-│ - 鉴权与访问控制              │                                      ▼
-│ - KnowledgeBase keychain 创建 │                         ┌──────────────────────────────┐
-│ - Query 侧 keychain 校验      │                         │ Query（已规划）              │
-└──────────────┬───────────────┘                         │ - UserQuery API              │
-               │ tenant ownership                         │ - Context 工程               │
-               ▼                                          │ - LLM 调用                   │
-┌──────────────────────────────┐                         │ - answer + sources           │
-│ KnowledgeBase（未规划）      │                         └──────────────┬───────────────┘
-│ - Tenant -> KnowledgeBase    │                                        │ recall request
-│ - KnowledgeBase -> Document  │                                        ▼
-│ - 文档归属关系维护           │                         ┌──────────────────────────────┐
-└──────────────┬───────────────┘                         │ Retrieval（已规划）          │
-               │ document changes                         │ - 查询 Sparse                │
-               ▼                                          │ - 查询 Dense                 │
-┌──────────────────────────────┐                         │ - RRF 融合                   │
-│ Ingestion（已规划）          │                         │ - 回表召回 Chunk             │
-│ - 监听 Doc 变更事件          │                         └──────────────┬───────────────┘
-│ - Doc -> Chunk               │                                        │ read
-│ - Chunk -> Sparse Index 写入 │                                        │
-│ - Chunk -> Dense 写入        │                                        │
-└──────────────┬───────────────┘                                        │
-               │ write                                                  │
-               ▼                                                        ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│ PostgreSQL + pgvector                                                     │
-│ tenant / user / keychain（未来）                                           │
-│ knowledge_base / document（未来）                                          │
-│ chunk / sparse index / dense embedding（当前主线）                         │
-└──────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Cron Listeners                                                            │
-│ 当前所有监听统一由 Spring @Scheduled 定时扫表实现                         │
-│ - Doc 变更 -> Ingestion Chunk 处理                                         │
-│ - Chunk 变更 -> Sparse 写入                                                │
-│ - Chunk 变更 -> Dense 写入                                                 │
-│ - 失败任务重试、状态推进、CAS 抢占                                         │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-责任边界：
-
-- `Access` 管理用户、多租户、鉴权、租户成员关系，以及访问 KnowledgeBase 的 keychain。
-- `KnowledgeBase` 管理租户与知识库关系、知识库与文档关系，不负责 Chunk、Embedding、检索索引。
-- `Ingestion` 负责写链路：Doc 变更监听、Doc -> Chunk、Chunk -> Sparse/Dense 写入，以及 Chunk/Sparse/Dense 存储的写入状态推进。
-- `Retrieval` 负责读链路：查询 Sparse/Dense、RRF 融合、召回 Chunk、Rerank，对外提供问题到 chunks 的检索门面，不负责生成最终回答。
-- `Query` 负责问答链路：接收 UserQuery、调用 Retrieval 获取 chunks、组织 context、调用 LLM、生成 answer 与 sources。
-- `Cron` 是当前阶段的事件监听实现方式；未来拆微服务后可以替换为 MQ/事件总线，但领域边界不随触发方式改变。
-
-### 6.2 领域职责表
-
-| 领域 | 状态 | 职责 |
+| 主题 | 决策 |
 | --- | --- |
-| Access | 未规划 | 用户、多租户、租户成员、鉴权、KnowledgeBase keychain |
-| KnowledgeBase | 未规划 | Tenant 与 KnowledgeBase 关系、KnowledgeBase 与 Document 关系 |
-| Ingestion | 已规划 | Doc -> Chunk，Chunk 生成 Sparse/Dense 索引，维护写入状态 |
-| Retrieval | 已规划 | 查询 Sparse/Dense，RRF 融合，召回 Chunk，Rerank 后返回 chunks 给 Query |
-| Query | 已规划 | UserQuery、调用 Retrieval 获取 chunks、Context 工程、LLM 调用、答案生成 |
-| Cron Listeners | 已规划 | 当前阶段所有监听、异步任务和状态推进的实现方式 |
-
-### 6.3 模块职责约束
-
-- 正式 HTTP Controller、请求 DTO、校验和异常转换统一属于 API 边界模块。
-- Repository、Entity 与数据库投影统一属于 Storage；业务模块通过受控 DAO 或公开结果访问持久化能力。
-- Ingestion、Retrieval 与 Query 只拥有各自业务编排、领域能力和外部适配，不机械复制 Controller、DAO 等横向分层。
-- App 仅作为组合根；Smoke 仅作为显式启用的诊断例外。
-
-模块职责、依赖白名单、公开 API 和迁移期偏差以 [`constraints/package-structure.md`](../constraints/package-structure.md) 为唯一事实来源。
+| KnowledgeBase 所有权 | Tenant 所有 |
+| 注册 | 自动创建默认 Tenant，注册用户为 `OWNER` |
+| 角色 | 首版仅 `OWNER / MEMBER` |
+| HTTP 入口 | Console API 与 Open API 独立进程 |
+| 业务服务 | Access、Knowledge、RAG 三个独立服务 |
+| RAG 部署 | Ingestion、Retrieval、Query 保持模块边界，共同部署 |
+| 同步通信 | gRPC |
+| 异步通信 | Redis Streams + Outbox |
+| 数据隔离 | 独立 Schema、账号和迁移，禁止跨 Schema 访问 |
+| ID | Snowflake `long / BIGINT`，边界使用十进制字符串 |
+| 文件存储 | 契约隔离，首版 Docker Volume |
+| API Key | 单 Key 绑定单 KnowledgeBase，只保存前缀与哈希 |
+| 删除语义 | 同步封禁查询，异步完成物理清理 |
+| 数据迁移 | 不迁移当前 Demo 数据，允许重建 |
 
 ---
 
 ## 七、阶段路线
 
-产品主线按“入库 → 检索 → 问答 → 部署体验收口”推进。工程治理、模块迁移和测试工作流是服务产品主线的前置工作，不在这里复制执行状态。
+以下阶段只表达依赖顺序和交付边界，不替代具体 Plan 的任务、状态和验收记录：
 
-当前唯一执行队列、计划状态、历史小数计划和 Hotfix 统一查看 [`plan/index/README.md`](./index/README.md)。
+1. **服务化与契约基线**：多进程骨架、独立 Schema、gRPC 契约、服务身份和 Docker 拓扑。
+2. **分布式 ID**：Snowflake ID、Redis Worker 租约、时钟回拨和健康状态。
+3. **可靠事件基础设施**：事件信封、Outbox、Redis Streams、ACK、Reclaim 和幂等记录。
+4. **Knowledge 垂直链路**：KnowledgeBase、Document、文件存储、上传和流式读取。
+5. **RAG 多知识库化**：Ingestion Job、KnowledgeBase 数据隔离、异步索引和状态回传。
+6. **Access 与权限**：User、Tenant、Membership、JWT、Refresh Session、API Key 和缓存失效。
+7. **双 API 入口**：Console 管理编排、Open API 查询和旧混合入口退出。
+8. **生命周期可靠性**：删除状态机、补偿扫描、死信、指标、告警和故障恢复。
+
+每个阶段必须创建独立主 Plan，达到 `ready` 并提交后才能执行；完成实现后由未参与实现的新 session 独立验收。具体编号、依赖、状态和队列只在 [`plan/index/README.md`](./index/README.md) 与对应 Plan 文件中维护。
 
 ### 7.1 未来演进候选
 
-- **LLM 韧性治理**：在真实运行数据表明认证外故障、限流或超时已形成稳定问题后，再创建独立主 Plan，评估限次重试与退避、熔断和超时隔离、多供应商降级、请求幂等、成本及延迟控制。
-- 触发依据应包含可复现的故障率、限流率、超时率、延迟和成本数据；不因预想中的未来需求提前增加重试、Fallback 或供应商抽象。
-- 候选项只记录产品与技术方向，不代表已进入执行队列；创建、状态和任务仍以具体 Plan 与 [`plan/index/README.md`](./index/README.md) 为准。
+- **LLM 韧性治理**：仅在真实运行数据证明认证外故障、限流或超时形成稳定问题后，再创建独立主 Plan，评估限次重试与退避、熔断和超时隔离、多供应商降级、请求幂等、成本及延迟控制。
+- 触发依据应包含可复现的故障率、限流率、超时率、延迟和成本数据，不因预想需求提前增加抽象。
 
 ---
 
-## 八、决策入口
+## 八、约束与事实入口
 
-- Plan 工作流、目录、命名、索引和进度规则：[`constraints/plan-workflow.md`](../constraints/plan-workflow.md)
+- 多租户平台设计：[`docs/superpowers/specs/2026-06-22-multi-tenant-knowledge-platform-design.md`](../docs/superpowers/specs/2026-06-22-multi-tenant-knowledge-platform-design.md)
+- Plan 工作流：[`constraints/plan-workflow.md`](../constraints/plan-workflow.md)
 - Java 代码风格：[`constraints/code-style.md`](../constraints/code-style.md)
+- HTTP API：[`constraints/api-style.md`](../constraints/api-style.md)
+- 持久化：[`constraints/persistence-style.md`](../constraints/persistence-style.md)
+- Retrieval：[`constraints/retrieval-style.md`](../constraints/retrieval-style.md)
 - Java 包结构：[`constraints/package-structure.md`](../constraints/package-structure.md)
 - Docker 部署结构：[`constraints/docker-structure.md`](../constraints/docker-structure.md)
+- 测试工作流：[`constraints/test-workflow.md`](../constraints/test-workflow.md)
 
-`plan_main` 维护项目方向、产品边界、主链路和关键技术决策；不承载完整执行计划索引、任务进度表或 hotfix 明细。
+`plan_main.md` 只维护当前有效的项目定位、产品边界、技术方向、架构职责与阶段路线，不保存执行计划索引、任务进度或 Hotfix 明细。
