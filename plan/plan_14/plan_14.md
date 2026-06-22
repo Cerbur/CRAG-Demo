@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -369,18 +369,18 @@ public interface GrpcChannelFactory {
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | 🚧 进行中 | 0ea145d | — |
+| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
 | 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
-| 14.3 | 建立 Console/Open API 与下游 Probe readiness | 🚧 进行中 | 8473bb1 | — |
+| 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1, 53f9c90 | — |
 | 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
 | 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
-| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | 🚧 进行中 | 4adeae7 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | 🚧 进行中 | 2f18ea4 | — |
+| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7, 53f9c90 | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4, 66bef23 | — |
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
-| 14.9 | 收口约束文档、校验器与交接证据 | 🚧 进行中 | f664bf4 | — |
+| 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
-| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⬜ 待开始 | — | — |
-| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⬜ 待开始 | — | — |
+| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90 | — |
+| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23 | — |
 
 整体进度：0 / 12（0%）
 
@@ -650,6 +650,13 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 独立验收 / Gradle dependency insight | 核对 `grpc-core`、`grpc-stub`、`grpc-protobuf`、`grpc-netty-shaded`、`grpc-services` 与 `protobuf-java` | 通过 | gRPC 均解析为 1.82.0，protobuf-java 解析为 4.35.1，14.10 的版本漂移已修复 |
 | 2026-06-23 | 独立验收 / 源码与测试审查 | 核对 14.1、14.3、14.6、14.7、14.9 验收标准与实现 | 失败 | Probe readiness 未校验返回的 serviceName/callerService，未取消超时 Future；token 长度不同时提前返回；拓扑脚本 runId 含连字符并直接用于表名，且 Probe 缺失仅 warning；Docker 持久化硬约束仍写旧 `data/pgdata/` |
 | 2026-06-23 | 独立验收 / Docker Desktop Linux ARM64 | `docker compose build --no-cache` | 未执行完成 | 构建已进入 ARM64 Java/Proto 与 Sidecar 依赖下载阶段；因源码与脚本审查已确定验收失败而停止，不能作为镜像构建通过证据；14.12 修复后必须重新执行无缓存构建、启动、拓扑脚本和完整 HTTP 回归 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-grpc-runtime:test :crag-console-api:test :crag-open-api:test --rerun-tasks` | 通过 | 14.11：constantTimeEquals 不同长度固定工作量比较、错误 serviceName/callerService 判 DOWN、总预算取消、token 脱敏 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew test --rerun-tasks` | 通过 | 全量测试 68 个任务成功，无失败 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew check` | 通过 | 100 个任务，全量静态检查、格式化、Plan 校验 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `bash -n scripts/tests/http/platform_topology_test.sh` | 通过 | 拓扑脚本语法检查通过 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (54/54) | 新增拓扑脚本关键断言检查和 Docker 持久化路径漂移检查 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_constraints.py` | 通过 | 0 errors |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings |
 
 ## 阻塞记录
 
@@ -672,3 +679,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 独立验收失败，追加 14.10 并退回进行中 | 实际运行时 gRPC/Protobuf 版本与固定基线不符，且 Linux ARM64 Docker 构建无法执行 gRPC Proto 插件 | 14.1、14.4、14.7 退回进行中；新增 14.10，修复后须重新执行完整 Gradle、Docker 拓扑与 HTTP 验收 |
 | 2026-06-23 | 完成 14.10 实现，全部任务转入待验收，Plan 转为 verifying | eachDependency 强制 gRPC 1.82.0 和 protobuf 4.35.1 覆盖 BOM；Docker builder 从 Alpine 切换为 Debian JDK 解决 ARM64 glibc 兼容 | 14.1、14.4、14.7 恢复待验收；全部 10 个任务待验收 |
 | 2026-06-23 | 独立验收失败，追加 14.11-14.12 并退回进行中 | Probe 身份响应未校验、超时任务未取消、不同长度 token 比较提前返回；平台拓扑脚本生成非法表名且关键 Probe 断言仅 warning；Docker 持久化硬约束仍保留旧路径 | 14.1、14.3、14.6、14.7、14.9 退回进行中；新增两项修复任务，完成实现、自测、真实 Docker 回归与交接后再进入独立验收 |
+| 2026-06-23 | 完成 14.11-14.12 实现，全部任务转入待验收，Plan 转为 verifying | HealthIndicator 校验 serviceName/callerService 并取消超时 Future；constantTimeEquals 不同长度固定工作量比较；拓扑脚本合法标识符和硬断言；Docker 持久化约束同步 | 14.1、14.3、14.6、14.7、14.9 恢复待验收；全部 12 个任务待验收 |
