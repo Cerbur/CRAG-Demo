@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: rag-service
+  datasource:
+    url: jdbc:h2:mem:crag_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: never
+
+crag:
+  embedding:
+    sidecar-url: http://localhost:8001
+    embed-path: /embed
+    connect-timeout: 5s
+    read-timeout: 30s
+  rerank:
+    sidecar-url: http://localhost:8001
+    rerank-path: /rerank
+    connect-timeout: 5s
+    read-timeout: 30s
+  query:
+    llm:
+      provider: stub
+      stub:
+        mode: success
+  grpc:
+    server:
+      bind-port: 0
+      shutdown-timeout: 1s
+      allowed-callers:
+        test-caller: test-token

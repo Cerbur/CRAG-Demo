@@ -1,0 +1,31 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: access-service
+
+crag:
+  grpc:
+    server:
+      bind-port: 9091
+      shutdown-timeout: PT5S
+      allowed-callers:
+        console-api: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
+        open-api: ${OPEN_API_SERVICE_TOKEN:open-token-demo}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState

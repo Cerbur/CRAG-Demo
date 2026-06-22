@@ -1,0 +1,79 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: rag-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/crag_demo
+    username: crag_user
+    password: crag_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+crag:
+  embedding:
+    sidecar-url: http://localhost:8001
+    embed-path: /embed
+    connect-timeout: 5s
+    read-timeout: 30s
+  rerank:
+    sidecar-url: http://localhost:8001
+    rerank-path: /rerank
+    connect-timeout: 5s
+    read-timeout: 30s
+  cron:
+    dense:
+      batch-size: 100
+      interval-cron: "*/10 * * * * *"
+      processing-timeout: 5m
+  query:
+    retrieval:
+      top-n: 8
+    context:
+      max-characters: 12000
+    llm:
+      provider: stub
+      request-timeout: 120s
+      deepseek:
+        api-key: ${DEEPSEEK_API_KEY:}
+        base-url: https://api.deepseek.com/anthropic
+        model: deepseek-v4-flash
+        temperature: 0
+        max-output-tokens: 4096
+      stub:
+        mode: success
+  grpc:
+    server:
+      bind-port: 9093
+      shutdown-timeout: PT5S
+      allowed-callers:
+        console-api: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
+        open-api: ${OPEN_API_SERVICE_TOKEN:open-token-demo}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db

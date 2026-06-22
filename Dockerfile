@@ -16,6 +16,7 @@ COPY gradlew .
 COPY gradle/ gradle/
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
+COPY gradle/libs.versions.toml gradle/libs.versions.toml
 COPY crag-common/build.gradle.kts crag-common/build.gradle.kts
 COPY crag-storage/build.gradle.kts crag-storage/build.gradle.kts
 COPY crag-retrieval/build.gradle.kts crag-retrieval/build.gradle.kts
@@ -23,9 +24,11 @@ COPY crag-ingestion/build.gradle.kts crag-ingestion/build.gradle.kts
 COPY crag-query/build.gradle.kts crag-query/build.gradle.kts
 COPY crag-api/build.gradle.kts crag-api/build.gradle.kts
 COPY crag-smoke/build.gradle.kts crag-smoke/build.gradle.kts
-COPY crag-app/build.gradle.kts crag-app/build.gradle.kts
+COPY crag-platform-contracts/build.gradle.kts crag-platform-contracts/build.gradle.kts
+COPY crag-grpc-runtime/build.gradle.kts crag-grpc-runtime/build.gradle.kts
+COPY crag-rag-service/build.gradle.kts crag-rag-service/build.gradle.kts
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
-    chmod +x gradlew && ./gradlew :crag-app:dependencies --no-daemon
+    chmod +x gradlew && ./gradlew :crag-rag-service:dependencies --no-daemon
 
 # 复制源码并构建
 COPY crag-common/src/ crag-common/src/
@@ -35,9 +38,11 @@ COPY crag-ingestion/src/ crag-ingestion/src/
 COPY crag-query/src/ crag-query/src/
 COPY crag-api/src/ crag-api/src/
 COPY crag-smoke/src/ crag-smoke/src/
-COPY crag-app/src/ crag-app/src/
+COPY crag-platform-contracts/src/ crag-platform-contracts/src/
+COPY crag-grpc-runtime/src/ crag-grpc-runtime/src/
+COPY crag-rag-service/src/ crag-rag-service/src/
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
-    ./gradlew :crag-app:bootJar --no-daemon
+    ./gradlew :crag-rag-service:bootJar --no-daemon
 
 # --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre-alpine AS runtime
@@ -50,12 +55,12 @@ RUN apk add --no-cache curl
 
 WORKDIR /app
 
-# 复制构建产物 —— 精确文件名，构建已固定输出为 crag-demo.jar
-COPY --from=builder /workspace/crag-app/build/libs/crag-demo.jar app.jar
+# 复制构建产物 —— 精确文件名
+COPY --from=builder /workspace/crag-rag-service/build/libs/crag-rag-service.jar app.jar
 
 # 非 root 运行
 USER appuser
 
-EXPOSE 8080
+EXPOSE 8082
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

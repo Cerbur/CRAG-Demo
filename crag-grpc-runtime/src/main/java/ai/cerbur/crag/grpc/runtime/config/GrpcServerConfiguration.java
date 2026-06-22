@@ -8,7 +8,9 @@ import ai.cerbur.crag.grpc.runtime.server.GrpcServiceAuthenticationInterceptor;
 import io.grpc.BindableService;
 import io.grpc.ServerBuilder;
 import io.grpc.services.HealthStatusManager;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +18,8 @@ import org.springframework.core.env.Environment;
 
 @Configuration
 public class GrpcServerConfiguration {
+
+  private static final String[] KNOWN_CALLERS = {"console-api", "open-api", "test-caller"};
 
   @Autowired private Environment env;
 
@@ -28,7 +32,18 @@ public class GrpcServerConfiguration {
     }
     String timeoutStr = env.getProperty("crag.grpc.server.shutdown-timeout");
     if (timeoutStr != null) {
-      props.setShutdownTimeout(java.time.Duration.parse(timeoutStr));
+      props.setShutdownTimeout(
+          java.time.Duration.parse(timeoutStr.startsWith("PT") ? timeoutStr : "PT" + timeoutStr));
+    }
+    Map<String, String> callers = new LinkedHashMap<>();
+    for (String caller : KNOWN_CALLERS) {
+      String token = env.getProperty("crag.grpc.server.allowed-callers." + caller);
+      if (token != null && !token.isBlank()) {
+        callers.put(caller, token);
+      }
+    }
+    if (!callers.isEmpty()) {
+      props.setAllowedCallers(callers);
     }
     return props;
   }

@@ -164,7 +164,7 @@ def check_spring_ai_boundary() -> list[str]:
         content = read_file(kts_path)
         rel = str(kts_path.relative_to(REPO_ROOT))
         if re.search(r"spring-ai-bom", content):
-            allowed = ("crag-ingestion", "crag-query", "crag-api", "crag-app")
+            allowed = ("crag-ingestion", "crag-query", "crag-api", "crag-app", "crag-rag-service")
             if not any(a in rel for a in allowed):
                 errors.append(
                     f"{rel}: Spring AI BOM only allowed in "

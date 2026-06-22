@@ -1,0 +1,30 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: knowledge-service
+
+crag:
+  grpc:
+    server:
+      bind-port: 9092
+      shutdown-timeout: PT5S
+      allowed-callers:
+        console-api: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState

@@ -26,7 +26,7 @@ include(
     "crag-ingestion",
     "crag-query",
     "crag-api",
-    "crag-app"
+    "crag-rag-service"
 )
 """
 
@@ -123,7 +123,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
             "crag-ingestion": BUILD_INGESTION,
             "crag-query": BUILD_QUERY,
             "crag-api": BUILD_API,
-            "crag-app": BUILD_APP,
+            "crag-rag-service": BUILD_APP,
         }
         for mod in modules:
             mod_dir = root / mod
@@ -144,7 +144,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
                     "crag-ingestion",
                     "crag-query",
                     "crag-api",
-                    "crag-app",
+                    "crag-rag-service",
                 ],
             )
             diagnostics = self.validator.validate(root)
@@ -174,7 +174,7 @@ dependencies {
                     "crag-ingestion",
                     "crag-query",
                     "crag-api",
-                    "crag-app",
+                    "crag-rag-service",
                 ],
                 overrides=overrides,
             )

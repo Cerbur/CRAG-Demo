@@ -43,8 +43,8 @@ MODULE_WHITELIST: dict[str, set[str]] = {
 MODULE_NAME_MAP: dict[str, str] = {}
 
 # Special modules.
-APP_MODULE = "crag-app"
-SPECIAL_MODULES = {APP_MODULE}
+APP_MODULES = {"crag-access-service", "crag-knowledge-service", "crag-rag-service"}
+SPECIAL_MODULES = APP_MODULES
 
 PROJECT_DEP_RE = re.compile(
     r'(?:implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly)\s*\(\s*project\s*\(\s*"([^"]+)"\s*\)\s*\)'
@@ -158,8 +158,8 @@ def validate(repo_root: Path) -> list[Diagnostic]:
         whitelist = resolve_whitelist(module)
 
         if whitelist is None:
-            # Special module (crag-app): allowed to depend on all other modules
-            if module == APP_MODULE:
+            # Special module (application module): allowed to depend on all other modules
+            if module in APP_MODULES:
                 continue
             # Unknown special module
             continue

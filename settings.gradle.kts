@@ -15,7 +15,9 @@ include(
     "crag-query",
     "crag-api",
     "crag-smoke",
-    "crag-app",
     "crag-platform-contracts",
-    "crag-grpc-runtime"
+    "crag-grpc-runtime",
+    "crag-access-service",
+    "crag-knowledge-service",
+    "crag-rag-service"
 )

@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: knowledge-service
+
+crag:
+  grpc:
+    server:
+      bind-port: 0
+      shutdown-timeout: 1s
+      allowed-callers:
+        test-caller: test-token
