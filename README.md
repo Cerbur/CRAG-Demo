@@ -24,13 +24,13 @@ docker compose up -d --build
 
 等待健康检查通过（约 90 秒，首次需下载模型约 2 分钟）。
 
-> 💡 Compose 会等待 `db`、`sidecar` 和 `app` 全部健康后才就绪。`app` 使用 Spring Boot Actuator readiness 端点（`/actuator/health/readiness`）判断是否可服务。
+> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL 和 Sidecar。RAG 兼容 HTTP 入口在 `localhost:8082`。
 
 ### 写入知识 + 发起问答
 
 ```bash
 # 1. 写入一篇中文知识
-curl -X POST http://localhost:8080/api/v1/admin/rag \
+curl -X POST http://localhost:8082/api/v1/admin/rag \
   -H "Content-Type: application/json" \
   -d '{"title":"RAG 介绍","content":"RAG（检索增强生成）是一种结合信息检索与文本生成的技术架构。它先从知识库中检索相关文档片段，再将这些片段作为上下文交给大语言模型生成答案，从而有效减少幻觉、提升回答的事实准确性。"}'
 
@@ -38,35 +38,32 @@ curl -X POST http://localhost:8080/api/v1/admin/rag \
 sleep 10
 
 # 3. 发起问答
-curl -X POST http://localhost:8080/api/v1/query \
+curl -X POST http://localhost:8082/api/v1/query \
   -H "Content-Type: application/json" \
   -d '{"question":"什么是 RAG？"}'
 ```
 
 > 💡 默认使用 **Stub 模式**，无需任何 API Key 即可跑通全链路。想接入真实 LLM？设置 `CRAG_QUERY_LLM_PROVIDER=deepseek` 并配置相关环境变量即可（详见 `.env.example`）。
 
-### 健康检查
+### 服务端口
 
-| 端点 | 说明 | 默认暴露 |
+| 服务 | HTTP 端口 | 说明 |
 | --- | --- | --- |
-| `/actuator/health` | 整体健康状态 | ✅ |
-| `/actuator/health/liveness` | JVM/Spring 存活（不检查数据库） | ✅ |
-| `/actuator/health/readiness` | 应用 + 数据库可服务状态 | ✅ |
-| `/actuator/env` 等 | 管理端点 | ❌ 不暴露 |
+| `console-api` | 8080 | Console HTTP 入口 |
+| `open-api` | 8081 | Open HTTP 入口 |
+| `rag-service` | 8082 | RAG 兼容 HTTP 入口（AdminRag/UserQuery） |
+| `rag-service-smoke` | 8083 | Smoke 诊断（Profile 激活） |
 
 ### Smoke 诊断模式
 
-Smoke 模式提供分阶段诊断端点，可与默认 App 同时运行：
+Smoke 模式提供分阶段诊断端点，需显式 Profile 激活：
 
 ```bash
-# 启动 Smoke App（端口 8081）
-docker compose --profile smoke up -d --build app-smoke
+# 启动 Smoke（端口 8083）
+docker compose --profile smoke up -d --build rag-service-smoke
 
 # 验证全链路
-curl http://localhost:8081/api/v1/test/smoke
-
-# 默认 App 仍在 8080 正常服务
-curl http://localhost:8080/actuator/health
+curl http://localhost:8083/api/v1/test/smoke
 ```
 
 ## 🗺️ 全链路架构

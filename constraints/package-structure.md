@@ -36,7 +36,13 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-query` | UserQuery、Context、Prompt、LLM 调用和回答编排 | 禁止直接访问 Storage 或 Retrieval 内部阶段 |
 | `crag-api` | 正式 HTTP Controller、请求 DTO、校验与统一异常转换 | 禁止承载业务逻辑、直接访问 DAO 或检索内部组件 |
 | `crag-smoke` | 仅在 `smoke` Profile 下启用的冒烟与分阶段诊断端点 | 禁止承载正式业务能力、默认启用、被业务模块依赖或生成独立启动 jar |
-| `crag-app` | Spring Boot 组合根、运行时装配、配置和健康检查 | 禁止业务 Controller、业务编排、直接调用 DAO 或业务组件 |
+| `crag-platform-contracts` | 跨领域通用 Protobuf 基础契约（Platform Probe） | 禁止 Spring、Runtime 或业务依赖 |
+| `crag-grpc-runtime` | 协无关 gRPC Server/Client 生命周期、认证、Health、deadline | 禁止依赖 Contracts 或业务模块 |
+| `crag-access-service` | Access 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务模块依赖 |
+| `crag-knowledge-service` | Knowledge 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务模块依赖 |
+| `crag-rag-service` | RAG 业务组合根、兼容 HTTP 所有者、gRPC Server、Platform Probe | 禁止被 Access/Knowledge 依赖 |
+| `crag-console-api` | Console HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
+| `crag-open-api` | Open HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 
 `crag-app` 是唯一 Spring Boot 启动模块和唯一可启动 jar。其他模块均为 library module。
 
@@ -222,11 +228,66 @@ ai.cerbur.crag.smoke
 └── controller/                        — TestController（smoke Profile 诊断端点）
 ```
 
-### `crag-app`
+### `crag-platform-contracts`
 
 ```text
-ai.cerbur.crag.app
-└── CragDemoApplication
+ai.cerbur.crag.contracts.platform.v1
+├── PlatformProbeServiceGrpc            — 生成的 gRPC Stub
+├── PlatformProbeRequest                — 生成的 Protobuf 消息
+└── PlatformProbeResponse               — 生成的 Protobuf 消息
+```
+
+### `crag-grpc-runtime`
+
+```text
+ai.cerbur.crag.grpc.runtime
+├── identity/                           — GrpcCallerIdentity、GrpcCallerContext
+├── server/                             — GrpcServerLifecycle、GrpcServiceAuthenticationInterceptor、GrpcServerProperties
+├── client/                             — GrpcChannelFactory、DefaultGrpcChannelFactory、DeadlineGuardClientInterceptor、GrpcClientProperties
+└── config/                             — GrpcServerConfiguration、GrpcClientConfiguration
+```
+
+### `crag-access-service`
+
+```text
+ai.cerbur.crag.access
+├── app/                                — AccessServiceApplication
+└── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+```
+
+### `crag-knowledge-service`
+
+```text
+ai.cerbur.crag.knowledge
+├── app/                                — KnowledgeServiceApplication
+└── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+```
+
+### `crag-rag-service`
+
+```text
+ai.cerbur.crag.rag
+├── app/                                — RagServiceApplication（原 CragDemoApplication）
+├── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+└── app.arch/                           — ModuleBoundaryArchitectureTest
+```
+
+### `crag-console-api`
+
+```text
+ai.cerbur.crag.console
+├── app/                                — ConsoleApiApplication
+├── probe/                              — DownstreamConnectivityHealthIndicator
+└── config/                             — ProbeExecutorConfiguration
+```
+
+### `crag-open-api`
+
+```text
+ai.cerbur.crag.open
+├── app/                                — OpenApiApplication
+├── probe/                              — DownstreamConnectivityHealthIndicator
+└── config/                             — ProbeExecutorConfiguration
 ```
 
 模块与包边界由 `ModuleBoundaryArchitectureTest` 和 Gradle 模块依赖校验器共同验证，当前不包含受控例外的豁免。
