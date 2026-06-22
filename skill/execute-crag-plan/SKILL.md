@@ -1,106 +1,217 @@
 ---
 name: execute-crag-plan
-description: Use when a user asks to execute, continue, resume, implement, or repair a CRAG-Demo Plan, including short requests such as “执行 plan7”, “继续 plan_7”, and fixes returned by an independent Plan acceptance session.
+description: Execute, continue, resume, implement, or repair a CRAG-Demo Plan as an implementation session, including requests such as “执行 plan7”, “继续 plan_7”, and fixes returned by independent Plan acceptance. Enforces startup checks, context reconstruction, test-first implementation, task-scoped commits, and handoff to independent acceptance.
 ---
 
 # Execute CRAG Plan
 
-Execute exactly one CRAG-Demo Plan as an implementation session. Treat `constraints/plan-workflow.md` as the sole authority; this Skill fixes the operating sequence, not the workflow rules.
+执行任何 `plan/plan_N/plan_N.md` 或 `plan/plan_N/plan_N.hotfix_M.md` 中的任务前，必须先读取并遵守本 Skill。Plan 文件中如有“执行本计划必须先读取 `skill/execute-crag-plan/SKILL.md`”字样，立即激活本 Skill，不得跳过。
 
-## Hard boundaries
+`constraints/plan-workflow.md` 是 Plan 工作流的唯一权威；本 Skill 只规定执行 session 的操作顺序。规则冲突时以该约束为准。
 
-- Act as the execution session, never the independent acceptance session.
-- Never mark a task or Plan `completed`.
-- Never edit implementation code while acting on an acceptance-only request.
-- Never combine the implementation commit with the handoff bookkeeping commit.
-- Never push, open a PR, merge, rewrite history, or modify unrelated work unless explicitly requested.
-- Preserve pre-existing workspace changes.
+## 硬边界
 
-## 1. Resolve and read
+- 只充当实现 session，不充当独立验收 session。
+- 不得把任务或 Plan 标记为 `completed / 完成`。
+- 独立验收请求不得修改实现代码；应提示用户使用未参与实现的新 session。
+- 实现提交与交接簿记提交必须分离。
+- 未经明确要求，不得 push、创建 PR、合并、改写历史或处理无关改动。
+- 保留用户已有工作区变更；不得覆盖、清理或混入当前任务。
+- 每次只执行一个任务；完成交接后必须等待用户确认，禁止自动连续执行下一任务。
 
-1. Resolve `plan7`, `Plan 7`, or `plan_7` to one Plan file under `plan/`.
-2. Read, in order:
-   - `AGENTS.md`
-   - `constraints/plan-workflow.md`
-   - `constraints/test-workflow.md`
-   - `plan/index/README.md`
-   - the target Plan and relevant Hotfixes
-   - constraints routed by the target files and behavior
-3. Inspect `git status --short`, recent commits, declared implementation hashes, and relevant diffs.
-4. Reconstruct progress from repository facts. Do not trust status text alone.
+## 第一步：启动前核查
 
-Stop if the target is ambiguous, required files are missing, or existing user changes overlap the task.
+每次 session 开始或恢复执行时都必须重新完成本节。在写任何实现或测试代码之前，任何一项未通过都必须停止并报告，不得绕过。
 
-## 2. Select the legal path
+### 1.1 读取并重建上下文
 
-| Plan state | Action |
-| --- | --- |
-| `ready` | Start the first valid unfinished task and move Plan/task to `in_progress`. |
-| `in_progress` | Resume only unfinished or acceptance-returned tasks. Preserve accepted/completed work. |
-| `verifying` | Do not implement. Tell the user to start a fresh independent acceptance session. |
-| `blocked` | Resume only when the recorded unblock condition is demonstrably satisfied; record the transition reason. |
-| `completed` / `abandoned` | Do not implement under this Plan. Apply the Hotfix/new-Plan rules from the authority document. |
-| `draft` | Do not code. Complete planning and reach a committed `ready` state first. |
+先把用户输入中的 `plan7`、`Plan 7`、`plan_7` 等表达解析为唯一 Plan 文件；Hotfix 必须解析到具体 `plan_N.hotfix_M`。目标不唯一、文件不存在或用户只给出无法消歧的编号时停止。
 
-If scope, acceptance criteria, module boundaries, or a key decision must change, update and commit the Plan plus index before touching implementation.
+按以下顺序读取：
 
-## 3. Implement one recoverable unit
+1. `AGENTS.md`，确认项目级路由和强制约束入口。
+2. 目标 Plan 全文，包括 YAML、背景与目标、范围、非目标、前置依赖、文件边界、关键决策、风险与回滚、测试计划、进度追踪、任务详情、验收记录、阻塞记录和变更记录。
+3. `constraints/plan-workflow.md`，确认当前 workflow 版本、状态机、提交协议、队列规则和验收边界。
+4. `constraints/code-style.md`。
+5. `constraints/test-workflow.md`。
+6. `plan/index/README.md`，核对 Plan 状态、进度、执行/验收队列和显式前置顺序。
+7. Plan 的“全局实现约束”“相关约束”“涉及文件”或正文显式引用的其他约束文件。
+8. 根据任务行为和文件类型补读专项约束：
+   - Controller、HTTP DTO、统一响应、异常映射：`constraints/api-style.md`
+   - Entity、Repository、DAO、事务、锁、CAS：`constraints/persistence-style.md`
+   - Sparse、Dense、RRF、Rerank、检索结果：`constraints/retrieval-style.md`
+   - Java 包或模块边界：`constraints/package-structure.md`
+   - Docker、Compose、服务、端口、部署结构：`constraints/docker-structure.md`
+9. 与目标 Plan 直接相关的 Hotfix、验收退回记录、任务声明的实现 commit，以及为理解当前任务所必需的代码和测试。
 
-1. Identify the exact task, acceptance criteria, file boundary, prerequisites, and required tests.
-2. Make the smallest in-scope implementation and test changes.
-3. Follow every routed project constraint.
-4. Run the task’s required validation. Required Docker HTTP or external-provider checks may not be replaced by lighter tests.
-5. If a required check is blocked, record the blocker according to `plan-workflow.md`; do not claim success.
-6. Check the diff for unrelated files and secrets.
+读取不是浏览文件名。完成后必须形成一份仅用于当前 session 的“执行上下文快照”，至少明确：
 
-For an acceptance-returned defect, repair the recorded findings and add an appropriate regression check where the project test rules require one. Do not silently discard prior failure evidence.
+- 目标 Plan ID、类型、workflow 版本、当前状态和索引队列位置。
+- 本次候选任务、任务状态、前置任务、验收标准、验证命令、涉及文件。
+- Plan 级执行前置及其真实状态。
+- 适用约束及其对本任务的具体影响，尤其是测试层级、Docker 回归和文件边界。
+- 已声明实现 hash、最近相关提交、验收失败证据和当前恢复点。
+- 工作区已有改动是否与任务重叠。
 
-## 4. Commit implementation
+必须用仓库事实交叉核对上下文：
 
-Create an implementation commit containing the implementation, tests, and directly affected product/constraint documentation.
+- 运行 `git status --short` 检查工作区。
+- 检查相关 `git log`、Plan 中声明的实现 hash 和必要的 `git show --stat <hash>`。
+- 恢复 session 要检查相关 diff 与验收记录，从代码、提交和测试证据重建进度，不得只信状态文字。
+- Plan、索引、Git 或约束相互矛盾时，停止并报告具体冲突；不得自行选择最方便的版本。
 
-Do not include Plan progress, implementation hashes, handoff status, or index queue changes in this commit.
+上下文读取遵循“先完整读取权威文件，再按任务渐进展开代码”的原则：不得跳过 Plan 或约束，也不应无目的加载整个仓库。
 
-After commit, capture its real short hash and verify that `git show --stat <hash>` belongs to the target task.
+### 1.2 确认 Plan 状态合法
 
-## 5. Create the independent handoff
+- Plan YAML `status` 通常必须是 `ready` 或 `in_progress`。
+- `ready`：确认 Plan 与 `plan/index/README.md` 已提交入库；开始首个任务时按权威约束转为 `in_progress`。
+- `in_progress`：只恢复未完成任务或独立验收退回的任务，保留已验收和已完成事实。
+- `blocked`：只有阻塞记录中的解除条件已被仓库或环境事实证明满足时才可恢复，并记录转换原因；否则停止。
+- `verifying`：不得实现，提示启动新的独立验收 session。
+- `draft`：不得编码，先补全计划并提交为 `ready`。
+- `completed / abandoned`：不得在原 Plan 下继续实现；按权威约束创建 Hotfix 或新 Plan。
+- 若为 `ready`，确认 Plan 与索引的基线提交早于任何实现改动。
+- 检查所有 `**执行前置 Plan**` 标记的前置均为 `completed`；`verifying` 不算完成。未满足时停止并列出依赖。
 
-In a separate bookkeeping change:
+若范围、验收标准、模块边界或关键决策必须改变，先更新并提交 Plan 与索引，再写实现代码。
 
-1. Append the implementation hash to every task it actually serves.
-2. Mark implemented tasks `verifying / 待验收`; leave completion dates empty.
-3. Append concise, factual self-test evidence to the Plan.
-4. Move the whole Plan to `verifying` only when every remaining effective task is `verifying`, `completed`, or `abandoned` as allowed by the authority document.
-5. Synchronize `plan/index/README.md`:
-   - remove a handed-off Plan from the execution queue;
-   - add it to the acceptance queue;
-   - keep dependent Plans blocked from execution.
-6. Create a separate `docs(...)` handoff commit.
+### 1.3 确认当前任务
 
-The handoff commit is never implementation evidence and must not be written into a task’s implementation-hash column.
+- 从“进度追踪”与任务详情交叉确认第一个合法的未完成任务。
+- 首次执行选择第一个“待开始”且前置满足的任务。
+- 恢复执行优先选择“进行中”任务；验收退回时只处理被退回任务及记录的问题。
+- 确认“前置任务”字段中的所有任务均已完成；不得依赖编号顺序猜测。
+- 确认任务详情完整包含目标、范围、非目标、验收标准、验证方式和涉及文件。
+- 向用户明确报告：“准备执行任务 N.X：<任务名>，前置满足。”
 
-## 6. Finish the session
+### 1.4 确认工作区安全
 
-Report:
+- 运行 `git status --short`，确认没有属于当前 Plan 的未提交残留。
+- 若存在与当前任务重叠的用户改动、其他 Plan 改动或无法判断归属的文件，停止并请用户决定处理方式。
+- 无关且不重叠的已有改动必须保留，并在提交时排除。
+- 检查当前分支近期提交，避免重复实现已提交但尚未回填的工作。
 
-- task(s) implemented;
-- implementation commit hash(es);
-- handoff commit hash;
-- tests actually run and any skipped/blocked checks;
-- that a new agent session must perform independent acceptance.
+## 第二步：单任务执行协议
 
-Do not say the Plan is complete. The terminal outcome for this Skill is either:
+每个任务独立执行，不得跨任务合并步骤。
 
-- clean handoff to independent acceptance;
-- an accurately recorded `in_progress` or `blocked` state;
-- no action because the requested transition is illegal.
+### 2.1 读取任务细节并同步理解
 
-## Before yielding
+从 Plan 精确读取当前任务的目标、范围、非目标、验收标准、验证方式、涉及文件和实施步骤。
 
-- [ ] Target Plan, index, constraints, Git state, and declared hashes were read.
-- [ ] Only legal unfinished work was modified.
-- [ ] Required validation was run or explicitly recorded as blocked.
-- [ ] Implementation and handoff are separate commits.
-- [ ] Real implementation hashes are in the Plan.
-- [ ] Plan and index queues agree.
-- [ ] Nothing was marked completed by this execution session.
+开始实现前，用一段话向用户总结：要做什么、不做什么、允许修改哪些文件、如何判断完成。若理解与 Plan 有偏差，或实现必须越过任务边界，停止澄清，不得凭猜测推进。
+
+### 2.2 严格遵守测试先行
+
+任务实施必须遵守：
+
+```text
+写测试 → 运行并确认预期失败 → 写最小实现 → 运行并确认通过 → 必要重构 → 再次运行
+```
+
+- 禁止先写实现再补测试。
+- 禁止跳过预期失败确认；失败必须由缺失行为引起，而不是语法、编译、环境或测试本身错误。
+- 测试必须覆盖验收标准列出的适用场景与失败路径。
+- 测试分类、命名、运行入口、Docker HTTP 回归和外部供应商验证必须遵守 `constraints/test-workflow.md`。
+- 验收退回缺陷必须保留原失败证据，并按测试约束增加相应回归检查。
+
+若任务确实不产生可测试的运行时行为，按 Plan 指定的静态检查或结构验证执行，不得虚构红灯步骤。
+
+### 2.3 每步完成后立即验证
+
+- 每完成一个实施步骤 checkbox，立即运行该步骤对应的验证命令并记录结果。
+- 未实际运行验证，不得声称步骤完成。
+- 失败后先保留证据并分析根因，再做最小修复；禁止无改动反复重跑期待偶然通过。
+- 修改测试只能用于修正测试本身与验收标准的不一致，不得放宽断言迎合实现。
+
+### 2.4 运行任务级完整验证
+
+实现完成后，运行任务“验证方式”与测试计划中列出的全部适用命令。涉及 Docker HTTP 或真实供应商边界时，不得用更轻量测试替代。
+
+任何必需命令失败：
+
+1. 停止后续提交和下一任务。
+2. 定位根因，不猜测。
+3. 在任务范围内做最小改动修复。
+4. 重新运行受影响检查及任务级全部验证。
+
+如果必需检查因凭据、网络、外部服务或环境条件无法执行，按 `constraints/plan-workflow.md` 记录阻塞；不得把未执行写成通过。
+
+实现结束时检查 diff，确认没有无关文件、秘密、完整 Prompt、用户文档或敏感响应。
+
+## 第三步：任务提交协议
+
+### 3.1 实现提交
+
+- 提交主题遵守 Plan 指定格式，通常为 `feat(plan_N/N.X): ...`；修复任务使用与 Plan 一致的类型。
+- 提交只包含当前任务实现、测试和直接受影响的产品或约束文档。
+- 不得混入 Plan 进度、实现 hash、交接状态、索引队列或无关改动。
+- 提交后从 Git 读取真实短 hash（至少 7 位），并用 `git show --stat <hash>` 核对范围。
+
+### 3.2 独立交接提交
+
+实现提交创建后，立即创建独立交接提交：
+
+1. 将进度追踪表中该任务状态更新为 `⏳ 待验收`。
+2. 在“提交”列回填真实实现短 hash；多个实现提交按时间顺序记录。
+3. 完成时间保持为空。
+4. 在验收记录中追加实际执行的命令、环境、结果摘要，以及跳过或阻塞项。
+5. 只有整份 Plan 的所有剩余有效任务均为“待验收”“完成”或合法“废弃”时，才把 YAML `status` 改为 `verifying` 并更新 `updated`。
+6. 同步 `plan/index/README.md`：Plan 仍有待执行任务时保留在执行队列；整份 Plan 交接后移入验收队列；依赖 Plan 在前置完成前不得放行。
+7. 创建独立交接提交，主题通常为 `docs(plan_N): backfill implementation commits`。
+
+禁止使用占位符、分支名或自然语言填写 hash。交接提交和最终验收提交都不是实现证据，不得写入任务“提交”列。
+
+## 第四步：任务间流转
+
+完成实现提交和交接提交后，向用户报告：
+
+> 任务 N.X 已完成实现并交接，下一任务是 N.Y：<任务名>，是否继续？
+
+同时报告实现 commit、交接 commit、实际运行的验证及任何未执行或阻塞项。
+
+等待用户确认后才能开始下一任务。不得说任务或 Plan 已“完成验收”；最终完成只能由未参与实现的独立验收 session 判定。
+
+如果整份 Plan 已进入 `verifying`，改为明确提示用户启动新的独立验收 session，不再询问继续实现。
+
+## 执行期常见错误防范
+
+### 范围蔓延
+
+遇到以下情况必须停止并询问用户：
+
+- 发现既有代码违规但与当前任务无关。
+- 现有测试因无关原因失败。
+- 发现 Plan 未提及但“看起来需要”的功能。
+- 必须修改“涉及文件”范围之外的文件。
+- 最简单实现会违反模块依赖或架构边界。
+
+记录事实、影响和可选处理方式，由用户决定新任务、Hotfix 或范围调整；当前任务不得顺手扩张。
+
+### 验证失败
+
+```text
+测试失败 → 保存证据 → 分析根因 → 最小改动修复 → 重新运行完整验证
+```
+
+疑似 flaky 必须定位非确定性来源。无改动重跑通过不能掩盖首次失败。
+
+### 验收退回
+
+- 只修复验收记录明确退回的任务与问题。
+- 保留不相关的已完成、已验收工作。
+- 修复后创建新的实现提交，并把新 hash 追加到原任务。
+- 不删除或改写历史失败证据。
+
+## 交付前检查
+
+- [ ] 已读取目标 Plan、索引、适用约束、Git 状态和声明 hash。
+- [ ] 已从仓库事实重建状态，而非只信进度文字。
+- [ ] 只修改了合法的当前任务范围。
+- [ ] 已确认测试先行中的预期失败和最终通过，或有 Plan 允许的非运行时验证说明。
+- [ ] 已运行全部任务级验证，或准确记录阻塞。
+- [ ] 实现提交与交接提交相互独立。
+- [ ] Plan 中只记录真实实现 hash。
+- [ ] Plan 与索引状态、进度和队列一致。
+- [ ] 没有把任务或 Plan 标记为完成。
