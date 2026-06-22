@@ -74,7 +74,7 @@ public class DownstreamConnectivityHealthIndicator implements HealthIndicator {
     Map<String, String> results = new LinkedHashMap<>();
     boolean allUp = true;
     long deadline = System.currentTimeMillis() + TOTAL_BUDGET_MILLIS;
-    List<Future<String>> pendingFutures = new ArrayList<>();
+    List<Future<String>> allFutures = new ArrayList<>(futures.values());
 
     for (Map.Entry<String, Future<String>> entry : futures.entrySet()) {
       long remaining = deadline - System.currentTimeMillis();
@@ -83,20 +83,27 @@ public class DownstreamConnectivityHealthIndicator implements HealthIndicator {
         results.put(entry.getKey(), result);
         if (!"UP".equals(result)) {
           allUp = false;
+          cancelAll(allFutures);
+          break;
         }
       } catch (Exception e) {
-        pendingFutures.add(entry.getValue());
         results.put(entry.getKey(), "TIMEOUT");
         allUp = false;
+        cancelAll(allFutures);
+        break;
       }
-    }
-
-    for (Future<String> f : pendingFutures) {
-      f.cancel(true);
     }
 
     Health.Builder builder = allUp ? Health.up() : Health.down();
     results.forEach(builder::withDetail);
     return builder.build();
+  }
+
+  private void cancelAll(List<Future<String>> futures) {
+    for (Future<String> f : futures) {
+      if (!f.isDone()) {
+        f.cancel(true);
+      }
+    }
   }
 }

@@ -301,6 +301,39 @@ class TestCheckTopologyCriticalAssertions(unittest.TestCase):
             self.assertEqual([], diags)
 
 
+class TestCheckTopologyThreeAccountCoverage(unittest.TestCase):
+    def test_pass_all_three_accounts(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            script_dir = root / "scripts" / "tests" / "http"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            (script_dir / "platform_topology_test.sh").write_text(
+                "CREATE TABLE access.test (id serial);\n"
+                "CREATE TABLE knowledge.test (id serial);\n"
+                "CREATE TABLE rag.test (id serial);\n"
+                "permission denied\n",
+                encoding="utf-8",
+            )
+            diags = vc.check_topology_three_account_coverage(root)
+            self.assertEqual([], diags)
+
+    def test_fail_does_not_exist_used(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            script_dir = root / "scripts" / "tests" / "http"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            (script_dir / "platform_topology_test.sh").write_text(
+                "CREATE TABLE access.test (id serial);\n"
+                "CREATE TABLE knowledge.test (id serial);\n"
+                "CREATE TABLE rag.test (id serial);\n"
+                'permission denied|does not exist\n',
+                encoding="utf-8",
+            )
+            diags = vc.check_topology_three_account_coverage(root)
+            false_pos = [d for d in diags if "TOPOLOGY_FALSE_POSITIVE_PERMISSION" in d.code]
+            self.assertGreaterEqual(len(false_pos), 1)
+
+
 class TestCheckDockerPersistencePath(unittest.TestCase):
     def test_pass_pgdata_platform(self):
         with tempfile.TemporaryDirectory() as td:

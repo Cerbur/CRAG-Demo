@@ -223,4 +223,35 @@ class DownstreamConnectivityHealthIndicatorTest {
     assertEquals("UP", health.getDetails().get("access-service"));
     assertEquals("TIMEOUT", health.getDetails().get("knowledge-service"));
   }
+
+  @Test
+  @DisplayName("单目标异常失败时取消其他未完成 Future")
+  void singleTargetException_cancelsOtherFutures() {
+    Map<String, PlatformProbeServiceGrpc.PlatformProbeServiceBlockingStub> stubs =
+        new LinkedHashMap<>();
+    stubs.put("access-service", accessStub);
+    stubs.put("knowledge-service", ragStub);
+    org.springframework.test.util.ReflectionTestUtils.setField(indicator, "probeStubs", stubs);
+
+    when(accessStub.withDeadlineAfter(anyLong(), any(TimeUnit.class))).thenReturn(accessStub);
+    when(accessStub.check(any(PlatformProbeRequest.class)))
+        .thenThrow(new StatusRuntimeException(io.grpc.Status.UNAVAILABLE));
+
+    java.util.concurrent.CountDownLatch ragRunning = new java.util.concurrent.CountDownLatch(1);
+    java.util.concurrent.CountDownLatch mainProceeds = new java.util.concurrent.CountDownLatch(1);
+
+    when(ragStub.withDeadlineAfter(anyLong(), any(TimeUnit.class))).thenReturn(ragStub);
+    when(ragStub.check(any(PlatformProbeRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              ragRunning.countDown();
+              mainProceeds.await(4, TimeUnit.SECONDS);
+              return PlatformProbeResponse.getDefaultInstance();
+            });
+
+    Health health = indicator.health();
+    assertEquals("DOWN", health.getDetails().get("access-service"));
+    assertFalse(health.getDetails().containsKey("knowledge-service"));
+    mainProceeds.countDown();
+  }
 }

@@ -190,11 +190,17 @@ docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -c \
   "CREATE TABLE IF NOT EXISTS access.test_${RUN_ID} (id serial PRIMARY KEY);" 2>/dev/null
 if [ $? -eq 0 ]; then
   pass "crag_access can create table in access schema"
-  # 清理
-  docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -c \
-    "DROP TABLE IF EXISTS access.test_${RUN_ID};" 2>/dev/null
 else
   fail "crag_access cannot create table in access schema"
+fi
+
+# crag_knowledge 应该能在 knowledge schema 创建表
+docker exec "$DB_CONTAINER" psql -U crag_knowledge -d crag_platform -c \
+  "CREATE TABLE IF NOT EXISTS knowledge.test_${RUN_ID} (id serial PRIMARY KEY);" 2>/dev/null
+if [ $? -eq 0 ]; then
+  pass "crag_knowledge can create table in knowledge schema"
+else
+  fail "crag_knowledge cannot create table in knowledge schema"
 fi
 
 # crag_rag 应该能在 rag schema 创建表
@@ -202,11 +208,35 @@ docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
   "CREATE TABLE IF NOT EXISTS rag.test_${RUN_ID} (id serial PRIMARY KEY);" 2>/dev/null
 if [ $? -eq 0 ]; then
   pass "crag_rag can create table in rag schema"
-  # 清理
-  docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
-    "DROP TABLE IF EXISTS rag.test_${RUN_ID};" 2>/dev/null
 else
   fail "crag_rag cannot create table in rag schema"
+fi
+
+# crag_access 应该能查询自身 schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -t -c \
+  "SELECT count(*) FROM access.test_${RUN_ID};" 2>/dev/null | tr -d ' ')
+if [ "$result" = "0" ]; then
+  pass "crag_access can query own schema table"
+else
+  fail "crag_access cannot query own schema table"
+fi
+
+# crag_knowledge 应该能查询自身 schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_knowledge -d crag_platform -t -c \
+  "SELECT count(*) FROM knowledge.test_${RUN_ID};" 2>/dev/null | tr -d ' ')
+if [ "$result" = "0" ]; then
+  pass "crag_knowledge can query own schema table"
+else
+  fail "crag_knowledge cannot query own schema table"
+fi
+
+# crag_rag 应该能查询自身 schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -t -c \
+  "SELECT count(*) FROM rag.test_${RUN_ID};" 2>/dev/null | tr -d ' ')
+if [ "$result" = "0" ]; then
+  pass "crag_rag can query own schema table"
+else
+  fail "crag_rag cannot query own schema table"
 fi
 
 # ============================================================
@@ -215,38 +245,119 @@ fi
 echo ""
 echo "--- 9. 检查跨 Schema 访问拒绝 ---"
 
-# crag_access 不应该能访问 rag schema
+# crag_access 不应该能 SELECT rag schema 的表（表在同 Schema 成功阶段已创建）
 result=$(docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -c \
-  "SELECT * FROM rag.chunks LIMIT 1;" 2>&1 || true)
-if echo "$result" | grep -q "permission denied\|does not exist"; then
-  pass "crag_access correctly denied access to rag schema"
+  "SELECT * FROM rag.test_${RUN_ID} LIMIT 1;" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_access correctly denied SELECT on rag schema"
 else
-  fail "crag_access was able to access rag schema"
+  fail "crag_access was not denied SELECT on rag schema: $result"
 fi
 
 # crag_access 不应该能在 knowledge schema 创建表
 result=$(docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -c \
-  "CREATE TABLE knowledge.test_${RUN_ID} (id serial PRIMARY KEY);" 2>&1 || true)
-if echo "$result" | grep -q "permission denied\|must be member"; then
+  "CREATE TABLE knowledge.test_cross_${RUN_ID} (id serial PRIMARY KEY);" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
   pass "crag_access correctly denied CREATE in knowledge schema"
 else
-  fail "crag_access was able to CREATE in knowledge schema"
+  fail "crag_access was not denied CREATE in knowledge schema: $result"
 fi
 
-# crag_rag 不应该能访问 access schema
+# crag_access 不应该能 SELECT knowledge schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -c \
+  "SELECT * FROM knowledge.test_${RUN_ID} LIMIT 1;" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_access correctly denied SELECT on knowledge schema"
+else
+  fail "crag_access was not denied SELECT on knowledge schema: $result"
+fi
+
+# crag_knowledge 不应该能 SELECT access schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_knowledge -d crag_platform -c \
+  "SELECT * FROM access.test_${RUN_ID} LIMIT 1;" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_knowledge correctly denied SELECT on access schema"
+else
+  fail "crag_knowledge was not denied SELECT on access schema: $result"
+fi
+
+# crag_knowledge 不应该能在 rag schema 创建表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_knowledge -d crag_platform -c \
+  "CREATE TABLE rag.test_cross_${RUN_ID} (id serial PRIMARY KEY);" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_knowledge correctly denied CREATE in rag schema"
+else
+  fail "crag_knowledge was not denied CREATE in rag schema: $result"
+fi
+
+# crag_knowledge 不应该能 SELECT rag schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_knowledge -d crag_platform -c \
+  "SELECT * FROM rag.test_${RUN_ID} LIMIT 1;" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_knowledge correctly denied SELECT on rag schema"
+else
+  fail "crag_knowledge was not denied SELECT on rag schema: $result"
+fi
+
+# crag_rag 不应该能 SELECT access schema 的表
 result=$(docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
   "SELECT * FROM access.test_${RUN_ID} LIMIT 1;" 2>&1 || true)
-if echo "$result" | grep -q "permission denied\|does not exist"; then
-  pass "crag_rag correctly denied access to access schema"
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_rag correctly denied SELECT on access schema"
 else
-  fail "crag_rag was able to access access schema"
+  fail "crag_rag was not denied SELECT on access schema: $result"
+fi
+
+# crag_rag 不应该能在 access schema 创建表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
+  "CREATE TABLE access.test_cross_${RUN_ID} (id serial PRIMARY KEY);" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_rag correctly denied CREATE in access schema"
+else
+  fail "crag_rag was not denied CREATE in access schema: $result"
+fi
+
+# crag_rag 不应该能 SELECT knowledge schema 的表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
+  "SELECT * FROM knowledge.test_${RUN_ID} LIMIT 1;" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_rag correctly denied SELECT on knowledge schema"
+else
+  fail "crag_rag was not denied SELECT on knowledge schema: $result"
+fi
+
+# crag_rag 不应该能在 knowledge schema 创建表
+result=$(docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
+  "CREATE TABLE knowledge.test_cross_${RUN_ID} (id serial PRIMARY KEY);" 2>&1 || true)
+if echo "$result" | grep -q "permission denied"; then
+  pass "crag_rag correctly denied CREATE in knowledge schema"
+else
+  fail "crag_rag was not denied CREATE in knowledge schema: $result"
 fi
 
 # ============================================================
-# 10. 验证日志脱敏
+# 10. 清理临时测试表
 # ============================================================
 echo ""
-echo "--- 10. 检查日志脱敏 ---"
+echo "--- 10. 清理临时测试表 ---"
+
+docker exec "$DB_CONTAINER" psql -U crag_access -d crag_platform -c \
+  "DROP TABLE IF EXISTS access.test_${RUN_ID};" 2>/dev/null && \
+  pass "cleaned access test table" || warn "access test table cleanup skipped"
+
+docker exec "$DB_CONTAINER" psql -U crag_knowledge -d crag_platform -c \
+  "DROP TABLE IF EXISTS knowledge.test_${RUN_ID};" 2>/dev/null && \
+  pass "cleaned knowledge test table" || warn "knowledge test table cleanup skipped"
+
+docker exec "$DB_CONTAINER" psql -U crag_rag -d crag_platform -c \
+  "DROP TABLE IF EXISTS rag.test_${RUN_ID};" 2>/dev/null && \
+  pass "cleaned rag test table" || warn "rag test table cleanup skipped"
+
+# ============================================================
+# 11. 验证日志脱敏
+# ============================================================
+echo ""
+echo "--- 11. 检查日志脱敏 ---"
 
 for service in "${JAVA_SERVICES[@]}"; do
   logs=$(docker logs "$service" 2>&1 | tail -100 || echo "")

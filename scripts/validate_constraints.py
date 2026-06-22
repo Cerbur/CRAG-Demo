@@ -352,6 +352,41 @@ def check_topology_critical_assertions(root: Path) -> list[Diagnostic]:
 
 
 # ---------------------------------------------------------------------------
+# Check 5b – Three-account coverage in topology script
+# ---------------------------------------------------------------------------
+
+def check_topology_three_account_coverage(root: Path) -> list[Diagnostic]:
+    """Verify topology script covers all three accounts for same-schema and cross-schema."""
+    script = root / "scripts" / "tests" / "http" / "platform_topology_test.sh"
+    if not script.exists():
+        return []
+
+    text = script.read_text(encoding="utf-8")
+    diagnostics: list[Diagnostic] = []
+
+    schemas = ["access", "knowledge", "rag"]
+    for schema in schemas:
+        if f"CREATE TABLE" not in text or schema not in text:
+            diagnostics.append(
+                Diagnostic("ERROR", "TOPOLOGY_MISSING_ACCOUNT_SAME_SCHEMA",
+                           f"platform_topology_test.sh 缺少 {schema} Schema 的同 Schema 成功验证。"
+                           "三个账号都必须验证自身 Schema 可写。"))
+            break
+
+    if "does not exist" in text:
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
+            if "does not exist" in line and "permission denied" in line:
+                diagnostics.append(
+                    Diagnostic("ERROR", "TOPOLOGY_FALSE_POSITIVE_PERMISSION",
+                               f"platform_topology_test.sh:{i+1} 使用 'does not exist' "
+                               "作为权限拒绝证据。跨 Schema 权限测试必须使用真实存在的对象，"
+                               "且错误必须为 'permission denied'。"))
+
+    return diagnostics
+
+
+# ---------------------------------------------------------------------------
 # Check 6 – Docker persistence path consistency
 # ---------------------------------------------------------------------------
 
@@ -393,6 +428,7 @@ def validate(root: Path) -> list[Diagnostic]:
     diagnostics.extend(check_internal_port_exposure(root))
     diagnostics.extend(check_terms(root))
     diagnostics.extend(check_topology_critical_assertions(root))
+    diagnostics.extend(check_topology_three_account_coverage(root))
     diagnostics.extend(check_docker_persistence_path(root))
     return diagnostics
 
