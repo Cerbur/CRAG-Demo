@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -379,9 +379,9 @@ public interface GrpcChannelFactory {
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
-| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90, 097b91a | — |
-| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23, 097b91a | — |
-| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ⏳ 待验收 | 097b91a | — |
+| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | 🔄 进行中 | 53f9c90 | — |
+| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | 🔄 进行中 | 66bef23 | — |
+| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | 🔄 进行中 | b11a615 | — |
 | 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ⏳ 待验收 | 3d887e5 | — |
 
 整体进度：0 / 14（0%）
@@ -696,6 +696,7 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew check` | 通过 | 100 个任务全部执行成功 |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (56/56) | 校验器单测全部通过 |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew check`、56 个 Python 校验器单测、三个校验器、严格 Plan 校验、Git 状态、源码审查 | 失败 | 14.13 任务表登记实现 hash 为 `097b91a`（`docs: record acceptance findings`，纯文档提交），真实实现 commit 为 `b11a615`；14.11/14.12 任务提交栏含非实现 docs commit `097b91a`，违反约束 Section 7；Docker 集成验收尚未执行 |
 
 ## 阻塞记录
 
@@ -723,3 +724,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 完成 14.13 实现，全部任务转入待验收，Plan 转为 verifying | HealthIndicator 在任一 Future 异常时取消其余未完成 Future；拓扑脚本补齐 Knowledge 账号同/跨 Schema 权限覆盖；移除 `does not exist` 假阳性；增强静态校验器阻止三账号覆盖缺失和 `does not exist` 误用 | 14.11、14.12 恢复待验收；全部 13 个任务待验收 |
 | 2026-06-23 | 独立验收失败，追加 14.14 并退回进行中 | Access/Knowledge 缺少 Web 运行时，Context 启动后进程以退出码 0 结束，导致 Actuator readiness 不存在且五进程拓扑无法启动；现有组件测试只验证 Context 与应用名，未覆盖真实 Web 进程生命周期 | 14.2、14.4、14.5、14.7、14.8 退回进行中；新增 14.14，修复后必须重新执行完整 Gradle、真实 Docker 拓扑、连续两次拓扑脚本与完整 HTTP 回归 |
 | 2026-06-23 | 完成 14.14 实现，全部任务转入待验收，Plan 转为 verifying | 为 Access/Knowledge 添加 spring-boot-starter-webmvc 使 Spring Boot 以 SERVLET Web 应用启动，新增 WebApplicationContext 组件测试证明 Web 类型；14.2、14.4、14.5、14.7、14.8 代码未被回退，确认实现完整后恢复待验收 | 全部 14 个任务待验收；Plan 转为 verifying |
+| 2026-06-23 | 独立验收失败，退回进行中 | 14.13 登记实现 hash `097b91a` 为纯文档提交，真实实现 commit 为 `b11a615`，违反约束 Section 7；14.11/14.12 任务提交栏含非实现 docs commit `097b91a`；Docker 集成验收未执行 | 14.11、14.12、14.13 退回进行中；修正 hash 并移除非实现提交后重新交接验收 |
