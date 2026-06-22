@@ -83,13 +83,14 @@ public class GrpcServiceAuthenticationInterceptor implements ServerInterceptor {
   }
 
   public static boolean constantTimeEquals(byte[] a, byte[] b) {
-    if (a.length != b.length) {
-      return false;
-    }
     int result = 0;
-    for (int i = 0; i < a.length; i++) {
-      result |= a[i] ^ b[i];
+    int maxLen = Math.max(a.length, b.length);
+    for (int i = 0; i < maxLen; i++) {
+      int ai = i < a.length ? (a[i] & 0xFF) : 0;
+      int bi = i < b.length ? (b[i] & 0xFF) : 0;
+      result |= ai ^ bi;
     }
+    result |= a.length ^ b.length;
     return result == 0;
   }
 }

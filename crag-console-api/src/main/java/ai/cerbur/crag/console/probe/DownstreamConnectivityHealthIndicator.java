@@ -3,8 +3,11 @@ package ai.cerbur.crag.console.probe;
 import ai.cerbur.crag.contracts.platform.v1.PlatformProbeRequest;
 import ai.cerbur.crag.contracts.platform.v1.PlatformProbeResponse;
 import ai.cerbur.crag.contracts.platform.v1.PlatformProbeServiceGrpc;
+import ai.cerbur.crag.grpc.runtime.client.GrpcClientProperties;
 import io.grpc.StatusRuntimeException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -28,8 +31,11 @@ public class DownstreamConnectivityHealthIndicator implements HealthIndicator {
   @Qualifier("probeExecutor")
   private ThreadPoolTaskExecutor executor;
 
+  @Autowired private GrpcClientProperties clientProperties;
+
   @Override
   public Health health() {
+    String callerService = clientProperties.getCallerService();
     Map<String, Future<String>> futures = new LinkedHashMap<>();
     for (Map.Entry<String, PlatformProbeServiceGrpc.PlatformProbeServiceBlockingStub> entry :
         probeStubs.entrySet()) {
@@ -43,6 +49,12 @@ public class DownstreamConnectivityHealthIndicator implements HealthIndicator {
                   PlatformProbeResponse resp =
                       stub.withDeadlineAfter(PROBE_DEADLINE_MILLIS, TimeUnit.MILLISECONDS)
                           .check(PlatformProbeRequest.getDefaultInstance());
+                  if (!target.equals(resp.getServiceName())) {
+                    return "DOWN";
+                  }
+                  if (!callerService.equals(resp.getCallerService())) {
+                    return "DOWN";
+                  }
                   return "UP";
                 } catch (StatusRuntimeException e) {
                   if (e.getStatus().getCode() == io.grpc.Status.Code.UNAUTHENTICATED
@@ -62,6 +74,7 @@ public class DownstreamConnectivityHealthIndicator implements HealthIndicator {
     Map<String, String> results = new LinkedHashMap<>();
     boolean allUp = true;
     long deadline = System.currentTimeMillis() + TOTAL_BUDGET_MILLIS;
+    List<Future<String>> pendingFutures = new ArrayList<>();
 
     for (Map.Entry<String, Future<String>> entry : futures.entrySet()) {
       long remaining = deadline - System.currentTimeMillis();
@@ -72,9 +85,14 @@ public class DownstreamConnectivityHealthIndicator implements HealthIndicator {
           allUp = false;
         }
       } catch (Exception e) {
+        pendingFutures.add(entry.getValue());
         results.put(entry.getKey(), "TIMEOUT");
         allUp = false;
       }
+    }
+
+    for (Future<String> f : pendingFutures) {
+      f.cancel(true);
     }
 
     Health.Builder builder = allUp ? Health.up() : Health.down();

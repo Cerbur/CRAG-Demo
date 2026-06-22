@@ -157,6 +157,19 @@ class GrpcServiceAuthenticationInterceptorTest {
   }
 
   @Test
+  @DisplayName("constantTimeEquals 不同长度时执行固定工作量比较")
+  void constantTimeEquals_differentLength_doesConstantWork() {
+    byte[] a = "ab".getBytes();
+    byte[] b = "abcdef".getBytes();
+    assertFalse(GrpcServiceAuthenticationInterceptor.constantTimeEquals(a, b));
+    assertFalse(GrpcServiceAuthenticationInterceptor.constantTimeEquals(b, a));
+
+    byte[] sameLen = "abcdef".getBytes();
+    byte[] sameLenDiff = "abcdeg".getBytes();
+    assertFalse(GrpcServiceAuthenticationInterceptor.constantTimeEquals(sameLen, sameLenDiff));
+  }
+
+  @Test
   @DisplayName("响应和日志不包含完整 token")
   void logsDoNotContainToken() {
     var interceptor = new GrpcServiceAuthenticationInterceptor(allowedCallers());
