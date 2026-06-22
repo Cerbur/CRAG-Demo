@@ -2,9 +2,9 @@
 
 日期：2026-06-22
 
-状态：已完成讨论，待用户审阅
+状态：已确认
 
-范围：后续阶段的总体分层与演进方向，不对应具体 Plan 编号
+范围：后续阶段的总体分层、契约边界与方向性 Plan 路线，不表示未创建 Plan 的执行状态
 
 ## 1. 背景
 
@@ -109,13 +109,13 @@ Console API 只处理 JWT 的 Web 传输和本地验签。认证安全规则与�
 
 - 同步命令和查询使用 gRPC。
 - 生命周期通知、状态回传和缓存失效使用 Redis Streams。
-- PostgreSQL 实例可以共享，但 Access、Knowledge、RAG 使用独立 schema、数据库账号和迁移脚本。
+- PostgreSQL 实例可以共享，但 Access、Knowledge、RAG 使用独立 schema、数据库账号和迁移所有权。`plan_14` 只建立数据库、角色、schema 与权限基线；版本化迁移机制在首次引入业务表时分别由 `plan_17`（Knowledge）、`plan_18`（RAG）和 `plan_19`（Access）落地。
 - 禁止服务跨 schema 查询、写入或建立外键。
 - 跨服务只保存对方资源的 ID。
 - Console API 可以编排多个服务；业务服务不得形成同步循环调用。
 - 事件采用至少一次投递，所有消费者必须幂等。
 
-建议建立独立的 `crag-contracts` 模块，保存 Protobuf gRPC 契约和稳定的事件信封定义。该模块不得包含业务实现。
+建立 `crag-platform-contracts` 保存跨领域通用的 Protobuf 基础契约，例如请求/响应公共元数据、稳定错误信息和平台 Probe；该模块不得包含具体领域 RPC 或业务实现。具体领域 gRPC 契约按服务提供方分别归入 `crag-access-contracts`、`crag-knowledge-contracts` 和 `crag-rag-contracts`。稳定事件信封由可靠事件基础设施阶段单独定义，不与具体领域事件载荷或 gRPC 契约混放。Protobuf 不定义 Java 泛型式 `RpcResponse<T>`；公共信息通过可组合消息表达，由具体 RPC 请求或响应显式引用。
 
 ## 5. 身份与所有权模型
 
@@ -466,8 +466,10 @@ PENDING → PUBLISHING → PUBLISHED
 
 ## 11. 服务安全
 
-- 外部只暴露 Console API 和 Open API。
+- 对外业务流量最终只暴露 Console API 和 Open API。
 - Access、Knowledge、RAG 不开放公网端口。
+- `plan_14` 迁移期允许将 `rag-service:8082` 暴露到宿主机以兼容 AdminRag/UserQuery，并由 `plan_20` 移除；`rag-service-smoke:8083` 只在显式 Smoke Profile 下用于测试诊断，由 `plan_20` 重新评估。
+- `sidecar:8001` 是本地开发、Demo 和自动化回归的长期宿主机诊断例外，不属于公开业务 API；服务间调用仍使用 Compose 私有网络。
 - Demo 部署使用每调用方独立的服务身份凭据，通过 gRPC Metadata 传递，并存放于运行时 Secret/环境配置。
 - 生产部署目标是 gRPC mTLS，每个服务使用独立客户端证书。
 - Docker 私有网络不能替代服务身份验证。
@@ -556,51 +558,61 @@ HTTP、gRPC 和消息统一传播 `traceId`。
 - Refresh Token 复用。
 - 路径穿越、非法 MIME、超限文件和非 UTF-8 文件。
 
-## 15. 分层演进顺序
+## 15. 分阶段演进顺序
 
-本节只描述架构层次，不创建或编号具体 Plan。
+本节描述方向性阶段和预留 Plan 编号。除已经创建的 `plan_14` 外，编号不表示 Plan 文件已经创建或进入执行状态；后续阶段在准备执行前继续以设计稿收敛决策，再创建对应 Plan。
 
-### 层 1：分布式基础设施
+### `plan_14`：多服务基础骨架
 
-- Snowflake ID 与 Redis Worker 租约。
-- gRPC 契约规范和服务身份。
-- 事件信封、Redis Streams 和 Outbox 基础能力。
-- 独立 schema、账号和多启动进程骨架。
+- 多服务骨架与五个独立进程。
+- Access、Knowledge、RAG 独立 Schema 与账号。
+- `crag-platform-contracts` 跨领域基础契约、领域契约归属规则、gRPC Runtime 与服务身份。
 
-### 层 2：Knowledge 垂直链路
+### `plan_15`：分布式 ID
 
-- KnowledgeBase、Document、File Object。
-- Docker Volume 文件存储。
-- `.txt / .md` 上传和流式读取。
-- 上传 Outbox 与用户可见状态。
+- Snowflake ID。
+- Redis Worker 租约。
+- 时钟回拨、序列耗尽与发号健康状态。
 
-### 层 3：RAG 多知识库化
+### `plan_16`：可靠事件基础设施
 
-- Ingestion Job。
-- Chunk、Dense、Sparse 增加 KnowledgeBase 归属。
-- Retrieval 和 Query 强制携带 `knowledgeBaseId`。
-- 消费上传事件并回传处理状态。
+- Outbox、Redis Streams 与稳定事件信封。
+- Consumer Group、ACK、Pending Reclaim、死信与消费幂等。
 
-### 层 4：Access 与权限
+### `plan_17`：Knowledge 垂直链路
 
-- User、默认 Tenant、Membership。
-- JWT 和 Refresh Session。
-- API Key 与 KnowledgeBase 单绑定。
-- 权限矩阵和缓存失效事件。
+- KnowledgeBase、Document 与 File Object。
+- `.txt / .md` 文件上传、存储和流式读取。
+- 建立 Knowledge Schema 的版本化迁移机制。
 
-### 层 5：双 API 入口
+### `plan_18`：RAG 多知识库化
+
+- Ingestion Job 与异步索引。
+- Chunk、Dense、Sparse、Retrieval 和 Query 强制按 `knowledgeBaseId` 隔离。
+- 消费上传事件并向 Knowledge 回传处理状态。
+- 建立 RAG Schema 的版本化迁移机制。
+
+### `plan_19`：Access 与权限
+
+- User、默认 Tenant 与 Membership。
+- JWT、Refresh Session 与 API Key。
+- 权限矩阵和 API Key 缓存失效。
+- 建立 Access Schema 的版本化迁移机制。
+
+### `plan_20`：双 API 入口
 
 - Console API 管理用例编排。
 - Open API 的 API Key 鉴权和完整 RAG 查询。
 - 移除现有混合职责的 `crag-api`。
+- 移除 `rag-service:8082` 兼容映射，并重新评估 Smoke 诊断映射。
 
-### 层 6：生命周期可靠性
+### `plan_21`：生命周期可靠性
 
 - Document 和 KnowledgeBase 删除状态机。
 - 下游清理、回执、补偿扫描和死信。
-- 指标、告警和故障恢复验收。
+- 指标、监控、告警和故障恢复验收。
 
-每一层后续应分别经过设计确认、具体 Plan、实现提交和独立验收。不得把整套服务化改造放入一个巨型 Plan。
+每个阶段分别经过设计确认、具体 Plan、实现提交和独立验收。不得仅凭本路线编号开始实现，也不得把整套服务化改造放入一个巨型 Plan。
 
 ## 16. 关键决策摘要
 

@@ -11,9 +11,9 @@ updated: 2026-06-22
 
 > **For agentic workers:** 执行本计划必须先读取 `skill/execute-crag-plan/SKILL.md`；实现步骤使用测试先行、任务级提交和独立验收交接。
 
-**Goal**：建立五个独立 Spring Boot 进程、按提供方归属的 gRPC 契约基线、协议无关 Runtime、服务身份和 PostgreSQL 数据边界，并保持现有 RAG HTTP 链路兼容。
+**Goal**：建立五个独立 Spring Boot 进程、跨领域基础契约与按提供方归属的领域契约基线、协议无关 Runtime、服务身份和 PostgreSQL 数据边界，并保持现有 RAG HTTP 链路兼容。
 
-**Architecture**：Probe 协议由极窄的 `crag-probe-contracts` 定义，传输、认证、deadline、Health 和资源生命周期由完全协议无关的 `crag-grpc-runtime` 提供，具体 Probe 实现、Stub 和下游编排归各 Application 组合根。Access、Knowledge、RAG 使用独立账号与自有 Schema；Console/Open 只通过受认证 gRPC 调用下游，不建立 Application 模块依赖。
+**Architecture**：跨领域通用 Protobuf 基础契约由 `crag-platform-contracts` 承载，本计划只落地 Platform Probe；传输、认证、deadline、Health 和资源生命周期由完全协议无关的 `crag-grpc-runtime` 提供，具体 Probe 实现、Stub 和下游编排归各 Application 组合根。Access、Knowledge、RAG 使用独立账号与自有 Schema；Console/Open 只通过受认证 gRPC 调用下游，不建立 Application 模块依赖。
 
 **Tech Stack**：Java 21、Spring Boot 4.1.0、Spring Framework 7、Gradle 9.4.1、gRPC Java 1.82.0、Protocol Buffers 35.1、Protobuf Gradle Plugin 0.10.0、PostgreSQL 17、pgvector、Docker Compose。
 
@@ -29,13 +29,13 @@ updated: 2026-06-22
 
 现有仓库由 `crag-app` 作为唯一 Spring Boot 组合根，将 HTTP API、Ingestion、Retrieval、Query 和 Storage 运行在同一个进程、端口和数据库账号中。多租户知识平台设计已经确定目标形态为 Console API、Open API、Access Service、Knowledge Service 和 RAG Service 五个独立进程；后续 Snowflake、事件基础设施、Knowledge、Access 和双 API 业务能力都依赖稳定的进程、契约、身份和数据边界。
 
-本计划只建设分布式基础骨架：增加只承载 Probe Proto 的 `crag-probe-contracts` 和完全协议无关的 `crag-grpc-runtime`；将现有完整 RAG 运行时迁移到 `crag-rag-service`；建立 Access、Knowledge、Console 和 Open 四个可独立启动的空业务组合根；使用独立 PostgreSQL Schema 与账号隔离 Access、Knowledge、RAG；重构 Docker Compose 为五进程拓扑；通过标准 gRPC Health、受身份保护的 Platform Probe、Actuator readiness 和现有 RAG HTTP 回归证明骨架可运行且旧链路未退化。
+本计划只建设分布式基础骨架：建立跨领域通用基础契约模块 `crag-platform-contracts`，当前只加入 Platform Probe Proto，并增加完全协议无关的 `crag-grpc-runtime`；将现有完整 RAG 运行时迁移到 `crag-rag-service`；建立 Access、Knowledge、Console 和 Open 四个可独立启动的空业务组合根；使用独立 PostgreSQL Schema 与账号隔离 Access、Knowledge、RAG；重构 Docker Compose 为五进程拓扑；通过标准 gRPC Health、受身份保护的 Platform Probe、Actuator readiness 和现有 RAG HTTP 回归证明骨架可运行且旧链路未退化。
 
 本计划完成后仍不提供注册、KnowledgeBase、文件上传或 API Key 业务。现有 AdminRag、UserQuery 和 Smoke 入口暂时继续由 `crag-rag-service` 承载，作为后续业务迁移前的兼容入口。
 
 ## 范围
 
-- 新增 `crag-probe-contracts`，只生成 Platform Probe 的 Java Protobuf 消息和 gRPC Stub。
+- 新增 `crag-platform-contracts`，作为跨领域通用 Protobuf 基础契约模块；本计划只在其中生成 Platform Probe 的 Java Protobuf 消息和 gRPC Stub，不提前定义其他公共消息。
 - 未来领域契约按服务提供方分别归入 `crag-access-contracts`、`crag-knowledge-contracts`、`crag-rag-contracts`；本计划不创建空领域契约模块。
 - 固定 gRPC Java `1.82.0`、Protocol Buffers `35.1`、Protobuf Gradle Plugin `0.10.0`。
 - 定义 `crag.platform.v1.PlatformProbeService`，用于验证服务身份、网络与契约生成，不承载领域业务。
@@ -64,25 +64,26 @@ updated: 2026-06-22
 - 不实现注册、登录、JWT、文件上传、异步索引、API Key 查询或删除状态机。
 - 不把现有 Ingestion、Retrieval、Query 拆成独立部署进程。
 - 不移除 `crag-api` 或改变 AdminRag/UserQuery HTTP 契约；该模块在本计划中作为 RAG 兼容 HTTP 边界保留。
-- 不引入 Flyway、Liquibase、mTLS、Service Mesh、API Gateway、Kubernetes 或外部 Secret 管理系统。
+- 不引入 Flyway、Liquibase 或其他版本化 Schema 迁移机制；Knowledge、RAG、Access 分别在 `plan_17`、`plan_18`、`plan_19` 首次引入业务表时建立自身迁移机制。本计划的 PostgreSQL 初始化脚本只负责平台数据库、角色、扩展、Schema 与权限基线。
+- 不引入 mTLS、Service Mesh、API Gateway、Kubernetes 或外部 Secret 管理系统。
 - 不迁移旧 `data/pgdata/` 数据，不执行 `docker compose down -v`，不删除旧数据库目录。
 - 不暴露 Access、Knowledge、RAG 的 gRPC 或管理端口到宿主机。
 - 不修改 Embedding、Sparse、Dense、RRF、Rerank、Context、Prompt 或 LLM 业务算法。
 
 ## 前置依赖
 
-- **执行前置 Plan**：无
+- **执行前置 Plan**：`plan_13`
 - `plan_13` 已完成，当前框架基线为 Java 21、Spring Boot 4.1.0、Spring Framework 7 和 Gradle 9.4.1。
 - `docs/superpowers/specs/2026-06-22-multi-tenant-knowledge-platform-design.md` 已由用户确认。
 - gRPC Java `1.82.0` 于 2026-06-11 发布，Protobuf Gradle Plugin `0.10.0` 于 2026-04-20 发布，Protocol Buffers `35.1` 于 2026-06-11 发布；本计划固定这些版本，不在执行期自动漂移。
-- 本计划进入实现前必须先提交 `plan_14`、`plan_main`、方向归档和索引；未提交时不得开始 14.1。
+- 本计划进入实现前必须提交本轮 `plan_14`、`plan_main` 与总体设计一致性修订；Plan 状态或队列发生变化时再同步提交索引。未提交这些规划修订时不得开始 14.1。
 
 ## 文件边界
 
 - `settings.gradle.kts`
 - `build.gradle.kts`
 - `gradle/libs.versions.toml`
-- `crag-probe-contracts/**`
+- `crag-platform-contracts/**`
 - `crag-grpc-runtime/**`
 - `crag-console-api/**`
 - `crag-open-api/**`
@@ -112,8 +113,6 @@ updated: 2026-06-22
 - `constraints/persistence-style.md`（仅 Schema 与账号硬边界）
 - `constraints/test-workflow.md`（仅服务名或回归入口事实变化）
 - `README.md`
-- `plan/plan_main.md`
-- `plan/plan_archive/2026-06-22-multi-tenant-knowledge-platform-direction.md`
 - `plan/plan_14/plan_14.md`
 - `plan/index/README.md`
 
@@ -121,8 +120,8 @@ updated: 2026-06-22
 
 ### 基础契约与 Runtime
 
-- `crag-probe-contracts/src/main/proto/crag/platform/v1/platform_probe.proto`：唯一 Probe 协议事实来源。
-- `crag-probe-contracts/build.gradle.kts`：Protobuf/grpc-java 生成配置，不应用 Spring 插件。
+- `crag-platform-contracts/src/main/proto/crag/platform/v1/platform_probe.proto`：唯一 Probe 协议事实来源。
+- `crag-platform-contracts/build.gradle.kts`：Protobuf/grpc-java 生成配置，不应用 Spring 插件。
 - `crag-grpc-runtime/src/main/java/ai/cerbur/crag/grpc/runtime/config/GrpcServerConfiguration.java`：显式 Server 启用入口。
 - `crag-grpc-runtime/src/main/java/ai/cerbur/crag/grpc/runtime/config/GrpcClientConfiguration.java`：显式 Client 启用入口。
 - `crag-grpc-runtime/src/main/java/ai/cerbur/crag/grpc/runtime/server/GrpcServerLifecycle.java`：Server 构建、启动、Health 状态切换与关闭。
@@ -171,11 +170,12 @@ updated: 2026-06-22
 
 ### gRPC 契约
 
-- `crag-probe-contracts` 是唯一的跨服务基础设施契约例外，只包含 `.proto`、生成代码和生成所需 Gradle 配置；禁止手写业务逻辑、Spring 配置、Client 包装、Server/Channel 生命周期、认证或授权逻辑。
+- `crag-platform-contracts` 负责跨领域通用的 Protobuf 基础契约，例如请求/响应公共元数据、稳定错误信息和平台 Probe；本计划只落地 Platform Probe。模块只包含 `.proto`、生成代码和生成所需 Gradle 配置，禁止手写业务逻辑、Spring 配置、Client 包装、Server/Channel 生命周期、认证或授权逻辑。
 - 领域契约严格按提供 RPC 的 Server 归属。未来分别创建 `crag-access-contracts`、`crag-knowledge-contracts`、`crag-rag-contracts`；不创建 `crag-common-contracts`，也不在本计划预建空模块。
+- Protobuf 公共请求/响应信息使用可组合消息表达，由具体 RPC 消息显式引用；不设计 Java 泛型式 `RpcResponse<T>` 或 `RpcBaseRequest<T>`。
 - 根 Gradle 与 version catalog 统一管理 Protobuf 插件、protoc 和 grpc-java 版本；Contracts 子模块只声明自身 Proto 与生成运行时依赖，本计划不额外引入 convention plugin。
 - Protobuf package 为 `crag.platform.v1`，Java package 为 `ai.cerbur.crag.contracts.platform.v1`。
-- Proto 文件固定为 `crag-probe-contracts/src/main/proto/crag/platform/v1/platform_probe.proto`。
+- Proto 文件固定为 `crag-platform-contracts/src/main/proto/crag/platform/v1/platform_probe.proto`。
 - `PlatformProbeService` 只包含一元方法：
 
 ```proto
@@ -198,7 +198,7 @@ message PlatformProbeResponse {
 
 ### gRPC Runtime 边界与接口
 
-- `crag-grpc-runtime` 完全协议无关，不依赖 `crag-probe-contracts` 或任何领域 Contracts；它只依赖 grpc-java、Spring Context 和配置绑定所需最小库。
+- `crag-grpc-runtime` 完全协议无关，不依赖 `crag-platform-contracts` 或任何领域 Contracts；它只依赖 grpc-java、Spring Context 和配置绑定所需最小库。
 - 上述协议无关边界同样适用于测试依赖：Runtime 测试使用测试源码内的专属 `BindableService` 验证认证、deadline、Health 和生命周期，不依赖 Probe Contracts；生成 Probe 契约的组合验证放在 Contracts 或 Application 模块。
 - Runtime 提供两个独立显式导入入口：
   - `GrpcServerConfiguration`：创建 Server、注册标准 Health、收集 Application 显式声明的 `BindableService` Bean并统一附加认证拦截器。
@@ -296,6 +296,9 @@ public interface GrpcChannelFactory {
 - Console/Open 各自声明有界、Spring 管理的 `ThreadPoolTaskExecutor`：Console 核心/最大线程数 3，Open 为 2，队列容量 0，使用明确线程名前缀，Context 关闭时终止；禁止公共 ForkJoinPool、`parallelStream()` 或 Runtime 内置共享执行器。
 - Access/Knowledge readiness 包含 DataSource 与 `current_schema()`；RAG readiness 包含这两项并保留现有 Sidecar 可达性约束。
 - Access、Knowledge、RAG 的 HTTP/管理和 gRPC 端口不映射宿主机；数据库不配置 `ports`。Sidecar 保留 `8001:8001` 作为本地诊断和现有回归入口。
+- `rag-service:8082` 是迁移期兼容入口，由 `plan_20` 在双 API 完整用例落地并退出旧混合入口时移除。
+- `rag-service-smoke:8083` 仅在显式 Smoke Profile 下用于测试诊断，由 `plan_20` 重新评估是否继续保留宿主机映射。
+- `sidecar:8001` 是本地开发、Demo 和自动化回归的长期宿主机诊断例外，不属于公开业务 API；服务间调用仍使用 Compose 私有网络。
 - 通用 `docker/java-service.Dockerfile` 只接收 `SERVICE_MODULE`；构建阶段执行 `:<module>:bootJar`，运行阶段复制该模块 `build/libs/*.jar`。每个模块禁用 plain Jar并保证目录只有一个 Jar，避免模块名与 Jar 名双参数漂移。
 - 运行镜像继续使用 JRE 21、非 root 用户和 `curl`。
 - 每个 Boot Application 禁用 plain Jar并固定唯一产物名：
@@ -343,9 +346,9 @@ public interface GrpcChannelFactory {
   - Console/Open 不依赖现有 RAG 业务模块。
   - Access/Knowledge 不依赖 Storage/Ingestion/Retrieval/Query/API。
   - RAG Service 仅作为组合根装配现有 RAG 模块。
-  - `crag-probe-contracts` 无 Spring、Runtime 或业务依赖；`crag-grpc-runtime` 无 Contracts 或业务依赖；业务模块不得依赖 Runtime/Application。
+  - `crag-platform-contracts` 无 Spring、Runtime 或业务依赖；`crag-grpc-runtime` 无 Contracts 或业务依赖；业务模块不得依赖 Runtime/Application。
 - Gradle 与静态验证：
-  - `./gradlew :crag-probe-contracts:generateProto`
+  - `./gradlew :crag-platform-contracts:generateProto`
   - `./gradlew test`
   - `./gradlew check`
   - `python3 scripts/validate_module_dependencies.py`
@@ -355,7 +358,7 @@ public interface GrpcChannelFactory {
 - Docker HTTP 与拓扑回归：
   1. `docker compose config`，确认默认包含五个 Java 服务且内部端口没有宿主机映射。
   2. `docker compose up -d --build`，等待 `db`、`sidecar`、`access-service`、`knowledge-service`、`rag-service`、`console-api`、`open-api` 全部 healthy。
-  3. 执行 `scripts/tests/http/platform_topology_test.sh`，验证五进程、readiness、gRPC 身份成功/失败和数据库跨 Schema 拒绝。
+  3. 执行 `scripts/tests/http/platform_topology_test.sh`，验证五进程、readiness、合法 gRPC 身份链路和数据库跨 Schema 拒绝；缺失、未知和错误身份由 Runtime/Application 组件测试覆盖。
   4. 设置 `CRAG_RAG_BASE_URL=http://localhost:8082`，执行 AdminRag、UserQuery Stub 和默认 Smoke 回归。
   5. `docker compose --profile smoke up -d --build rag-service-smoke`，以 `CRAG_RAG_BASE_URL=http://localhost:8083` 执行 Smoke 与 Retrieval Evidence 回归。
   6. 检查五个 Java 容器以非 root 用户运行，日志不含测试 token、数据库密码、Prompt 或完整文档。
@@ -376,13 +379,13 @@ public interface GrpcChannelFactory {
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
-**目标**：提供可被五个 Application 复用的 gRPC 契约生成、标准健康检查、受保护 Platform Probe、调用方身份和资源关闭基线。  
+**目标**：提供可被五个 Application 复用的 Platform Probe 契约生成、协议无关 gRPC Runtime、调用方身份和资源关闭基线。
 **前置任务**：无  
-**范围**：在 version catalog 固定 gRPC Java 1.82.0、Protobuf 35.1 与 Protobuf Gradle Plugin 0.10.0；创建 `crag-probe-contracts` 并生成 `PlatformProbeService` Java/Stub；创建协议无关 `crag-grpc-runtime`，实现显式 Server/Client 配置、`GrpcServerLifecycle`、`GrpcChannelFactory`、`GrpcCallerIdentity`、`GrpcCallerContext`、客户端 Metadata/deadline 拦截器、服务端身份拦截器、标准 Health、固定时长 token 比较和资源关闭；更新模块与框架依赖校验器及其单测。
+**范围**：在 version catalog 固定 gRPC Java 1.82.0、Protobuf 35.1 与 Protobuf Gradle Plugin 0.10.0；创建 `crag-platform-contracts` 并生成 `PlatformProbeService` Java/Stub；创建协议无关 `crag-grpc-runtime`，实现显式 Server/Client 配置、`GrpcServerLifecycle`、`GrpcChannelFactory`、`GrpcCallerIdentity`、`GrpcCallerContext`、客户端 Metadata/deadline 拦截器、服务端身份拦截器、标准 Health、固定时长 token 比较和资源关闭；更新模块与框架依赖校验器及其单测。
 **非目标**：不定义领域 RPC、事件信封、业务错误详情、重试、负载均衡、TLS/mTLS、Probe Client 包装或 Probe 服务实现；Contracts 不依赖 Spring/Runtime，Runtime 不依赖任何 Contracts。
-**验收标准**：Proto 生成类位于约定 Java package；标准 Health 匿名返回 `SERVING`；合法 caller 调用 Probe 得到正确 `serviceName/callerService`；缺失、未知或错误身份返回 `UNAUTHENTICATED` 且响应和日志不含 token；所有调用有 deadline；关闭 Spring Context 后 Server 与 Channel 终止；模块依赖无环且基础模块不依赖任何业务/Application 模块。  
-**验证方式**：运行 `./gradlew :crag-probe-contracts:generateProto`、`:crag-probe-contracts:test`、`:crag-grpc-runtime:test`、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies -v`、两个依赖校验器和 `./gradlew check`；检查测试报告无跳过。
-**涉及文件**：`gradle/libs.versions.toml`、`settings.gradle.kts`、`build.gradle.kts`、`crag-probe-contracts/**`、`crag-grpc-runtime/**`、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`、`scripts/validate_framework_dependencies.py`、`scripts/tests/test_validate_framework_dependencies.py`
+**验收标准**：Proto 生成类位于约定 Java package；Runtime 使用测试源码内的专属 `BindableService` 证明标准 Health 匿名返回 `SERVING`、合法 caller 可调用受保护服务、缺失/未知/错误身份返回 `UNAUTHENTICATED` 且响应和日志不含 token；所有调用有 deadline；关闭 Spring Context 后 Server 与 Channel 终止；模块依赖无环且基础模块不依赖任何业务/Application 模块。真实 Platform Probe Server 及其 `serviceName/callerService` 响应由 14.2 验收。
+**验证方式**：运行 `./gradlew :crag-platform-contracts:generateProto`、`:crag-platform-contracts:test`、`:crag-grpc-runtime:test`、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies -v`、两个依赖校验器和 `./gradlew check`；检查测试报告无跳过。
+**涉及文件**：`gradle/libs.versions.toml`、`settings.gradle.kts`、`build.gradle.kts`、`crag-platform-contracts/**`、`crag-grpc-runtime/**`、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`、`scripts/validate_framework_dependencies.py`、`scripts/tests/test_validate_framework_dependencies.py`
 
 **接口产物**：
 
@@ -402,7 +405,7 @@ public interface GrpcChannelFactory {
 
 - [ ] 先扩展两个 Python 校验器单测，断言新模块白名单、Contracts 禁止 Spring/Runtime 依赖、Runtime 禁止 Contracts/业务依赖；运行对应 unittest，预期因模块尚未登记而失败。
 - [ ] 在 version catalog 和根构建中加入固定版本与 Protobuf 插件，在 `settings.gradle.kts` 登记两个模块；运行校验器单测，预期通过。
-- [ ] 创建 `platform_probe.proto` 和 Contracts 构建文件；运行 `./gradlew :crag-probe-contracts:generateProto`，预期生成 `PlatformProbeServiceGrpc`、请求和响应类型且无 Spring 类路径。
+- [ ] 创建 `platform_probe.proto` 和 Contracts 构建文件；运行 `./gradlew :crag-platform-contracts:generateProto`，预期生成 `PlatformProbeServiceGrpc`、请求和响应类型且无 Spring 类路径。
 - [ ] 先编写认证拦截器、caller Context、配置绑定和 deadline 守卫的纯单元测试，覆盖合法/缺失/未知/错误凭据、空配置、无 deadline、超过 10 秒和日志脱敏；运行 `:crag-grpc-runtime:test`，预期测试因生产类型不存在而失败。
 - [ ] 实现最小 Runtime 类型，使上述单元测试通过；token 使用 UTF-8 字节与固定时长比较，认证结果只写入 `io.grpc.Context`。
 - [ ] 增加 in-process 测试 Application，使用 Runtime 测试源码内的专属 `BindableService` 验证匿名 Health 和受认证调用；Runtime 的主代码与测试代码均不得依赖 Probe 生成类。
@@ -415,7 +418,7 @@ public interface GrpcChannelFactory {
 **前置任务**：14.1  
 **范围**：创建 `crag-access-service`、`crag-knowledge-service`、`crag-rag-service`；将 `CragDemoApplication`、RAG application 配置、Schema、测试资源、健康测试和 ArchUnit 测试迁入 RAG Service；将包名改为 `ai.cerbur.crag.rag.app`；精确配置 RAG 对 Storage、Ingestion、Retrieval、Query、兼容 API 和 Smoke 的扫描与装配；Access/Knowledge 只扫描自身并显式导入 gRPC Server；三个服务各自在组合根实现 Probe，读取 `GrpcCallerContext`；固定三个 Boot Jar；删除 `crag-app`；同步把现有单应用 `Dockerfile` 的构建目标切换为 `crag-rag-service`，但暂不改变 Compose 拓扑。
 **非目标**：不增加 Access/Knowledge 领域类或表；不迁移 `crag-api` Controller；不改变 RAG Schema 字段、算法、业务配置默认值或 HTTP DTO；不让 Access/Knowledge 引用现有业务模块。  
-**验收标准**：仓库不再包含 `crag-app`；三个 Boot Application 独立构建；RAG Context 包含既有 Controller、Repository、Cron 和 Query Bean；Access/Knowledge Context 不包含这些 Bean；三个应用报告不同 `spring.application.name`；RAG 组件与架构测试迁移后全绿；每个模块仅生成一个固定名称 Boot Jar。  
+**验收标准**：仓库不再包含 `crag-app`；三个 Boot Application 独立构建；RAG Context 包含既有 Controller、Repository、Cron 和 Query Bean；Access/Knowledge Context 不包含这些 Bean；三个应用报告不同 `spring.application.name`；合法 caller 调用三个真实 Platform Probe 时分别得到规范 `serviceName` 和认证后的 `callerService`，缺失/未知/错误身份返回 `UNAUTHENTICATED`；RAG 组件与架构测试迁移后全绿；每个模块仅生成一个固定名称 Boot Jar。
 **验证方式**：运行三个模块的 `bootJar` 和组件测试；运行 `./gradlew :crag-rag-service:test --tests '*ArchitectureTest'`、`./gradlew test`、模块依赖校验与 `./gradlew check`；使用 `jar tf` 核对 RAG Jar 含既有业务类而 Access/Knowledge Jar 不含。  
 **涉及文件**：`settings.gradle.kts`、`crag-access-service/**`、`crag-knowledge-service/**`、`crag-rag-service/**`、`crag-app/**`（删除）、`crag-api/**`（仅测试配置引用迁移）、`crag-smoke/**`（仅装配引用迁移）、`Dockerfile`（仅临时切换构建目标）、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`
 
@@ -477,9 +480,9 @@ Open API 使用同一结构但只包含 Access/RAG，并把 caller 固定为 `op
 **目标**：在真实 PostgreSQL、Sidecar 和 Docker 网络中启动五个 Java 进程，并证明服务账号、Schema、身份和启动依赖隔离。  
 **前置任务**：14.3  
 **范围**：通过 PostgreSQL 镜像的 `POSTGRES_DB=crag_platform` 创建数据库；创建受控 Shell 初始化脚本，在该数据库内建立 `extensions`、三个独立密码账号、自有 Schema、默认 search_path 和最小权限；为 Access/Knowledge/RAG 配置独立 DataSource，Access/Knowledge 不启用 SQL 初始化，RAG Schema 删除扩展创建语句并保持三张业务表不变；为三个服务增加 `current_schema()` readiness；创建单参数 `docker/java-service.Dockerfile`，删除旧 Dockerfile；重写 Compose 服务、端口、健康检查、调用方凭据、依赖顺序和 `pgdata-platform` 挂载；保留 model-init/sidecar 与 Sidecar 8001；将 app-smoke 改为 `rag-service-smoke`。
-**非目标**：不增加 Redis；不把内部 gRPC/Actuator 端口暴露到宿主机；不创建业务表；不迁移旧数据库；不改变 Sidecar 模型或协议；不把 Demo token 描述为生产 Secret 方案。  
-**验收标准**：默认 Compose 包含五个目标 Java 服务且全部 healthy；Console/Open readiness 通过受保护 Probe；错误 token 使目标 Probe 返回 `UNAUTHENTICATED`；三个数据库账号分别拥有自身 Schema且只能在自身 Schema 建表/查询；管理员密码不出现在 Java 容器；RAG 旧 HTTP 入口在 8082 可用；所有 Java 容器使用非 root 用户和正确 Jar；普通 down 后 `pgdata-platform` 保留；旧 `data/pgdata` 未修改。
-**验证方式**：运行五个 `bootJar`、`docker compose config`、`docker compose up -d --build`；检查 `docker compose ps`、容器用户、内部端口和健康状态；通过 `psql` 分别执行同 Schema 成功与跨 Schema 失败断言；调用 Console/Open/RAG readiness；传入错误 token 执行 Probe 失败断言；最后普通 `docker compose down`。  
+**非目标**：不增加 Redis；不把内部 gRPC/Actuator 端口暴露到宿主机；不创建业务表或版本化迁移机制；不迁移旧数据库；不改变 Sidecar 模型或协议；不把 Demo token 描述为生产 Secret 方案。
+**验收标准**：默认 Compose 包含五个目标 Java 服务且全部 healthy；Console/Open readiness 通过真实受保护 Probe，证明 Compose 注入的合法调用方身份链路可用；缺失/未知/错误身份继续由 14.1/14.2/14.3 组件测试证明；三个数据库账号分别拥有自身 Schema且只能在自身 Schema 建表/查询；管理员密码不出现在 Java 容器；RAG 旧 HTTP 入口在 8082 可用；所有 Java 容器使用非 root 用户和正确 Jar；普通 down 后 `pgdata-platform` 保留；旧 `data/pgdata` 未修改。
+**验证方式**：运行五个 `bootJar`、`docker compose config`、`docker compose up -d --build`；检查 `docker compose ps`、容器用户、内部端口和健康状态；通过 `psql` 分别执行同 Schema 成功与跨 Schema 失败断言；调用 Console/Open/RAG readiness，确认合法身份配置下 Probe 聚合为 UP；最后普通 `docker compose down`。
 **涉及文件**：`docker/postgres/init/001-platform.sh`、`docker/java-service.Dockerfile`、`Dockerfile`（删除）、`docker-compose.yml`、`.dockerignore`、`.env.example`、`crag-access-service/src/main/resources/**`、`crag-knowledge-service/src/main/resources/**`、`crag-rag-service/src/main/resources/**`、五个 Application `build.gradle.kts`
 
 **配置产物**：
@@ -505,20 +508,20 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 
 **目标**：用自动化回归和项目级事实文档固定多服务基线，为 plan_15 及后续领域 Plan 提供可信起点。  
 **前置任务**：14.4  
-**范围**：新增 `platform_topology_test.sh`；将既有 HTTP 脚本的业务入口统一改为 `CRAG_RAG_BASE_URL` 且默认 8082，Smoke Profile 使用 8083；更新 readiness 脚本的服务名、端口、故障恢复和日志收集；执行 AdminRag、UserQuery Stub、Smoke、Retrieval Evidence 与平台拓扑全套回归；更新包结构、Docker、API、持久化、测试约束、README、方向归档和索引；增强约束校验器以核对五个默认 Java 服务和内部端口不对宿主机暴露；完成全量静态检查。  
+**范围**：新增 `platform_topology_test.sh`；将既有 HTTP 脚本的业务入口统一改为 `CRAG_RAG_BASE_URL` 且默认 8082，Smoke Profile 使用 8083；更新 readiness 脚本的服务名、端口、故障恢复和日志收集；执行 AdminRag、UserQuery Stub、Smoke、Retrieval Evidence 与平台拓扑全套回归；更新包结构、Docker、API、持久化、测试约束、README 和索引；增强约束校验器以核对五个默认 Java 服务和内部端口不对宿主机暴露；完成全量静态检查。
 **非目标**：不修改业务行为来迎合脚本；不复制 Plan 任务到索引；不把未实现的领域模块写入当前实现索引；不创建 plan_15；不执行真实 DeepSeek 条件验收，因为本计划不修改供应商边界。  
 **验收标准**：平台拓扑脚本可重复运行并以非零退出表达失败；现有稳定 RAG 回归全部通过且数据含唯一 runId；约束当前实现索引与源码、Compose 一致；README 明确五进程启动方式和 8082 兼容入口；所有校验、Gradle 测试和 Docker 回归无跳过；Plan/index 状态与真实进度一致。  
 **验证方式**：运行 `platform_topology_test.sh`、AdminRag 契约、Query Stub 成功/失败、默认 Smoke、Smoke Profile、Retrieval Evidence、`./gradlew check`、三个 Python 校验器及其单测、`python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`；检索 `crag-app`、旧 Compose 服务名、旧端口和未登记模块残留。  
-**涉及文件**：`scripts/tests/http/**`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`constraints/package-structure.md`、`constraints/docker-structure.md`、`constraints/api-style.md`、`constraints/persistence-style.md`、`constraints/test-workflow.md`、`README.md`、`plan/plan_main.md`、`plan/plan_archive/2026-06-22-multi-tenant-knowledge-platform-direction.md`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
+**涉及文件**：`scripts/tests/http/**`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`constraints/package-structure.md`、`constraints/docker-structure.md`、`constraints/api-style.md`、`constraints/persistence-style.md`、`constraints/test-workflow.md`、`README.md`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
 
 **实施步骤**：
 
 - [ ] 先扩展 `test_validate_constraints.py`，断言五个默认 Java 服务、Sidecar 8001、数据库/内部端口不暴露、模块与约束索引一致；运行 unittest，预期在文档和校验器更新前失败。
-- [ ] 新增 `platform_topology_test.sh`，分阶段断言七个长期服务健康、Console/Open readiness、规范服务名、合法/错误身份、Schema owner、同 Schema 成功、跨 Schema SELECT/CREATE 失败、管理员凭据隔离、非 root 和日志脱敏；所有失败返回非零退出码。
+- [ ] 新增 `platform_topology_test.sh`，分阶段断言七个长期服务健康、Console/Open readiness、规范服务名、合法身份链路、Schema owner、同 Schema 成功、跨 Schema SELECT/CREATE 失败、管理员凭据隔离、非 root 和日志脱敏；缺失/未知/错误身份使用 14.1/14.2/14.3 的组件测试证据，脚本不为测试目的暴露内部 gRPC 端口；所有失败返回非零退出码。
 - [ ] 将现有 HTTP 脚本统一改用 `CRAG_RAG_BASE_URL`，默认 8082；Smoke Profile调用者显式传 8083；每个写入脚本生成并传播唯一 `runId`。
 - [ ] 更新 readiness 脚本，验证停止单个下游时对应 API readiness DOWN、恢复服务后重新 UP，并收集失败目标日志但不输出 token或密码。
 - [ ] 依次执行平台拓扑、AdminRag、Query Stub 成功/失败、默认 Smoke、Smoke Profile 和 Retrieval Evidence；任何失败先保留证据并修复，不以无修改重跑掩盖 flaky。
-- [ ] 更新 package、Docker、API、persistence、test-workflow、README、方向归档、plan_main 和索引，使当前实现事实与源码/Compose一致；不得写入尚未实现的领域模块。
+- [ ] 更新 package、Docker、API、persistence、test-workflow、README 和索引，使当前实现事实与源码/Compose一致；不得把长期方向文档改写为当前实现清单，也不得写入尚未实现的领域模块。
 - [ ] 运行 `./gradlew check`、全部 Python 校验器与单测、严格 Plan 校验、`git diff --check` 和残留检索；确认无跳过、无占位、无旧运行入口。
 - [ ] 创建实现提交 `test(plan_14/14.5): verify distributed platform baseline`；随后按执行 Skill 创建独立交接提交，回填五个真实实现 hash 并转入待验收。
 
@@ -540,4 +543,6 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-22 | 创建计划并设为待开始 | 多租户平台总体设计已确认，需要先建立后续所有领域 Plan 依赖的进程、契约、身份和数据边界 | 执行队列新增 plan_14；实现前必须提交本计划与索引 |
-| 2026-06-22 | 细化契约归属、Runtime 边界、身份、Probe、Schema、Docker 与逐任务实施步骤 | Grilling 逐项确认了 Contracts 按 Server 归属、`crag-probe-contracts` 窄例外、协议无关 Runtime、最小权限数据库和五进程验证策略 | 不改变五任务范围与状态；消除执行期架构决策，更新文件地图、接口、测试先行步骤和精确验收 |
+| 2026-06-22 | 细化契约归属、Runtime 边界、身份、Probe、Schema、Docker 与逐任务实施步骤 | Grilling 逐项确认了领域 Contracts 按 Server 归属、通用基础契约与协议无关 Runtime 边界、最小权限数据库和五进程验证策略 | 不改变五任务范围与状态；消除执行期架构决策，更新文件地图、接口、测试先行步骤和精确验收 |
+| 2026-06-22 | 校准基础契约职责并移除 14.5 对长期方向文档的实现态回写 | `crag-platform-contracts` 承载跨领域通用基础契约，领域契约仍按服务提供方归属；`plan_main` 与方向归档不作为当前实现索引 | 14.1 当前仍只落地 Platform Probe；14.5 只同步当前实现约束、README 与索引 |
+| 2026-06-22 | 锁定基础契约命名、迁移机制归属、临时端口退出与前置依赖 | 通用契约职责不应使用 Probe 模块名；plan_14 不拥有 Access/Knowledge 业务迁移；兼容和诊断端口需要明确生命周期；框架基线依赖应进入依赖图 | 模块统一为 `crag-platform-contracts`；版本化迁移归 plan_17/18/19；8082 由 plan_20 移除、8083 由 plan_20 评估、8001 保留为本地诊断例外；执行前置改为 plan_13 |
