@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: console-api
+
+crag:
+  grpc:
+    client:
+      caller-service: console-api
+      token: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
+      max-deadline-millis: 10000
+    probe:
+      targets:
+        access-service: access-service:9091
+        knowledge-service: knowledge-service:9092
+        rag-service: rag-service:9093
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,downstreamConnectivity

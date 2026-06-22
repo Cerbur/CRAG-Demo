@@ -1,0 +1,33 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: open-api
+
+crag:
+  grpc:
+    client:
+      caller-service: open-api
+      token: ${OPEN_API_SERVICE_TOKEN:open-token-demo}
+      max-deadline-millis: 10000
+    probe:
+      targets:
+        access-service: access-service:9091
+        rag-service: rag-service:9093
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,downstreamConnectivity

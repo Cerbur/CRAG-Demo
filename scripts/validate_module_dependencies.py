@@ -43,7 +43,13 @@ MODULE_WHITELIST: dict[str, set[str]] = {
 MODULE_NAME_MAP: dict[str, str] = {}
 
 # Special modules.
-APP_MODULES = {"crag-access-service", "crag-knowledge-service", "crag-rag-service"}
+APP_MODULES = {
+    "crag-access-service",
+    "crag-knowledge-service",
+    "crag-rag-service",
+    "crag-console-api",
+    "crag-open-api",
+}
 SPECIAL_MODULES = APP_MODULES
 
 PROJECT_DEP_RE = re.compile(

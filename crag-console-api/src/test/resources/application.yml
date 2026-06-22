@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: console-api
+
+crag:
+  grpc:
+    client:
+      caller-service: console-api
+      token: test-token
+      max-deadline-millis: 10000
+    probe:
+      targets:
+        access-service: localhost:9991
+        knowledge-service: localhost:9992
+        rag-service: localhost:9993

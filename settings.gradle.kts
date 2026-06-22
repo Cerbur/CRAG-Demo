@@ -19,5 +19,7 @@ include(
     "crag-grpc-runtime",
     "crag-access-service",
     "crag-knowledge-service",
-    "crag-rag-service"
+    "crag-rag-service",
+    "crag-console-api",
+    "crag-open-api"
 )

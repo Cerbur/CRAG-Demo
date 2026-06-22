@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: open-api
+
+crag:
+  grpc:
+    client:
+      caller-service: open-api
+      token: test-token
+      max-deadline-millis: 10000
+    probe:
+      targets:
+        access-service: localhost:9991
+        rag-service: localhost:9993
