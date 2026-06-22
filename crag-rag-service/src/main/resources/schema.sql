@@ -1,14 +1,9 @@
 -- ============================================================
--- CRAG-Demo — 数据库初始化 DDL
+-- CRAG-Demo — RAG Service 数据库 DDL
 -- 数据库: PostgreSQL 17 + pgvector
+-- 扩展 (vector, pg_trgm) 由平台初始化脚本在 extensions schema 中管理
 -- 通过 Spring sql.init.mode=always 在启动时自动执行
 -- ============================================================
-
--- pgvector 扩展（向量相似度检索）
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- pg_trgm 扩展（三元组模糊匹配，辅助中文 FTS）
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Chunk 表：文档分块存储（child + parent 两种粒度）
 CREATE TABLE IF NOT EXISTS chunk (

@@ -88,8 +88,9 @@ sidecar（健康） ───────── → app（健康）
 
 ```text
 docker-compose.yml                    — 编排所有服务
-Dockerfile                            — Spring Boot 应用多阶段构建镜像
+docker/java-service.Dockerfile        — 通用 Java Service 多阶段构建
 .dockerignore                         — 应用镜像构建排除
+docker/postgres/init/001-platform.sh  — PostgreSQL 平台初始化脚本
 sidecar/Dockerfile                    — Python Sidecar 模型服务镜像
 sidecar/.dockerignore                 — Sidecar 构建排除
 sidecar/main.py                       — FastAPI 服务入口（/health、/embed、/rerank）
@@ -109,11 +110,13 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | --- | --- |
 | 镜像 | `pgvector/pgvector:pg17` |
 | 容器名 | `crag-db` |
-| 端口 | `5432:5432` |
-| 数据库 | `crag_demo` |
-| 用户 | `crag_user`（Demo 默认凭据） |
-| 持久化 | `./data/pgdata:/var/lib/postgresql/data` |
-| 健康检查 | `pg_isready -U crag_user -d crag_demo`，间隔 5s，超时 3s，重试 5 次 |
+| 端口 | 不暴露 |
+| 数据库 | `crag_platform` |
+| 管理员 | `crag_admin`（仅初始化和健康检查，不注入 Java 容器） |
+| 业务账号 | `crag_access`、`crag_knowledge`、`crag_rag`（独立 Schema） |
+| 持久化 | `./data/pgdata-platform:/var/lib/postgresql/data` |
+| 初始化 | `docker/postgres/init/001-platform.sh` |
+| 健康检查 | `pg_isready -U crag_admin -d crag_platform`，间隔 5s，超时 3s，重试 5 次 |
 | 网络 | `crag-net`（bridge） |
 
 ### 5.2 `model-init` — 模型下载
@@ -142,39 +145,88 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | 通过 Python urllib 调用 `http://localhost:8001/health`，间隔 10s，超时 5s，重试 30 次，启动宽限期 120s |
 | 网络 | `crag-net` |
 
-### 5.4 `app` — Spring Boot 应用（默认模式）
+### 5.4 `access-service` — Access 服务
 
 | 属性 | 当前值 |
 | --- | --- |
-| 构建上下文 | `.`，Dockerfile: `Dockerfile`（多阶段：JDK 21 编译 → JRE 21 运行） |
-| 容器名 | `crag-app` |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-access-service` |
+| 容器名 | `crag-access-service` |
+| 端口 | 不暴露 |
+| 运行身份 | `appuser`（非 root） |
+| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=access`，账号 `crag_access` |
+| gRPC | 9091（内部） |
+| 就绪条件 | `db` 健康 |
+| 健康检查 | `curl http://localhost:8091/actuator/health/readiness` |
+| 网络 | `crag-net` |
+
+### 5.5 `knowledge-service` — Knowledge 服务
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-knowledge-service` |
+| 容器名 | `crag-knowledge-service` |
+| 端口 | 不暴露 |
+| 运行身份 | `appuser`（非 root） |
+| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge`，账号 `crag_knowledge` |
+| gRPC | 9092（内部） |
+| 就绪条件 | `db` 健康 |
+| 健康检查 | `curl http://localhost:8092/actuator/health/readiness` |
+| 网络 | `crag-net` |
+
+### 5.6 `rag-service` — RAG 服务
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-rag-service` |
+| 容器名 | `crag-rag-service` |
+| 端口 | `8082:8082`（兼容 AdminRag/UserQuery） |
+| 运行身份 | `appuser`（非 root） |
+| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions`，账号 `crag_rag` |
+| Sidecar | `http://sidecar:8001` |
+| gRPC | 9093（内部） |
+| 就绪条件 | `db` 健康 且 `sidecar` 健康 |
+| 健康检查 | `curl http://localhost:8082/actuator/health/readiness` |
+| 网络 | `crag-net` |
+
+### 5.7 `console-api` — Console API
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-console-api` |
+| 容器名 | `crag-console-api` |
 | 端口 | `8080:8080` |
 | 运行身份 | `appuser`（非 root） |
-| 数据库连接 | `jdbc:postgresql://db:5432/crag_demo`（通过 Compose 服务名） |
-| Sidecar 连接 | `http://sidecar:8001`（Embedding + Rerank，通过 Compose 服务名） |
-| 就绪条件 | `db` 健康 且 `sidecar` 健康 |
-| 健康检查 | `curl --fail --silent --show-error http://localhost:8080/actuator/health/readiness`，间隔 10s，超时 5s，重试 12 次，启动宽限期 30s |
-| Actuator | 只暴露 `health`；liveness 仅含 `livenessState`；readiness 含 `readinessState,db`；`show-details=never` |
-| 运行镜像工具 | 显式安装 `curl`（健康检查探针使用） |
+| 下游 Probe | Access/Knowledge/RAG |
+| 就绪条件 | 三个下游 Probe 全部通过 |
+| 健康检查 | `curl http://localhost:8080/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.5 `app-smoke` — Spring Boot 应用（Smoke 诊断模式）
+### 5.8 `open-api` — Open API
 
 | 属性 | 当前值 |
 | --- | --- |
-| 构建上下文 | `.`，Dockerfile: `Dockerfile`（与 `app` 相同镜像） |
-| 容器名 | `crag-app-smoke` |
-| 端口 | `8081:8080` |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-open-api` |
+| 容器名 | `crag-open-api` |
+| 端口 | `8081:8081` |
 | 运行身份 | `appuser`（非 root） |
-| Profile | `SPRING_PROFILES_ACTIVE=smoke`（显式激活诊断端点） |
-| 其他配置 | 数据库与 Sidecar 连接同 `app` |
-| 就绪条件 | `db` 健康 且 `sidecar` 健康 |
-| 健康检查 | 与 `app` 相同（同一镜像、同一正式健康端点） |
-| Compose Profile | `smoke`（不随默认 `docker compose up` 启动） |
-| Query 环境变量 | `CRAG_QUERY_LLM_PROVIDER`（stub）、`CRAG_QUERY_LLM_STUB_MODE`（success）<br>DeepSeek（可选，provider=deepseek 时须设置）：`DEEPSEEK_API_KEY`、`CRAG_QUERY_LLM_DEEPSEEK_BASE_URL`、`CRAG_QUERY_LLM_DEEPSEEK_MODEL`、`CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE`、`CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS`、`CRAG_QUERY_LLM_REQUEST_TIMEOUT` |
+| 下游 Probe | Access/RAG |
+| 就绪条件 | 两个下游 Probe 全部通过 |
+| 健康检查 | `curl http://localhost:8081/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.6 网络
+### 5.9 `rag-service-smoke` — RAG Smoke 诊断
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-rag-service` |
+| 容器名 | `crag-rag-service-smoke` |
+| 端口 | `8083:8082` |
+| Profile | `smoke` |
+| 就绪条件 | `db` 健康 且 `sidecar` 健康 |
+| Compose Profile | `smoke` |
+| 网络 | `crag-net` |
+
+### 5.10 网络
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -183,7 +235,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 
 ## 六、已知偏差
 
-无。`plan_10` 已完成 Actuator 健康端点和 Compose healthcheck 接入。
+无。`plan_14` 已完成五进程拓扑、独立 Schema 和通用 Dockerfile。
 
 ## 七、维护与自动校验
 

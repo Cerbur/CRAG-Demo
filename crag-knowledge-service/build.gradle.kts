@@ -12,9 +12,12 @@ dependencies {
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("com.h2database:h2")
 }
 
 tasks.named<Jar>("jar") { enabled = false }

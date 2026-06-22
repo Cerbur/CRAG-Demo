@@ -4,6 +4,18 @@ server:
 spring:
   application:
     name: access-service
+  datasource:
+    url: jdbc:postgresql://db:5432/crag_platform?currentSchema=access
+    username: crag_access
+    password: ${CARG_ACCESS_PASSWORD:access_demo}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  sql:
+    init:
+      mode: never
 
 crag:
   grpc:
@@ -28,4 +40,4 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState
+          include: readinessState,db,expectedSchema

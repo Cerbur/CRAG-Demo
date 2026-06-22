@@ -4,6 +4,18 @@ server:
 spring:
   application:
     name: knowledge-service
+  datasource:
+    url: jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge
+    username: crag_knowledge
+    password: ${CARG_KNOWLEDGE_PASSWORD:knowledge_demo}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  sql:
+    init:
+      mode: never
 
 crag:
   grpc:
@@ -27,4 +39,4 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState
+          include: readinessState,db,expectedSchema

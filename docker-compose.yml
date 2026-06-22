@@ -1,7 +1,6 @@
 # ============================================================
 # CRAG-Demo — Docker Compose 编排
-# 服务: db（PostgreSQL 17 + pgvector）+ sidecar（Python 模型服务）+ app（Spring Boot）
-# 网络: crag-net（bridge）
+# 五个 Java 服务 + PostgreSQL + Sidecar
 # ============================================================
 
 services:
@@ -10,16 +9,18 @@ services:
   db:
     image: pgvector/pgvector:pg17
     container_name: crag-db
-    ports:
-      - "5432:5432"
     environment:
-      POSTGRES_DB: crag_demo
-      POSTGRES_USER: crag_user
-      POSTGRES_PASSWORD: crag_pass
+      POSTGRES_DB: crag_platform
+      POSTGRES_USER: crag_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-admin_demo}
+      CARG_ACCESS_PASSWORD: ${CARG_ACCESS_PASSWORD:-access_demo}
+      CARG_KNOWLEDGE_PASSWORD: ${CARG_KNOWLEDGE_PASSWORD:-knowledge_demo}
+      CARG_RAG_PASSWORD: ${CARG_RAG_PASSWORD:-rag_demo}
     volumes:
-      - ./data/pgdata:/var/lib/postgresql/data
+      - ./data/pgdata-platform:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crag_user -d crag_demo"]
+      test: ["CMD-SHELL", "pg_isready -U crag_admin -d crag_platform"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -27,7 +28,6 @@ services:
       - crag-net
 
   # --- Python Sidecar Model Service ---
-  # 提供 /embed（gte Chinese embedding）和 /rerank（bge-reranker-v2-m3）
   model-init:
     build:
       context: ./sidecar
@@ -69,34 +69,126 @@ services:
       retries: 30
       start_period: 120s
 
-  # --- Spring Boot 应用（默认模式） ---
-  app:
+  # --- Access Service ---
+  access-service:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: crag-app
-    ports:
-      - "8080:8080"
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-access-service
+    container_name: crag-access-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/crag_demo
-      SPRING_DATASOURCE_USERNAME: crag_user
-      SPRING_DATASOURCE_PASSWORD: crag_pass
-      CRAG_EMBEDDING_SIDECAR_URL: http://sidecar:8001
-      CRAG_RERANK_SIDECAR_URL: http://sidecar:8001
-      # Query LLM — Stub 模式（默认，无需凭据）
+      SPRING_APPLICATION_JSON: >
+        {
+          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=access",
+          "spring.datasource.username": "crag_access",
+          "spring.datasource.password": "${CARG_ACCESS_PASSWORD:-access_demo}",
+          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
+          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}"
+        }
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8091/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - crag-net
+
+  # --- Knowledge Service ---
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-knowledge-service
+    container_name: crag-knowledge-service
+    environment:
+      SPRING_APPLICATION_JSON: >
+        {
+          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge",
+          "spring.datasource.username": "crag_knowledge",
+          "spring.datasource.password": "${CARG_KNOWLEDGE_PASSWORD:-knowledge_demo}",
+          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}"
+        }
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8092/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - crag-net
+
+  # --- RAG Service ---
+  rag-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-rag-service
+    container_name: crag-rag-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_APPLICATION_JSON: >
+        {
+          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions",
+          "spring.datasource.username": "crag_rag",
+          "spring.datasource.password": "${CARG_RAG_PASSWORD:-rag_demo}",
+          "crag.embedding.sidecar-url": "http://sidecar:8001",
+          "crag.rerank.sidecar-url": "http://sidecar:8001",
+          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
+          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}"
+        }
       CRAG_QUERY_LLM_PROVIDER: ${CRAG_QUERY_LLM_PROVIDER:-stub}
       CRAG_QUERY_LLM_STUB_MODE: ${CRAG_QUERY_LLM_STUB_MODE:-success}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      # 设置 CRAG_QUERY_LLM_PROVIDER=deepseek 并定义以下变量以启用 DeepSeek：
-      # CRAG_QUERY_LLM_DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
-      # CRAG_QUERY_LLM_DEEPSEEK_MODEL=deepseek-v4-flash
-      # CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE=0
-      # CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS=4096
-      # CRAG_QUERY_LLM_REQUEST_TIMEOUT=120s
     depends_on:
       db:
         condition: service_healthy
       sidecar:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8082/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - crag-net
+
+  # --- Console API ---
+  console-api:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-console-api
+    container_name: crag-console-api
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_APPLICATION_JSON: >
+        {
+          "crag.grpc.client.caller-service": "console-api",
+          "crag.grpc.client.token": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
+          "crag.grpc.probe.targets.access-service": "access-service:9091",
+          "crag.grpc.probe.targets.knowledge-service": "knowledge-service:9092",
+          "crag.grpc.probe.targets.rag-service": "rag-service:9093"
+        }
+    depends_on:
+      access-service:
+        condition: service_healthy
+      knowledge-service:
+        condition: service_healthy
+      rag-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8080/actuator/health/readiness"]
@@ -107,38 +199,69 @@ services:
     networks:
       - crag-net
 
-  # --- Spring Boot 应用（smoke Profile，显式启用诊断端点） ---
-  app-smoke:
+  # --- Open API ---
+  open-api:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: crag-app-smoke
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-open-api
+    container_name: crag-open-api
     ports:
-      - "8081:8080"
+      - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/crag_demo
-      SPRING_DATASOURCE_USERNAME: crag_user
-      SPRING_DATASOURCE_PASSWORD: crag_pass
-      CRAG_EMBEDDING_SIDECAR_URL: http://sidecar:8001
-      CRAG_RERANK_SIDECAR_URL: http://sidecar:8001
-      # Query LLM — Stub 模式（默认，无需凭据）
+      SPRING_APPLICATION_JSON: >
+        {
+          "crag.grpc.client.caller-service": "open-api",
+          "crag.grpc.client.token": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}",
+          "crag.grpc.probe.targets.access-service": "access-service:9091",
+          "crag.grpc.probe.targets.rag-service": "rag-service:9093"
+        }
+    depends_on:
+      access-service:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8081/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - crag-net
+
+  # --- RAG Service Smoke (Profile) ---
+  rag-service-smoke:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-rag-service
+    container_name: crag-rag-service-smoke
+    ports:
+      - "8083:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: smoke
+      SPRING_APPLICATION_JSON: >
+        {
+          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions",
+          "spring.datasource.username": "crag_rag",
+          "spring.datasource.password": "${CARG_RAG_PASSWORD:-rag_demo}",
+          "crag.embedding.sidecar-url": "http://sidecar:8001",
+          "crag.rerank.sidecar-url": "http://sidecar:8001",
+          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
+          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}"
+        }
       CRAG_QUERY_LLM_PROVIDER: ${CRAG_QUERY_LLM_PROVIDER:-stub}
       CRAG_QUERY_LLM_STUB_MODE: ${CRAG_QUERY_LLM_STUB_MODE:-success}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      # 设置 CRAG_QUERY_LLM_PROVIDER=deepseek 并定义以下变量以启用 DeepSeek：
-      # CRAG_QUERY_LLM_DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
-      # CRAG_QUERY_LLM_DEEPSEEK_MODEL=deepseek-v4-flash
-      # CRAG_QUERY_LLM_DEEPSEEK_TEMPERATURE=0
-      # CRAG_QUERY_LLM_DEEPSEEK_MAX_OUTPUT_TOKENS=4096
-      # CRAG_QUERY_LLM_REQUEST_TIMEOUT=120s
-      SPRING_PROFILES_ACTIVE: smoke
     depends_on:
       db:
         condition: service_healthy
       sidecar:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8080/actuator/health/readiness"]
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8082/actuator/health/readiness"]
       interval: 10s
       timeout: 5s
       retries: 12

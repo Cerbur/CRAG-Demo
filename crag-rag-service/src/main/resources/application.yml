@@ -5,9 +5,9 @@ spring:
   application:
     name: rag-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/crag_demo
-    username: crag_user
-    password: crag_pass
+    url: jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions
+    username: crag_rag
+    password: ${CARG_RAG_PASSWORD:rag_demo}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -24,12 +24,12 @@ spring:
 
 crag:
   embedding:
-    sidecar-url: http://localhost:8001
+    sidecar-url: http://sidecar:8001
     embed-path: /embed
     connect-timeout: 5s
     read-timeout: 30s
   rerank:
-    sidecar-url: http://localhost:8001
+    sidecar-url: http://sidecar:8001
     rerank-path: /rerank
     connect-timeout: 5s
     read-timeout: 30s
@@ -76,4 +76,4 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState,db
+          include: readinessState,db,expectedSchema
