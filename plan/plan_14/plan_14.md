@@ -148,7 +148,7 @@ updated: 2026-06-22
 
 ### PostgreSQL、Docker 与回归
 
-- `docker/postgres/init/001-platform.sh`：创建 `extensions`、三个业务角色及其自有 Schema，随后撤销临时建 Schema 权限。
+- `docker/postgres/init/001-platform.sh`：在镜像通过 `POSTGRES_DB=crag_platform` 创建的数据库内建立 `extensions`、三个业务角色及其自有 Schema，随后撤销临时建 Schema 权限；脚本自身不执行 `CREATE DATABASE`。
 - `crag-rag-service/src/main/resources/schema.sql`：只创建 RAG 三张表与索引，不创建扩展。
 - `docker/java-service.Dockerfile`：以单一 `SERVICE_MODULE` 参数构建和运行五种 Boot Jar。
 - `docker-compose.yml`：五个 Java 服务、数据库、模型初始化、Sidecar 和 Smoke Profile 的唯一编排。
@@ -255,6 +255,7 @@ public interface GrpcChannelFactory {
 ### 数据隔离
 
 - 单个 PostgreSQL 实例内建立数据库 `crag_platform`。
+- `crag_platform` 由 PostgreSQL 镜像入口通过 `POSTGRES_DB=crag_platform` 创建；初始化脚本只在该数据库内管理角色、扩展、Schema 与权限，不自行创建数据库或切换连接。
 - Schema 与账号固定为：
 
 | 服务 | Schema | 账号 |
@@ -474,7 +475,7 @@ Open API 使用同一结构但只包含 Access/RAG，并把 caller 固定为 `op
 
 **目标**：在真实 PostgreSQL、Sidecar 和 Docker 网络中启动五个 Java 进程，并证明服务账号、Schema、身份和启动依赖隔离。  
 **前置任务**：14.3  
-**范围**：创建受控 Shell 初始化脚本，建立 `crag_platform`、`extensions`、三个独立密码账号、自有 Schema、默认 search_path 和最小权限；为 Access/Knowledge/RAG 配置独立 DataSource，Access/Knowledge 不启用 SQL 初始化，RAG Schema 删除扩展创建语句并保持三张业务表不变；为三个服务增加 `current_schema()` readiness；创建单参数 `docker/java-service.Dockerfile`，删除旧 Dockerfile；重写 Compose 服务、端口、健康检查、调用方凭据、依赖顺序和 `pgdata-platform` 挂载；保留 model-init/sidecar 与 Sidecar 8001；将 app-smoke 改为 `rag-service-smoke`。
+**范围**：通过 PostgreSQL 镜像的 `POSTGRES_DB=crag_platform` 创建数据库；创建受控 Shell 初始化脚本，在该数据库内建立 `extensions`、三个独立密码账号、自有 Schema、默认 search_path 和最小权限；为 Access/Knowledge/RAG 配置独立 DataSource，Access/Knowledge 不启用 SQL 初始化，RAG Schema 删除扩展创建语句并保持三张业务表不变；为三个服务增加 `current_schema()` readiness；创建单参数 `docker/java-service.Dockerfile`，删除旧 Dockerfile；重写 Compose 服务、端口、健康检查、调用方凭据、依赖顺序和 `pgdata-platform` 挂载；保留 model-init/sidecar 与 Sidecar 8001；将 app-smoke 改为 `rag-service-smoke`。
 **非目标**：不增加 Redis；不把内部 gRPC/Actuator 端口暴露到宿主机；不创建业务表；不迁移旧数据库；不改变 Sidecar 模型或协议；不把 Demo token 描述为生产 Secret 方案。  
 **验收标准**：默认 Compose 包含五个目标 Java 服务且全部 healthy；Console/Open readiness 通过受保护 Probe；错误 token 使目标 Probe 返回 `UNAUTHENTICATED`；三个数据库账号分别拥有自身 Schema且只能在自身 Schema 建表/查询；管理员密码不出现在 Java 容器；RAG 旧 HTTP 入口在 8082 可用；所有 Java 容器使用非 root 用户和正确 Jar；普通 down 后 `pgdata-platform` 保留；旧 `data/pgdata` 未修改。
 **验证方式**：运行五个 `bootJar`、`docker compose config`、`docker compose up -d --build`；检查 `docker compose ps`、容器用户、内部端口和健康状态；通过 `psql` 分别执行同 Schema 成功与跨 Schema 失败断言；调用 Console/Open/RAG readiness；传入错误 token 执行 Probe 失败断言；最后普通 `docker compose down`。  
@@ -491,7 +492,7 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 **实施步骤**：
 
 - [ ] 先扩展约束/脚本单测，断言初始化脚本引用三个独立密码变量、创建 `extensions`、设置 owner/search_path、撤销临时权限，Compose 不暴露数据库和内部服务端口且使用 `data/pgdata-platform/`；运行 unittest，预期失败。
-- [ ] 实现 `001-platform.sh`：管理员创建扩展 Schema和扩展；创建三角色；临时授予数据库 `CREATE`；分别 `SET ROLE` 创建自有 Schema；撤销数据库 `CREATE` 与 public `CREATE`；设置默认 search_path和最小权限。
+- [ ] 在 Compose 中设置 `POSTGRES_DB=crag_platform`；实现 `001-platform.sh`，只在当前数据库内由管理员创建扩展 Schema和扩展、创建三角色、临时授予数据库 `CREATE`、分别 `SET ROLE` 创建自有 Schema、撤销数据库 `CREATE` 与 public `CREATE`，并设置默认 search_path和最小权限；脚本不得执行 `CREATE DATABASE`。
 - [ ] 配置三个独立 DataSource；Access/Knowledge 禁用 SQL init，RAG 的 `schema.sql` 删除 `CREATE EXTENSION` 并保持现有表、索引和 UUID 字段不变。
 - [ ] 为三个服务实现 `ExpectedSchemaHealthIndicator`，查询 `SELECT current_schema()`；加入 readiness，Schema 不符时 DOWN且不尝试修复。
 - [ ] 创建只接受 `SERVICE_MODULE` 的通用 Dockerfile并删除旧 Dockerfile；逐个运行五个 `bootJar`，断言各模块 `build/libs` 只有目标 Boot Jar。
