@@ -27,8 +27,12 @@
 | `db` | PostgreSQL 17 + pgvector，提供持久化与向量检索能力 | 禁止承载业务逻辑 |
 | `model-init` | 一次性下载 Sidecar 所需模型到共享卷，成功后退出 | 禁止伪装健康检查；禁止作为长期服务运行 |
 | `sidecar` | Python 模型推理服务，提供 `/embed` 与 `/rerank` | 禁止承载业务编排或直接访问数据库 |
-| `app` | Spring Boot 应用，承载全部业务能力 | 禁止在默认 Profile 下暴露诊断端点 |
-| `app-smoke` | 仅在显式激活 Smoke Profile 时存在的应用实例，提供分阶段诊断端点 | 禁止在默认启动中出现；禁止承载正式业务能力 |
+| `rag-service` | RAG 业务组合根，承载检索、入库、查询和兼容 HTTP 入口 | 禁止被其他 Application 模块直接依赖 |
+| `access-service` | Access 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
+| `knowledge-service` | Knowledge 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
+| `console-api` | Console HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
+| `open-api` | Open HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
+| `rag-service-smoke` | 仅在显式激活 Smoke Profile 时存在的 RAG 诊断实例 | 禁止在默认启动中出现；禁止承载正式业务能力 |
 
 ### 3.2 依赖方向与启动顺序
 
@@ -36,24 +40,28 @@
 
 ```
 model-init（成功退出） → sidecar（健康）
-db（健康） ───────────── → app（健康）
-sidecar（健康） ───────── → app（健康）
+db（健康） ───────────── → rag-service / access-service / knowledge-service（健康）
+sidecar（健康） ───────── → rag-service（健康）
+db + sidecar 健康 ────── → rag-service（健康）
+access / knowledge / rag 健康 → console-api / open-api（健康）
 ```
 
 - `model-init` 以成功退出作为 `sidecar` 的就绪条件。
-- `db` 和 `sidecar` 以健康检查通过作为 `app` 的就绪条件。
-- `app-smoke` 的依赖链与 `app` 相同。
+- `db` 和 `sidecar` 以健康检查通过作为 `rag-service` 的就绪条件。
+- `db` 以健康检查通过作为 `access-service` 和 `knowledge-service` 的就绪条件。
+- `console-api` 和 `open-api` 以下游 Platform Probe 通过作为就绪条件。
+- `rag-service-smoke` 的依赖链与 `rag-service` 相同。
 
 ### 3.3 健康检查
 
-- 长期运行服务（`db`、`sidecar`、`app`）必须具有验证真实可服务状态的健康检查。
+- 长期运行服务（`db`、`sidecar`、五个 Java 服务）必须具有验证真实可服务状态的健康检查。
 - 一次性任务（`model-init`）以成功退出作为就绪条件，不伪造健康检查。
-- `app` 必须使用独立正式健康端点，不得依赖 `/api/v1/test/**` 或 Smoke 诊断端点。
+- Java 服务必须使用独立正式健康端点，不得依赖 `/api/v1/test/**` 或 Smoke 诊断端点。
 - Sidecar 使用其 `/health` 端点进行健康检查。
 
 ### 3.4 运行身份
 
-- `app` 和 `sidecar` 必须以非 root 用户运行。
+- Java 服务和 `sidecar` 必须以非 root 用户运行。
 - `model-init` 只有在共享模型目录写权限确有需要时才可显式使用 root，并必须保留原因说明。
 
 ### 3.5 配置注入
@@ -65,7 +73,7 @@ sidecar（健康） ───────── → app（健康）
 ### 3.6 镜像构建
 
 - 基础镜像不得使用 `latest`；当前阶段固定明确发行标签。
-- `app` 使用多阶段构建，运行镜像不得包含 JDK、源码或构建缓存。
+- Java 服务使用多阶段构建，运行镜像不得包含 JDK、源码或构建缓存。
 - 构建上下文必须排除 `data/`、`.models/`、`.env` 等本地持久化或凭据目录。
 
 ### 3.7 网络

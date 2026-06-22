@@ -137,10 +137,15 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 ├── crag-ingestion/   # 写入链路：AdminRag、ChunkSplit、Sparse/Dense 索引 Cron
 ├── crag-retrieval/   # 检索层：Sparse/Dense 查询、RRF 融合、Rerank、Embedding Client
 ├── crag-query/       # 查询编排：UserQuery、Prompt 组装、LLM 调用
-├── crag-admin/       # 管理端：知识库管理、文档 CRUD 的领域服务
 ├── crag-api/         # HTTP 层：Controller、请求 DTO、异常映射
-├── crag-app/         # 唯一启动模块：application.yml、Docker 入口、数据初始化
 ├── crag-smoke/       # Smoke 诊断：独立 Profile 的诊断端点与验证脚本
+├── crag-platform-contracts/  # 跨领域通用 Protobuf 基础契约（Platform Probe）
+├── crag-grpc-runtime/       # 协议无关 gRPC Server/Client 生命周期、认证、Health
+├── crag-rag-service/        # RAG 业务组合根、兼容 HTTP 所有者、gRPC Server
+├── crag-access-service/     # Access 组合根、gRPC Server、Schema readiness
+├── crag-knowledge-service/  # Knowledge 组合根、gRPC Server、Schema readiness
+├── crag-console-api/        # Console HTTP 入口、下游 Probe readiness
+├── crag-open-api/           # Open HTTP 入口、下游 Probe readiness
 ├── sidecar/          # Python 模型 Sidecar：/embed（gte）、/rerank（bge-reranker）
 ├── plan/             # 项目规划文档与设计决策
 ├── constraints/      # 编码规范与架构约束
@@ -161,7 +166,7 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 | 嵌入模型 | gte (GTE Chinese) | 中文句向量，Python Sidecar 托管 |
 | 重排模型 | bge-reranker-v2-m3 | 跨语言重排序，Python Sidecar 托管 |
 | LLM | Stub / DeepSeek | Stub 免 Key 调试；DeepSeek 生产可用 |
-| 容器 | Docker + Compose | 4 个服务一键编排 |
+| 容器 | Docker + Compose | 五进程拓扑一键编排 |
 
 ## 📄 许可证
 

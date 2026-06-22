@@ -168,6 +168,74 @@ def check_compose_services(root: Path) -> list[Diagnostic]:
 
 
 # ---------------------------------------------------------------------------
+# Check 3b – Topology test script existence
+# ---------------------------------------------------------------------------
+
+def check_topology_script(root: Path) -> list[Diagnostic]:
+    """Verify platform_topology_test.sh exists."""
+    script = root / "scripts" / "tests" / "http" / "platform_topology_test.sh"
+    if not script.exists():
+        return [Diagnostic("ERROR", "TOPOLOGY_SCRIPT_MISSING",
+                           "scripts/tests/http/platform_topology_test.sh 不存在。"
+                           "plan_14 要求该脚本用于平台拓扑验收。")]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# Check 3c – Internal port exposure
+# ---------------------------------------------------------------------------
+
+INTERNAL_ONLY_SERVICES = {
+    "access-service",
+    "knowledge-service",
+}
+
+def check_internal_port_exposure(root: Path) -> list[Diagnostic]:
+    """Verify internal-only services don't expose ports to host."""
+    compose_path = root / "docker-compose.yml"
+    if not compose_path.exists():
+        return []
+
+    text = compose_path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    diagnostics: list[Diagnostic] = []
+
+    current_service: str | None = None
+    in_ports = False
+
+    for line in lines:
+        # Detect service start (indented by exactly 2 spaces)
+        svc_match = re.match(r"^  ([a-zA-Z0-9_-]+):\s*$", line)
+        if svc_match:
+            current_service = svc_match.group(1)
+            in_ports = False
+            continue
+
+        if current_service is None:
+            continue
+
+        # Detect ports section under current service
+        if re.match(r"^    ports:\s*$", line):
+            in_ports = True
+            continue
+
+        # Detect end of ports section (new key at same or lower indent)
+        if in_ports and re.match(r"^    [a-zA-Z]", line):
+            in_ports = False
+
+        # Check for host port mapping under internal-only service
+        if in_ports and current_service in INTERNAL_ONLY_SERVICES:
+            if re.match(r'^\s+-\s+"?\d+:\d+"?', line):
+                diagnostics.append(
+                    Diagnostic("ERROR", "INTERNAL_PORT_EXPOSED",
+                               f"Compose 服务 \"{current_service}\" 不应暴露端口到宿主机。"
+                               "内部服务端口只能在 Compose 私有网络内访问。"))
+                in_ports = False  # Only report once per service
+
+    return diagnostics
+
+
+# ---------------------------------------------------------------------------
 # Check 4 – Deprecated / prohibited terms
 # ---------------------------------------------------------------------------
 
@@ -206,6 +274,23 @@ DEPRECATED_TERMS: list[tuple[str, str, str, str, dict[str, str]]] = [
         r"crag-admin.*已重命名|"
         r"`crag-admin`\s*[→]\s*`crag-api`|"
         r"旧模块.*crag-admin|crag-admin.*旧模块",
+        {},
+    ),
+    (
+        "app-smoke",
+        "rag-service-smoke（当前 Compose 服务名）",
+        "TERM_DEPRECATED",
+        # Allowed only in historical/Plan references or migration notices.
+        r"历史|归档|plan_|Plan |hotfix|迁移|替代|旧|原",
+        # Skip plan files and docker_readiness_test.sh (which may reference migration).
+        {},
+    ),
+    (
+        "crag-app",
+        "五个独立 Application 组合根（crag-rag-service 等）",
+        "TERM_DEPRECATED",
+        # Allowed only in historical/Plan references or migration notices.
+        r"历史|归档|plan_|Plan |hotfix|迁移|替代|旧|原|已删除|不再",
         {},
     ),
 ]
@@ -252,6 +337,8 @@ def validate(root: Path) -> list[Diagnostic]:
     diagnostics.extend(check_entry_identity(root))
     diagnostics.extend(check_links(root))
     diagnostics.extend(check_compose_services(root))
+    diagnostics.extend(check_topology_script(root))
+    diagnostics.extend(check_internal_port_exposure(root))
     diagnostics.extend(check_terms(root))
     return diagnostics
 

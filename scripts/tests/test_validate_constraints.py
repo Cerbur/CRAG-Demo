@@ -186,5 +186,83 @@ class TestCheckTerms(unittest.TestCase):
             self.assertGreaterEqual(len(crag_admin_errors), 1)
 
 
+class TestCheckTopologyScript(unittest.TestCase):
+    def test_pass_exists(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            script_dir = root / "scripts" / "tests" / "http"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            (script_dir / "platform_topology_test.sh").write_text("#!/bin/bash\n", encoding="utf-8")
+            diags = vc.check_topology_script(root)
+            self.assertEqual([], diags)
+
+    def test_fail_missing(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            diags = vc.check_topology_script(root)
+            self.assertEqual(1, len(diags))
+            self.assertEqual("TOPOLOGY_SCRIPT_MISSING", diags[0].code)
+
+
+class TestCheckInternalPortExposure(unittest.TestCase):
+    def test_pass_no_ports(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "docker-compose.yml").write_text(
+                textwrap.dedent("""\
+                    services:
+                      access-service:
+                        image: java
+                      knowledge-service:
+                        image: java
+                """),
+                encoding="utf-8",
+            )
+            diags = vc.check_internal_port_exposure(root)
+            self.assertEqual([], diags)
+
+    def test_fail_exposed_port(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "docker-compose.yml").write_text(
+                textwrap.dedent("""\
+                    services:
+                      access-service:
+                        image: java
+                        ports:
+                          - "9091:9091"
+                """),
+                encoding="utf-8",
+            )
+            diags = vc.check_internal_port_exposure(root)
+            self.assertEqual(1, len(diags))
+            self.assertEqual("INTERNAL_PORT_EXPOSED", diags[0].code)
+            self.assertIn("access-service", diags[0].message)
+
+
+class TestCheckTermsAppSmoke(unittest.TestCase):
+    def test_fail_app_smoke_in_constraint(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "constraints").mkdir(parents=True, exist_ok=True)
+            (root / "constraints/docker-old.md").write_text(
+                "启动 app-smoke 服务。\n", encoding="utf-8"
+            )
+            diags = vc.check_terms(root)
+            app_smoke_errors = [d for d in diags if "app-smoke" in d.message]
+            self.assertGreaterEqual(len(app_smoke_errors), 1)
+
+    def test_pass_app_smoke_in_plan_context(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "constraints").mkdir(parents=True, exist_ok=True)
+            (root / "constraints/docker-old.md").write_text(
+                "旧 app-smoke 已由 rag-service-smoke 替代。\n", encoding="utf-8"
+            )
+            diags = vc.check_terms(root)
+            app_smoke_errors = [d for d in diags if "app-smoke" in d.message]
+            self.assertEqual([], app_smoke_errors)
+
+
 if __name__ == "__main__":
     unittest.main()

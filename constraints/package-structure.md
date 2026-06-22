@@ -17,9 +17,9 @@
 - **模块**：`settings.gradle.kts` 中声明的 Gradle subproject。
 - **公开 API**：普通业务模块允许跨模块引用的 Java 类型，统一位于被依赖模块的 `api` 包及其子包。
 - **内部实现**：不属于公开 API 的类型。即使 Java 可见性为 `public`，也不得被普通业务模块跨模块引用。
-- **组合根**：负责组装 Spring Bean 和生成唯一可启动 jar 的 `crag-app`。
+- **组合根**：负责组装 Spring Bean 和生成唯一可启动 jar 的 Application 模块。当前包括 `crag-rag-service`、`crag-access-service`、`crag-knowledge-service`、`crag-console-api` 和 `crag-open-api`。
 - **诊断例外**：`crag-smoke` 为分阶段冒烟诊断而获得的受控跨层访问权限。
-- **普通业务模块**：除 `crag-app` 和 `crag-smoke` 外的模块。
+- **普通业务模块**：除 Application 组合根和 `crag-smoke` 外的模块。
 
 `api` 表示跨模块可见边界，不表示其中的类型必须是 Java `interface`。只有存在替换实现、远程调用或第三方适配边界时才抽象接口；禁止为单一实现机械创建 `XxxService` / `XxxServiceImpl`。
 
@@ -37,14 +37,14 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-api` | 正式 HTTP Controller、请求 DTO、校验与统一异常转换 | 禁止承载业务逻辑、直接访问 DAO 或检索内部组件 |
 | `crag-smoke` | 仅在 `smoke` Profile 下启用的冒烟与分阶段诊断端点 | 禁止承载正式业务能力、默认启用、被业务模块依赖或生成独立启动 jar |
 | `crag-platform-contracts` | 跨领域通用 Protobuf 基础契约（Platform Probe） | 禁止 Spring、Runtime 或业务依赖 |
-| `crag-grpc-runtime` | 协无关 gRPC Server/Client 生命周期、认证、Health、deadline | 禁止依赖 Contracts 或业务模块 |
+| `crag-grpc-runtime` | 协议无关 gRPC Server/Client 生命周期、认证、Health、deadline | 禁止依赖 Contracts 或业务模块 |
 | `crag-access-service` | Access 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务模块依赖 |
 | `crag-knowledge-service` | Knowledge 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务模块依赖 |
 | `crag-rag-service` | RAG 业务组合根、兼容 HTTP 所有者、gRPC Server、Platform Probe | 禁止被 Access/Knowledge 依赖 |
 | `crag-console-api` | Console HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `crag-open-api` | Open HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 
-`crag-app` 是唯一 Spring Boot 启动模块和唯一可启动 jar。其他模块均为 library module。
+五个 Application 组合根各自生成独立可启动 jar。业务模块均为 library module。
 
 ## 四、模块依赖白名单
 
@@ -59,12 +59,16 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-query` | `crag-retrieval`、`crag-common` |
 | `crag-api` | `crag-ingestion`、`crag-query`、`crag-common` |
 | `crag-smoke` | `crag-api`、`crag-ingestion`、`crag-query`、`crag-retrieval`、`crag-storage`、`crag-common` |
-| `crag-app` | 为运行时装配依赖全部应用模块；不得据此在 Java 代码中调用业务类型 |
+| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-api`、`crag-ingestion`、`crag-retrieval`、`crag-query`、`crag-storage`、`crag-smoke`、`crag-common` |
+| `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-knowledge-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-open-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 
 附加硬约束：
 
 - 禁止任何模块循环依赖。
-- `crag-app` 的装配依赖不授予业务调用权限。
+- Application 组合根的装配依赖不授予业务调用权限。
 - `crag-smoke` 的诊断依赖是唯一跨层例外，不得作为其他模块越界调用的依据。
 - 新增或调整项目依赖时，必须先更新对应 Plan 和本文档，再修改 `settings.gradle.kts` 或模块 `build.gradle.kts`。
 
@@ -145,7 +149,7 @@ ai.cerbur.crag.query.api
 
 - Controller 和相关 Bean 必须统一受 `@Profile("smoke")` 限制。
 - 默认应用启动不得暴露 `/api/v1/test/**`。
-- 只允许通过显式 smoke Docker Compose 启动方式激活：`docker compose --profile smoke up -d --build app-smoke`。
+- 只允许通过显式 smoke Docker Compose 启动方式激活：`docker compose --profile smoke up -d --build rag-service-smoke`。
 - 允许直接调用 DAO、Sparse/Dense/RRF/Rerank 等内部组件，但每个端点必须明确标注验证阶段。
 - 禁止在冒烟端点中实现正式业务规则，禁止被正式 API 复用。
 - 单元测试仍保留在各业务模块；`crag-smoke` 不替代单元测试或正式 API 的端到端测试。
