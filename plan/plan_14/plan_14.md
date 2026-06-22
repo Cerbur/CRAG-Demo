@@ -198,6 +198,7 @@ message PlatformProbeResponse {
 ### gRPC Runtime 边界与接口
 
 - `crag-grpc-runtime` 完全协议无关，不依赖 `crag-probe-contracts` 或任何领域 Contracts；它只依赖 grpc-java、Spring Context 和配置绑定所需最小库。
+- 上述协议无关边界同样适用于测试依赖：Runtime 测试使用测试源码内的专属 `BindableService` 验证认证、deadline、Health 和生命周期，不依赖 Probe Contracts；生成 Probe 契约的组合验证放在 Contracts 或 Application 模块。
 - Runtime 提供两个独立显式导入入口：
   - `GrpcServerConfiguration`：创建 Server、注册标准 Health、收集 Application 显式声明的 `BindableService` Bean并统一附加认证拦截器。
   - `GrpcClientConfiguration`：提供 `GrpcChannelFactory`、单一调用方身份和 deadline 守卫；不自动读取 target 列表或创建 Channel。
@@ -329,7 +330,7 @@ public interface GrpcChannelFactory {
 
 - 纯单元测试：
   - `crag-grpc-runtime` 覆盖合法身份、缺失 Metadata、未知 caller、错误 token、固定时长比较入口、deadline 和关闭行为。
-  - Probe 测试 Application 覆盖响应中的服务端名称与认证 caller，证明 Runtime 与 Contracts 可组合但互不依赖。
+  - Runtime 测试使用测试专属 `BindableService` 覆盖认证、deadline、匿名 Health 和生命周期；生成 Probe 契约的组合验证由 Contracts 或 Application 模块承担。
   - 数据库初始化脚本解析测试覆盖 `extensions`、三个 Schema owner、三个账号、临时 `CREATE` 授予/撤销、默认 `search_path` 和密码变量引用。
 - 轻量组件测试：
   - 五个 Application Context 分别启动；API Context 无 DataSource，Access/Knowledge 无 RAG Bean，RAG 保持现有 JPA/Scheduling/API Bean。
@@ -402,7 +403,7 @@ public interface GrpcChannelFactory {
 - [ ] 创建 `platform_probe.proto` 和 Contracts 构建文件；运行 `./gradlew :crag-probe-contracts:generateProto`，预期生成 `PlatformProbeServiceGrpc`、请求和响应类型且无 Spring 类路径。
 - [ ] 先编写认证拦截器、caller Context、配置绑定和 deadline 守卫的纯单元测试，覆盖合法/缺失/未知/错误凭据、空配置、无 deadline、超过 10 秒和日志脱敏；运行 `:crag-grpc-runtime:test`，预期测试因生产类型不存在而失败。
 - [ ] 实现最小 Runtime 类型，使上述单元测试通过；token 使用 UTF-8 字节与固定时长比较，认证结果只写入 `io.grpc.Context`。
-- [ ] 增加 in-process Probe 测试 Application，显式声明 `BindableService`，验证匿名 Health 和受认证 Probe；该测试实现只位于测试源码，Runtime 主代码不得导入 Probe 生成类。
+- [ ] 增加 in-process 测试 Application，使用 Runtime 测试源码内的专属 `BindableService` 验证匿名 Health 和受认证调用；Runtime 的主代码与测试代码均不得依赖 Probe 生成类。
 - [ ] 增加 loopback 端口 `0` 生命周期测试，验证 `SERVING → NOT_SERVING`、Spring Context 关闭后 Server/Channel 在配置超时内终止。
 - [ ] 运行本任务全部验证；创建实现提交 `feat(plan_14/14.1): add probe contracts and grpc runtime`。
 
