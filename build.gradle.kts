@@ -2,6 +2,7 @@ plugins {
     `java-base`
     id("com.diffplug.spotless") version "8.7.0" apply false
     alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.protobuf) apply false
 }
 
 group = "ai.cerbur.crag"

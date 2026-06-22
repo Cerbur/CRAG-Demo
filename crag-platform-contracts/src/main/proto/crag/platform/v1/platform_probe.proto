@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package crag.platform.v1;
+
+option java_package = "ai.cerbur.crag.contracts.platform.v1";
+option java_multiple_files = true;
+
+service PlatformProbeService {
+  rpc Check(PlatformProbeRequest) returns (PlatformProbeResponse);
+}
+
+message PlatformProbeRequest {}
+
+message PlatformProbeResponse {
+  string service_name = 1;
+  string caller_service = 2;
+}

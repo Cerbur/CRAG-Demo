@@ -264,6 +264,102 @@ include("crag-common")
         errors = [item for item in diagnostics if item.level == "ERROR"]
         self.assertEqual([], errors)
 
+    def test_contracts_module_passes_with_no_deps(self):
+        """crag-platform-contracts with no project dependencies passes."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = """\
+rootProject.name = "test"
+include("crag-platform-contracts")
+"""
+            (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
+            (root / ".git").mkdir(exist_ok=True)
+            mod_dir = root / "crag-platform-contracts"
+            mod_dir.mkdir(parents=True)
+            (mod_dir / "build.gradle.kts").write_text(BUILD_NO_DEPS, encoding="utf-8")
+            diagnostics = self.validator.validate(root)
+        errors = [item for item in diagnostics if item.level == "ERROR"]
+        self.assertEqual([], errors)
+
+    def test_contracts_module_rejects_spring_dep(self):
+        """crag-platform-contracts must not depend on any business module."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = """\
+rootProject.name = "test"
+include("crag-platform-contracts", "crag-common")
+"""
+            (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
+            (root / ".git").mkdir(exist_ok=True)
+            mod_dir = root / "crag-platform-contracts"
+            mod_dir.mkdir(parents=True)
+            (mod_dir / "build.gradle.kts").write_text(
+                """\
+plugins { `java-library` }
+dependencies {
+    implementation(project(":crag-common"))
+}
+""",
+                encoding="utf-8",
+            )
+            common_dir = root / "crag-common"
+            common_dir.mkdir(parents=True)
+            (common_dir / "build.gradle.kts").write_text(BUILD_NO_DEPS, encoding="utf-8")
+            diagnostics = self.validator.validate(root)
+        errors = [item for item in diagnostics if item.level == "ERROR"]
+        self.assertTrue(
+            any("crag-platform-contracts" in err.message for err in errors),
+            f"Expected error about crag-platform-contracts, got: {errors}",
+        )
+
+    def test_runtime_module_passes_with_no_deps(self):
+        """crag-grpc-runtime with no project dependencies passes."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = """\
+rootProject.name = "test"
+include("crag-grpc-runtime")
+"""
+            (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
+            (root / ".git").mkdir(exist_ok=True)
+            mod_dir = root / "crag-grpc-runtime"
+            mod_dir.mkdir(parents=True)
+            (mod_dir / "build.gradle.kts").write_text(BUILD_NO_DEPS, encoding="utf-8")
+            diagnostics = self.validator.validate(root)
+        errors = [item for item in diagnostics if item.level == "ERROR"]
+        self.assertEqual([], errors)
+
+    def test_runtime_module_rejects_contracts_dep(self):
+        """crag-grpc-runtime must not depend on crag-platform-contracts."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = """\
+rootProject.name = "test"
+include("crag-grpc-runtime", "crag-platform-contracts")
+"""
+            (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
+            (root / ".git").mkdir(exist_ok=True)
+            mod_dir = root / "crag-grpc-runtime"
+            mod_dir.mkdir(parents=True)
+            (mod_dir / "build.gradle.kts").write_text(
+                """\
+plugins { `java-library` }
+dependencies {
+    implementation(project(":crag-platform-contracts"))
+}
+""",
+                encoding="utf-8",
+            )
+            contracts_dir = root / "crag-platform-contracts"
+            contracts_dir.mkdir(parents=True)
+            (contracts_dir / "build.gradle.kts").write_text(BUILD_NO_DEPS, encoding="utf-8")
+            diagnostics = self.validator.validate(root)
+        errors = [item for item in diagnostics if item.level == "ERROR"]
+        self.assertTrue(
+            any("crag-grpc-runtime" in err.message for err in errors),
+            f"Expected error about crag-grpc-runtime, got: {errors}",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

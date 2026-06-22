@@ -32,6 +32,8 @@ MODULE_WHITELIST: dict[str, set[str]] = {
         "crag-storage",
         "crag-common",
     },
+    "crag-platform-contracts": set(),
+    "crag-grpc-runtime": set(),
     # crag-app: allowed to depend on all application modules for runtime assembly.
     # Handled specially below.
 }

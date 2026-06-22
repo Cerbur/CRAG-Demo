@@ -6,10 +6,21 @@
 spring-boot = "4.1.0"
 spring-ai = "2.0.0"
 spring-dependency-management = "1.1.7"
+grpc = "1.82.0"
+protobuf = "3.25.8"
+protobuf-plugin = "0.10.0"
 
 [libraries]
 spring-ai-commons = { group = "org.springframework.ai", name = "spring-ai-commons", version.ref = "spring-ai" }
+grpc-api = { group = "io.grpc", name = "grpc-api", version.ref = "grpc" }
+grpc-stub = { group = "io.grpc", name = "grpc-stub", version.ref = "grpc" }
+grpc-protobuf = { group = "io.grpc", name = "grpc-protobuf", version.ref = "grpc" }
+grpc-netty-shaded = { group = "io.grpc", name = "grpc-netty-shaded", version.ref = "grpc" }
+grpc-inprocess = { group = "io.grpc", name = "grpc-inprocess", version.ref = "grpc" }
+protobuf-java = { group = "com.google.protobuf", name = "protobuf-java", version.ref = "protobuf" }
+javax-annotation-api = { group = "javax.annotation", name = "javax.annotation-api", version = "1.3.2" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }

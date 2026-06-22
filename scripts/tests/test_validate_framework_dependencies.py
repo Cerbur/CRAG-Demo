@@ -233,5 +233,127 @@ dependencyManagement {
                         f"Non-ingestion submodule should not import Spring AI BOM, got: {errors}")
 
 
+class TestCheckContractsRuntimeBoundary(unittest.TestCase):
+    """Verify crag-platform-contracts has no Spring/Runtime deps,
+    and crag-grpc-runtime has no Contracts or business deps."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.orig_root = vld.REPO_ROOT
+        vld.REPO_ROOT = Path(self.tmp.name)
+
+    def tearDown(self):
+        vld.REPO_ROOT = self.orig_root
+        self.tmp.cleanup()
+
+    def write_file(self, relpath: str, content: str):
+        p = Path(self.tmp.name) / relpath
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+
+    def test_contracts_passes_with_protobuf_only(self):
+        self.write_file("crag-platform-contracts/build.gradle.kts", """
+plugins {
+    `java-library`
+}
+dependencies {
+    implementation("io.grpc:grpc-stub")
+    implementation("com.google.protobuf:protobuf-java")
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertEqual(errors, [])
+
+    def test_contracts_rejects_spring_boot_plugin(self):
+        self.write_file("crag-platform-contracts/build.gradle.kts", """
+plugins {
+    `java-library`
+    alias(libs.plugins.spring.boot)
+}
+dependencies {
+    implementation("io.grpc:grpc-stub")
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("Spring Boot plugin" in e for e in errors),
+                        f"Should detect Spring Boot plugin, got: {errors}")
+
+    def test_contracts_rejects_spring_boot_starter(self):
+        self.write_file("crag-platform-contracts/build.gradle.kts", """
+plugins {
+    `java-library`
+}
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter")
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("Spring Boot starter" in e for e in errors),
+                        f"Should detect Spring Boot starter, got: {errors}")
+
+    def test_contracts_rejects_runtime_dep(self):
+        self.write_file("crag-platform-contracts/build.gradle.kts", """
+plugins {
+    `java-library`
+}
+dependencies {
+    implementation(project(":crag-grpc-runtime"))
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("crag-grpc-runtime" in e for e in errors),
+                        f"Should detect runtime dep, got: {errors}")
+
+    def test_runtime_passes_with_grpc_and_spring_context(self):
+        self.write_file("crag-grpc-runtime/build.gradle.kts", """
+plugins {
+    `java-library`
+}
+dependencies {
+    implementation("io.grpc:grpc-stub")
+    implementation("org.springframework:spring-context")
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertEqual(errors, [])
+
+    def test_runtime_rejects_spring_boot_plugin(self):
+        self.write_file("crag-grpc-runtime/build.gradle.kts", """
+plugins {
+    `java-library`
+    alias(libs.plugins.spring.boot)
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("Spring Boot plugin" in e for e in errors),
+                        f"Should detect Spring Boot plugin, got: {errors}")
+
+    def test_runtime_rejects_contracts_dep(self):
+        self.write_file("crag-grpc-runtime/build.gradle.kts", """
+plugins {
+    `java-library`
+}
+dependencies {
+    implementation(project(":crag-platform-contracts"))
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("crag-platform-contracts" in e for e in errors),
+                        f"Should detect contracts dep, got: {errors}")
+
+    def test_runtime_rejects_business_module_dep(self):
+        self.write_file("crag-grpc-runtime/build.gradle.kts", """
+plugins {
+    `java-library`
+}
+dependencies {
+    implementation(project(":crag-storage"))
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("crag-storage" in e for e in errors),
+                        f"Should detect business module dep, got: {errors}")
+
+
 if __name__ == "__main__":
     unittest.main()

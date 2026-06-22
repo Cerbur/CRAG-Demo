@@ -54,6 +54,9 @@ def check_catalog_versions() -> list[str]:
         "spring-boot": "4.1.0",
         "spring-ai": "2.0.0",
         "spring-dependency-management": "1.1.7",
+        "grpc": "1.82.0",
+        "protobuf": "3.25.8",
+        "protobuf-plugin": "0.10.0",
     }
     for key, expected in required.items():
         actual = versions.get(key)
@@ -215,6 +218,51 @@ def check_autoconfig_and_dummy_keys() -> list[str]:
     return errors
 
 
+def check_contracts_runtime_boundary() -> list[str]:
+    """Verify crag-platform-contracts has no Spring/Runtime deps,
+    and crag-grpc-runtime has no Contracts or business deps."""
+    errors = []
+
+    contracts_path = REPO_ROOT / "crag-platform-contracts" / "build.gradle.kts"
+    if contracts_path.exists():
+        content = read_file(contracts_path)
+        if re.search(r"alias\(libs\.plugins\.spring\.boot\)", content):
+            errors.append(
+                "crag-platform-contracts/build.gradle.kts: Spring Boot plugin forbidden"
+            )
+        if re.search(r'spring-boot-starter', content):
+            errors.append(
+                "crag-platform-contracts/build.gradle.kts: Spring Boot starter forbidden"
+            )
+        if re.search(r'project\(":crag-grpc-runtime"\)', content):
+            errors.append(
+                "crag-platform-contracts/build.gradle.kts: must not depend on crag-grpc-runtime"
+            )
+
+    runtime_path = REPO_ROOT / "crag-grpc-runtime" / "build.gradle.kts"
+    if runtime_path.exists():
+        content = read_file(runtime_path)
+        if re.search(r"alias\(libs\.plugins\.spring\.boot\)", content):
+            errors.append(
+                "crag-grpc-runtime/build.gradle.kts: Spring Boot plugin forbidden"
+            )
+        if re.search(r'project\(":crag-platform-contracts"\)', content):
+            errors.append(
+                "crag-grpc-runtime/build.gradle.kts: must not depend on crag-platform-contracts"
+            )
+        business_modules = [
+            "crag-storage", "crag-ingestion", "crag-retrieval",
+            "crag-query", "crag-api", "crag-smoke",
+        ]
+        for mod in business_modules:
+            if re.search(rf'project\(":{mod}"\)', content):
+                errors.append(
+                    f"crag-grpc-runtime/build.gradle.kts: must not depend on {mod}"
+                )
+
+    return errors
+
+
 def main() -> int:
     all_errors = []
     all_errors.extend(check_catalog_versions())
@@ -222,6 +270,7 @@ def main() -> int:
     all_errors.extend(check_no_platform_mixing())
     all_errors.extend(check_spring_ai_boundary())
     all_errors.extend(check_autoconfig_and_dummy_keys())
+    all_errors.extend(check_contracts_runtime_boundary())
 
     if all_errors:
         print("Framework dependency validation FAILED:")
