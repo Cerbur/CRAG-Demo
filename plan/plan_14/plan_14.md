@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -370,20 +370,21 @@ public interface GrpcChannelFactory {
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
-| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
+| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | 🔄 进行中 | d31ba42 | — |
 | 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1, 53f9c90 | — |
-| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
-| 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
+| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | 🔄 进行中 | 2991aea | — |
+| 14.5 | 收口回归、架构约束与项目文档 | 🔄 进行中 | 90f5a99 | — |
 | 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7, 53f9c90 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4, 66bef23 | — |
-| 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | 🔄 进行中 | 2f18ea4, 66bef23 | — |
+| 14.8 | 迁移并执行完整 HTTP 回归 | 🔄 进行中 | 3307f6a | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
 | 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90, 097b91a | — |
 | 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23, 097b91a | — |
 | 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ⏳ 待验收 | 097b91a | — |
+| 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ⏸️ 待开始 | — | — |
 
-整体进度：0 / 13（0%）
+整体进度：0 / 14（0%）
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -613,6 +614,16 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 **验证方式**：先补充失败测试；运行 `./gradlew :crag-console-api:test :crag-open-api:test --rerun-tasks`、相关 Python 校验器单测、`bash -n scripts/tests/http/platform_topology_test.sh`、`./gradlew check`；通过 `docker compose up -d --build` 启动真实环境，连续两次运行 `bash scripts/tests/http/platform_topology_test.sh`，再执行 Plan14 完整 HTTP 回归和普通 `docker compose --profile smoke down`；最后运行 `python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict --verify-git` 与 `git diff --check`。
 **涉及文件**：`crag-console-api/src/main/java/ai/cerbur/crag/console/probe/DownstreamConnectivityHealthIndicator.java`、`crag-console-api/src/test/**`、`crag-open-api/src/main/java/ai/cerbur/crag/open/probe/DownstreamConnectivityHealthIndicator.java`、`crag-open-api/src/test/**`、`scripts/tests/http/platform_topology_test.sh`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
 
+## 14.14 修复 Access/Knowledge 非 Web 进程启动后退出
+
+**目标**：确保 Access Service 与 Knowledge Service 作为同时提供 gRPC 和 Actuator HTTP readiness 的长期进程运行，不在 Spring Context 启动完成后正常退出。
+**前置任务**：14.13
+**范围**：为 Access/Knowledge 补齐其 HTTP 管理端口所需的最小 Web 运行时依赖或等价显式配置；新增能证明真实 Web Application 类型、Actuator readiness 端口可监听且 Context 不会立即关闭的轻量组件测试；增强 Docker 拓扑验收，明确拒绝 Access/Knowledge 容器 `Exited (0)` 或缺失 HTTP readiness 的假启动。
+**非目标**：不新增业务 Controller，不暴露 Access/Knowledge 宿主机端口，不改变 gRPC 端口、Schema、账号、Probe 协议或 Compose 依赖拓扑。
+**验收标准**：Access/Knowledge Boot Jar 启动后持续运行；容器内 `8091/8092` Actuator readiness 返回 UP；两个容器保持 healthy 且 gRPC Probe 可被 Console/Open 调用；组件测试能在移除 Web 运行时依赖时稳定失败；默认 Compose 七个长期服务全部 healthy。
+**验证方式**：先补充失败组件测试；运行 `./gradlew :crag-access-service:test :crag-knowledge-service:test --rerun-tasks`、两个模块 `bootJar`、`./gradlew check --rerun-tasks`；执行 `docker compose up -d --build`，连续两次运行 `bash scripts/tests/http/platform_topology_test.sh`，再执行 Plan 14 完整 HTTP 回归和 Smoke Profile 回归；最后普通 `docker compose --profile smoke down`、运行三个 Python 校验器与 `python3 scripts/validate_plans.py --strict --verify-git`、`git diff --check`。
+**涉及文件**：`crag-access-service/build.gradle.kts`、`crag-access-service/src/test/**`、`crag-knowledge-service/build.gradle.kts`、`crag-knowledge-service/src/test/**`、`scripts/tests/http/platform_topology_test.sh`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
+
 ## 验收记录
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
@@ -678,6 +689,9 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_constraints.py` | 通过 | 0 errors |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings |
 | 2026-06-23 | 执行 session / macOS ARM64 | `bash -n scripts/tests/http/platform_topology_test.sh` | 通过 | 拓扑脚本语法检查通过 |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew check --rerun-tasks`、56 个 Python 校验器单测、三个校验器、严格 Plan 校验、Compose 解析与 Shell 语法检查 | 通过 | Gradle 100 个任务全部重新执行成功；校验器 0 errors；默认与 smoke Compose 可解析 |
+| 2026-06-23 | 独立验收 / Docker Desktop Linux ARM64 | 首次 `docker compose up -d --build` | 环境失败 | 容器内 Gradle 从 Maven Central 下载 `spring-aspects-7.0.8.jar` 时 TLS 握手被远端终止；保留原始失败后重跑，镜像构建成功，未将首次失败静默忽略 |
+| 2026-06-23 | 独立验收 / Docker Desktop Linux ARM64 | 第二次 `docker compose up -d --build`、`docker compose ps -a`、服务日志审查 | 失败 | Access/Knowledge 启动 gRPC 后立即以退出码 0 结束；两个模块缺少 Web 运行时，Spring Boot 以非 Web 应用启动，8091/8092 Actuator readiness 未监听，Console/Open 因依赖服务不健康未启动 |
 
 ## 阻塞记录
 
@@ -703,3 +717,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 完成 14.11-14.12 实现，全部任务转入待验收，Plan 转为 verifying | HealthIndicator 校验 serviceName/callerService 并取消超时 Future；constantTimeEquals 不同长度固定工作量比较；拓扑脚本合法标识符和硬断言；Docker 持久化约束同步 | 14.1、14.3、14.6、14.7、14.9 恢复待验收；全部 12 个任务待验收 |
 | 2026-06-23 | 独立验收失败，追加 14.13 并退回进行中 | Probe Future 异常失败时未取消其他未完成任务，现有取消测试缺少取消断言；拓扑脚本遗漏 Knowledge 账号权限覆盖，并允许已删除对象的 `does not exist` 充当跨 Schema 权限拒绝证据 | 14.11、14.12 退回进行中；新增 14.13，修复后必须重新执行全量 Gradle、真实 Docker 拓扑与完整 HTTP 回归 |
 | 2026-06-23 | 完成 14.13 实现，全部任务转入待验收，Plan 转为 verifying | HealthIndicator 在任一 Future 异常时取消其余未完成 Future；拓扑脚本补齐 Knowledge 账号同/跨 Schema 权限覆盖；移除 `does not exist` 假阳性；增强静态校验器阻止三账号覆盖缺失和 `does not exist` 误用 | 14.11、14.12 恢复待验收；全部 13 个任务待验收 |
+| 2026-06-23 | 独立验收失败，追加 14.14 并退回进行中 | Access/Knowledge 缺少 Web 运行时，Context 启动后进程以退出码 0 结束，导致 Actuator readiness 不存在且五进程拓扑无法启动；现有组件测试只验证 Context 与应用名，未覆盖真实 Web 进程生命周期 | 14.2、14.4、14.5、14.7、14.8 退回进行中；新增 14.14，修复后必须重新执行完整 Gradle、真实 Docker 拓扑、连续两次拓扑脚本与完整 HTTP 回归 |
