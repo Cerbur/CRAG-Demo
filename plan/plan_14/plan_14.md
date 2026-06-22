@@ -161,6 +161,7 @@ updated: 2026-06-22
 
 - 五个进程与 Gradle Application 模块一一对应，不再保留通用 `crag-app`。
 - `crag-rag-service` 是现有 RAG 业务模块的组合根，直接装配 `crag-storage`、`crag-ingestion`、`crag-retrieval`、`crag-query`、兼容 `crag-api` 和运行时 `crag-smoke`。
+- 为保持任务级提交可构建，14.2 删除 `crag-app` 时同步把现有单应用 `Dockerfile` 的构建目标切换为 `crag-rag-service`，Compose 拓扑暂时保持单 RAG 应用；14.4 再用通用 Dockerfile 和五进程 Compose 完成部署重构。
 - `crag-access-service` 与 `crag-knowledge-service` 在本计划只拥有组合根、独立 DataSource、Actuator、gRPC Server 和 Platform Probe，不包含未来领域代码。
 - `crag-console-api` 与 `crag-open-api` 在本计划只拥有 Web/Actuator 组合根和下游 Probe HealthIndicator，不提供占位业务 Controller。
 - 业务库模块不得依赖任何 Application 模块或 `crag-grpc-runtime`；只有五个 Application 组合根负责把领域 Java API 适配为 gRPC。
@@ -412,11 +413,11 @@ public interface GrpcChannelFactory {
 
 **目标**：用三个职责隔离的业务服务组合根替代唯一 `crag-app`，并保持现有 RAG 运行时完整可测试。  
 **前置任务**：14.1  
-**范围**：创建 `crag-access-service`、`crag-knowledge-service`、`crag-rag-service`；将 `CragDemoApplication`、RAG application 配置、Schema、测试资源、健康测试和 ArchUnit 测试迁入 RAG Service；将包名改为 `ai.cerbur.crag.rag.app`；精确配置 RAG 对 Storage、Ingestion、Retrieval、Query、兼容 API 和 Smoke 的扫描与装配；Access/Knowledge 只扫描自身并显式导入 gRPC Server；三个服务各自在组合根实现 Probe，读取 `GrpcCallerContext`；固定三个 Boot Jar；删除 `crag-app`。
+**范围**：创建 `crag-access-service`、`crag-knowledge-service`、`crag-rag-service`；将 `CragDemoApplication`、RAG application 配置、Schema、测试资源、健康测试和 ArchUnit 测试迁入 RAG Service；将包名改为 `ai.cerbur.crag.rag.app`；精确配置 RAG 对 Storage、Ingestion、Retrieval、Query、兼容 API 和 Smoke 的扫描与装配；Access/Knowledge 只扫描自身并显式导入 gRPC Server；三个服务各自在组合根实现 Probe，读取 `GrpcCallerContext`；固定三个 Boot Jar；删除 `crag-app`；同步把现有单应用 `Dockerfile` 的构建目标切换为 `crag-rag-service`，但暂不改变 Compose 拓扑。
 **非目标**：不增加 Access/Knowledge 领域类或表；不迁移 `crag-api` Controller；不改变 RAG Schema 字段、算法、业务配置默认值或 HTTP DTO；不让 Access/Knowledge 引用现有业务模块。  
 **验收标准**：仓库不再包含 `crag-app`；三个 Boot Application 独立构建；RAG Context 包含既有 Controller、Repository、Cron 和 Query Bean；Access/Knowledge Context 不包含这些 Bean；三个应用报告不同 `spring.application.name`；RAG 组件与架构测试迁移后全绿；每个模块仅生成一个固定名称 Boot Jar。  
 **验证方式**：运行三个模块的 `bootJar` 和组件测试；运行 `./gradlew :crag-rag-service:test --tests '*ArchitectureTest'`、`./gradlew test`、模块依赖校验与 `./gradlew check`；使用 `jar tf` 核对 RAG Jar 含既有业务类而 Access/Knowledge Jar 不含。  
-**涉及文件**：`settings.gradle.kts`、`crag-access-service/**`、`crag-knowledge-service/**`、`crag-rag-service/**`、`crag-app/**`（删除）、`crag-api/**`（仅测试配置引用迁移）、`crag-smoke/**`（仅装配引用迁移）、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`
+**涉及文件**：`settings.gradle.kts`、`crag-access-service/**`、`crag-knowledge-service/**`、`crag-rag-service/**`、`crag-app/**`（删除）、`crag-api/**`（仅测试配置引用迁移）、`crag-smoke/**`（仅装配引用迁移）、`Dockerfile`（仅临时切换构建目标）、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`
 
 **接口产物**：
 
@@ -430,7 +431,7 @@ public interface GrpcChannelFactory {
 - [ ] 创建 Access/Knowledge 最小组合根、build 与 application 配置，显式导入 `GrpcServerConfiguration`，实现各自 Probe；不添加 Controller、Repository、空 schema 或出站 Channel。
 - [ ] 复制后再迁移 `crag-app` 的组合根、资源和测试到 `crag-rag-service`，先保持业务模块依赖与配置值不变，再将规范服务名、端口和包名改为 RAG 所有。
 - [ ] 更新 ArchUnit 和模块校验规则，断言业务模块不依赖 Runtime/Application，Access/Knowledge 不依赖现有 RAG 业务模块。
-- [ ] 删除 `crag-app` 并从 settings、Docker 构建引用和测试路径中移除；检索 `crag-app` 只允许出现在历史 Plan/归档文字中。
+- [ ] 删除 `crag-app` 并从 settings 和测试路径中移除；同步把现有单应用 `Dockerfile` 构建目标切换为 `crag-rag-service`，保持当前 Compose 服务结构仍可构建；检索 `crag-app` 只允许出现在历史 Plan/归档文字中。
 - [ ] 运行三个模块组件测试、`bootJar`、全量 `./gradlew test` 和架构测试；用 `jar tf` 核对内容边界。
 - [ ] 创建实现提交 `refactor(plan_14/14.2): split rag access and knowledge applications`。
 
