@@ -374,7 +374,7 @@ public interface GrpcChannelFactory {
 | 14.3 | 建立 Console/Open API 与下游 Probe readiness | 🔄 进行中 | 8473bb1 | — |
 | 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | 🔄 进行中 | 2991aea | — |
 | 14.5 | 收口回归、架构约束与项目文档 | 🔄 进行中 | 90f5a99 | — |
-| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待开始 | — | — |
+| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7 | — |
 | 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待开始 | — | — |
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待开始 | — | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待开始 | — | — |
@@ -588,6 +588,10 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-22 | 独立验收 / Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (42/42) | 现有校验器单测通过，但未覆盖旧单应用文档、缺失拓扑脚本和旧 HTTP 脚本入口，属于校验盲区 |
 | 2026-06-22 | 独立验收 / 静态检查 | `docker compose config --services`、`docker compose --profile smoke config --services`、`bash -n scripts/tests/http/*.sh docker/postgres/init/001-platform.sh` | 部分通过 | Compose 可解析且 Shell 语法通过；未执行 Docker HTTP 回归，因为必需的 `platform_topology_test.sh` 不存在且既有脚本仍引用旧服务/端口 |
 | 2026-06-22 | 独立验收 / Git 与源码审查 | 核对五个实现提交、Plan 验收标准、测试源码、约束和回归脚本 | 失败 | 14.3 关键行为测试缺失；14.4 根 Dockerfile 未删除且无 Schema 拓扑自动化证据；14.5 提交仅修改 README/包结构文档，未实现声明的脚本、校验器和完整回归 |
+| 2026-06-22 | 执行 session | `./gradlew :crag-grpc-runtime:test` | 通过 | 移除硬编码 KNOWN_CALLERS，使用动态 PropertySources 读取配置 |
+| 2026-06-22 | 执行 session | `./gradlew :crag-console-api:test` | 通过 | 补充 HealthIndicator 单元测试：全成功、单目标失败、UNAUTHENTICATED、TIMEOUT、token 脱敏 |
+| 2026-06-22 | 执行 session | `./gradlew :crag-open-api:test` | 通过 | 补充 HealthIndicator 单元测试：全成功、单目标失败、UNAUTHENTICATED、TIMEOUT、token 脱敏 |
+| 2026-06-22 | 执行 session | `./gradlew check` | 通过 | 全量静态检查、格式化、测试 |
 
 ## 阻塞记录
 
