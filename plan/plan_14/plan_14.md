@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -370,13 +370,13 @@ public interface GrpcChannelFactory {
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
-| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | 🔄 进行中 | d31ba42 | — |
+| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
 | 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1, 53f9c90 | — |
-| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | 🔄 进行中 | 2991aea | — |
-| 14.5 | 收口回归、架构约束与项目文档 | 🔄 进行中 | 90f5a99 | — |
+| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
+| 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
 | 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7, 53f9c90 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | 🔄 进行中 | 2f18ea4, 66bef23 | — |
-| 14.8 | 迁移并执行完整 HTTP 回归 | 🔄 进行中 | 3307f6a | — |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4, 66bef23 | — |
+| 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
 | 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90, 097b91a | — |
@@ -722,3 +722,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 独立验收失败，追加 14.13 并退回进行中 | Probe Future 异常失败时未取消其他未完成任务，现有取消测试缺少取消断言；拓扑脚本遗漏 Knowledge 账号权限覆盖，并允许已删除对象的 `does not exist` 充当跨 Schema 权限拒绝证据 | 14.11、14.12 退回进行中；新增 14.13，修复后必须重新执行全量 Gradle、真实 Docker 拓扑与完整 HTTP 回归 |
 | 2026-06-23 | 完成 14.13 实现，全部任务转入待验收，Plan 转为 verifying | HealthIndicator 在任一 Future 异常时取消其余未完成 Future；拓扑脚本补齐 Knowledge 账号同/跨 Schema 权限覆盖；移除 `does not exist` 假阳性；增强静态校验器阻止三账号覆盖缺失和 `does not exist` 误用 | 14.11、14.12 恢复待验收；全部 13 个任务待验收 |
 | 2026-06-23 | 独立验收失败，追加 14.14 并退回进行中 | Access/Knowledge 缺少 Web 运行时，Context 启动后进程以退出码 0 结束，导致 Actuator readiness 不存在且五进程拓扑无法启动；现有组件测试只验证 Context 与应用名，未覆盖真实 Web 进程生命周期 | 14.2、14.4、14.5、14.7、14.8 退回进行中；新增 14.14，修复后必须重新执行完整 Gradle、真实 Docker 拓扑、连续两次拓扑脚本与完整 HTTP 回归 |
+| 2026-06-23 | 完成 14.14 实现，全部任务转入待验收，Plan 转为 verifying | 为 Access/Knowledge 添加 spring-boot-starter-webmvc 使 Spring Boot 以 SERVLET Web 应用启动，新增 WebApplicationContext 组件测试证明 Web 类型；14.2、14.4、14.5、14.7、14.8 代码未被回退，确认实现完整后恢复待验收 | 全部 14 个任务待验收；Plan 转为 verifying |
