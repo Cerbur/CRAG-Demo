@@ -125,7 +125,7 @@ echo "--- 6. 检查 Probe 链路 ---"
 # Console API readiness 应该包含下游 Probe
 console_health=$(curl -s --fail http://localhost:8080/actuator/health 2>/dev/null || echo "{}")
 if echo "$console_health" | grep -q "downstreamConnectivity"; then
-  if echo "$console_health" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('details',{}).get('downstreamConnectivity',{}).get('status')=='UP' else 1)" 2>/dev/null; then
+  if echo "$console_health" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('components',{}).get('downstreamConnectivity',{}).get('status')=='UP' else 1)" 2>/dev/null; then
     pass "Console API downstreamConnectivity is UP"
   else
     fail "Console API downstreamConnectivity is not UP"
@@ -137,7 +137,7 @@ fi
 # Open API readiness 应该包含下游 Probe
 open_health=$(curl -s --fail http://localhost:8081/actuator/health 2>/dev/null || echo "{}")
 if echo "$open_health" | grep -q "downstreamConnectivity"; then
-  if echo "$open_health" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('details',{}).get('downstreamConnectivity',{}).get('status')=='UP' else 1)" 2>/dev/null; then
+  if echo "$open_health" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('components',{}).get('downstreamConnectivity',{}).get('status')=='UP' else 1)" 2>/dev/null; then
     pass "Open API downstreamConnectivity is UP"
   else
     fail "Open API downstreamConnectivity is not UP"
