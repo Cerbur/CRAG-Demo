@@ -382,7 +382,7 @@ public interface GrpcChannelFactory {
 | 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90, 097b91a | — |
 | 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23, 097b91a | — |
 | 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ⏳ 待验收 | 097b91a | — |
-| 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ⏸️ 待开始 | — | — |
+| 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ⏳ 待验收 | 3d887e5 | — |
 
 整体进度：0 / 14（0%）
 
@@ -692,6 +692,10 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew check --rerun-tasks`、56 个 Python 校验器单测、三个校验器、严格 Plan 校验、Compose 解析与 Shell 语法检查 | 通过 | Gradle 100 个任务全部重新执行成功；校验器 0 errors；默认与 smoke Compose 可解析 |
 | 2026-06-23 | 独立验收 / Docker Desktop Linux ARM64 | 首次 `docker compose up -d --build` | 环境失败 | 容器内 Gradle 从 Maven Central 下载 `spring-aspects-7.0.8.jar` 时 TLS 握手被远端终止；保留原始失败后重跑，镜像构建成功，未将首次失败静默忽略 |
 | 2026-06-23 | 独立验收 / Docker Desktop Linux ARM64 | 第二次 `docker compose up -d --build`、`docker compose ps -a`、服务日志审查 | 失败 | Access/Knowledge 启动 gRPC 后立即以退出码 0 结束；两个模块缺少 Web 运行时，Spring Boot 以非 Web 应用启动，8091/8092 Actuator readiness 未监听，Console/Open 因依赖服务不健康未启动 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew :crag-access-service:test :crag-knowledge-service:test --rerun-tasks` | 通过 | 新增 WebApplicationContext 组件测试证明 SERVLET Web 类型；两模块 Context 加载、应用名和 Web 类型均通过 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew check` | 通过 | 100 个任务全部执行成功 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (56/56) | 校验器单测全部通过 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings |
 
 ## 阻塞记录
 
