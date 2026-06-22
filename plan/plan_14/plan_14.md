@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -379,10 +379,11 @@ public interface GrpcChannelFactory {
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
-| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90 | — |
-| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23 | — |
+| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | 🚧 进行中 | 53f9c90 | — |
+| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | 🚧 进行中 | 66bef23 | — |
+| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ⏸️ 待开始 | — | — |
 
-整体进度：0 / 12（0%）
+整体进度：0 / 13（0%）
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -602,6 +603,16 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 **验证方式**：运行 `bash -n scripts/tests/http/platform_topology_test.sh`、相关 Python 校验器单测、`docker compose up -d --build`、连续两次 `bash scripts/tests/http/platform_topology_test.sh`、完整 HTTP 回归、`docker compose --profile smoke down`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict --verify-git` 和 `git diff --check`。
 **涉及文件**：`scripts/tests/http/platform_topology_test.sh`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`constraints/docker-structure.md`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
 
+## 14.13 修复 Probe 失败取消语义与三账号权限验收盲区
+
+**目标**：修复本轮独立验收发现的并发资源取消和数据库权限脚本假阳性，使 14.11、14.12 声明的行为由真实断言覆盖。
+**前置任务**：14.12
+**范围**：Console/Open 的 Probe 聚合在任一 Future 异常失败或总预算耗尽时取消全部仍未完成的 Future，并用可观察断言证明取消发生；平台拓扑脚本分别覆盖 Access、Knowledge、RAG 三个账号的自身 Schema 创建/查询/清理，以及每个账号对其他业务 Schema 的 `SELECT` 和 `CREATE` 拒绝；权限拒绝必须针对验收期仍真实存在的对象，不得把 `does not exist` 当作权限拒绝证据；增强静态校验测试，阻止三账号覆盖或真实对象权限断言再次缺失。
+**非目标**：不改变 Probe 协议、deadline 数值、线程池规模、数据库角色、Schema 拓扑或业务表；不新增宿主机端口；不修改业务 HTTP 行为。
+**验收标准**：任一 Probe Future 以异常完成时，其余未完成 Future 均收到取消且 readiness 保持安全 DOWN；总预算取消测试直接断言任务被中断或 Future 为 cancelled，而不只断言 `TIMEOUT` 文本；拓扑脚本对三个账号分别证明自身 Schema 可写，并在测试对象仍存在时证明跨 Schema `SELECT` 被权限拒绝；三个账号分别对其他业务 Schema 的 `CREATE` 被拒绝；脚本不接受 `does not exist` 作为权限隔离成功；所有临时对象只按本次 runId 清理。
+**验证方式**：先补充失败测试；运行 `./gradlew :crag-console-api:test :crag-open-api:test --rerun-tasks`、相关 Python 校验器单测、`bash -n scripts/tests/http/platform_topology_test.sh`、`./gradlew check`；通过 `docker compose up -d --build` 启动真实环境，连续两次运行 `bash scripts/tests/http/platform_topology_test.sh`，再执行 Plan14 完整 HTTP 回归和普通 `docker compose --profile smoke down`；最后运行 `python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py --strict --verify-git` 与 `git diff --check`。
+**涉及文件**：`crag-console-api/src/main/java/ai/cerbur/crag/console/probe/DownstreamConnectivityHealthIndicator.java`、`crag-console-api/src/test/**`、`crag-open-api/src/main/java/ai/cerbur/crag/open/probe/DownstreamConnectivityHealthIndicator.java`、`crag-open-api/src/test/**`、`scripts/tests/http/platform_topology_test.sh`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`plan/plan_14/plan_14.md`、`plan/index/README.md`
+
 ## 验收记录
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
@@ -657,6 +668,10 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (54/54) | 新增拓扑脚本关键断言检查和 Docker 持久化路径漂移检查 |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_constraints.py` | 通过 | 0 errors |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Python 3 / Compose 静态解析 | 校验 12 个实现提交；运行 54 个 Python 校验器单测、三个校验器、严格 Plan 校验、`docker compose config` 与 Shell 语法检查 | 通过 | 提交范围与 Plan 登记一致；校验器 0 errors；默认和 smoke Compose 均可解析；脚本语法通过 |
+| 2026-06-23 | 独立验收 / 源码与测试审查 | 核对 14.11 Future 取消实现和测试、14.12 三账号 Schema 权限脚本 | 失败 | Future 异常失败时没有取消其他未完成任务，取消测试也未断言取消事实；Knowledge 账号没有同/跨 Schema 权限覆盖，Access 测试表在跨 Schema SELECT 前已删除且脚本接受 `does not exist`，可产生权限隔离假阳性 |
+| 2026-06-23 | 独立验收 / 受限沙箱 | `./gradlew check --rerun-tasks` | 环境失败后转沙箱外重跑 | 首次因 Gradle 文件锁协调 socket 被沙箱拒绝，非实现失败；已使用允许本地 socket 的验收环境重跑 |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew check --rerun-tasks` | 通过 | 100 个任务全部重新执行成功；该结果不覆盖源码审查发现的 14.13 行为与验收脚本缺口 |
 
 ## 阻塞记录
 
@@ -680,3 +695,4 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 完成 14.10 实现，全部任务转入待验收，Plan 转为 verifying | eachDependency 强制 gRPC 1.82.0 和 protobuf 4.35.1 覆盖 BOM；Docker builder 从 Alpine 切换为 Debian JDK 解决 ARM64 glibc 兼容 | 14.1、14.4、14.7 恢复待验收；全部 10 个任务待验收 |
 | 2026-06-23 | 独立验收失败，追加 14.11-14.12 并退回进行中 | Probe 身份响应未校验、超时任务未取消、不同长度 token 比较提前返回；平台拓扑脚本生成非法表名且关键 Probe 断言仅 warning；Docker 持久化硬约束仍保留旧路径 | 14.1、14.3、14.6、14.7、14.9 退回进行中；新增两项修复任务，完成实现、自测、真实 Docker 回归与交接后再进入独立验收 |
 | 2026-06-23 | 完成 14.11-14.12 实现，全部任务转入待验收，Plan 转为 verifying | HealthIndicator 校验 serviceName/callerService 并取消超时 Future；constantTimeEquals 不同长度固定工作量比较；拓扑脚本合法标识符和硬断言；Docker 持久化约束同步 | 14.1、14.3、14.6、14.7、14.9 恢复待验收；全部 12 个任务待验收 |
+| 2026-06-23 | 独立验收失败，追加 14.13 并退回进行中 | Probe Future 异常失败时未取消其他未完成任务，现有取消测试缺少取消断言；拓扑脚本遗漏 Knowledge 账号权限覆盖，并允许已删除对象的 `does not exist` 充当跨 Schema 权限拒绝证据 | 14.11、14.12 退回进行中；新增 14.13，修复后必须重新执行全量 Gradle、真实 Docker 拓扑与完整 HTTP 回归 |
