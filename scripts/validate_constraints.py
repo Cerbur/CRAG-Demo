@@ -329,6 +329,58 @@ def check_terms(root: Path) -> list[Diagnostic]:
 
 
 # ---------------------------------------------------------------------------
+# Check 5 – Topology script critical assertions use fail, not warn
+# ---------------------------------------------------------------------------
+
+def check_topology_critical_assertions(root: Path) -> list[Diagnostic]:
+    """Verify platform_topology_test.sh uses fail for downstreamConnectivity checks."""
+    script = root / "scripts" / "tests" / "http" / "platform_topology_test.sh"
+    if not script.exists():
+        return []
+
+    text = script.read_text(encoding="utf-8")
+    diagnostics: list[Diagnostic] = []
+
+    if "downstreamConnectivity" in text and re.search(
+            r"warn\s+.*downstreamConnectivity", text):
+        diagnostics.append(
+            Diagnostic("ERROR", "TOPOLOGY_WARN_ON_CRITICAL",
+                       "platform_topology_test.sh 对 downstreamConnectivity 使用 warn 而非 fail。"
+                       "关键 Probe 断言必须使用硬断言（fail）。"))
+
+    return diagnostics
+
+
+# ---------------------------------------------------------------------------
+# Check 6 – Docker persistence path consistency
+# ---------------------------------------------------------------------------
+
+def check_docker_persistence_path(root: Path) -> list[Diagnostic]:
+    """Verify docker-structure.md uses data/pgdata-platform/ as current path."""
+    doc_path = root / "constraints" / "docker-structure.md"
+    if not doc_path.exists():
+        return []
+
+    text = doc_path.read_text(encoding="utf-8")
+    diagnostics: list[Diagnostic] = []
+    lines = text.splitlines()
+
+    for i, line in enumerate(lines):
+        # Check for data/pgdata/ used as a current hard constraint (not rollback context)
+        if "data/pgdata/" in line and "data/pgdata-platform/" not in line:
+            line_no = i + 1
+            if "回滚" in line or "旧" in line or "保留" in line:
+                continue
+            diagnostics.append(
+                Diagnostic("ERROR", "DOCKER_PERSISTENCE_DRIFT",
+                           f"constraints/docker-structure.md:{line_no} 仍引用旧持久化路径 "
+                           "\"data/pgdata/\"。当前平台使用 \"data/pgdata-platform/\"，"
+                           "旧路径仅保留回滚。"))
+
+    return diagnostics
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -340,6 +392,8 @@ def validate(root: Path) -> list[Diagnostic]:
     diagnostics.extend(check_topology_script(root))
     diagnostics.extend(check_internal_port_exposure(root))
     diagnostics.extend(check_terms(root))
+    diagnostics.extend(check_topology_critical_assertions(root))
+    diagnostics.extend(check_docker_persistence_path(root))
     return diagnostics
 
 

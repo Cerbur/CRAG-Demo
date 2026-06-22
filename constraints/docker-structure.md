@@ -83,7 +83,7 @@ access / knowledge / rag 健康 → console-api / open-api（健康）
 
 ### 3.8 持久化
 
-- 本地数据库数据持久化到 `data/pgdata/`，模型缓存持久化到 `.models/modelscope/`。
+- 本地数据库数据持久化到 `data/pgdata-platform/`，模型缓存持久化到 `.models/modelscope/`。旧 `data/pgdata/` 仅保留回滚，不再读取或写入。
 - 实际数据不得进入 Git 或 Docker build context。
 - 普通 `docker compose down` 不得删除 bind mount 数据。
 

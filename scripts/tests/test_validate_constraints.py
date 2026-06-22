@@ -264,5 +264,75 @@ class TestCheckTermsAppSmoke(unittest.TestCase):
             self.assertEqual([], app_smoke_errors)
 
 
+class TestCheckTopologyCriticalAssertions(unittest.TestCase):
+    def test_pass_fail_used(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            script_dir = root / "scripts" / "tests" / "http"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            (script_dir / "platform_topology_test.sh").write_text(
+                'if ...; then fail "downstreamConnectivity not UP"\n', encoding="utf-8"
+            )
+            diags = vc.check_topology_critical_assertions(root)
+            self.assertEqual([], diags)
+
+    def test_fail_warn_used_for_downstream(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            script_dir = root / "scripts" / "tests" / "http"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            (script_dir / "platform_topology_test.sh").write_text(
+                'warn "Console API downstreamConnectivity not found in health response"\n',
+                encoding="utf-8",
+            )
+            diags = vc.check_topology_critical_assertions(root)
+            warn_errors = [d for d in diags if "TOPOLOGY_WARN_ON_CRITICAL" in d.code]
+            self.assertGreaterEqual(len(warn_errors), 1)
+
+    def test_pass_no_downstream_reference(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            script_dir = root / "scripts" / "tests" / "http"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            (script_dir / "platform_topology_test.sh").write_text(
+                'pass "all healthy"\n', encoding="utf-8"
+            )
+            diags = vc.check_topology_critical_assertions(root)
+            self.assertEqual([], diags)
+
+
+class TestCheckDockerPersistencePath(unittest.TestCase):
+    def test_pass_pgdata_platform(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "constraints").mkdir(parents=True, exist_ok=True)
+            (root / "constraints/docker-structure.md").write_text(
+                "- 本地数据库数据持久化到 `data/pgdata-platform/`\n", encoding="utf-8"
+            )
+            diags = vc.check_docker_persistence_path(root)
+            self.assertEqual([], diags)
+
+    def test_fail_old_pgdata_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "constraints").mkdir(parents=True, exist_ok=True)
+            (root / "constraints/docker-structure.md").write_text(
+                "- 本地数据库数据持久化到 `data/pgdata/`\n", encoding="utf-8"
+            )
+            diags = vc.check_docker_persistence_path(root)
+            drift_errors = [d for d in diags if "DOCKER_PERSISTENCE_DRIFT" in d.code]
+            self.assertGreaterEqual(len(drift_errors), 1)
+
+    def test_pass_old_path_in_rollback_context(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "constraints").mkdir(parents=True, exist_ok=True)
+            (root / "constraints/docker-structure.md").write_text(
+                "- 旧 `data/pgdata/` 仅保留回滚\n", encoding="utf-8"
+            )
+            diags = vc.check_docker_persistence_path(root)
+            self.assertEqual([], diags)
+
+
 if __name__ == "__main__":
     unittest.main()

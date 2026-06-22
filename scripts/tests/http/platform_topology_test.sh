@@ -6,7 +6,7 @@ set -euo pipefail
 # 验证五进程 Docker 拓扑、服务身份、数据库权限和镜像边界
 # ============================================================
 
-RUN_ID="topology-$(date +%s)"
+RUN_ID="topology_$(date +%s)"
 ADMIN_PASSWORD="${POSTGRES_ADMIN_PASSWORD:-admin_demo}"
 DB_CONTAINER="crag-db"
 
@@ -108,10 +108,12 @@ echo "--- 5. 检查管理员凭据隔离 ---"
 for service in "${JAVA_SERVICES[@]}"; do
   env_output=$(docker exec "$service" env 2>/dev/null || echo "")
   if echo "$env_output" | grep -q "POSTGRES_ADMIN_PASSWORD"; then
-    fail "$service has admin password in environment"
-  else
-    pass "$service does not have admin password"
+    fail "$service has admin password variable in environment"
   fi
+  if echo "$env_output" | grep -q "$ADMIN_PASSWORD"; then
+    fail "$service has admin password value in environment"
+  fi
+  pass "$service does not have admin password"
 done
 
 # ============================================================
@@ -123,17 +125,25 @@ echo "--- 6. 检查 Probe 链路 ---"
 # Console API readiness 应该包含下游 Probe
 console_health=$(curl -s --fail http://localhost:8080/actuator/health 2>/dev/null || echo "{}")
 if echo "$console_health" | grep -q "downstreamConnectivity"; then
-  pass "Console API has downstreamConnectivity health indicator"
+  if echo "$console_health" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('details',{}).get('downstreamConnectivity',{}).get('status')=='UP' else 1)" 2>/dev/null; then
+    pass "Console API downstreamConnectivity is UP"
+  else
+    fail "Console API downstreamConnectivity is not UP"
+  fi
 else
-  warn "Console API downstreamConnectivity not found in health response"
+  fail "Console API downstreamConnectivity not found in health response"
 fi
 
 # Open API readiness 应该包含下游 Probe
 open_health=$(curl -s --fail http://localhost:8081/actuator/health 2>/dev/null || echo "{}")
 if echo "$open_health" | grep -q "downstreamConnectivity"; then
-  pass "Open API has downstreamConnectivity health indicator"
+  if echo "$open_health" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('details',{}).get('downstreamConnectivity',{}).get('status')=='UP' else 1)" 2>/dev/null; then
+    pass "Open API downstreamConnectivity is UP"
+  else
+    fail "Open API downstreamConnectivity is not UP"
+  fi
 else
-  warn "Open API downstreamConnectivity not found in health response"
+  fail "Open API downstreamConnectivity not found in health response"
 fi
 
 # ============================================================
