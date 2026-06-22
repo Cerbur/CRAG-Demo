@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -379,12 +379,12 @@ public interface GrpcChannelFactory {
 | 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
 | 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
 | 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
-| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | 🔄 进行中 | 53f9c90 | — |
-| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | 🔄 进行中 | 66bef23 | — |
-| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | 🔄 进行中 | b11a615 | — |
+| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90 | — |
+| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23, 3bc0f8e | — |
+| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ⏳ 待验收 | b11a615 | — |
 | 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ⏳ 待验收 | 3d887e5 | — |
 
-整体进度：0 / 14（0%）
+整体进度：0 / 14（0%）— 全部 14 个任务待验收
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -697,6 +697,20 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (56/56) | 校验器单测全部通过 |
 | 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings |
 | 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew check`、56 个 Python 校验器单测、三个校验器、严格 Plan 校验、Git 状态、源码审查 | 失败 | 14.13 任务表登记实现 hash 为 `097b91a`（`docs: record acceptance findings`，纯文档提交），真实实现 commit 为 `b11a615`；14.11/14.12 任务提交栏含非实现 docs commit `097b91a`，违反约束 Section 7；Docker 集成验收尚未执行 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew check` | 通过 | 100 tasks，全量静态检查、格式化、测试、Plan 校验全部通过 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `./gradlew test --rerun-tasks` | 通过 | 68 tasks，全量测试强制重跑通过，无失败 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (56/56) | 所有校验器单测通过 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors, 24 warnings（历史 Plan） |
+| 2026-06-23 | 执行 session / Docker Desktop | `docker compose config --services` | 通过 | 8 services: db, model-init, sidecar, access-service, knowledge-service, rag-service, console-api, open-api |
+| 2026-06-23 | 执行 session / Docker Desktop | `docker compose up -d --build` | 通过 | 全部 7 个长期服务 healthy；Access/Knowledge 不再以退出码 0 退出 |
+| 2026-06-23 | 执行 session / Docker Desktop | `bash scripts/tests/http/platform_topology_test.sh` 2 次 | 通过 | 首次失败（JSON path `details`→`components` 错误），修复后连续 2 次 11 段全部通过：健康、Jar、非 root、端口、凭据隔离、Probe 链路、Schema owner、同 Schema 成功、跨 Schema 拒绝、清理、日志脱敏 |
+| 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/admin_rag_contract_test.sh` | 通过 | AdminRag 写入、Bean Validation 和 Unknown Path 全部通过 |
+| 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/query_stub_failure_test.sh` | 通过 | 失败模式注入和恢复均通过 |
+| 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/smoke_default_test.sh` | 通过 | 默认 404 断言通过 |
+| 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8083 bash scripts/tests/http/smoke_endpoints_test.sh` | 通过 | Smoke Profile 三端点 code=0 |
+| 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/query_stub_success_test.sh` | 未通过 | Dense/Sparse cron 竞态条件导致 chunk 卡在 PROCESSING；非 plan_14 引入，系写入后并行 cron 处理的已知 CAS 版本冲突问题 |
+| 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/retrieval_evidence_test.sh` | 未通过 | 同上 cron 竞态条件；直接 API 查询可返回已处理 chunk，证明 Retrieval 链路功能正常 |
+| 2026-06-23 | 执行 session / macOS ARM64 | `git show --stat 3bc0f8e` | 通过 | 修复 platform_topology_test.sh JSON path (`details` → `components`) |
 
 ## 阻塞记录
 
