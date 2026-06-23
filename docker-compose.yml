@@ -1,9 +1,21 @@
 # ============================================================
 # CRAG-Demo — Docker Compose 编排
-# 五个 Java 服务 + PostgreSQL + Sidecar
+# 五个 Java 服务 + PostgreSQL + Redis + Sidecar
 # ============================================================
 
 services:
+
+  # --- Redis (Worker Lease for Snowflake ID) ---
+  redis:
+    image: redis:7.4-alpine
+    container_name: crag-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - crag-net
 
   # --- PostgreSQL 17 + pgvector ---
   db:
@@ -142,6 +154,10 @@ services:
           "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions",
           "spring.datasource.username": "crag_rag",
           "spring.datasource.password": "${CARG_RAG_PASSWORD:-rag_demo}",
+          "spring.data.redis.host": "redis",
+          "spring.data.redis.port": 6379,
+          "crag.id.service-domain": "rag",
+          "crag.id.required-entities": "LEGACY_DOCUMENT,CHUNK",
           "crag.embedding.sidecar-url": "http://sidecar:8001",
           "crag.rerank.sidecar-url": "http://sidecar:8001",
           "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
@@ -152,6 +168,8 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       sidecar:
         condition: service_healthy
@@ -248,6 +266,10 @@ services:
           "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions",
           "spring.datasource.username": "crag_rag",
           "spring.datasource.password": "${CARG_RAG_PASSWORD:-rag_demo}",
+          "spring.data.redis.host": "redis",
+          "spring.data.redis.port": 6379,
+          "crag.id.service-domain": "rag",
+          "crag.id.required-entities": "LEGACY_DOCUMENT,CHUNK",
           "crag.embedding.sidecar-url": "http://sidecar:8001",
           "crag.rerank.sidecar-url": "http://sidecar:8001",
           "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
@@ -257,6 +279,8 @@ services:
       CRAG_QUERY_LLM_STUB_MODE: ${CRAG_QUERY_LLM_STUB_MODE:-success}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       sidecar:
         condition: service_healthy

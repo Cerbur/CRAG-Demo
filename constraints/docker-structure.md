@@ -24,6 +24,7 @@
 
 | 服务 | 职责 | 禁止事项 |
 | --- | --- | --- |
+| `redis` | Redis 7.4，提供 Snowflake ID Worker lease（不承载业务数据、缓存或事件） | 禁止承载业务持久化、缓存或事件总线 |
 | `db` | PostgreSQL 17 + pgvector，提供持久化与向量检索能力 | 禁止承载业务逻辑 |
 | `model-init` | 一次性下载 Sidecar 所需模型到共享卷，成功后退出 | 禁止伪装健康检查；禁止作为长期服务运行 |
 | `sidecar` | Python 模型推理服务，提供 `/embed` 与 `/rerank` | 禁止承载业务编排或直接访问数据库 |
@@ -41,13 +42,14 @@
 ```
 model-init（成功退出） → sidecar（健康）
 db（健康） ───────────── → rag-service / access-service / knowledge-service（健康）
+redis（健康） ─────────── → rag-service（健康）
 sidecar（健康） ───────── → rag-service（健康）
-db + sidecar 健康 ────── → rag-service（健康）
+db + redis + sidecar 健康 → rag-service（健康）
 access / knowledge / rag 健康 → console-api / open-api（健康）
 ```
 
 - `model-init` 以成功退出作为 `sidecar` 的就绪条件。
-- `db` 和 `sidecar` 以健康检查通过作为 `rag-service` 的就绪条件。
+- `db`、`redis` 和 `sidecar` 以健康检查通过作为 `rag-service` 的就绪条件。
 - `db` 以健康检查通过作为 `access-service` 和 `knowledge-service` 的就绪条件。
 - `console-api` 和 `open-api` 以下游 Platform Probe 通过作为就绪条件。
 - `rag-service-smoke` 的依赖链与 `rag-service` 相同。
@@ -112,7 +114,18 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 
 本节逐项记录 `docker-compose.yml` 中每个服务的当前实现事实。
 
-### 5.1 `db` — PostgreSQL 17 + pgvector
+### 5.1 `redis` — Redis 7.4 (Worker Lease)
+
+| 属性 | 当前值 |
+| --- | --- |
+| 镜像 | `redis:7.4-alpine` |
+| 容器名 | `crag-redis` |
+| 端口 | 不暴露 |
+| 持久化 | 无（仅 Worker lease，非业务数据） |
+| 健康检查 | `redis-cli ping`，间隔 5s，超时 3s，重试 5 次 |
+| 网络 | `crag-net` |
+
+### 5.2 `db` — PostgreSQL 17 + pgvector
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -127,7 +140,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `pg_isready -U crag_admin -d crag_platform`，间隔 5s，超时 3s，重试 5 次 |
 | 网络 | `crag-net`（bridge） |
 
-### 5.2 `model-init` — 模型下载
+### 5.3 `model-init` — 模型下载
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -139,7 +152,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 挂载 | `./.models/modelscope:/models/modelscope`（读写，下载模型） |
 | 网络 | `crag-net` |
 
-### 5.3 `sidecar` — Python 模型推理服务
+### 5.4 `sidecar` — Python 模型推理服务
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -153,7 +166,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | 通过 Python urllib 调用 `http://localhost:8001/health`，间隔 10s，超时 5s，重试 30 次，启动宽限期 120s |
 | 网络 | `crag-net` |
 
-### 5.4 `access-service` — Access 服务
+### 5.5 `access-service` — Access 服务
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -167,7 +180,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `curl http://localhost:8091/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.5 `knowledge-service` — Knowledge 服务
+### 5.6 `knowledge-service` — Knowledge 服务
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -181,7 +194,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `curl http://localhost:8092/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.6 `rag-service` — RAG 服务
+### 5.7 `rag-service` — RAG 服务
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -191,12 +204,14 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 运行身份 | `appuser`（非 root） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions`，账号 `crag_rag` |
 | Sidecar | `http://sidecar:8001` |
+| Redis | `redis:6379`（Worker lease） |
 | gRPC | 9093（内部） |
-| 就绪条件 | `db` 健康 且 `sidecar` 健康 |
+| 就绪条件 | `db` 健康 且 `redis` 健康 且 `sidecar` 健康 |
+| ID 配置 | `crag.id.service-domain=rag`、required-entities `LEGACY_DOCUMENT,CHUNK` |
 | 健康检查 | `curl http://localhost:8082/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.7 `console-api` — Console API
+### 5.8 `console-api` — Console API
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -209,7 +224,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `curl http://localhost:8080/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.8 `open-api` — Open API
+### 5.9 `open-api` — Open API
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -222,7 +237,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `curl http://localhost:8081/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.9 `rag-service-smoke` — RAG Smoke 诊断
+### 5.10 `rag-service-smoke` — RAG Smoke 诊断
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -234,7 +249,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | Compose Profile | `smoke` |
 | 网络 | `crag-net` |
 
-### 5.10 网络
+### 5.11 网络
 
 | 属性 | 当前值 |
 | --- | --- |

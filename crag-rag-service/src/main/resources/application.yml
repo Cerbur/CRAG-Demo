@@ -76,4 +76,4 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState,db,expectedSchema
+          include: readinessState,db,expectedSchema,cragIdHealth
