@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_15
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-24
 updated: 2026-06-24
 ---
@@ -314,9 +314,9 @@ HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> pa
 | --- | --- | --- | --- | --- |
 | 15.1 | `crag-id` 核心 Snowflake 编解码与实体注册 | ⏳ 待验收 | af72298 | — |
 | 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74 | — |
-| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待开始 | — | — |
-| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待开始 | — | — |
-| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待开始 | — | — |
+| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待验收 | 38ed9e9 | — |
+| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待验收 | 1ee473f | — |
+| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待验收 | 584d213 | — |
 
 整体进度：0 / 5（0%）
 
