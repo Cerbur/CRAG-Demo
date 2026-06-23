@@ -13,8 +13,7 @@ import java.util.List;
  *
  * @since 2026-06-20
  */
-public record ParentEvidenceResult(
-    long parentChunkId, String content, List<Long> matchedChildIds) {
+public record ParentEvidenceResult(long parentChunkId, String content, List<Long> matchedChildIds) {
 
   /**
    * 紧凑构造器 —— 防御性复制 matchedChildIds 并拒绝非法状态.

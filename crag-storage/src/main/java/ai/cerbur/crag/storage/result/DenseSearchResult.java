@@ -15,8 +15,7 @@ public class DenseSearchResult {
   private final String content;
   private final double denseScore;
 
-  public DenseSearchResult(
-      long chunkId, long parentChunkId, double denseScore, String content) {
+  public DenseSearchResult(long chunkId, long parentChunkId, double denseScore, String content) {
     this(chunkId, parentChunkId, null, denseScore, content);
   }
 

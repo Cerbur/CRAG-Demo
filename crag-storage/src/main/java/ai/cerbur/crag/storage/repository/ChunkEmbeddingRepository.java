@@ -31,8 +31,8 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
   /**
    * 写入 embedding 向量 —— native SQL 处理 pgvector 类型转换.
    *
-   * <p>chunk_id 为 BIGINT，直接传入 long 即可. ?2::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转
-   * vector(768) 类型. 调用方应先通过 existsByChunkId 做幂等检查，极端并发下 DuplicateKeyException 向上传播.
+   * <p>chunk_id 为 BIGINT，直接传入 long 即可. ?2::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转 vector(768)
+   * 类型. 调用方应先通过 existsByChunkId 做幂等检查，极端并发下 DuplicateKeyException 向上传播.
    *
    * @param chunkId chunk ID
    * @param vectorString pgvector 数组字面量，由 ChunkEmbeddingDao 负责 float[] → String 转换

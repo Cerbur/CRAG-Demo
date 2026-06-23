@@ -34,7 +34,8 @@ class PromptBuilderTest {
     @DisplayName("null question → IllegalArgumentException")
     void nullQuestion() {
       var ctx =
-          new QueryContext("some context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 12);
+          new QueryContext(
+              "some context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 12);
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> promptBuilder.build(null, ctx))
@@ -45,7 +46,8 @@ class PromptBuilderTest {
     @DisplayName("blank question (spaces) → IllegalArgumentException")
     void blankQuestion() {
       var ctx =
-          new QueryContext("some context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 12);
+          new QueryContext(
+              "some context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 12);
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> promptBuilder.build("   ", ctx))
@@ -82,7 +84,8 @@ class PromptBuilderTest {
     @Test
     @DisplayName("系统消息包含不可信资料规则")
     void systemPromptContainsRules() {
-      var ctx = new QueryContext("context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 7);
+      var ctx =
+          new QueryContext("context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 7);
       LlmRequest request = promptBuilder.build("What is X?", ctx);
 
       assertThat(request.systemPrompt())

@@ -15,17 +15,12 @@ public class SparseSearchResult {
   private final ChunkBO chunk;
   private final double sparseScore;
 
-  public SparseSearchResult(
-      long chunkId, long parentChunkId, double sparseScore, String content) {
+  public SparseSearchResult(long chunkId, long parentChunkId, double sparseScore, String content) {
     this(chunkId, parentChunkId, null, sparseScore, content);
   }
 
   public SparseSearchResult(
-      long chunkId,
-      long parentChunkId,
-      Integer chunkIndex,
-      double sparseScore,
-      String content) {
+      long chunkId, long parentChunkId, Integer chunkIndex, double sparseScore, String content) {
     this(new ChunkBO(chunkId, parentChunkId, chunkIndex, content), sparseScore);
   }
 

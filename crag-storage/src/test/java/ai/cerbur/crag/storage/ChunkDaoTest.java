@@ -103,8 +103,7 @@ class ChunkDaoTest {
     void delegatesToRepository() {
       List<Long> ids = List.of(1L, 2L);
       List<ParentChunkContent> expected =
-          List.of(
-              new ParentChunkContent(1L, "content 1"), new ParentChunkContent(2L, "content 2"));
+          List.of(new ParentChunkContent(1L, "content 1"), new ParentChunkContent(2L, "content 2"));
       when(chunkRepository.findParentContentsByIds(ids)).thenReturn(expected);
 
       List<ParentChunkContent> result = chunkDao.findParentContentsByIds(ids);

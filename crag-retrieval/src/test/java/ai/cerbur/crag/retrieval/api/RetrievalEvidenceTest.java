@@ -541,8 +541,7 @@ class RetrievalEvidenceTest {
   // ============================================================
 
   /** 创建带有指定 parentChunkId 的 ChunkSearchResult. */
-  private static ChunkSearchResult childResult(
-      long chunkId, long parentChunkId, String content) {
+  private static ChunkSearchResult childResult(long chunkId, long parentChunkId, String content) {
     ChunkBO bo = new ChunkBO(chunkId, parentChunkId, null, content);
     RrfFusionResult rrf = new RrfFusionResult(bo, 0.5, null, null);
     return ChunkSearchResult.fromRrfWithRerank(rrf, 0.5);

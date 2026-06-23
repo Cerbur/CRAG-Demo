@@ -34,8 +34,7 @@ class RrfFusionServiceTest {
     return new SparseSearchResult(chunkId, parentChunkId, score, content);
   }
 
-  private DenseSearchResult dense(
-      long chunkId, long parentChunkId, double score, String content) {
+  private DenseSearchResult dense(long chunkId, long parentChunkId, double score, String content) {
     return new DenseSearchResult(chunkId, parentChunkId, score, content);
   }
 
@@ -192,7 +191,9 @@ class RrfFusionServiceTest {
       List<RrfFusionResult> results =
           rrfFusionService.fuse(sparseList, Collections.emptyList(), TOP_N);
 
-      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly(1001L, 1002L, 1003L);
+      assertThat(results)
+          .extracting(RrfFusionResult::getChunkId)
+          .containsExactly(1001L, 1002L, 1003L);
     }
 
     @Test

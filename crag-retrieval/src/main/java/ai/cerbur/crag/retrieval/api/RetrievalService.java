@@ -257,8 +257,7 @@ public class RetrievalService {
       candidates.put(fused.getChunkId(), fused);
       rrfHitIds.add(fused.getChunkId());
 
-      if (fused.getParentChunkId() == 0L
-          || fused.getChunkIndex() == null) {
+      if (fused.getParentChunkId() == 0L || fused.getChunkIndex() == null) {
         continue;
       }
 

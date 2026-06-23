@@ -15,8 +15,8 @@ import org.hibernate.type.SqlTypes;
  * <p>Child chunk 为细粒度检索单元（256 token），是唯一会被 Embedding 向量化和参与 FTS 索引的粒度. Parent chunk 为大窗口上下文（1024
  * token），仅存储纯文本，通过 parent_chunk_id 关联回表获取.
  *
- * <p>从 Plan 15 起，所有 ID 字段（chunkId、docId、parentChunkId）从 UUID 字符串切换为 Snowflake 生成的
- * {@code long}（数据库端对应 {@code BIGINT}）。ID 由调用方通过 {@code CragIdGenerator} 预生成，实体不再自行生成。
+ * <p>从 Plan 15 起，所有 ID 字段（chunkId、docId、parentChunkId）从 UUID 字符串切换为 Snowflake 生成的 {@code
+ * long}（数据库端对应 {@code BIGINT}）。ID 由调用方通过 {@code CragIdGenerator} 预生成，实体不再自行生成。
  *
  * @since 2026-06-10
  */
@@ -104,7 +104,12 @@ public class Chunk {
    * @return parent Chunk 实体
    */
   public static Chunk createParent(
-      long chunkId, long docId, String content, int tokenCount, Integer chunkIndex, String metadata) {
+      long chunkId,
+      long docId,
+      String content,
+      int tokenCount,
+      Integer chunkIndex,
+      String metadata) {
     Chunk chunk = new Chunk();
     chunk.setChunkId(chunkId);
     chunk.setDocId(docId);

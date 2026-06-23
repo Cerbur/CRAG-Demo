@@ -70,7 +70,8 @@ class RetrievalServiceTest {
     when(denseQueryService.search(embedding, 3))
         .thenReturn(List.of(new DenseSearchResult(1001L, 100L, 1, 0.8, "命中的 child")));
     when(rrfFusionService.fuse(any(), any(), eq(1)))
-        .thenReturn(List.of(new RrfFusionResult(1001L, 100L, 1, 2.0 / 61.0, "命中的 child", 0.9, 0.8)));
+        .thenReturn(
+            List.of(new RrfFusionResult(1001L, 100L, 1, 2.0 / 61.0, "命中的 child", 0.9, 0.8)));
     when(chunkDao.findByParentChunkIdsAndChunkIndexes(List.of(100L), List.of(0, 2)))
         .thenReturn(List.of(child0, child2));
     when(rerankService.rerank(eq("问题"), candidatesCaptor.capture()))
