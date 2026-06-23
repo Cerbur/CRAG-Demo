@@ -57,11 +57,11 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-common` | 无 |
 | `crag-storage` | `crag-common` |
 | `crag-retrieval` | `crag-storage`、`crag-common` |
-| `crag-ingestion` | `crag-retrieval`、`crag-storage`、`crag-common` |
+| `crag-ingestion` | `crag-retrieval`、`crag-storage`、`crag-common`、`crag-id` |
 | `crag-query` | `crag-retrieval`、`crag-common` |
 | `crag-api` | `crag-ingestion`、`crag-query`、`crag-common` |
-| `crag-smoke` | `crag-api`、`crag-ingestion`、`crag-query`、`crag-retrieval`、`crag-storage`、`crag-common` |
-| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-api`、`crag-ingestion`、`crag-retrieval`、`crag-query`、`crag-storage`、`crag-smoke`、`crag-common` |
+| `crag-smoke` | `crag-api`、`crag-ingestion`、`crag-query`、`crag-retrieval`、`crag-storage`、`crag-common`、`crag-id` |
+| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-api`、`crag-ingestion`、`crag-retrieval`、`crag-query`、`crag-storage`、`crag-smoke`、`crag-common`、`crag-id` |
 | `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-knowledge-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |

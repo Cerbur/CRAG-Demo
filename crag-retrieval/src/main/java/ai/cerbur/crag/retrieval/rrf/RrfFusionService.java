@@ -43,8 +43,8 @@ public class RrfFusionService {
       return Collections.emptyList();
     }
 
-    Map<String, Double> childRrfScores = new LinkedHashMap<>();
-    Map<String, Double> childSparseScores =
+    Map<Long, Double> childRrfScores = new LinkedHashMap<>();
+    Map<Long, Double> childSparseScores =
         sparseResults.stream()
             .collect(
                 Collectors.toMap(
@@ -52,7 +52,7 @@ public class RrfFusionService {
                     SparseSearchResult::getSparseScore,
                     Math::max,
                     LinkedHashMap::new));
-    Map<String, Double> childDenseScores =
+    Map<Long, Double> childDenseScores =
         denseResults.stream()
             .collect(
                 Collectors.toMap(
@@ -60,7 +60,7 @@ public class RrfFusionService {
                     DenseSearchResult::getDenseScore,
                     Math::max,
                     LinkedHashMap::new));
-    Map<String, ChunkBO> childChunks = new LinkedHashMap<>();
+    Map<Long, ChunkBO> childChunks = new LinkedHashMap<>();
 
     for (SparseSearchResult result : sparseResults) {
       childChunks.putIfAbsent(result.getChunkId(), result.getChunk());
@@ -98,7 +98,7 @@ public class RrfFusionService {
    * @param chunkIdFn 从 T 提取 chunkId
    */
   private <T> void accumulate(
-      Map<String, Double> childRrfScores, List<T> results, Function<T, String> chunkIdFn) {
+      Map<Long, Double> childRrfScores, List<T> results, Function<T, Long> chunkIdFn) {
     for (int i = 0; i < results.size(); i++) {
       int rank = i + 1; // 1-based
       double rrfScore = 1.0 / (RRF_K + rank);

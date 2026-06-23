@@ -10,23 +10,23 @@ package ai.cerbur.crag.retrieval.bo;
  */
 public class ChunkBO {
 
-  private final String chunkId;
-  private final String parentChunkId;
+  private final long chunkId;
+  private final long parentChunkId;
   private final Integer chunkIndex;
   private final String content;
 
-  public ChunkBO(String chunkId, String parentChunkId, Integer chunkIndex, String content) {
+  public ChunkBO(long chunkId, long parentChunkId, Integer chunkIndex, String content) {
     this.chunkId = chunkId;
     this.parentChunkId = parentChunkId;
     this.chunkIndex = chunkIndex;
     this.content = content;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunkId;
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return parentChunkId;
   }
 

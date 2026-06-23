@@ -40,9 +40,9 @@ class ChunkDaoTest {
     @Test
     @DisplayName("affected > 0 → 正常返回 affected 值")
     void affectedPositiveReturnsValue() {
-      when(chunkRepository.updateDenseStatus("chunk-001", ChunkStatus.SUCCESS, 3)).thenReturn(1);
+      when(chunkRepository.updateDenseStatus(1001L, ChunkStatus.SUCCESS, 3)).thenReturn(1);
 
-      int result = chunkDao.updateDenseStatus("chunk-001", ChunkStatus.SUCCESS, 3);
+      int result = chunkDao.updateDenseStatus(1001L, ChunkStatus.SUCCESS, 3);
 
       assertThat(result).isEqualTo(1);
     }
@@ -50,11 +50,11 @@ class ChunkDaoTest {
     @Test
     @DisplayName("affected == 0 → 抛出 DuplicateKeyException")
     void affectedZeroThrowsDuplicateKeyException() {
-      when(chunkRepository.updateDenseStatus("chunk-001", ChunkStatus.SUCCESS, 3)).thenReturn(0);
+      when(chunkRepository.updateDenseStatus(1001L, ChunkStatus.SUCCESS, 3)).thenReturn(0);
 
-      assertThatThrownBy(() -> chunkDao.updateDenseStatus("chunk-001", ChunkStatus.SUCCESS, 3))
+      assertThatThrownBy(() -> chunkDao.updateDenseStatus(1001L, ChunkStatus.SUCCESS, 3))
           .isInstanceOf(DuplicateKeyException.class)
-          .hasMessageContaining("chunk-001")
+          .hasMessageContaining("1001")
           .hasMessageContaining("version 3")
           .hasMessageContaining("stale");
     }
@@ -67,9 +67,9 @@ class ChunkDaoTest {
     @Test
     @DisplayName("affected > 0 → 正常返回 affected 值")
     void affectedPositiveReturnsValue() {
-      when(chunkRepository.updateSparseStatus("chunk-002", ChunkStatus.FAILED, 5)).thenReturn(1);
+      when(chunkRepository.updateSparseStatus(1002L, ChunkStatus.FAILED, 5)).thenReturn(1);
 
-      int result = chunkDao.updateSparseStatus("chunk-002", ChunkStatus.FAILED, 5);
+      int result = chunkDao.updateSparseStatus(1002L, ChunkStatus.FAILED, 5);
 
       assertThat(result).isEqualTo(1);
     }
@@ -77,11 +77,11 @@ class ChunkDaoTest {
     @Test
     @DisplayName("affected == 0 → 抛出 DuplicateKeyException")
     void affectedZeroThrowsDuplicateKeyException() {
-      when(chunkRepository.updateSparseStatus("chunk-002", ChunkStatus.FAILED, 5)).thenReturn(0);
+      when(chunkRepository.updateSparseStatus(1002L, ChunkStatus.FAILED, 5)).thenReturn(0);
 
-      assertThatThrownBy(() -> chunkDao.updateSparseStatus("chunk-002", ChunkStatus.FAILED, 5))
+      assertThatThrownBy(() -> chunkDao.updateSparseStatus(1002L, ChunkStatus.FAILED, 5))
           .isInstanceOf(DuplicateKeyException.class)
-          .hasMessageContaining("chunk-002")
+          .hasMessageContaining("1002")
           .hasMessageContaining("version 5")
           .hasMessageContaining("stale");
     }
@@ -101,10 +101,10 @@ class ChunkDaoTest {
     @Test
     @DisplayName("正常委托到 repository")
     void delegatesToRepository() {
-      List<String> ids = List.of("p1", "p2");
+      List<Long> ids = List.of(1L, 2L);
       List<ParentChunkContent> expected =
           List.of(
-              new ParentChunkContent("p1", "content 1"), new ParentChunkContent("p2", "content 2"));
+              new ParentChunkContent(1L, "content 1"), new ParentChunkContent(2L, "content 2"));
       when(chunkRepository.findParentContentsByIds(ids)).thenReturn(expected);
 
       List<ParentChunkContent> result = chunkDao.findParentContentsByIds(ids);

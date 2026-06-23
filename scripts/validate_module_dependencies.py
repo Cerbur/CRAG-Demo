@@ -22,7 +22,7 @@ MODULE_WHITELIST: dict[str, set[str]] = {
     "crag-common": set(),
     "crag-storage": {"crag-common"},
     "crag-retrieval": {"crag-storage", "crag-common"},
-    "crag-ingestion": {"crag-retrieval", "crag-storage", "crag-common"},
+    "crag-ingestion": {"crag-retrieval", "crag-storage", "crag-common", "crag-id"},
     "crag-query": {"crag-retrieval", "crag-common"},
     "crag-api": {"crag-ingestion", "crag-query", "crag-common"},
     "crag-smoke": {
@@ -32,6 +32,7 @@ MODULE_WHITELIST: dict[str, set[str]] = {
         "crag-retrieval",
         "crag-storage",
         "crag-common",
+        "crag-id",
     },
     "crag-platform-contracts": set(),
     "crag-grpc-runtime": set(),

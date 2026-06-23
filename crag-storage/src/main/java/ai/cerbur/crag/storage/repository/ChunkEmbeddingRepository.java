@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @since 2026-06-10
  */
 @Repository
-public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, String> {
+public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, Long> {
 
   /**
    * 检查指定 chunk 的 embedding 是否已存在.
@@ -26,12 +26,12 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
    * @param chunkId chunk ID
    * @return true 表示已有 embedding 记录
    */
-  boolean existsByChunkId(String chunkId);
+  boolean existsByChunkId(long chunkId);
 
   /**
    * 写入 embedding 向量 —— native SQL 处理 pgvector 类型转换.
    *
-   * <p>chunk_id 为 VARCHAR(36)，直接传入 String 即可. ?2::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转
+   * <p>chunk_id 为 BIGINT，直接传入 long 即可. ?2::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转
    * vector(768) 类型. 调用方应先通过 existsByChunkId 做幂等检查，极端并发下 DuplicateKeyException 向上传播.
    *
    * @param chunkId chunk ID
@@ -42,7 +42,7 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
   @Query(
       value = "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?1, CAST(?2 AS vector))",
       nativeQuery = true)
-  void insert(String chunkId, String vectorString);
+  void insert(long chunkId, String vectorString);
 
   /**
    * 向量相似度检索 —— 使用 pgvector {@code <=>} 余弦距离排序，JOIN chunk 表获取 child content 和 parent chunk ID.

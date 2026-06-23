@@ -33,7 +33,7 @@ public class ChunkFtsDao {
    * @param chunkId chunk ID
    * @return true 表示已有 FTS 记录
    */
-  public boolean existsByChunkId(String chunkId) {
+  public boolean existsByChunkId(long chunkId) {
     return chunkFtsRepository.existsByChunkId(chunkId);
   }
 
@@ -45,7 +45,7 @@ public class ChunkFtsDao {
    * @param chunkId chunk ID
    * @param rawContent 原始文本内容
    */
-  public void insert(String chunkId, String rawContent) {
+  public void insert(long chunkId, String rawContent) {
     if (chunkFtsRepository.existsByChunkId(chunkId)) {
       log.debug("FTS already exists for chunk {}, skipping", chunkId);
       return;
@@ -83,8 +83,8 @@ public class ChunkFtsDao {
 
     List<SparseSearchResult> results = new ArrayList<>(rows.size());
     for (Object[] row : rows) {
-      String chunkId = (String) row[0];
-      String parentChunkId = (String) row[1];
+      long chunkId = ((Number) row[0]).longValue();
+      long parentChunkId = ((Number) row[1]).longValue();
       Integer chunkIndex = row[2] == null ? null : ((Number) row[2]).intValue();
       double score = ((Number) row[3]).doubleValue();
       String content = (String) row[4];

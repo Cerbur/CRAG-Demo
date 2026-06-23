@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @since 2026-06-10
  */
 @Repository
-public interface ChunkRepository extends JpaRepository<Chunk, String> {
+public interface ChunkRepository extends JpaRepository<Chunk, Long> {
 
   /**
    * Dense Cron 扫表 —— 找出所有待处理的 child chunk.
@@ -29,7 +29,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * <p>候选条件（OR）： - dense_status = INIT 或 FAILED（正常候选） - dense_status = PROCESSING 且 updated_at
    * 早于超时阈值（超时回收）
    *
-   * <p>仅返回 child chunk（parent_chunk_id != ''），排除 parent chunk.
+   * <p>仅返回 child chunk（parent_chunk_id <> 0），排除 parent chunk.
    *
    * @param statuses 状态列表 [INIT, FAILED]
    * @param timeoutThreshold 超时阈值，PROCESSING 的 updated_at 早于此值的 chunk 也会被捞起
@@ -37,7 +37,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * @return 候选 chunk 列表
    */
   @Query(
-      "SELECT c FROM Chunk c WHERE c.parentChunkId <> '' AND (c.denseStatus IN :statuses OR (c.denseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.updatedAt < :timeoutThreshold)) ORDER BY c.updatedAt ASC")
+      "SELECT c FROM Chunk c WHERE c.parentChunkId <> 0L AND (c.denseStatus IN :statuses OR (c.denseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.updatedAt < :timeoutThreshold)) ORDER BY c.updatedAt ASC")
   List<Chunk> findDenseCandidates(
       @Param("statuses") List<ChunkStatus> statuses,
       @Param("timeoutThreshold") LocalDateTime timeoutThreshold,
@@ -59,7 +59,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "UPDATE Chunk c SET c.denseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.denseStatus = :expectedStatus AND c.version = :version")
   int tryMarkProcessing(
-      @Param("chunkId") String chunkId,
+      @Param("chunkId") long chunkId,
       @Param("expectedStatus") ChunkStatus expectedStatus,
       @Param("version") Integer version);
 
@@ -78,7 +78,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "UPDATE Chunk c SET c.denseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.denseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.updatedAt < :timeoutThreshold AND c.version = :version")
   int tryMarkProcessingTimeout(
-      @Param("chunkId") String chunkId,
+      @Param("chunkId") long chunkId,
       @Param("timeoutThreshold") LocalDateTime timeoutThreshold,
       @Param("version") Integer version);
 
@@ -98,7 +98,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "UPDATE Chunk c SET c.denseStatus = :newStatus, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.denseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.version = :version")
   int updateDenseStatus(
-      @Param("chunkId") String chunkId,
+      @Param("chunkId") long chunkId,
       @Param("newStatus") ChunkStatus newStatus,
       @Param("version") Integer version);
 
@@ -108,7 +108,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * <p>候选条件（OR）： - sparse_status = INIT 或 FAILED（正常候选） - sparse_status = PROCESSING 且 updated_at
    * 早于超时阈值（超时回收）
    *
-   * <p>仅返回 child chunk（parent_chunk_id != ''），排除 parent chunk.
+   * <p>仅返回 child chunk（parent_chunk_id <> 0），排除 parent chunk.
    *
    * @param statuses 状态列表 [INIT, FAILED]
    * @param timeoutThreshold 超时阈值，PROCESSING 的 updated_at 早于此值的 chunk 也会被捞起
@@ -116,7 +116,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * @return 候选 chunk 列表
    */
   @Query(
-      "SELECT c FROM Chunk c WHERE c.parentChunkId <> '' AND (c.sparseStatus IN :statuses OR (c.sparseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.updatedAt < :timeoutThreshold)) ORDER BY c.updatedAt ASC")
+      "SELECT c FROM Chunk c WHERE c.parentChunkId <> 0L AND (c.sparseStatus IN :statuses OR (c.sparseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.updatedAt < :timeoutThreshold)) ORDER BY c.updatedAt ASC")
   List<Chunk> findSparseCandidates(
       @Param("statuses") List<ChunkStatus> statuses,
       @Param("timeoutThreshold") LocalDateTime timeoutThreshold,
@@ -137,7 +137,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "UPDATE Chunk c SET c.sparseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.sparseStatus = :expectedStatus AND c.version = :version")
   int tryMarkSparseProcessing(
-      @Param("chunkId") String chunkId,
+      @Param("chunkId") long chunkId,
       @Param("expectedStatus") ChunkStatus expectedStatus,
       @Param("version") Integer version);
 
@@ -156,7 +156,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "UPDATE Chunk c SET c.sparseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.sparseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.updatedAt < :timeoutThreshold AND c.version = :version")
   int tryMarkSparseProcessingTimeout(
-      @Param("chunkId") String chunkId,
+      @Param("chunkId") long chunkId,
       @Param("timeoutThreshold") LocalDateTime timeoutThreshold,
       @Param("version") Integer version);
 
@@ -175,7 +175,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "UPDATE Chunk c SET c.sparseStatus = :newStatus, c.updatedAt = CURRENT_TIMESTAMP, c.version = c.version + 1 WHERE c.chunkId = :chunkId AND c.sparseStatus = ai.cerbur.crag.storage.entity.ChunkStatus.PROCESSING AND c.version = :version")
   int updateSparseStatus(
-      @Param("chunkId") String chunkId,
+      @Param("chunkId") long chunkId,
       @Param("newStatus") ChunkStatus newStatus,
       @Param("version") Integer version);
 
@@ -195,7 +195,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * @param docId 文档 ID
    * @return 该文档下的所有 chunk
    */
-  List<Chunk> findByDocId(String docId);
+  List<Chunk> findByDocId(long docId);
 
   /**
    * 按 parent chunk ID 查询其下所有 child chunk.
@@ -203,7 +203,7 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * @param parentChunkId parent chunk ID
    * @return 该 parent 下的所有 child chunk
    */
-  List<Chunk> findByParentChunkId(String parentChunkId);
+  List<Chunk> findByParentChunkId(long parentChunkId);
 
   /**
    * 按 parent chunk ID 与 child index 批量查询候选 child chunk.
@@ -213,12 +213,12 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
    * @return 命中 parent/index 集合的 child chunk 列表
    */
   List<Chunk> findByParentChunkIdInAndChunkIndexIn(
-      List<String> parentChunkIds, List<Integer> chunkIndexes);
+      List<Long> parentChunkIds, List<Integer> chunkIndexes);
 
   /**
    * 按 chunk ID 列表批量查询 parent chunk 内容投影.
    *
-   * <p>仅返回 {@code chunkId} 和 {@code content}，且限定 parent 行（parent_chunk_id = ''）， 用于 Evidence 回表组装.
+   * <p>仅返回 {@code chunkId} 和 {@code content}，且限定 parent 行（parent_chunk_id = 0）， 用于 Evidence 回表组装.
    * 不返回完整 Entity 以避免跨模块传播.
    *
    * @param chunkIds chunk ID 列表
@@ -227,6 +227,6 @@ public interface ChunkRepository extends JpaRepository<Chunk, String> {
   @Query(
       "SELECT new ai.cerbur.crag.storage.result.ParentChunkContent(c.chunkId, c.content)"
           + " FROM Chunk c"
-          + " WHERE c.chunkId IN :chunkIds AND c.parentChunkId = ''")
-  List<ParentChunkContent> findParentContentsByIds(@Param("chunkIds") List<String> chunkIds);
+          + " WHERE c.chunkId IN :chunkIds AND c.parentChunkId = 0L")
+  List<ParentChunkContent> findParentContentsByIds(@Param("chunkIds") List<Long> chunkIds);
 }

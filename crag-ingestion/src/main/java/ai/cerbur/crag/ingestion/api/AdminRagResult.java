@@ -6,13 +6,13 @@ import java.util.List;
 /**
  * AdminRag 入库结果 —— 返回 docId、子 chunk 数量、状态和 parent chunk ID 列表.
  *
- * @param docId 文档唯一标识（UUID 字符串）
+ * @param docId 文档唯一标识（Snowflake long，由 CragIdGenerator 生成）
  * @param chunks 子级 child chunk 数量（不含 parent）
  * @param status 入库状态，"PENDING" 表示 chunk 已写入，Dense + Sparse 索引异步进行中
  * @param parentChunkIds 预生成的 parent chunk ID 列表，不可变；空列表表示无分块输出
  * @since 2026-06-12
  */
-public record AdminRagResult(String docId, int chunks, String status, List<String> parentChunkIds) {
+public record AdminRagResult(long docId, int chunks, String status, List<Long> parentChunkIds) {
 
   /**
    * 紧凑构造器 —— 防御性复制 parentChunkIds 并拒绝 null.
@@ -27,7 +27,7 @@ public record AdminRagResult(String docId, int chunks, String status, List<Strin
   }
 
   @Override
-  public List<String> parentChunkIds() {
+  public List<Long> parentChunkIds() {
     return Collections.unmodifiableList(parentChunkIds);
   }
 }

@@ -16,13 +16,13 @@ public class SparseSearchResult {
   private final double sparseScore;
 
   public SparseSearchResult(
-      String chunkId, String parentChunkId, double sparseScore, String content) {
+      long chunkId, long parentChunkId, double sparseScore, String content) {
     this(chunkId, parentChunkId, null, sparseScore, content);
   }
 
   public SparseSearchResult(
-      String chunkId,
-      String parentChunkId,
+      long chunkId,
+      long parentChunkId,
       Integer chunkIndex,
       double sparseScore,
       String content) {
@@ -38,11 +38,11 @@ public class SparseSearchResult {
     return chunk;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunk.getChunkId();
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return chunk.getParentChunkId();
   }
 

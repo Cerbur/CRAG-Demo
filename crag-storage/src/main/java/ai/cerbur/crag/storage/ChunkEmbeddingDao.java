@@ -33,20 +33,20 @@ public class ChunkEmbeddingDao {
    * @param chunkId chunk ID
    * @return true 表示已有 embedding 记录
    */
-  public boolean existsByChunkId(String chunkId) {
+  public boolean existsByChunkId(long chunkId) {
     return chunkEmbeddingRepository.existsByChunkId(chunkId);
   }
 
   /**
    * 写入 embedding（纯 INSERT，不做 upsert）.
    *
-   * <p>调用方应先通过 {@link #existsByChunkId(String)} 做幂等检查. 极端并发下可能抛出 DuplicateKeyException，由调用方决定重试策略.
+   * <p>调用方应先通过 {@link #existsByChunkId(long)} 做幂等检查. 极端并发下可能抛出 DuplicateKeyException，由调用方决定重试策略.
    *
    * @param chunkId chunk ID
    * @param vector 768 维稠密向量
    * @throws DuplicateKeyException 同一 chunkId 已被其他实例写入
    */
-  public void insert(String chunkId, float[] vector) {
+  public void insert(long chunkId, float[] vector) {
     chunkEmbeddingRepository.insert(chunkId, toPgVectorString(vector));
     log.debug("Embedding inserted — chunkId={}", chunkId);
   }
@@ -81,8 +81,8 @@ public class ChunkEmbeddingDao {
 
     List<DenseSearchResult> results = new ArrayList<>(rows.size());
     for (Object[] row : rows) {
-      String chunkId = (String) row[0];
-      String parentChunkId = (String) row[1];
+      long chunkId = ((Number) row[0]).longValue();
+      long parentChunkId = ((Number) row[1]).longValue();
       Integer chunkIndex = row[2] == null ? null : ((Number) row[2]).intValue();
       double score = ((Number) row[3]).doubleValue();
       String content = (String) row[4];

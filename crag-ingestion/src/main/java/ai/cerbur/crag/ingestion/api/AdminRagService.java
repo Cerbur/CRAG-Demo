@@ -1,5 +1,7 @@
 package ai.cerbur.crag.ingestion.api;
 
+import ai.cerbur.crag.id.api.CragIdGenerator;
+import ai.cerbur.crag.id.api.IdEntityType;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitGroup;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitResult;
 import ai.cerbur.crag.ingestion.chunk.split.ChunkSplitService;
@@ -9,7 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,9 @@ public class AdminRagService {
   /** Jackson ObjectMapper —— 序列化 chunk metadata 为 JSON 字符串. */
   @Autowired private ObjectMapper objectMapper;
 
+  /** Snowflake ID 发号器 —— 为文档和 chunk 预生成唯一 long ID. */
+  @Autowired private CragIdGenerator cragIdGenerator;
+
   /**
    * 知识入库 —— 接收纯文本，分块后写入 chunk 表，返回入库结果.
    *
@@ -59,7 +63,7 @@ public class AdminRagService {
    * @return AdminRagResult 含 docId、child chunk 数量、"PENDING" 状态
    */
   public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
-    String docId = UUID.randomUUID().toString();
+    long docId = cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT);
     String metadataJson = buildMetadataJson(title, metadata, docId);
 
     ChunkSplitResult splitResult = chunkSplitService.split(content);
@@ -71,25 +75,29 @@ public class AdminRagService {
     }
 
     List<Chunk> allChunks = new ArrayList<>();
-    List<String> parentChunkIds = new ArrayList<>();
+    List<Long> parentChunkIds = new ArrayList<>();
     int childCount = 0;
 
     for (ChunkSplitGroup group : groups) {
+      long parentChunkId = cragIdGenerator.nextId(IdEntityType.CHUNK);
       Chunk parent =
           Chunk.createParent(
+              parentChunkId,
               docId,
               group.parentChunk().content(),
               group.parentChunk().tokenCount(),
               group.parentChunk().chunkIndex(),
               metadataJson);
       allChunks.add(parent);
-      parentChunkIds.add(parent.getChunkId());
+      parentChunkIds.add(parentChunkId);
 
       for (var childData : group.childChunks()) {
+        long childChunkId = cragIdGenerator.nextId(IdEntityType.CHUNK);
         Chunk child =
             Chunk.createChild(
+                childChunkId,
                 docId,
-                parent.getChunkId(),
+                parentChunkId,
                 childData.content(),
                 childData.tokenCount(),
                 childData.chunkIndex(),
@@ -111,7 +119,7 @@ public class AdminRagService {
     return new AdminRagResult(docId, childCount, "PENDING", parentChunkIds);
   }
 
-  private String buildMetadataJson(String title, Map<String, Object> metadata, String docId) {
+  private String buildMetadataJson(String title, Map<String, Object> metadata, long docId) {
     Map<String, Object> enriched = new LinkedHashMap<>();
     enriched.put("title", title);
     if (metadata != null) {

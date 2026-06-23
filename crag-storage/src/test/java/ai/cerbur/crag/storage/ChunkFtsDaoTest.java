@@ -90,15 +90,15 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("单条结果 → chunkId/parentChunkId/chunkIndex/score/content 正确映射")
     void singleRowMapsCorrectly() {
-      Object[] row = {"chunk-abc", "parent-xyz", 3, 0.75, "全文检索匹配内容"};
+      Object[] row = {100L, 200L, 3, 0.75, "全文检索匹配内容"};
       when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(List.<Object[]>of(row));
 
       List<SparseSearchResult> results = chunkFtsDao.searchFts("关键词", 3);
 
       assertThat(results).hasSize(1);
       SparseSearchResult r = results.get(0);
-      assertThat(r.getChunkId()).isEqualTo("chunk-abc");
-      assertThat(r.getParentChunkId()).isEqualTo("parent-xyz");
+      assertThat(r.getChunkId()).isEqualTo(100L);
+      assertThat(r.getParentChunkId()).isEqualTo(200L);
       assertThat(r.getChunkIndex()).isEqualTo(3);
       assertThat(r.getSparseScore()).isEqualTo(0.75);
       assertThat(r.getContent()).isEqualTo("全文检索匹配内容");
@@ -107,24 +107,24 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("多条结果 → 按 Repository 返回顺序映射，数量一致")
     void multipleRowsMapCorrectly() {
-      Object[] row1 = {"c1", "p1", 0, 0.90, "第一个匹配"};
-      Object[] row2 = {"c2", "p2", 1, 0.70, "第二个匹配"};
-      Object[] row3 = {"c3", "p3", 2, 0.50, "第三个匹配"};
+      Object[] row1 = {1L, 10L, 0, 0.90, "第一个匹配"};
+      Object[] row2 = {2L, 20L, 1, 0.70, "第二个匹配"};
+      Object[] row3 = {3L, 30L, 2, 0.50, "第三个匹配"};
       when(chunkFtsRepository.searchFts(anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row1, row2, row3));
 
       List<SparseSearchResult> results = chunkFtsDao.searchFts("关键词", 10);
 
       assertThat(results).hasSize(3);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
-      assertThat(results.get(1).getChunkId()).isEqualTo("c2");
-      assertThat(results.get(2).getChunkId()).isEqualTo("c3");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1L);
+      assertThat(results.get(1).getChunkId()).isEqualTo(2L);
+      assertThat(results.get(2).getChunkId()).isEqualTo(3L);
     }
 
     @Test
     @DisplayName("score 为 Float → doubleValue() 转换正确")
     void floatScoreConvertsToDouble() {
-      Object[] row = {"c1", "p1", 0, 0.123f, "内容"};
+      Object[] row = {1L, 10L, 0, 0.123f, "内容"};
       when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(List.<Object[]>of(row));
 
       List<SparseSearchResult> results = chunkFtsDao.searchFts("q", 1);

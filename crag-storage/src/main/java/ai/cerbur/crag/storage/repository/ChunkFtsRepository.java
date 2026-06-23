@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @since 2026-06-10
  */
 @Repository
-public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
+public interface ChunkFtsRepository extends JpaRepository<ChunkFts, Long> {
 
   /**
    * 检查指定 chunk 的 FTS 记录是否已存在.
@@ -25,7 +25,7 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
    * @param chunkId chunk ID
    * @return true 表示已有 FTS 记录
    */
-  boolean existsByChunkId(String chunkId);
+  boolean existsByChunkId(long chunkId);
 
   /**
    * 写入 FTS 全文检索记录 —— native SQL 处理 CJK 分词 + tsvector 类型转换.
@@ -47,7 +47,7 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, String> {
                     regexp_replace(?2, '([一-龥])', '\\1 ', 'g')))
         """,
       nativeQuery = true)
-  void insert(String chunkId, String rawContent);
+  void insert(long chunkId, String rawContent);
 
   /**
    * FTS 全文检索查询 —— 使用 ts_rank 排序，JOIN chunk 表获取 child content 和 parent chunk ID.

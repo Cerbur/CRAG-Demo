@@ -6,7 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -16,9 +15,8 @@ import org.hibernate.type.SqlTypes;
  * <p>Child chunk 为细粒度检索单元（256 token），是唯一会被 Embedding 向量化和参与 FTS 索引的粒度. Parent chunk 为大窗口上下文（1024
  * token），仅存储纯文本，通过 parent_chunk_id 关联回表获取.
  *
- * <p>主键 UUID 使用 String 类型，在应用层通过 UUID.randomUUID() 预生成（父 chunk ID 需先确定以建立父子关联）. 实现 {@link
- * Persistable} 以 {@code version == null} 作为 isNew 判断依据，确保 Spring Data JPA 对 新实体调用 persist() 而非
- * merge().
+ * <p>从 Plan 15 起，所有 ID 字段（chunkId、docId、parentChunkId）从 UUID 字符串切换为 Snowflake 生成的
+ * {@code long}（数据库端对应 {@code BIGINT}）。ID 由调用方通过 {@code CragIdGenerator} 预生成，实体不再自行生成。
  *
  * @since 2026-06-10
  */
@@ -26,24 +24,24 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "chunk")
 public class Chunk {
 
-  /** 哨兵值 —— 表示 parent chunk 无父节点，用空字符串代替 NULL. */
-  public static final String NO_PARENT = "";
+  /** 哨兵值 —— 表示 parent chunk 无父节点，用 0 代替空字符串/NULL. */
+  public static final long NO_PARENT = 0L;
 
   /**
-   * Chunk 唯一标识，在应用层通过 UUID.randomUUID() 预生成. 不使用 @GeneratedValue：父子关联需预知父 chunkId，因此所有实体 ID
+   * Chunk 唯一标识，由调用方通过 CragIdGenerator 预生成. 不使用 @GeneratedValue：父子关联需预知父 chunkId，因此所有实体 ID
    * 在入库前由业务层统一分配.
    */
   @Id
-  @Column(name = "chunk_id", nullable = false, updatable = false, length = 36)
-  private String chunkId;
+  @Column(name = "chunk_id", nullable = false, updatable = false)
+  private Long chunkId;
 
   /** 关联文档 ID，标识该 chunk 所属的文档. */
-  @Column(name = "doc_id", nullable = false, length = 36)
-  private String docId;
+  @Column(name = "doc_id", nullable = false)
+  private long docId;
 
   /** 父 chunk ID. {@link #NO_PARENT} = parent chunk（无父节点），其他值 = child chunk 指向其 parent. */
   @Column(name = "parent_chunk_id", nullable = false)
-  private String parentChunkId;
+  private long parentChunkId;
 
   /** Child chunk 在 parent chunk 中的序号，从 0 开始递增. Parent chunk 自身此值为 NULL. */
   @Column(name = "chunk_index")
@@ -95,20 +93,20 @@ public class Chunk {
   // --- Static factory methods ---
 
   /**
-   * 创建 parent chunk —— dense/sparse 均为 SKIPPED，不做后续向量化/FTS. chunkId 在构造内自动生成（UUID），调用方通过 {@link
-   * #getChunkId()} 获取后传给 child 构造.
+   * 创建 parent chunk —— dense/sparse 均为 SKIPPED，不做后续向量化/FTS. chunkId 由调用方从 CragIdGenerator 预分配.
    *
-   * @param docId 文档 ID
+   * @param chunkId 预分配的唯一 chunk ID（Snowflake CHUNK 类型）
+   * @param docId 文档 ID（Snowflake LEGACY_DOCUMENT 类型）
    * @param content 父级 chunk 文本（~1024 token 大窗口）
    * @param tokenCount token 数
    * @param chunkIndex 在文档中的序号（0-based）
    * @param metadata JSONB 元数据
-   * @return parent Chunk 实体（已预生成 chunkId + version=0）
+   * @return parent Chunk 实体
    */
   public static Chunk createParent(
-      String docId, String content, int tokenCount, Integer chunkIndex, String metadata) {
+      long chunkId, long docId, String content, int tokenCount, Integer chunkIndex, String metadata) {
     Chunk chunk = new Chunk();
-    chunk.setChunkId(UUID.randomUUID().toString());
+    chunk.setChunkId(chunkId);
     chunk.setDocId(docId);
     chunk.setParentChunkId(NO_PARENT);
     chunk.setChunkIndex(chunkIndex);
@@ -122,25 +120,27 @@ public class Chunk {
   }
 
   /**
-   * 创建 child chunk —— dense/sparse 均为 INIT，等待 Cron 异步处理. chunkId 在构造内自动生成（UUID）.
+   * 创建 child chunk —— dense/sparse 均为 INIT，等待 Cron 异步处理. chunkId 由调用方从 CragIdGenerator 预分配.
    *
-   * @param docId 文档 ID
+   * @param chunkId 预分配的唯一 chunk ID（Snowflake CHUNK 类型）
+   * @param docId 文档 ID（Snowflake LEGACY_DOCUMENT 类型）
    * @param parentChunkId 父 chunk ID
    * @param content 子级 chunk 文本（~256 token 细粒度）
    * @param tokenCount token 数
    * @param chunkIndex 在 parent 内的序号（0-based）
    * @param metadata JSONB 元数据
-   * @return child Chunk 实体（已预生成 chunkId + version=0）
+   * @return child Chunk 实体
    */
   public static Chunk createChild(
-      String docId,
-      String parentChunkId,
+      long chunkId,
+      long docId,
+      long parentChunkId,
       String content,
       int tokenCount,
       int chunkIndex,
       String metadata) {
     Chunk chunk = new Chunk();
-    chunk.setChunkId(UUID.randomUUID().toString());
+    chunk.setChunkId(chunkId);
     chunk.setDocId(docId);
     chunk.setParentChunkId(parentChunkId);
     chunk.setChunkIndex(chunkIndex);
@@ -155,27 +155,27 @@ public class Chunk {
 
   // --- Getters / Setters ---
 
-  public String getChunkId() {
+  public Long getChunkId() {
     return chunkId;
   }
 
-  public void setChunkId(String chunkId) {
+  public void setChunkId(Long chunkId) {
     this.chunkId = chunkId;
   }
 
-  public String getDocId() {
+  public long getDocId() {
     return docId;
   }
 
-  public void setDocId(String docId) {
+  public void setDocId(long docId) {
     this.docId = docId;
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return parentChunkId;
   }
 
-  public void setParentChunkId(String parentChunkId) {
+  public void setParentChunkId(long parentChunkId) {
     this.parentChunkId = parentChunkId;
   }
 

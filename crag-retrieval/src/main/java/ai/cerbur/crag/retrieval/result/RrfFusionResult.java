@@ -18,17 +18,17 @@ public class RrfFusionResult {
   private final Double bestDenseScore;
 
   public RrfFusionResult(
-      String chunkId,
+      long chunkId,
       double rrfScore,
       String content,
       Double bestSparseScore,
       Double bestDenseScore) {
-    this(chunkId, null, null, rrfScore, content, bestSparseScore, bestDenseScore);
+    this(chunkId, 0L, null, rrfScore, content, bestSparseScore, bestDenseScore);
   }
 
   public RrfFusionResult(
-      String chunkId,
-      String parentChunkId,
+      long chunkId,
+      long parentChunkId,
       Integer chunkIndex,
       double rrfScore,
       String content,
@@ -53,11 +53,11 @@ public class RrfFusionResult {
     return chunk;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunk.getChunkId();
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return chunk.getParentChunkId();
   }
 

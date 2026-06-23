@@ -45,7 +45,7 @@ public class ChunkDao {
    * @param version 版本号
    * @return affected rows
    */
-  public int tryMarkProcessing(String chunkId, ChunkStatus expectedStatus, Integer version) {
+  public int tryMarkProcessing(long chunkId, ChunkStatus expectedStatus, Integer version) {
     return chunkRepository.tryMarkProcessing(chunkId, expectedStatus, version);
   }
 
@@ -58,7 +58,7 @@ public class ChunkDao {
    * @return affected rows
    */
   public int tryMarkProcessingTimeout(
-      String chunkId, LocalDateTime timeoutThreshold, Integer version) {
+      long chunkId, LocalDateTime timeoutThreshold, Integer version) {
     return chunkRepository.tryMarkProcessingTimeout(chunkId, timeoutThreshold, version);
   }
 
@@ -73,7 +73,7 @@ public class ChunkDao {
    * @return affected rows（始终 ≥ 1）
    * @throws DuplicateKeyException 当 affected == 0（版本冲突，另一实例已接管）
    */
-  public int updateDenseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
+  public int updateDenseStatus(long chunkId, ChunkStatus newStatus, Integer version) {
     int affected = chunkRepository.updateDenseStatus(chunkId, newStatus, version);
     if (affected == 0) {
       throw new DuplicateKeyException(
@@ -107,7 +107,7 @@ public class ChunkDao {
    * @param version 版本号
    * @return affected rows
    */
-  public int tryMarkSparseProcessing(String chunkId, ChunkStatus expectedStatus, Integer version) {
+  public int tryMarkSparseProcessing(long chunkId, ChunkStatus expectedStatus, Integer version) {
     return chunkRepository.tryMarkSparseProcessing(chunkId, expectedStatus, version);
   }
 
@@ -120,7 +120,7 @@ public class ChunkDao {
    * @return affected rows
    */
   public int tryMarkSparseProcessingTimeout(
-      String chunkId, LocalDateTime timeoutThreshold, Integer version) {
+      long chunkId, LocalDateTime timeoutThreshold, Integer version) {
     return chunkRepository.tryMarkSparseProcessingTimeout(chunkId, timeoutThreshold, version);
   }
 
@@ -135,7 +135,7 @@ public class ChunkDao {
    * @return affected rows（始终 ≥ 1）
    * @throws DuplicateKeyException 当 affected == 0（版本冲突，另一实例已接管）
    */
-  public int updateSparseStatus(String chunkId, ChunkStatus newStatus, Integer version) {
+  public int updateSparseStatus(long chunkId, ChunkStatus newStatus, Integer version) {
     int affected = chunkRepository.updateSparseStatus(chunkId, newStatus, version);
     if (affected == 0) {
       throw new DuplicateKeyException(
@@ -173,7 +173,7 @@ public class ChunkDao {
    * @param chunkId chunk ID
    * @return chunk 实体，不存在时返回 null
    */
-  public Chunk findByChunkId(String chunkId) {
+  public Chunk findByChunkId(long chunkId) {
     return chunkRepository.findById(chunkId).orElse(null);
   }
 
@@ -183,7 +183,7 @@ public class ChunkDao {
    * @param chunkIds chunk ID 列表
    * @return chunk 实体列表，不存在的 ID 不会出现在结果中
    */
-  public List<Chunk> findByChunkIds(List<String> chunkIds) {
+  public List<Chunk> findByChunkIds(List<Long> chunkIds) {
     return chunkRepository.findAllById(chunkIds);
   }
 
@@ -193,7 +193,7 @@ public class ChunkDao {
    * @param parentChunkId parent chunk ID
    * @return 该 parent 下的 child chunk 列表
    */
-  public List<Chunk> findByParentChunkId(String parentChunkId) {
+  public List<Chunk> findByParentChunkId(long parentChunkId) {
     return chunkRepository.findByParentChunkId(parentChunkId);
   }
 
@@ -205,20 +205,20 @@ public class ChunkDao {
    * @return 命中 parent/index 集合的 child chunk 列表
    */
   public List<Chunk> findByParentChunkIdsAndChunkIndexes(
-      List<String> parentChunkIds, List<Integer> chunkIndexes) {
+      List<Long> parentChunkIds, List<Integer> chunkIndexes) {
     return chunkRepository.findByParentChunkIdInAndChunkIndexIn(parentChunkIds, chunkIndexes);
   }
 
   /**
    * 按 chunk ID 列表批量查询 parent chunk 内容投影.
    *
-   * <p>仅返回 {@code chunkId} 和 {@code content}，限定 parent 行（parent_chunk_id = ''）， 用于 Evidence 回表组装.
+   * <p>仅返回 {@code chunkId} 和 {@code content}，限定 parent 行（parent_chunk_id = 0）， 用于 Evidence 回表组装.
    * 不做顺序保证，调用方自行按 chunkId 建立映射.
    *
    * @param chunkIds chunk ID 列表
    * @return parent chunk 内容投影列表，不存在的 ID 不会出现在结果中
    */
-  public List<ParentChunkContent> findParentContentsByIds(List<String> chunkIds) {
+  public List<ParentChunkContent> findParentContentsByIds(List<Long> chunkIds) {
     if (chunkIds == null || chunkIds.isEmpty()) {
       return Collections.emptyList();
     }

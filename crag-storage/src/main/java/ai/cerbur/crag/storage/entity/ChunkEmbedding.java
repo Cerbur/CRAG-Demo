@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
  * <p>仅存储 child chunk 的 embedding 向量（768 维），独立于 chunk 元数据表。 换模型时可直接 truncate + 重算，不影响 chunk 主表。
  * 一期通过原生 SQL / JdbcTemplate 操作 vector 类型，JPA Entity 仅定义表结构映射.
  *
+ * <p>从 Plan 15 起，chunkId 从 VARCHAR(36) 切换为 BIGINT.
+ *
  * @since 2026-06-10
  */
 @Entity
@@ -20,8 +22,8 @@ public class ChunkEmbedding {
 
   /** Chunk ID，同时是主键和外键，关联 chunk(chunk_id)，级联删除. */
   @Id
-  @Column(name = "chunk_id", nullable = false, length = 36)
-  private String chunkId;
+  @Column(name = "chunk_id", nullable = false)
+  private Long chunkId;
 
   /**
    * Embedding 向量，768 维（text2vec-base-chinese 输出维度）. 一期通过 JdbcTemplate / Native Query 操作，不依赖 JPA
@@ -44,11 +46,11 @@ public class ChunkEmbedding {
 
   // --- Getters / Setters ---
 
-  public String getChunkId() {
+  public Long getChunkId() {
     return chunkId;
   }
 
-  public void setChunkId(String chunkId) {
+  public void setChunkId(Long chunkId) {
     this.chunkId = chunkId;
   }
 

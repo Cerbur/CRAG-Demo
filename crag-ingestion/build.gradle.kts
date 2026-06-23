@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":crag-common"))
     implementation(project(":crag-storage"))
     implementation(project(":crag-retrieval"))
+    implementation(project(":crag-id"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation(libs.spring.ai.commons)

@@ -16,12 +16,12 @@ public class DenseSearchResult {
   private final double denseScore;
 
   public DenseSearchResult(
-      String chunkId, String parentChunkId, double denseScore, String content) {
+      long chunkId, long parentChunkId, double denseScore, String content) {
     this(chunkId, parentChunkId, null, denseScore, content);
   }
 
   public DenseSearchResult(
-      String chunkId, String parentChunkId, Integer chunkIndex, double denseScore, String content) {
+      long chunkId, long parentChunkId, Integer chunkIndex, double denseScore, String content) {
     this(new ChunkBO(chunkId, parentChunkId, chunkIndex, content), denseScore);
   }
 
@@ -34,11 +34,11 @@ public class DenseSearchResult {
     return chunk;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunk.getChunkId();
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return chunk.getParentChunkId();
   }
 

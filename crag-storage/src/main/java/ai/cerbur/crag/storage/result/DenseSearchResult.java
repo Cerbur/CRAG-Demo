@@ -9,19 +9,19 @@ package ai.cerbur.crag.storage.result;
  */
 public class DenseSearchResult {
 
-  private final String chunkId;
-  private final String parentChunkId;
+  private final long chunkId;
+  private final long parentChunkId;
   private final Integer chunkIndex;
   private final String content;
   private final double denseScore;
 
   public DenseSearchResult(
-      String chunkId, String parentChunkId, double denseScore, String content) {
+      long chunkId, long parentChunkId, double denseScore, String content) {
     this(chunkId, parentChunkId, null, denseScore, content);
   }
 
   public DenseSearchResult(
-      String chunkId, String parentChunkId, Integer chunkIndex, double denseScore, String content) {
+      long chunkId, long parentChunkId, Integer chunkIndex, double denseScore, String content) {
     this.chunkId = chunkId;
     this.parentChunkId = parentChunkId;
     this.chunkIndex = chunkIndex;
@@ -29,11 +29,11 @@ public class DenseSearchResult {
     this.denseScore = denseScore;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunkId;
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return parentChunkId;
   }
 

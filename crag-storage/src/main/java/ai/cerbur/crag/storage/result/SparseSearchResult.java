@@ -9,20 +9,20 @@ package ai.cerbur.crag.storage.result;
  */
 public class SparseSearchResult {
 
-  private final String chunkId;
-  private final String parentChunkId;
+  private final long chunkId;
+  private final long parentChunkId;
   private final Integer chunkIndex;
   private final String content;
   private final double sparseScore;
 
   public SparseSearchResult(
-      String chunkId, String parentChunkId, double sparseScore, String content) {
+      long chunkId, long parentChunkId, double sparseScore, String content) {
     this(chunkId, parentChunkId, null, sparseScore, content);
   }
 
   public SparseSearchResult(
-      String chunkId,
-      String parentChunkId,
+      long chunkId,
+      long parentChunkId,
       Integer chunkIndex,
       double sparseScore,
       String content) {
@@ -33,11 +33,11 @@ public class SparseSearchResult {
     this.sparseScore = sparseScore;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunkId;
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return parentChunkId;
   }
 

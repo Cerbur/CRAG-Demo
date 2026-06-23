@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
  * <p>仅存储 child chunk 的 tsvector 分词结果，独立于 chunk 元数据表。 换分词策略时可直接重建，不影响 chunk 主表。 一期通过原生 SQL /
  * JdbcTemplate 操作 tsvector 类型.
  *
+ * <p>从 Plan 15 起，chunkId 从 VARCHAR(36) 切换为 BIGINT.
+ *
  * @since 2026-06-10
  */
 @Entity
@@ -20,8 +22,8 @@ public class ChunkFts {
 
   /** Chunk ID，同时是主键和外键，关联 chunk(chunk_id)，级联删除. */
   @Id
-  @Column(name = "chunk_id", nullable = false, length = 36)
-  private String chunkId;
+  @Column(name = "chunk_id", nullable = false)
+  private Long chunkId;
 
   /**
    * 全文检索分词内容，tsvector 类型. 通过 to_tsvector('chinese', chunk.content) 生成. 一期通过 JdbcTemplate / Native
@@ -44,11 +46,11 @@ public class ChunkFts {
 
   // --- Getters / Setters ---
 
-  public String getChunkId() {
+  public Long getChunkId() {
     return chunkId;
   }
 
-  public void setChunkId(String chunkId) {
+  public void setChunkId(Long chunkId) {
     this.chunkId = chunkId;
   }
 

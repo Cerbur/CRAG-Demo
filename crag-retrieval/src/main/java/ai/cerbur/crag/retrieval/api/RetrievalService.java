@@ -134,11 +134,11 @@ public class RetrievalService {
     }
 
     // Batch read parent content — no N+1, no order dependency
-    List<String> parentIds = candidates.stream().map(EvidenceCandidate::parentChunkId).toList();
+    List<Long> parentIds = candidates.stream().map(EvidenceCandidate::parentChunkId).toList();
     List<ParentChunkContent> parentContents = chunkDao.findParentContentsByIds(parentIds);
 
     // Build content map (first occurrence wins for duplicate projections)
-    Map<String, String> contentMap = new LinkedHashMap<>();
+    Map<Long, String> contentMap = new LinkedHashMap<>();
     for (ParentChunkContent pc : parentContents) {
       if (contentMap.containsKey(pc.chunkId())) {
         log.warn("Duplicate parent projection for chunkId={}, keeping first", pc.chunkId());
@@ -188,9 +188,9 @@ public class RetrievalService {
     if (!log.isWarnEnabled()) {
       return;
     }
-    List<String> childIds = candidate.matchedChildIds();
+    List<Long> childIds = candidate.matchedChildIds();
     int showCount = Math.min(childIds.size(), 10);
-    List<String> preview = childIds.subList(0, showCount);
+    List<Long> preview = childIds.subList(0, showCount);
     log.warn(
         "Parent evidence skipped — parentChunkId={} has {} matched child(ren), "
             + "content is {}, first {} child IDs: {}",
@@ -249,16 +249,15 @@ public class RetrievalService {
    * <p>返回 {@link RerankCandidateSet}，区分真实 RRF 命中 child 与相邻扩展 child. 禁止通过分数是否为 null 或零反推来源.
    */
   RerankCandidateSet prepareRerankCandidates(List<RrfFusionResult> fusedResults) {
-    LinkedHashSet<String> rrfHitIds = new LinkedHashSet<>();
-    Map<String, RrfFusionResult> candidates = new LinkedHashMap<>();
+    LinkedHashSet<Long> rrfHitIds = new LinkedHashSet<>();
+    Map<Long, RrfFusionResult> candidates = new LinkedHashMap<>();
     Set<ParentIndexKey> adjacentKeys = new LinkedHashSet<>();
 
     for (RrfFusionResult fused : fusedResults) {
       candidates.put(fused.getChunkId(), fused);
       rrfHitIds.add(fused.getChunkId());
 
-      if (fused.getParentChunkId() == null
-          || fused.getParentChunkId().isBlank()
+      if (fused.getParentChunkId() == 0L
           || fused.getChunkIndex() == null) {
         continue;
       }
@@ -280,7 +279,7 @@ public class RetrievalService {
     if (adjacentKeys.isEmpty()) {
       return Collections.emptyList();
     }
-    List<String> parentChunkIds =
+    List<Long> parentChunkIds =
         adjacentKeys.stream().map(ParentIndexKey::parentChunkId).distinct().toList();
     List<Integer> chunkIndexes =
         adjacentKeys.stream().map(ParentIndexKey::chunkIndex).distinct().toList();
@@ -317,7 +316,7 @@ public class RetrievalService {
    * @return 按 parent 排名升序排列的 Evidence 候选列表
    */
   static List<EvidenceCandidate> aggregateEvidenceCandidates(
-      List<ChunkSearchResult> rerankedChildren, Set<String> realRrfHitChunkIds, int windowN) {
+      List<ChunkSearchResult> rerankedChildren, Set<Long> realRrfHitChunkIds, int windowN) {
 
     if (rerankedChildren == null || rerankedChildren.isEmpty()) {
       return Collections.emptyList();
@@ -326,15 +325,15 @@ public class RetrievalService {
     List<ChunkSearchResult> window = rerankedChildren.stream().limit(windowN).toList();
 
     // Maintain insertion order for stable results
-    Map<String, Integer> parentBestRank = new LinkedHashMap<>();
-    Map<String, LinkedHashSet<String>> parentMatchedChildren = new LinkedHashMap<>();
+    Map<Long, Integer> parentBestRank = new LinkedHashMap<>();
+    Map<Long, LinkedHashSet<Long>> parentMatchedChildren = new LinkedHashMap<>();
 
     for (int i = 0; i < window.size(); i++) {
       ChunkSearchResult child = window.get(i);
-      String pid = child.getParentChunkId();
+      long pid = child.getParentChunkId();
 
       // Skip children without a valid parent — do not treat child as its own parent
-      if (pid == null || pid.isBlank()) {
+      if (pid == 0L) {
         continue;
       }
 
@@ -351,8 +350,8 @@ public class RetrievalService {
 
     // Build candidates: only parents with at least one real RRF hit child in the window
     List<EvidenceCandidate> candidates = new ArrayList<>();
-    for (Map.Entry<String, LinkedHashSet<String>> entry : parentMatchedChildren.entrySet()) {
-      String pid = entry.getKey();
+    for (Map.Entry<Long, LinkedHashSet<Long>> entry : parentMatchedChildren.entrySet()) {
+      long pid = entry.getKey();
       int rank = parentBestRank.get(pid);
       candidates.add(new EvidenceCandidate(pid, List.copyOf(entry.getValue()), rank));
     }
@@ -430,11 +429,11 @@ public class RetrievalService {
    * <p>真实 RRF 命中 child 通过 {@link LinkedHashSet} 按 RRF 融合顺序维护， 禁止通过分数是否为 null 或零反推来源.
    */
   record InternalRetrievalResult(
-      List<ChunkSearchResult> rerankedChildren, LinkedHashSet<String> realRrfHitChunkIds) {}
+      List<ChunkSearchResult> rerankedChildren, LinkedHashSet<Long> realRrfHitChunkIds) {}
 
   /** Rerank 候选集 —— 包含所有候选和真实 RRF 命中 child ID 的有序集合. */
   record RerankCandidateSet(
-      List<RrfFusionResult> allCandidates, LinkedHashSet<String> rrfHitChunkIds) {}
+      List<RrfFusionResult> allCandidates, LinkedHashSet<Long> rrfHitChunkIds) {}
 
   /**
    * Evidence 候选 —— 聚合后的 parent 维度中间结果.
@@ -442,8 +441,8 @@ public class RetrievalService {
    * <p>bestRank 为该 parent 在 Evidence 候选窗口内的最高 Rerank 名次（0 起始）， 相邻扩展 child 可影响 parent 排名，但不进入
    * matchedChildIds.
    */
-  record EvidenceCandidate(String parentChunkId, List<String> matchedChildIds, int bestRank) {}
+  record EvidenceCandidate(long parentChunkId, List<Long> matchedChildIds, int bestRank) {}
 
   /** parent + child index 组成的相邻 child 定位键. */
-  private record ParentIndexKey(String parentChunkId, Integer chunkIndex) {}
+  private record ParentIndexKey(long parentChunkId, Integer chunkIndex) {}
 }

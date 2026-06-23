@@ -84,7 +84,7 @@ class ChunkEmbeddingDaoTest {
     @Test
     @DisplayName("单条结果 → chunkId/parentChunkId/chunkIndex/score/content 正确映射")
     void singleRowMapsCorrectly() {
-      Object[] row = {"chunk-001", "parent-001", 2, 0.85, "这是匹配的内容"};
+      Object[] row = {100L, 200L, 2, 0.85, "这是匹配的内容"};
       when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row));
 
@@ -92,8 +92,8 @@ class ChunkEmbeddingDaoTest {
 
       assertThat(results).hasSize(1);
       DenseSearchResult r = results.get(0);
-      assertThat(r.getChunkId()).isEqualTo("chunk-001");
-      assertThat(r.getParentChunkId()).isEqualTo("parent-001");
+      assertThat(r.getChunkId()).isEqualTo(100L);
+      assertThat(r.getParentChunkId()).isEqualTo(200L);
       assertThat(r.getChunkIndex()).isEqualTo(2);
       assertThat(r.getDenseScore()).isEqualTo(0.85);
       assertThat(r.getContent()).isEqualTo("这是匹配的内容");
@@ -102,24 +102,24 @@ class ChunkEmbeddingDaoTest {
     @Test
     @DisplayName("多条结果 → 按 Repository 返回顺序映射，数量一致")
     void multipleRowsMapCorrectly() {
-      Object[] row1 = {"c1", "p1", 0, 0.95, "内容一"};
-      Object[] row2 = {"c2", "p2", 1, 0.80, "内容二"};
-      Object[] row3 = {"c3", "p3", 2, 0.60, "内容三"};
+      Object[] row1 = {1L, 10L, 0, 0.95, "内容一"};
+      Object[] row2 = {2L, 20L, 1, 0.80, "内容二"};
+      Object[] row3 = {3L, 30L, 2, 0.60, "内容三"};
       when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row1, row2, row3));
 
       List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(vector, 10);
 
       assertThat(results).hasSize(3);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
-      assertThat(results.get(1).getChunkId()).isEqualTo("c2");
-      assertThat(results.get(2).getChunkId()).isEqualTo("c3");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1L);
+      assertThat(results.get(1).getChunkId()).isEqualTo(2L);
+      assertThat(results.get(2).getChunkId()).isEqualTo(3L);
     }
 
     @Test
     @DisplayName("score 为整数类型（如 Integer）→ doubleValue() 转换正确")
     void integerScoreConvertsToDouble() {
-      Object[] row = {"c1", "p1", 0, 1, "内容"};
+      Object[] row = {1L, 10L, 0, 1, "内容"};
       when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row));
 
@@ -132,7 +132,7 @@ class ChunkEmbeddingDaoTest {
     @Test
     @DisplayName("score 为 Long 类型 → doubleValue() 转换正确")
     void longScoreConvertsToDouble() {
-      Object[] row = {"c1", "p1", 0, 0L, "内容"};
+      Object[] row = {1L, 10L, 0, 0L, "内容"};
       when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row));
 

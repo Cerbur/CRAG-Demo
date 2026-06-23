@@ -8,11 +8,11 @@ package ai.cerbur.crag.storage.result;
  *
  * @since 2026-06-20
  */
-public record ParentChunkContent(String chunkId, String content) {
+public record ParentChunkContent(long chunkId, String content) {
 
   public ParentChunkContent {
-    if (chunkId == null || chunkId.isBlank()) {
-      throw new IllegalArgumentException("chunkId must not be null or blank");
+    if (chunkId == 0L) {
+      throw new IllegalArgumentException("chunkId must not be 0");
     }
   }
 }

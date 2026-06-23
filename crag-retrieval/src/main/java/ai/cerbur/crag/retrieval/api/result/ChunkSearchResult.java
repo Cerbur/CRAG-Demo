@@ -50,11 +50,11 @@ public class ChunkSearchResult {
     return chunk;
   }
 
-  public String getChunkId() {
+  public long getChunkId() {
     return chunk.getChunkId();
   }
 
-  public String getParentChunkId() {
+  public long getParentChunkId() {
     return chunk.getParentChunkId();
   }
 
