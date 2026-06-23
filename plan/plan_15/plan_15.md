@@ -170,6 +170,111 @@ updated: 2026-06-24
 
 无。
 
+## 执行接口约定
+
+以下接口名是任务之间的契约；执行者可以调整内部私有类实现，但公开包名、方法名、返回类型和跨模块调用点必须保持一致，除非先更新本计划并提交规划修订。
+
+### `crag-id` 公开 API
+
+```java
+package ai.cerbur.crag.id.api;
+
+public interface CragIdGenerator {
+  long nextId(IdEntityType entityType);
+}
+```
+
+```java
+package ai.cerbur.crag.id.api;
+
+import java.time.Instant;
+
+public interface CragIdParser {
+  CragIdParts parse(long id);
+
+  long parseDecimal(String value, IdEntityType expectedEntityType);
+
+  void requireEntityType(long id, IdEntityType expectedEntityType);
+
+  record CragIdParts(IdEntityType entityType, Instant timestamp, int workerId, int sequence) {}
+}
+```
+
+```java
+package ai.cerbur.crag.id.api;
+
+public enum IdEntityType {
+  LEGACY_DOCUMENT(1),
+  CHUNK(2);
+
+  public int code();
+
+  public static IdEntityType fromCode(int code);
+}
+```
+
+```java
+package ai.cerbur.crag.id.api;
+
+public class InvalidCragIdException extends RuntimeException {
+  public InvalidCragIdException(String message);
+
+  public InvalidCragIdException(String message, Throwable cause);
+}
+```
+
+### `crag-id` 内部状态接口
+
+```java
+package ai.cerbur.crag.id.internal;
+
+public interface MonotonicClock {
+  long currentTimeMillis();
+
+  void sleepUntil(long epochMillis);
+}
+```
+
+```java
+package ai.cerbur.crag.id.internal;
+
+public final class SnowflakeLayout {
+  public static final long EPOCH_MILLIS = 1767225600000L;
+
+  public long encode(IdEntityType entityType, long timestampMillis, int workerId, int sequence);
+
+  public CragIdParser.CragIdParts decode(long id);
+}
+```
+
+```java
+package ai.cerbur.crag.id.internal;
+
+public final class ClockRollbackException extends RuntimeException {
+  public ClockRollbackException(long rollbackMillis, long lastTimestampMillis);
+}
+```
+
+### RAG 跨模块 ID 类型
+
+```java
+package ai.cerbur.crag.ingestion.api;
+
+import java.util.List;
+
+public record AdminRagResult(long docId, int chunks, String status, List<Long> parentChunkIds) {}
+```
+
+```java
+package ai.cerbur.crag.query.api;
+
+import java.util.List;
+
+public record QuerySource(String reference, long parentChunkId, List<Long> matchedChildIds) {}
+```
+
+HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> parentChunkIds` 和 `List<String> matchedChildIds`；转换只允许发生在 Controller / DTO mapper 边界，不把 decimal string 重新扩散回 ingestion、storage、retrieval 或 query 内部。
+
 ## 风险与回滚
 
 - **风险：Redis lease 实现不当导致同一 namespace worker 重复。** 预防：lease 获取必须使用 Redis 原子语义，释放必须比较 owner token，测试覆盖并发抢占、续约失败和过期重领。回滚：撤销 `crag-id` 与 Docker Redis 改动，恢复旧 UUID 发号实现和旧 RAG schema。
@@ -225,6 +330,64 @@ updated: 2026-06-24
 **验证方式**：运行 `./gradlew :crag-id:test`、`python3 scripts/validate_module_dependencies.py` 与 `python3 scripts/tests/test_validate_module_dependencies.py`。  
 **涉及文件**：`settings.gradle.kts`、`crag-id/**`、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`、`constraints/package-structure.md`
 
+**接口**：
+- Consumes：无。
+- Produces：`CragIdGenerator#nextId(IdEntityType)`、`CragIdParser#parse(long)`、`CragIdParser#parseDecimal(String, IdEntityType)`、`IdEntityType.LEGACY_DOCUMENT`、`IdEntityType.CHUNK`、`ClockRollbackException`。
+
+**执行步骤**：
+
+- [ ] **Step 1：写 Snowflake layout 与 parser 失败测试**
+
+在 `crag-id/src/test/java/ai/cerbur/crag/id/internal/SnowflakeLayoutTest.java` 写入以下测试意图：`LEGACY_DOCUMENT` 编码后解析回实体类型、timestamp、worker、sequence；`CHUNK` 与 `LEGACY_DOCUMENT` 的高位不同；非法 worker `16`、sequence `1024` 和 epoch 前 timestamp 抛出 `IllegalArgumentException`。
+
+```java
+@Test
+@DisplayName("encode and decode keeps entity, timestamp, worker and sequence")
+void encodeAndDecodeKeepsParts() {
+  SnowflakeLayout layout = new SnowflakeLayout();
+
+  long id = layout.encode(IdEntityType.LEGACY_DOCUMENT, SnowflakeLayout.EPOCH_MILLIS + 123L, 3, 17);
+
+  CragIdParser.CragIdParts parts = layout.decode(id);
+  assertThat(parts.entityType()).isEqualTo(IdEntityType.LEGACY_DOCUMENT);
+  assertThat(parts.timestamp()).isEqualTo(Instant.ofEpochMilli(SnowflakeLayout.EPOCH_MILLIS + 123L));
+  assertThat(parts.workerId()).isEqualTo(3);
+  assertThat(parts.sequence()).isEqualTo(17);
+}
+```
+
+- [ ] **Step 2：运行失败测试**
+
+Run：`./gradlew :crag-id:test --tests 'ai.cerbur.crag.id.internal.SnowflakeLayoutTest'`  
+Expected：FAIL，原因是 `crag-id` 模块或 `SnowflakeLayout` 尚不存在。
+
+- [ ] **Step 3：最小实现模块与 layout/parser**
+
+创建 `crag-id/build.gradle.kts`，在 `settings.gradle.kts` include `crag-id`，实现 `IdEntityType`、`SnowflakeLayout`、`DefaultCragIdParser` 和 `InvalidCragIdException`。`SnowflakeLayout.EPOCH_MILLIS` 必须是 `1767225600000L`；entity type shift 为 `41 + 4 + 10`，timestamp shift 为 `4 + 10`，worker shift 为 `10`。
+
+- [ ] **Step 4：写 sequence、clock rollback 和 decimal parser 失败测试**
+
+在 `SnowflakeSequenceTest` 覆盖同毫秒 sequence `0 → 1023`、第 `1025` 个 ID 等待下一毫秒、小回拨 `<= 5ms` 等待、大回拨 `> 5ms` 抛 `ClockRollbackException`。在 `CragIdParserTest` 覆盖 `"123"` 可解析、`"abc"`、`"-1"`、`CHUNK` ID 被要求为 `LEGACY_DOCUMENT` 时抛 `InvalidCragIdException`。
+
+- [ ] **Step 5：最小实现 sequence 与 parser 校验**
+
+实现 `MonotonicClock`、`SystemMonotonicClock`、`SnowflakeSequence`、`ClockRollbackException`。`SnowflakeSequence` 只负责 timestamp/sequence 状态，不接 Redis worker；构造参数必须显式接收 `workerId`、`IdEntityType`、`SnowflakeLayout`、`MonotonicClock`、`rollbackThresholdMillis`。
+
+- [ ] **Step 6：运行任务验证**
+
+Run：`./gradlew :crag-id:test`  
+Expected：PASS。
+
+Run：`python3 scripts/validate_module_dependencies.py`  
+Expected：PASS，且 `crag-id` 不依赖业务模块。
+
+- [ ] **Step 7：提交任务**
+
+```bash
+git add settings.gradle.kts crag-id scripts/validate_module_dependencies.py scripts/tests/test_validate_module_dependencies.py constraints/package-structure.md
+git commit -m "feat(plan_15/15.1): add snowflake id core"
+```
+
 ## 15.2 Redis Worker lease、发号器生命周期与 readiness
 
 **目标**：在 `crag-id` 中加入 Redis worker lease、续约、丢租约停止发号和 Actuator health 集成。  
@@ -234,6 +397,62 @@ updated: 2026-06-24
 **验收标准**：同一 `serviceDomain:entityType` 内最多 16 个 worker slot；slot 被占用时不会重复领取；续约失败后 issuer 停止发号；Redis 启动不可用时 required issuer readiness `DOWN`；Redis 恢复后可重新领取 lease。  
 **验证方式**：运行 `./gradlew :crag-id:test`，重点覆盖 lease acquire、renew、lost、reacquire 和 health mapping；检查日志与异常不得输出 Redis token 或完整 lease owner secret。  
 **涉及文件**：`crag-id/**`、`gradle/libs.versions.toml`、`build.gradle.kts`
+
+**接口**：
+- Consumes：15.1 的 `SnowflakeSequence`、`IdEntityType`、`ClockRollbackException`。
+- Produces：`CragIdProperties` 绑定前缀 `crag.id`；required entity readiness；Redis key `crag:id:{serviceDomain}:{entityType}:{workerId}`；可注入的 `CragIdGenerator` bean。
+
+**执行步骤**：
+
+- [ ] **Step 1：写 Redis lease repository 失败测试**
+
+在 `RedisWorkerLeaseRepositoryTest` 用 fake Redis 操作或 `StringRedisTemplate` mock 覆盖：空 slot 使用 set-if-absent 获得；已有 slot 不覆盖；release 只有 owner token 匹配才删除；renew 只有 owner token 匹配才刷新 TTL。
+
+```java
+@Test
+@DisplayName("release does not delete a worker owned by another process")
+void releaseDoesNotDeleteOtherOwner() {
+  RedisWorkerLeaseRepository repository = new RedisWorkerLeaseRepository(fakeRedis);
+  repository.tryAcquire("rag", IdEntityType.CHUNK, 2, "owner-a", Duration.ofSeconds(30));
+
+  boolean released = repository.release("rag", IdEntityType.CHUNK, 2, "owner-b");
+
+  assertThat(released).isFalse();
+  assertThat(fakeRedis.get("crag:id:rag:CHUNK:2")).isEqualTo("owner-a");
+}
+```
+
+- [ ] **Step 2：运行失败测试**
+
+Run：`./gradlew :crag-id:test --tests '*RedisWorkerLeaseRepositoryTest'`  
+Expected：FAIL，原因是 Redis lease 类尚不存在。
+
+- [ ] **Step 3：实现 repository 和 lease 状态机**
+
+实现 `RedisWorkerLeaseRepository`、`RedisWorkerLease`、`WorkerLeaseStatus`。Worker slot 固定扫描 `0..15`；key 必须包含 worker 后缀；owner token 使用随机 UUID，但日志只打印 workerId、serviceDomain、entityType，不打印 token。
+
+- [ ] **Step 4：写 Spring 配置与 health 失败测试**
+
+在 `CragIdConfigurationComponentTest` 覆盖 `crag.id.service-domain=rag`、`crag.id.required-entities=LEGACY_DOCUMENT,CHUNK`、TTL `30s`、renew `10s` 的配置绑定；Redis 不可用时 `CragIdHealthIndicator` 返回 `DOWN`；fake lease 恢复后返回 `UP`。
+
+- [ ] **Step 5：实现 Spring 配置和发号器生命周期**
+
+实现 `CragIdProperties`、`CragIdConfiguration`、`RedisBackedCragIdGenerator`、`CragIdHealthIndicator`。生产代码使用 Spring `TaskScheduler` 或 Boot 管理 bean，不直接 `new Thread`。`nextId()` 在 lease 未就绪、lease 丢失或大时钟回拨后抛出 `IllegalStateException` 或专用运行时异常，并让 health 保持 `DOWN`。
+
+- [ ] **Step 6：运行任务验证**
+
+Run：`./gradlew :crag-id:test`  
+Expected：PASS。
+
+Run：`./gradlew :crag-id:spotlessCheck`  
+Expected：PASS。
+
+- [ ] **Step 7：提交任务**
+
+```bash
+git add crag-id gradle/libs.versions.toml build.gradle.kts
+git commit -m "feat(plan_15/15.2): add redis worker leases"
+```
 
 ## 15.3 RAG 持久化 ID 类型切换与 cold reset 路径
 
@@ -245,6 +464,60 @@ updated: 2026-06-24
 **验证方式**：运行 `./gradlew :crag-storage:test :crag-ingestion:test :crag-rag-service:test`；必要时运行 `./gradlew test --tests '*Chunk*Test' --tests '*AdminRagServiceTest'` 缩小定位。  
 **涉及文件**：`crag-storage/**`、`crag-ingestion/**`、`crag-rag-service/src/main/resources/schema.sql`、`crag-rag-service/src/main/resources/data.sql`
 
+**接口**：
+- Consumes：15.1/15.2 的 `CragIdGenerator#nextId`、`IdEntityType.LEGACY_DOCUMENT`、`IdEntityType.CHUNK`。
+- Produces：`Chunk` 的 `long chunkId`、`long docId`、`long parentChunkId`；`Chunk.NO_PARENT = 0L`；`AdminRagResult(long docId, int chunks, String status, List<Long> parentChunkIds)`。
+
+**执行步骤**：
+
+- [ ] **Step 1：写 ingestion 失败测试**
+
+在 `AdminRagServiceTest` 用 mock `CragIdGenerator` 依次返回 `LEGACY_DOCUMENT=1001L`、parent `2001L`、children `2002L..`。断言结果 `docId=1001L`，parent chunk `parentChunkId=0L`，child chunk 的 `parentChunkId=2001L`，所有 chunk 的 `docId=1001L`。
+
+```java
+when(cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT)).thenReturn(1001L);
+when(cragIdGenerator.nextId(IdEntityType.CHUNK)).thenReturn(2001L, 2002L, 2003L);
+
+AdminRagResult result = adminRagService.ingest("标题", "足够长的测试内容。".repeat(300), null);
+
+assertThat(result.docId()).isEqualTo(1001L);
+assertThat(result.parentChunkIds()).containsExactly(2001L);
+assertThat(savedChunks.get(0).getParentChunkId()).isEqualTo(Chunk.NO_PARENT);
+assertThat(savedChunks.get(1).getParentChunkId()).isEqualTo(2001L);
+```
+
+- [ ] **Step 2：运行失败测试**
+
+Run：`./gradlew :crag-ingestion:test --tests '*AdminRagServiceTest'`  
+Expected：FAIL，原因是 `AdminRagService` 仍使用 UUID string。
+
+- [ ] **Step 3：切换 storage entity、DAO、Repository 类型**
+
+把 `Chunk.chunkId`、`Chunk.docId`、`Chunk.parentChunkId` 改为 primitive `long` 或不可空 `Long`，优先使用 `long`；所有 DAO、Repository、projection、native SQL 参数同步改为 `long` / `Collection<Long>`。保留方法语义，不在本任务重命名检索能力。
+
+- [ ] **Step 4：切换 RAG schema**
+
+把 `crag-rag-service/src/main/resources/schema.sql` 中 `chunk.chunk_id`、`chunk.doc_id`、`chunk.parent_chunk_id`、`chunk_embedding.chunk_id`、`chunk_fts.chunk_id` 改为 `BIGINT`；`parent_chunk_id` 默认值改为 `0`；索引名可保留但 SQL 类型必须匹配。若现有初始化无法处理旧 varchar 表，新增仅删除 RAG 表的 cold reset 注释或脚本，不能删除其他 service schema。
+
+- [ ] **Step 5：接入 generator 到 AdminRagService**
+
+在 `AdminRagService` 注入 `CragIdGenerator`；文档 ID 调 `nextId(LEGACY_DOCUMENT)`；parent 和 child chunk ID 都调 `nextId(CHUNK)`；metadata JSON 中的 `docId` 写 decimal string 或 numeric JSON 值时必须与 README/测试一致，优先写 decimal string，避免前端精度损失。
+
+- [ ] **Step 6：运行任务验证**
+
+Run：`./gradlew :crag-storage:test :crag-ingestion:test :crag-rag-service:test`  
+Expected：PASS。
+
+Run：`./gradlew test --tests '*Chunk*Test' --tests '*AdminRagServiceTest'`  
+Expected：PASS。
+
+- [ ] **Step 7：提交任务**
+
+```bash
+git add crag-storage crag-ingestion crag-rag-service/src/main/resources/schema.sql crag-rag-service/src/main/resources/data.sql
+git commit -m "feat(plan_15/15.3): switch rag persistence ids to bigint"
+```
+
 ## 15.4 RAG HTTP/API 边界 decimal string 与实体类型校验
 
 **目标**：保持 HTTP 边界字段名稳定，同时把业务 ID 值改为 decimal string，并在请求解析处加入实体类型校验。  
@@ -255,6 +528,55 @@ updated: 2026-06-24
 **验证方式**：运行 `./gradlew :crag-api:test :crag-query:test :crag-rag-service:test`；组件测试覆盖 DTO JSON 类型和错误映射。  
 **涉及文件**：`crag-api/**`、`crag-query/**`、`crag-retrieval/**`、`crag-smoke/**`
 
+**接口**：
+- Consumes：15.3 的内部 long ID；15.1 的 `CragIdParser#parseDecimal`。
+- Produces：HTTP JSON ID 字段全部为 decimal string；query/retrieval 内部模型使用 `long`，Controller 输出前转 string。
+
+**执行步骤**：
+
+- [ ] **Step 1：写 AdminRag Controller 失败测试**
+
+更新 `AdminRagControllerComponentTest`：mock `AdminRagService` 返回 `new AdminRagResult(1001L, 5, "PENDING", List.of(2001L))`；断言 JSON `docId` 是 `"1001"`，`parentChunkIds[0]` 是 `"2001"`，且不匹配 UUID 正则。
+
+```java
+when(adminRagService.ingest(any(), any(), any()))
+    .thenReturn(new AdminRagResult(1001L, 5, "PENDING", List.of(2001L)));
+
+mockMvc.perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(requestJson))
+    .andExpect(status().isOk())
+    .andExpect(jsonPath("$.result.docId").value("1001"))
+    .andExpect(jsonPath("$.result.parentChunkIds[0]").value("2001"));
+```
+
+- [ ] **Step 2：写 query/retrieval ID 类型失败测试**
+
+更新 `UserQueryControllerComponentTest`、`ContextBuilderTest`、`RetrievalEvidenceTest`：内部构造 `new QuerySource("S1", 2001L, List.of(2002L, 2003L))`；HTTP 响应仍断言 `"2001"`、`["2002","2003"]`。
+
+- [ ] **Step 3：运行失败测试**
+
+Run：`./gradlew :crag-api:test :crag-query:test :crag-retrieval:test`  
+Expected：FAIL，原因是内部 query/retrieval model 仍是 string ID。
+
+- [ ] **Step 4：切换 retrieval/query 内部模型**
+
+把 `ChunkBO`、`SparseSearchResult`、`DenseSearchResult`、`RrfFusionResult`、`ChunkSearchResult`、`ParentEvidenceResult`、`EvidenceCandidate`、`QuerySource` 的 ID 字段统一切到 `long` / `List<Long>`；只在 API DTO、HTTP 脚本和外部 JSON 边界保留 string。
+
+- [ ] **Step 5：实现 Controller decimal string 映射和错误映射**
+
+`AdminRagController` 把 `long` 转 `Long.toString(...)`；`UserQueryController` 把 source ID 转 decimal string。若已有请求解析业务 ID 的接口，使用 `CragIdParser#parseDecimal` 并在 entity mismatch 时映射为 4xx；没有这类接口时，在本任务测试中明确记录“当前无入参业务 ID 解析点”，不新增空 API。
+
+- [ ] **Step 6：运行任务验证**
+
+Run：`./gradlew :crag-api:test :crag-query:test :crag-retrieval:test :crag-smoke:test`  
+Expected：PASS。
+
+- [ ] **Step 7：提交任务**
+
+```bash
+git add crag-api crag-query crag-retrieval crag-smoke
+git commit -m "feat(plan_15/15.4): expose rag ids as decimal strings"
+```
+
 ## 15.5 Docker Redis 拓扑、约束同步与端到端回归
 
 **目标**：把 Redis 纳入默认 Docker 拓扑，完成约束/README 同步，并通过完整 Docker HTTP 回归证明 RAG ID 切换可运行。  
@@ -264,6 +586,61 @@ updated: 2026-06-24
 **验收标准**：`docker compose up -d --build` 后 Redis、RAG、Console、Open readiness 符合预期；AdminRag 真实 HTTP 调用返回 decimal string ID；Query 仍可基于新 ID 链路完成；停止 Redis 或使 lease 失败时 RAG readiness 明确下降；恢复 Redis 后可重新发号。  
 **验证方式**：运行 `./gradlew check`；运行 `docker compose up -d --build`；执行 `scripts/tests/http/platform_topology_test.sh`、`scripts/tests/http/docker_readiness_test.sh`、`scripts/tests/http/admin_rag_contract_test.sh`、`scripts/tests/http/query_stub_success_test.sh`、`scripts/tests/http/retrieval_evidence_test.sh`。  
 **涉及文件**：`docker-compose.yml`、`constraints/docker-structure.md`、`constraints/package-structure.md`、`constraints/test-workflow.md`、`README.md`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`、`scripts/tests/http/**`
+
+**接口**：
+- Consumes：15.2 的 Redis-backed readiness；15.4 的 decimal string HTTP contract。
+- Produces：Compose service `redis`；RAG service env `CRAG_ID_SERVICE_DOMAIN=rag`、required entities `LEGACY_DOCUMENT,CHUNK`；HTTP 回归断言 numeric string。
+
+**执行步骤**：
+
+- [ ] **Step 1：写 HTTP 脚本失败断言**
+
+更新 `scripts/tests/http/admin_rag_contract_test.sh`：`docId` 必须满足 `^[0-9]+$`，不得满足 UUID 正则；`parentChunkIds` 每项必须是 numeric string。更新 `retrieval_evidence_test.sh`、`query_stub_success_test.sh` 中 parent/source ID 断言为 numeric string。
+
+```bash
+if echo "$DOC_ID" | grep -Eq '^[0-9]+$'; then
+  echo "PASS: AdminRag result.docId is decimal string"
+else
+  echo "FAIL: AdminRag result.docId is not decimal string: $DOC_ID"
+  FAILURES=$((FAILURES + 1))
+fi
+```
+
+- [ ] **Step 2：运行失败脚本或轻量校验**
+
+Run：`bash scripts/tests/http/admin_rag_contract_test.sh`  
+Expected：FAIL 或无法连接本地服务；如果服务未启动，只记录脚本语法可执行，真正通过留到 Docker 回归。
+
+Run：`bash -n scripts/tests/http/admin_rag_contract_test.sh scripts/tests/http/query_stub_success_test.sh scripts/tests/http/retrieval_evidence_test.sh`  
+Expected：PASS。
+
+- [ ] **Step 3：更新 Compose Redis 拓扑**
+
+在 `docker-compose.yml` 新增 `redis` 服务，使用官方 Redis 镜像；为 `rag-service` 和 `rag-service-smoke` 注入 Redis host/port、`crag.id.service-domain=rag`、required entities `LEGACY_DOCUMENT,CHUNK`。Redis 不需要业务持久化 volume；健康检查使用 `redis-cli ping`。
+
+- [ ] **Step 4：同步约束、README 和校验脚本**
+
+更新 `constraints/docker-structure.md` 的服务索引、启动依赖和 Redis 非业务持久化说明；更新 `constraints/package-structure.md` 的 `crag-id` 模块职责；如校验器维护 Compose 服务白名单，同步 `scripts/validate_constraints.py` 和测试。README 使用中文补充 Redis Worker lease 是 ID 基础设施，不是缓存/事件总线。
+
+- [ ] **Step 5：运行完整非 Docker 验证**
+
+Run：`./gradlew check`  
+Expected：PASS，包含 Plan、约束、模块依赖、框架依赖和全部非 Docker 测试。
+
+- [ ] **Step 6：运行 Docker 回归**
+
+Run：`docker compose up -d --build`  
+Expected：所有服务 build 成功，Redis health `healthy`。
+
+Run：`scripts/tests/http/platform_topology_test.sh && scripts/tests/http/docker_readiness_test.sh && scripts/tests/http/admin_rag_contract_test.sh && scripts/tests/http/query_stub_success_test.sh && scripts/tests/http/retrieval_evidence_test.sh`  
+Expected：PASS；Redis 停止或 lease 不可用场景让 RAG readiness `DOWN`，Redis 恢复后 RAG readiness 回到 `UP` 并可再次 AdminRag 写入。
+
+- [ ] **Step 7：提交任务**
+
+```bash
+git add docker-compose.yml constraints/docker-structure.md constraints/package-structure.md constraints/test-workflow.md README.md scripts/validate_constraints.py scripts/tests/test_validate_constraints.py scripts/tests/http
+git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
+```
 
 ## 验收记录
 
@@ -283,3 +660,4 @@ updated: 2026-06-24
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-24 | 创建计划 | 固定 Plan 15 Snowflake ID、Redis Worker lease 与 RAG ID cold switch 范围 | 进入 ready，等待计划提交后执行 |
+| 2026-06-24 | 优化任务执行细节 | 使用 writing-plans 补齐接口约定、测试先行步骤、验证命令和提交边界 | 状态与范围不变；执行者可按任务独立实现 |
