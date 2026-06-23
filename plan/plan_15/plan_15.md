@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_15
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-24
 updated: 2026-06-24
 ---
@@ -314,9 +314,9 @@ HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> pa
 | --- | --- | --- | --- | --- |
 | 15.1 | `crag-id` 核心 Snowflake 编解码与实体注册 | ⏳ 待验收 | af72298 | — |
 | 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74 | — |
-| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待验收 | 38ed9e9 | — |
-| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待验收 | 1ee473f | — |
-| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待验收 | 584d213 | — |
+| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | 🔵 进行中 | 38ed9e9 | — |
+| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | 🔵 进行中 | 1ee473f | — |
+| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | 🔵 进行中 | 584d213 | — |
 
 整体进度：0 / 5（0%）
 
@@ -662,9 +662,35 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 
 无。任务废弃时记录原因、日期及替代任务或决策。
 
+## 验收记录
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-24 | macOS, Java 21 | `git show --stat <hash>` (×5) | 通过 | 5 个实现 commit hash 全部存在，文件范围各自匹配任务 |
+| 2026-06-24 | macOS, Python 3 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors，24 warnings（全部为历史 Plan 未使用 workflow v3） |
+| 2026-06-24 | macOS, Java 21 | `./gradlew check` | **失败** | `crag-ingestion:spotlessJavaCheck` — AdminRagServiceTest.java 行长度格式违规 |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-id:test` | 通过 | 42 个测试全部通过（含 15.1+15.2 纯单元与组件测试） |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-storage:test :crag-ingestion:test :crag-api:test :crag-query:test :crag-retrieval:test` | 通过 | 各模块纯单元/组件测试全部通过（crag-storage force re-run 确认） |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-rag-service:test` (force re-run) | **失败** | 6/16 测试失败；根因 `Not a managed type: class ai.cerbur.crag.storage.entity.Chunk` — Hibernate 7.4.1 在完整 Spring Boot Context 中无法识别 Chunk entity |
+| 2026-06-24 | macOS, Docker | `docker compose build rag-service` | **失败** | Gradle 报错 `crag-id` 目录不存在；`java-service.Dockerfile` 未包含 `crag-id` 模块的 COPY 步骤 |
+| 2026-06-24 | macOS, bash | `bash -n scripts/tests/http/*.sh` | 通过 | 所有 HTTP 回归脚本语法正确 |
+| 2026-06-24 | macOS, 代码审查 | HTTP 测试脚本内容审查 | **缺陷** | `admin_rag_contract_test.sh` 等脚本未按 plan 15.5 Step 1 要求添加 decimal string 格式断言（`^[0-9]+$`）；仅做存在性检查 |
+| 2026-06-24 | macOS, 代码审查 | SnowflakeLayout bit layout / IdEntityType / Redis lease / schema.sql / Controller mapping / Compose Redis topology | 通过 | 关键代码实现与 plan 设计一致 |
+
+**验收结论：退回。** 发现 4 个缺陷阻塞完成：
+1. Spotless 格式违规（AdminRagServiceTest.java）
+2. `crag-rag-service` 组件测试 Hibernate entity 识别失败（6 tests）
+3. `java-service.Dockerfile` 缺少 `crag-id` 模块 COPY（Docker 构建失败）
+4. HTTP 测试脚本缺少 decimal string 格式断言
+
+## 阻塞记录
+
+无。
+
 ## 变更记录
 
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-24 | 创建计划 | 固定 Plan 15 Snowflake ID、Redis Worker lease 与 RAG ID cold switch 范围 | 进入 ready，等待计划提交后执行 |
 | 2026-06-24 | 优化任务执行细节 | 使用 writing-plans 补齐接口约定、测试先行步骤、验证命令和提交边界 | 状态与范围不变；执行者可按任务独立实现 |
+| 2026-06-24 | 验收退回 | 独立验收发现 4 个缺陷：spotless 格式违规、Hibernate entity 识别失败、Dockerfile 缺少 crag-id、测试脚本缺少格式断言 | Plan 退回 `in_progress`；15.3/15.4/15.5 退回 `in_progress`；15.1/15.2 保留待验收 |
