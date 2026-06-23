@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-24（创建 plan_15，待开始）
+> 最后更新：2026-06-24（15.1 实现完成进入待验收，plan_15 转入进行中）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -87,7 +87,7 @@ plan/
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
 | plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | ✅ 完成 (14/14) | — | [plan_14.md](../plan_14/plan_14.md) |
-| plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | 🟦 待开始 (0/5) | — | [plan_15.md](../plan_15/plan_15.md) |
+| plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | 🟡 进行中 (0/5) | — | [plan_15.md](../plan_15/plan_15.md) |
 
 ---
 
@@ -232,7 +232,7 @@ plan_15 — 分布式 Snowflake ID 与 RAG ID 切换
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_15.md](../plan_15/plan_15.md) | 分布式 Snowflake ID、Redis Worker 租约、时钟回拨处理与 RAG `docId/chunkId/parentChunkId` 冷切换 | 🟦 待开始 (0/5) |
+| [plan_15.md](../plan_15/plan_15.md) | 分布式 Snowflake ID、Redis Worker 租约、时钟回拨处理与 RAG `docId/chunkId/parentChunkId` 冷切换 | 🟡 进行中 (0/5) |
 
 ---
 
