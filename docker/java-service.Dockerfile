@@ -19,6 +19,7 @@ COPY gradle/ gradle/
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 COPY gradle/libs.versions.toml gradle/libs.versions.toml
+COPY crag-id/build.gradle.kts crag-id/build.gradle.kts
 COPY crag-common/build.gradle.kts crag-common/build.gradle.kts
 COPY crag-storage/build.gradle.kts crag-storage/build.gradle.kts
 COPY crag-retrieval/build.gradle.kts crag-retrieval/build.gradle.kts
@@ -36,6 +37,7 @@ COPY crag-open-api/build.gradle.kts crag-open-api/build.gradle.kts
 RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked \
     chmod +x gradlew && ./gradlew ":${SERVICE_MODULE}:dependencies" --no-daemon
 
+COPY crag-id/src/ crag-id/src/
 COPY crag-common/src/ crag-common/src/
 COPY crag-storage/src/ crag-storage/src/
 COPY crag-retrieval/src/ crag-retrieval/src/
