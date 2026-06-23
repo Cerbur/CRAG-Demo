@@ -67,7 +67,6 @@ public class CragIdConfiguration {
   @Bean
   CragIdGenerator cragIdGenerator(
       SnowflakeLayout layout, MonotonicClock clock, RedisWorkerLeaseRepository leaseRepository) {
-    Map<IdEntityType, RedisWorkerLease> leaseMap = new ConcurrentHashMap<>();
     RedisBackedCragIdGenerator.LeaseProvider provider = leaseMap::get;
     return new RedisBackedCragIdGenerator(
         provider, layout, clock, properties.getRollbackThresholdMillis());
