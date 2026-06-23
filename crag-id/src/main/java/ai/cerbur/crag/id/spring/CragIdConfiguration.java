@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.contributor.HealthIndicator;
@@ -23,6 +22,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 /**
  * Spring configuration for the Crag ID module.
@@ -82,12 +82,15 @@ public class CragIdConfiguration {
    * Schedules periodic lease renewal for required entity types.
    *
    * <p>The scheduler tries to acquire a lease for each required entity type that doesn't have one
-   * yet, and renews leases that are already active. This bean is conditional on a {@link
-   * TaskScheduler} being available (which Spring Boot provides by default).
+   * yet, and renews leases that are already active. Creates its own {@link TaskScheduler} so that
+   * services without {@code @EnableScheduling} still get lease maintenance.
    */
   @Bean
-  @ConditionalOnBean(TaskScheduler.class)
-  Object cragIdLeaseScheduler(TaskScheduler scheduler, RedisWorkerLeaseRepository leaseRepository) {
+  Object cragIdLeaseScheduler(RedisWorkerLeaseRepository leaseRepository) {
+    ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    scheduler.setPoolSize(1);
+    scheduler.setThreadNamePrefix("crag-id-lease-");
+    scheduler.initialize();
     scheduler.scheduleAtFixedRate(
         () -> maintainLeases(leaseRepository), properties.getRenewInterval());
     log.info(
