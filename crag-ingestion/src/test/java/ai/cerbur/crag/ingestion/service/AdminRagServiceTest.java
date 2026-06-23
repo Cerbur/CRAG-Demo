@@ -70,8 +70,12 @@ class AdminRagServiceTest {
     // 使用 lenient() 避免空 groups 场景下 UnnecessaryStubbingException.
     lenient().when(chunkDao.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
     // CragIdGenerator 发号器 mock
-    lenient().when(cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT)).thenAnswer(inv -> nextDocId.getAndIncrement());
-    lenient().when(cragIdGenerator.nextId(IdEntityType.CHUNK)).thenAnswer(inv -> nextChunkId.getAndIncrement());
+    lenient()
+        .when(cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT))
+        .thenAnswer(inv -> nextDocId.getAndIncrement());
+    lenient()
+        .when(cragIdGenerator.nextId(IdEntityType.CHUNK))
+        .thenAnswer(inv -> nextChunkId.getAndIncrement());
   }
 
   @Nested
