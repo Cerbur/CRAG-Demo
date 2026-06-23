@@ -51,7 +51,7 @@ class UserQueryControllerComponentTest {
     @Test
     @DisplayName("valid question returns 200 with answer and sources")
     void validQuestionReturnsSuccess() throws Exception {
-      QuerySource source = new QuerySource("S1", "parent-1", List.of("child-1", "child-2"));
+      QuerySource source = new QuerySource("S1", 100L, List.of(200L, 201L));
       when(userQueryService.answer("test question"))
           .thenReturn(new UserQueryResult("This is the answer.", List.of(source)));
 
@@ -65,9 +65,9 @@ class UserQueryControllerComponentTest {
           .andExpect(jsonPath("$.code").value(0))
           .andExpect(jsonPath("$.result.answer").value("This is the answer."))
           .andExpect(jsonPath("$.result.sources[0].reference").value("S1"))
-          .andExpect(jsonPath("$.result.sources[0].parentChunkId").value("parent-1"))
-          .andExpect(jsonPath("$.result.sources[0].matchedChildIds[0]").value("child-1"))
-          .andExpect(jsonPath("$.result.sources[0].matchedChildIds[1]").value("child-2"));
+          .andExpect(jsonPath("$.result.sources[0].parentChunkId").value("100"))
+          .andExpect(jsonPath("$.result.sources[0].matchedChildIds[0]").value("200"))
+          .andExpect(jsonPath("$.result.sources[0].matchedChildIds[1]").value("201"));
     }
 
     @Test

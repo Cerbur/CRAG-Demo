@@ -42,7 +42,9 @@ public class UserQueryController {
                 .map(
                     s ->
                         new QuerySourceResponse(
-                            s.reference(), s.parentChunkId(), s.matchedChildIds()))
+                            s.reference(),
+                            Long.toString(s.parentChunkId()),
+                            s.matchedChildIds().stream().map(id -> Long.toString(id)).toList()))
                 .toList());
     return Response.success(response);
   }

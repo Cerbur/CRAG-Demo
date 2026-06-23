@@ -11,6 +11,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ai.cerbur.crag.id.api.CragIdGenerator;
+import ai.cerbur.crag.id.api.IdEntityType;
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
 import ai.cerbur.crag.ingestion.api.MetadataSerializationException;
@@ -23,6 +25,7 @@ import ai.cerbur.crag.storage.entity.Chunk;
 import ai.cerbur.crag.storage.entity.ChunkStatus;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -52,15 +55,23 @@ class AdminRagServiceTest {
 
   @Mock private ChunkDao chunkDao;
 
+  @Mock private CragIdGenerator cragIdGenerator;
+
   @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
   @InjectMocks private AdminRagService adminRagService;
+
+  private final AtomicLong nextDocId = new AtomicLong(1000L);
+  private final AtomicLong nextChunkId = new AtomicLong(2000L);
 
   @BeforeEach
   void setUp() {
     // saveAll 返回传入的 list，模拟 JPA 标准行为.
     // 使用 lenient() 避免空 groups 场景下 UnnecessaryStubbingException.
     lenient().when(chunkDao.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+    // CragIdGenerator 发号器 mock
+    lenient().when(cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT)).thenAnswer(inv -> nextDocId.getAndIncrement());
+    lenient().when(cragIdGenerator.nextId(IdEntityType.CHUNK)).thenAnswer(inv -> nextChunkId.getAndIncrement());
   }
 
   @Nested
@@ -77,7 +88,7 @@ class AdminRagServiceTest {
           adminRagService.ingest("测试文档", "这是一段测试内容。".repeat(200), Map.of("tag", "test"));
 
       // Then: 返回值正确
-      assertThat(result.docId()).isNotBlank();
+      assertThat(result.docId()).isGreaterThan(0L);
       assertThat(result.chunks()).isEqualTo(2);
       assertThat(result.status()).isEqualTo("PENDING");
     }
@@ -89,7 +100,7 @@ class AdminRagServiceTest {
 
       AdminRagResult result = adminRagService.ingest("空元数据文档", "一些测试内容。", null);
 
-      assertThat(result.docId()).isNotBlank();
+      assertThat(result.docId()).isGreaterThan(0L);
       assertThat(result.chunks()).isEqualTo(1);
 
       // 验证写入的 chunk metadata 含 title 且不含 null
@@ -140,7 +151,7 @@ class AdminRagServiceTest {
 
       List<Chunk> saved = captureSavedChunks();
       List<Chunk> parents =
-          saved.stream().filter(c -> c.getParentChunkId().equals(Chunk.NO_PARENT)).toList();
+          saved.stream().filter(c -> c.getParentChunkId() == Chunk.NO_PARENT).toList();
 
       assertThat(parents).hasSize(2);
       for (Chunk parent : parents) {
@@ -158,7 +169,7 @@ class AdminRagServiceTest {
 
       List<Chunk> saved = captureSavedChunks();
       List<Chunk> children =
-          saved.stream().filter(c -> !c.getParentChunkId().equals(Chunk.NO_PARENT)).toList();
+          saved.stream().filter(c -> c.getParentChunkId() != Chunk.NO_PARENT).toList();
 
       assertThat(children).hasSize(3);
       for (Chunk child : children) {
@@ -176,11 +187,11 @@ class AdminRagServiceTest {
 
       List<Chunk> saved = captureSavedChunks();
       List<Chunk> parents =
-          saved.stream().filter(c -> c.getParentChunkId().equals(Chunk.NO_PARENT)).toList();
+          saved.stream().filter(c -> c.getParentChunkId() == Chunk.NO_PARENT).toList();
 
       for (Chunk parent : parents) {
         List<Chunk> children =
-            saved.stream().filter(c -> c.getParentChunkId().equals(parent.getChunkId())).toList();
+            saved.stream().filter(c -> c.getParentChunkId() == parent.getChunkId()).toList();
         assertThat(children).as("Parent %s should have children", parent.getChunkId()).isNotEmpty();
         for (Chunk child : children) {
           assertThat(child.getParentChunkId()).isEqualTo(parent.getChunkId());
@@ -213,14 +224,14 @@ class AdminRagServiceTest {
       List<Chunk> saved = captureSavedChunks();
       // Parent indices 来自 ChunkSplitData（文档级 0-based）
       List<Chunk> parents =
-          saved.stream().filter(c -> c.getParentChunkId().equals(Chunk.NO_PARENT)).toList();
+          saved.stream().filter(c -> c.getParentChunkId() == Chunk.NO_PARENT).toList();
       assertThat(parents.get(0).getChunkIndex()).isEqualTo(0);
       assertThat(parents.get(1).getChunkIndex()).isEqualTo(1);
 
       // Child indices 来自 ChunkSplitData（parent 内 0-based）
       for (Chunk parent : parents) {
         List<Chunk> children =
-            saved.stream().filter(c -> c.getParentChunkId().equals(parent.getChunkId())).toList();
+            saved.stream().filter(c -> c.getParentChunkId() == parent.getChunkId()).toList();
         for (int i = 0; i < children.size(); i++) {
           assertThat(children.get(i).getChunkIndex()).isEqualTo(i);
         }
@@ -237,7 +248,7 @@ class AdminRagServiceTest {
       List<Chunk> saved = captureSavedChunks();
       // 第一个是 parent，其 chunkId 非空
       Chunk parent = saved.get(0);
-      assertThat(parent.getChunkId()).isNotBlank();
+      assertThat(parent.getChunkId()).isGreaterThan(0L);
       assertThat(parent.getParentChunkId()).isEqualTo(Chunk.NO_PARENT);
 
       // 后续 children 的 parentChunkId 指向该 parent
@@ -290,7 +301,7 @@ class AdminRagServiceTest {
 
       assertThat(result.chunks()).isZero();
       assertThat(result.status()).isEqualTo("PENDING");
-      assertThat(result.docId()).isNotBlank();
+      assertThat(result.docId()).isGreaterThan(0L);
       verify(chunkDao, never()).saveAll(anyList());
     }
 

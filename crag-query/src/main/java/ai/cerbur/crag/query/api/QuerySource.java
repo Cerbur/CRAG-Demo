@@ -13,21 +13,21 @@ import java.util.List;
  * @param parentChunkId 对应 ParentEvidenceResult 的 parent 标识
  * @param matchedChildIds 该 parent 在证据窗口中命中的 child chunk ID 列表，按 Retrieval 顺序
  */
-public record QuerySource(String reference, String parentChunkId, List<String> matchedChildIds) {
+public record QuerySource(String reference, long parentChunkId, List<Long> matchedChildIds) {
 
   /**
    * 紧凑构造器 —— 防御性复制并拒绝非法状态.
    *
    * @throws IllegalArgumentException reference 为 null 或 blank
-   * @throws IllegalArgumentException parentChunkId 为 null 或 blank
+   * @throws IllegalArgumentException parentChunkId 为 0
    * @throws IllegalArgumentException matchedChildIds 为 null
    */
   public QuerySource {
     if (reference == null || reference.isBlank()) {
       throw new IllegalArgumentException("reference must not be null or blank");
     }
-    if (parentChunkId == null || parentChunkId.isBlank()) {
-      throw new IllegalArgumentException("parentChunkId must not be null or blank");
+    if (parentChunkId == 0L) {
+      throw new IllegalArgumentException("parentChunkId must not be 0");
     }
     if (matchedChildIds == null) {
       throw new IllegalArgumentException("matchedChildIds must not be null");
@@ -41,7 +41,7 @@ public record QuerySource(String reference, String parentChunkId, List<String> m
    * @return 不可修改的 matched child ID 列表，保持 Retrieval 顺序
    */
   @Override
-  public List<String> matchedChildIds() {
+  public List<Long> matchedChildIds() {
     return Collections.unmodifiableList(matchedChildIds);
   }
 }

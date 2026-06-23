@@ -49,8 +49,8 @@ class UserQueryServiceTest {
   private static final String TRIMMED_QUESTION = "什么是CRAG？";
   private static final String LLM_ANSWER = "CRAG是一种检索增强生成技术[S1]。";
   private static final String PARENT_CONTENT = "CRAG是一种检索增强生成（Retrieval-Augmented Generation）技术。";
-  private static final String PARENT_CHUNK_ID = "p100";
-  private static final List<String> MATCHED_CHILD_IDS = List.of("c101", "c102");
+  private static final long PARENT_CHUNK_ID = 100L;
+  private static final List<Long> MATCHED_CHILD_IDS = List.of(1001L, 1002L);
   private static final String CONTEXT_TEXT =
       "<CRAG:abc:S1>\n" + PARENT_CONTENT + "\n</CRAG:abc:S1>";
   private static final int CONTEXT_LENGTH = CONTEXT_TEXT.length();

@@ -30,12 +30,12 @@ class RrfFusionServiceTest {
   private final RrfFusionService rrfFusionService = new RrfFusionService();
 
   private SparseSearchResult sparse(
-      String chunkId, String parentChunkId, double score, String content) {
+      long chunkId, long parentChunkId, double score, String content) {
     return new SparseSearchResult(chunkId, parentChunkId, score, content);
   }
 
   private DenseSearchResult dense(
-      String chunkId, String parentChunkId, double score, String content) {
+      long chunkId, long parentChunkId, double score, String content) {
     return new DenseSearchResult(chunkId, parentChunkId, score, content);
   }
 
@@ -57,7 +57,7 @@ class RrfFusionServiceTest {
     void nonPositiveTopNReturnsEmpty() {
       List<RrfFusionResult> results =
           rrfFusionService.fuse(
-              List.of(sparse("c1", "p1", 0.90, "子内容")), Collections.emptyList(), 0);
+              List.of(sparse(1001L, 100L, 0.90, "子内容")), Collections.emptyList(), 0);
 
       assertThat(results).isEmpty();
     }
@@ -66,14 +66,14 @@ class RrfFusionServiceTest {
     @DisplayName("sparse 为空、dense 有效 → 返回 child chunk")
     void sparseEmptyDenseValidReturnsChildChunk() {
       List<DenseSearchResult> denseList =
-          List.of(new DenseSearchResult("c1", "p1", 4, 0.95, "子内容一"));
+          List.of(new DenseSearchResult(1001L, 100L, 4, 0.95, "子内容一"));
 
       List<RrfFusionResult> results =
           rrfFusionService.fuse(Collections.emptyList(), denseList, TOP_N);
 
       assertThat(results).hasSize(1);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
-      assertThat(results.get(0).getParentChunkId()).isEqualTo("p1");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1001L);
+      assertThat(results.get(0).getParentChunkId()).isEqualTo(100L);
       assertThat(results.get(0).getChunkIndex()).isEqualTo(4);
       assertThat(results.get(0).getContent()).isEqualTo("子内容一");
       assertThat(results.get(0).getBestDenseScore()).isEqualTo(0.95);
@@ -87,13 +87,13 @@ class RrfFusionServiceTest {
     @Test
     @DisplayName("单路单结果 → RRF = 1/(60+1)")
     void singleStreamSingleResultCorrectScore() {
-      List<SparseSearchResult> sparseList = List.of(sparse("c1", "p1", 0.99, "内容"));
+      List<SparseSearchResult> sparseList = List.of(sparse(1001L, 100L, 0.99, "内容"));
 
       List<RrfFusionResult> results =
           rrfFusionService.fuse(sparseList, Collections.emptyList(), TOP_N);
 
       assertThat(results).hasSize(1);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1001L);
       assertThat(results.get(0).getRrfScore()).isEqualTo(1.0 / (RRF_K + 1));
     }
 
@@ -101,27 +101,27 @@ class RrfFusionServiceTest {
     @DisplayName("单路多结果 → 排名越靠前 RRF 分数越高")
     void higherRankGetsHigherScore() {
       List<SparseSearchResult> sparseList =
-          List.of(sparse("c1", "pA", 0.90, "A"), sparse("c2", "pA", 0.80, "B"));
+          List.of(sparse(1001L, 100L, 0.90, "A"), sparse(1002L, 100L, 0.80, "B"));
 
       List<RrfFusionResult> results =
           rrfFusionService.fuse(sparseList, Collections.emptyList(), TOP_N);
 
       assertThat(results).hasSize(2);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
-      assertThat(results.get(1).getChunkId()).isEqualTo("c2");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1001L);
+      assertThat(results.get(1).getChunkId()).isEqualTo(1002L);
       assertThat(results.get(0).getRrfScore()).isGreaterThan(results.get(1).getRrfScore());
     }
 
     @Test
     @DisplayName("同一 child 在两路都出现 → RRF 分数累加")
     void sameChildInBothStreamsAccumulatesScore() {
-      List<SparseSearchResult> sparseList = List.of(sparse("c1", "p1", 0.90, "重叠"));
-      List<DenseSearchResult> denseList = List.of(dense("c1", "p1", 0.95, "重叠"));
+      List<SparseSearchResult> sparseList = List.of(sparse(1001L, 100L, 0.90, "重叠"));
+      List<DenseSearchResult> denseList = List.of(dense(1001L, 100L, 0.95, "重叠"));
 
       List<RrfFusionResult> results = rrfFusionService.fuse(sparseList, denseList, TOP_N);
 
       assertThat(results).hasSize(1);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1001L);
       assertThat(results.get(0).getRrfScore()).isEqualTo(2.0 / (RRF_K + 1));
       assertThat(results.get(0).getBestSparseScore()).isEqualTo(0.90);
       assertThat(results.get(0).getBestDenseScore()).isEqualTo(0.95);
@@ -130,16 +130,16 @@ class RrfFusionServiceTest {
     @Test
     @DisplayName("同一 child 在两路不同排名 → 累加不同 RRF 值")
     void sameChildDifferentRanksAccumulatesDifferentScores() {
-      List<SparseSearchResult> sparseList = List.of(sparse("c1", "p1", 0.90, "不同排名"));
+      List<SparseSearchResult> sparseList = List.of(sparse(1001L, 100L, 0.90, "不同排名"));
       List<DenseSearchResult> denseList =
           List.of(
-              dense("cX", "pX", 0.99, "其他1"),
-              dense("cY", "pY", 0.98, "其他2"),
-              dense("c1", "p1", 0.85, "不同排名"));
+              dense(8001L, 800L, 0.99, "其他1"),
+              dense(9001L, 900L, 0.98, "其他2"),
+              dense(1001L, 100L, 0.85, "不同排名"));
 
       List<RrfFusionResult> results = rrfFusionService.fuse(sparseList, denseList, TOP_N);
 
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1001L);
       double expectedScore = 1.0 / (RRF_K + 1) + 1.0 / (RRF_K + 3);
       assertThat(results.get(0).getRrfScore()).isEqualTo(expectedScore);
     }
@@ -153,25 +153,25 @@ class RrfFusionServiceTest {
     @DisplayName("同 parent 下多个 child 命中 → 保留多个 child，不做 parent 去重")
     void multipleChildrenUnderSameParentAreKept() {
       List<SparseSearchResult> sparseList =
-          List.of(sparse("c1", "p1", 0.90, "子1"), sparse("c2", "p1", 0.80, "子2"));
+          List.of(sparse(1001L, 100L, 0.90, "子1"), sparse(1002L, 100L, 0.80, "子2"));
 
       List<RrfFusionResult> results =
           rrfFusionService.fuse(sparseList, Collections.emptyList(), TOP_N);
 
       assertThat(results).hasSize(2);
-      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly("c1", "c2");
+      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly(1001L, 1002L);
     }
 
     @Test
     @DisplayName("结果使用 child 内容，不回表 parent 内容")
     void resultUsesChildContent() {
-      List<SparseSearchResult> sparseList = List.of(sparse("c1", "p1", 0.90, "child text"));
+      List<SparseSearchResult> sparseList = List.of(sparse(1001L, 100L, 0.90, "child text"));
 
       List<RrfFusionResult> results =
           rrfFusionService.fuse(sparseList, Collections.emptyList(), TOP_N);
 
       assertThat(results).hasSize(1);
-      assertThat(results.get(0).getChunkId()).isEqualTo("c1");
+      assertThat(results.get(0).getChunkId()).isEqualTo(1001L);
       assertThat(results.get(0).getContent()).isEqualTo("child text");
     }
   }
@@ -185,14 +185,14 @@ class RrfFusionServiceTest {
     void resultsSortedByRrfScoreDescending() {
       List<SparseSearchResult> sparseList =
           List.of(
-              sparse("c1", "pA", 0.90, "A"),
-              sparse("c2", "pB", 0.80, "B"),
-              sparse("c3", "pC", 0.70, "C"));
+              sparse(1001L, 100L, 0.90, "A"),
+              sparse(1002L, 200L, 0.80, "B"),
+              sparse(1003L, 300L, 0.70, "C"));
 
       List<RrfFusionResult> results =
           rrfFusionService.fuse(sparseList, Collections.emptyList(), TOP_N);
 
-      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly("c1", "c2", "c3");
+      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly(1001L, 1002L, 1003L);
     }
 
     @Test
@@ -200,14 +200,14 @@ class RrfFusionServiceTest {
     void topNLimitApplied() {
       List<SparseSearchResult> sparseList =
           List.of(
-              sparse("c1", "pA", 0.90, "A"),
-              sparse("c2", "pB", 0.80, "B"),
-              sparse("c3", "pC", 0.70, "C"));
+              sparse(1001L, 100L, 0.90, "A"),
+              sparse(1002L, 200L, 0.80, "B"),
+              sparse(1003L, 300L, 0.70, "C"));
 
       List<RrfFusionResult> results = rrfFusionService.fuse(sparseList, Collections.emptyList(), 2);
 
       assertThat(results).hasSize(2);
-      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly("c1", "c2");
+      assertThat(results).extracting(RrfFusionResult::getChunkId).containsExactly(1001L, 1002L);
     }
   }
 }

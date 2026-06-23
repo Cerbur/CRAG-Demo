@@ -85,9 +85,9 @@ class SparseQueryServiceTest {
       String query = "什么是人工智能";
       List<ai.cerbur.crag.storage.result.SparseSearchResult> daoResults =
           List.of(
-              new ai.cerbur.crag.storage.result.SparseSearchResult("c1", "p1", 0.90, "人工智能是..."),
-              new ai.cerbur.crag.storage.result.SparseSearchResult("c2", "p2", 0.70, "机器学习相关..."),
-              new ai.cerbur.crag.storage.result.SparseSearchResult("c3", "p3", 0.50, "深度学习介绍..."));
+              new ai.cerbur.crag.storage.result.SparseSearchResult(1001L, 100L, 0.90, "人工智能是..."),
+              new ai.cerbur.crag.storage.result.SparseSearchResult(1002L, 200L, 0.70, "机器学习相关..."),
+              new ai.cerbur.crag.storage.result.SparseSearchResult(1003L, 300L, 0.50, "深度学习介绍..."));
       when(chunkFtsDao.searchFts(any(), anyInt())).thenReturn(daoResults);
 
       List<SparseSearchResult> results = sparseQueryService.search(query, 5);
@@ -95,7 +95,7 @@ class SparseQueryServiceTest {
       assertThat(results).hasSize(3);
       assertThat(results.get(0).getContent()).isEqualTo("人工智能是...");
       assertThat(results.get(1).getSparseScore()).isEqualTo(0.70);
-      assertThat(results.get(2).getChunkId()).isEqualTo("c3");
+      assertThat(results.get(2).getChunkId()).isEqualTo(1003L);
     }
 
     @Test

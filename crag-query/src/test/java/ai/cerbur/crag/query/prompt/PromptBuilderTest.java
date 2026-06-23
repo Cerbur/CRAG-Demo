@@ -34,7 +34,7 @@ class PromptBuilderTest {
     @DisplayName("null question → IllegalArgumentException")
     void nullQuestion() {
       var ctx =
-          new QueryContext("some context", List.of(new QuerySource("S1", "p1", List.of("c1"))), 12);
+          new QueryContext("some context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 12);
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> promptBuilder.build(null, ctx))
@@ -45,7 +45,7 @@ class PromptBuilderTest {
     @DisplayName("blank question (spaces) → IllegalArgumentException")
     void blankQuestion() {
       var ctx =
-          new QueryContext("some context", List.of(new QuerySource("S1", "p1", List.of("c1"))), 12);
+          new QueryContext("some context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 12);
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> promptBuilder.build("   ", ctx))
@@ -82,7 +82,7 @@ class PromptBuilderTest {
     @Test
     @DisplayName("系统消息包含不可信资料规则")
     void systemPromptContainsRules() {
-      var ctx = new QueryContext("context", List.of(new QuerySource("S1", "p1", List.of("c1"))), 7);
+      var ctx = new QueryContext("context", List.of(new QuerySource("S1", 100L, List.of(1001L))), 7);
       LlmRequest request = promptBuilder.build("What is X?", ctx);
 
       assertThat(request.systemPrompt())
@@ -100,8 +100,8 @@ class PromptBuilderTest {
     @Test
     @DisplayName("不同问题系统消息相同（角色分离）")
     void systemPromptIsStableAcrossQuestions() {
-      var ctx1 = new QueryContext("ctx1", List.of(new QuerySource("S1", "p1", List.of("c1"))), 4);
-      var ctx2 = new QueryContext("ctx2", List.of(new QuerySource("S1", "p2", List.of("c2"))), 4);
+      var ctx1 = new QueryContext("ctx1", List.of(new QuerySource("S1", 100L, List.of(1001L))), 4);
+      var ctx2 = new QueryContext("ctx2", List.of(new QuerySource("S1", 200L, List.of(1002L))), 4);
 
       LlmRequest req1 = promptBuilder.build("Q1", ctx1);
       LlmRequest req2 = promptBuilder.build("Q2", ctx2);
@@ -125,7 +125,7 @@ class PromptBuilderTest {
       var ctx =
           new QueryContext(
               contextText,
-              List.of(new QuerySource("S1", "p1", List.of("c1"))),
+              List.of(new QuerySource("S1", 100L, List.of(1001L))),
               contextText.length());
 
       LlmRequest request = promptBuilder.build("What is the answer?", ctx);
@@ -145,7 +145,7 @@ class PromptBuilderTest {
       var ctx =
           new QueryContext(
               contextText,
-              List.of(new QuerySource("S1", "p1", List.of("c1"))),
+              List.of(new QuerySource("S1", 100L, List.of(1001L))),
               contextText.length());
 
       LlmRequest request = promptBuilder.build("  Trimmed question  ", ctx);
@@ -161,7 +161,7 @@ class PromptBuilderTest {
       var ctx =
           new QueryContext(
               contextText,
-              List.of(new QuerySource("S1", "p1", List.of("c1"))),
+              List.of(new QuerySource("S1", 100L, List.of(1001L))),
               contextText.length());
 
       LlmRequest request = promptBuilder.build("如何使用 Optional.ofNullable()？", ctx);
@@ -176,7 +176,7 @@ class PromptBuilderTest {
       var ctx =
           new QueryContext(
               contextText,
-              List.of(new QuerySource("S1", "p1", List.of("c1"))),
+              List.of(new QuerySource("S1", 100L, List.of(1001L))),
               contextText.length());
 
       LlmRequest request = promptBuilder.build("question", ctx);
@@ -200,9 +200,9 @@ class PromptBuilderTest {
           new QueryContext(
               "ctx",
               List.of(
-                  new QuerySource("S1", "p1", List.of("c1")),
-                  new QuerySource("S2", "p2", List.of("c2")),
-                  new QuerySource("S3", "p3", List.of("c3"))),
+                  new QuerySource("S1", 100L, List.of(1001L)),
+                  new QuerySource("S2", 200L, List.of(1002L)),
+                  new QuerySource("S3", 300L, List.of(1003L))),
               3);
 
       LlmRequest request = promptBuilder.build("question", ctx);
@@ -212,7 +212,7 @@ class PromptBuilderTest {
     @Test
     @DisplayName("单个 source → sourceCount = 1")
     void singleSource() {
-      var ctx = new QueryContext("ctx", List.of(new QuerySource("S1", "p1", List.of("c1"))), 3);
+      var ctx = new QueryContext("ctx", List.of(new QuerySource("S1", 100L, List.of(1001L))), 3);
 
       LlmRequest request = promptBuilder.build("question", ctx);
       assertThat(request.sourceCount()).isEqualTo(1);

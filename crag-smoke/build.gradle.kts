@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":crag-retrieval"))
     implementation(project(":crag-query"))
     implementation(project(":crag-api"))
+    implementation(project(":crag-id"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 

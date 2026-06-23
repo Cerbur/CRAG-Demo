@@ -78,8 +78,8 @@ class DenseQueryServiceTest {
       float[] vector = {0.5f, 0.6f, 0.7f};
       List<ai.cerbur.crag.storage.result.DenseSearchResult> daoResults =
           List.of(
-              new ai.cerbur.crag.storage.result.DenseSearchResult("c1", "p1", 0.95, "结果一"),
-              new ai.cerbur.crag.storage.result.DenseSearchResult("c2", "p2", 0.80, "结果二"));
+              new ai.cerbur.crag.storage.result.DenseSearchResult(1001L, 100L, 0.95, "结果一"),
+              new ai.cerbur.crag.storage.result.DenseSearchResult(1002L, 200L, 0.80, "结果二"));
       when(chunkEmbeddingDao.searchSimilar(any(), anyInt())).thenReturn(daoResults);
 
       List<DenseSearchResult> results = denseQueryService.search(vector, 10);

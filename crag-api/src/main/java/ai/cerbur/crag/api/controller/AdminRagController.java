@@ -39,7 +39,10 @@ public class AdminRagController {
         adminRagService.ingest(request.title(), request.content(), request.metadata());
     AdminRagResponse response =
         new AdminRagResponse(
-            result.docId(), result.chunks(), result.status(), result.parentChunkIds());
+            Long.toString(result.docId()),
+            result.chunks(),
+            result.status(),
+            result.parentChunkIds().stream().map(id -> Long.toString(id)).toList());
     return Response.success(response);
   }
 }

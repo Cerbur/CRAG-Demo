@@ -1,6 +1,8 @@
 package ai.cerbur.crag.smoke.controller;
 
 import ai.cerbur.crag.common.dto.result.Response;
+import ai.cerbur.crag.id.api.CragIdGenerator;
+import ai.cerbur.crag.id.api.IdEntityType;
 import ai.cerbur.crag.retrieval.api.RetrievalService;
 import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
@@ -18,7 +20,6 @@ import ai.cerbur.crag.storage.ChunkFtsDao;
 import ai.cerbur.crag.storage.entity.Chunk;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -70,6 +71,9 @@ public class TestController {
 
   /** 检索编排服务，打包混合检索全链路（Embed → Sparse + Dense → RRF → Rerank → Chunk 回表）. */
   @Autowired private RetrievalService retrievalService;
+
+  /** Snowflake ID 发号器 —— 为测试 chunk 预生成唯一 long ID. */
+  @Autowired private CragIdGenerator cragIdGenerator;
 
   /**
    * 冒烟测试 —— 查询三张表的记录数，验证 HTTP + JDBC 全链路连通.
@@ -138,21 +142,23 @@ public class TestController {
    */
   @PostMapping("/chunk")
   public Response<ChunkWriteResponse> writeChunk(@RequestBody ChunkWriteRequest request) {
-    String docId = UUID.randomUUID().toString();
+    long docId = cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT);
+    long parentId = cragIdGenerator.nextId(IdEntityType.CHUNK);
     Chunk parent =
-        Chunk.createParent(docId, request.content(), request.content().length(), 0, null);
+        Chunk.createParent(parentId, docId, request.content(), request.content().length(), 0, null);
+    long childId = cragIdGenerator.nextId(IdEntityType.CHUNK);
     Chunk child =
         Chunk.createChild(
-            docId, parent.getChunkId(), request.content(), request.content().length(), 0, null);
+            childId, docId, parentId, request.content(), request.content().length(), 0, null);
     List<Chunk> saved = chunkDao.saveAll(List.of(parent, child));
-    List<String> childIds =
+    List<Long> childIds =
         saved.stream()
-            .filter(c -> !Chunk.NO_PARENT.equals(c.getParentChunkId()))
+            .filter(c -> c.getParentChunkId() != Chunk.NO_PARENT)
             .map(Chunk::getChunkId)
             .toList();
-    List<String> parentIds =
+    List<Long> parentIds =
         saved.stream()
-            .filter(c -> Chunk.NO_PARENT.equals(c.getParentChunkId()))
+            .filter(c -> c.getParentChunkId() == Chunk.NO_PARENT)
             .map(Chunk::getChunkId)
             .toList();
     return Response.success(new ChunkWriteResponse(docId, childIds.size(), childIds, parentIds));
@@ -168,7 +174,7 @@ public class TestController {
    * @return Chunk 实体
    */
   @GetMapping("/chunk/{chunkId}/status")
-  public Response<Chunk> chunkStatus(@PathVariable String chunkId) {
+  public Response<Chunk> chunkStatus(@PathVariable long chunkId) {
     Chunk chunk = chunkDao.findByChunkId(chunkId);
     return Response.success(chunk);
   }
@@ -183,7 +189,7 @@ public class TestController {
    * @return 索引存在性及 chunk 状态信息
    */
   @GetMapping("/chunk/{chunkId}/indexes")
-  public Response<ChunkIndexesResponse> chunkIndexes(@PathVariable String chunkId) {
+  public Response<ChunkIndexesResponse> chunkIndexes(@PathVariable long chunkId) {
     boolean embeddingExists = chunkEmbeddingDao.existsByChunkId(chunkId);
     boolean ftsExists = chunkFtsDao.existsByChunkId(chunkId);
     Chunk chunk = chunkDao.findByChunkId(chunkId);
@@ -285,10 +291,10 @@ public class TestController {
    * @param parentChunkIds parent chunk ID 列表
    */
   public record ChunkWriteResponse(
-      String docId,
+      long docId,
       int chunkCount,
-      @JsonProperty("child_chunk_ids") List<String> childChunkIds,
-      @JsonProperty("parent_chunk_ids") List<String> parentChunkIds) {}
+      @JsonProperty("child_chunk_ids") List<Long> childChunkIds,
+      @JsonProperty("parent_chunk_ids") List<Long> parentChunkIds) {}
 
   /**
    * chunk 索引数据查询响应体.
@@ -300,7 +306,7 @@ public class TestController {
    * @param sparseStatus chunk 主表的 sparse_status（枚举名）
    */
   public record ChunkIndexesResponse(
-      @JsonProperty("chunk_id") String chunkId,
+      @JsonProperty("chunk_id") long chunkId,
       @JsonProperty("embedding_exists") boolean embeddingExists,
       @JsonProperty("fts_exists") boolean ftsExists,
       @JsonProperty("dense_status") String denseStatus,

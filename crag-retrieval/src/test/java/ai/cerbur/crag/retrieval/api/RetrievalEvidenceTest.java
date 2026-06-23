@@ -39,46 +39,46 @@ class RetrievalEvidenceTest {
     @DisplayName("合法参数创建成功")
     void validConstruction() {
       ParentEvidenceResult result =
-          new ParentEvidenceResult("p1", "parent content", List.of("c1", "c2"));
+          new ParentEvidenceResult(100L, "parent content", List.of(1001L, 1002L));
 
-      assertThat(result.parentChunkId()).isEqualTo("p1");
+      assertThat(result.parentChunkId()).isEqualTo(100L);
       assertThat(result.content()).isEqualTo("parent content");
-      assertThat(result.matchedChildIds()).containsExactly("c1", "c2");
+      assertThat(result.matchedChildIds()).containsExactly(1001L, 1002L);
     }
 
     @Test
     @DisplayName("matchedChildIds 防御性复制")
     void defensiveCopyOfMatchedChildIds() {
-      List<String> mutable = new java.util.ArrayList<>(List.of("c1"));
-      ParentEvidenceResult result = new ParentEvidenceResult("p1", "content", mutable);
+      List<Long> mutable = new java.util.ArrayList<>(List.of(1001L));
+      ParentEvidenceResult result = new ParentEvidenceResult(100L, "content", mutable);
 
       // Modify the original list — should not affect the record
-      mutable.add("c2");
+      mutable.add(1002L);
 
-      assertThat(result.matchedChildIds()).containsExactly("c1");
+      assertThat(result.matchedChildIds()).containsExactly(1001L);
     }
 
     @Test
     @DisplayName("matchedChildIds 不可修改")
     void matchedChildIdsUnmodifiable() {
-      ParentEvidenceResult result = new ParentEvidenceResult("p1", "content", List.of("c1"));
+      ParentEvidenceResult result = new ParentEvidenceResult(100L, "content", List.of(1001L));
 
-      assertThatThrownBy(() -> result.matchedChildIds().add("c2"))
+      assertThatThrownBy(() -> result.matchedChildIds().add(1002L))
           .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    @DisplayName("parentChunkId 为 null 抛出异常")
+    @DisplayName("parentChunkId 为 0 抛出异常")
     void nullParentChunkIdThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(null, "content", List.of("c1")))
+      assertThatThrownBy(() -> new ParentEvidenceResult(0L, "content", List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("parentChunkId");
     }
 
     @Test
-    @DisplayName("parentChunkId 为 blank 抛出异常")
+    @DisplayName("parentChunkId 为 0 抛出异常（原 blank 等价场景）")
     void blankParentChunkIdThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult("  ", "content", List.of("c1")))
+      assertThatThrownBy(() -> new ParentEvidenceResult(0L, "content", List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("parentChunkId");
     }
@@ -86,7 +86,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("content 为 null 抛出异常")
     void nullContentThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult("p1", null, List.of("c1")))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, null, List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("content");
     }
@@ -94,7 +94,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("content 为 blank 抛出异常")
     void blankContentThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult("p1", "  ", List.of("c1")))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, "  ", List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("content");
     }
@@ -102,7 +102,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("matchedChildIds 为 null 抛出异常")
     void nullMatchedChildIdsThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult("p1", "content", null))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, "content", null))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("matchedChildIds");
     }
@@ -110,7 +110,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("matchedChildIds 为空抛出异常")
     void emptyMatchedChildIdsThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult("p1", "content", Collections.emptyList()))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, "content", Collections.emptyList()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("matchedChildIds");
     }
@@ -167,15 +167,15 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("单个 parent 单个 RRF 命中 child")
     void singleParentSingleRrfHit() {
-      List<ChunkSearchResult> reranked = List.of(childResult("c1", "p1", "命中内容"));
-      LinkedHashSet<String> rrfHits = setOf("c1");
+      List<ChunkSearchResult> reranked = List.of(childResult(1001L, 100L, "命中内容"));
+      LinkedHashSet<Long> rrfHits = setOf(1001L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
       assertThat(candidates).hasSize(1);
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p1");
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c1");
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(100L);
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(1001L);
       assertThat(candidates.get(0).bestRank()).isEqualTo(0);
     }
 
@@ -184,11 +184,11 @@ class RetrievalEvidenceTest {
     void multiParentRankedByBestRerankRank() {
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c_a1", "pA", "A1"), // rank 0
-              childResult("c_b1", "pB", "B1"), // rank 1
-              childResult("c_a2", "pA", "A2"), // rank 2 — pA already has rank 0
-              childResult("c_c1", "pC", "C1")); // rank 3
-      LinkedHashSet<String> rrfHits = setOf("c_a1", "c_b1", "c_a2", "c_c1");
+              childResult(101L, 100L, "A1"), // rank 0
+              childResult(201L, 200L, "B1"), // rank 1
+              childResult(102L, 100L, "A2"), // rank 2 — pA already has rank 0
+              childResult(301L, 300L, "C1")); // rank 3
+      LinkedHashSet<Long> rrfHits = setOf(101L, 201L, 102L, 301L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
@@ -196,7 +196,7 @@ class RetrievalEvidenceTest {
       assertThat(candidates).hasSize(3);
       assertThat(candidates)
           .extracting(EvidenceCandidate::parentChunkId)
-          .containsExactly("pA", "pB", "pC");
+          .containsExactly(100L, 200L, 300L);
       assertThat(candidates.get(0).bestRank()).isEqualTo(0); // pA via c_a1
       assertThat(candidates.get(1).bestRank()).isEqualTo(1); // pB via c_b1
       assertThat(candidates.get(2).bestRank()).isEqualTo(3); // pC via c_c1
@@ -207,19 +207,19 @@ class RetrievalEvidenceTest {
     void sameParentMultipleRrfHits() {
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c1", "p1", "C1"), // rank 0
-              childResult("c2", "p2", "C2"), // rank 1
-              childResult("c3", "p1", "C3")); // rank 2 — same parent p1
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2", "c3");
+              childResult(1001L, 100L, "C1"), // rank 0
+              childResult(1002L, 200L, "C2"), // rank 1
+              childResult(1003L, 100L, "C3")); // rank 2 — same parent p1
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L, 1003L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
       assertThat(candidates).hasSize(2);
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p1");
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(100L);
       assertThat(candidates.get(0).bestRank()).isEqualTo(0);
       assertThat(candidates.get(0).matchedChildIds())
-          .containsExactly("c1", "c3"); // in rerank order
+          .containsExactly(1001L, 1003L); // in rerank order
     }
   }
 
@@ -236,16 +236,16 @@ class RetrievalEvidenceTest {
     void adjacentChildNotInMatchedChildIds() {
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c_rrf", "p1", "RRF 命中"), // rank 0 — real RRF hit
-              childResult("c_adj", "p1", "相邻扩展")); // rank 1 — adjacent
-      LinkedHashSet<String> rrfHits = setOf("c_rrf"); // only c_rrf is real hit
+              childResult(500L, 100L, "RRF 命中"), // rank 0 — real RRF hit
+              childResult(600L, 100L, "相邻扩展")); // rank 1 — adjacent
+      LinkedHashSet<Long> rrfHits = setOf(500L); // only c_rrf is real hit
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
       assertThat(candidates).hasSize(1);
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p1");
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c_rrf");
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(100L);
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(500L);
     }
 
     @Test
@@ -256,10 +256,10 @@ class RetrievalEvidenceTest {
       // p1 should be ranked above p2 even though its RRF hit is at rank 2
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c_adj_p1", "p1", "p1 相邻扩展"), // rank 0 — adjacent
-              childResult("c_rrf_p2", "p2", "p2 RRF 命中"), // rank 1 — RRF hit
-              childResult("c_rrf_p1", "p1", "p1 RRF 命中")); // rank 2 — RRF hit
-      LinkedHashSet<String> rrfHits = setOf("c_rrf_p2", "c_rrf_p1");
+              childResult(601L, 100L, "p1 相邻扩展"), // rank 0 — adjacent
+              childResult(502L, 200L, "p2 RRF 命中"), // rank 1 — RRF hit
+              childResult(501L, 100L, "p1 RRF 命中")); // rank 2 — RRF hit
+      LinkedHashSet<Long> rrfHits = setOf(502L, 501L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
@@ -267,9 +267,9 @@ class RetrievalEvidenceTest {
       // p1 is ranked first because its adjacent child at rank 0 gives it bestRank=0
       assertThat(candidates)
           .extracting(EvidenceCandidate::parentChunkId)
-          .containsExactly("p1", "p2");
+          .containsExactly(100L, 200L);
       assertThat(candidates.get(0).bestRank()).isEqualTo(0);
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c_rrf_p1");
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(501L);
     }
 
     @Test
@@ -277,15 +277,15 @@ class RetrievalEvidenceTest {
     void adjacentOnlyParentExcluded() {
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c_adj", "p1", "仅相邻"), // rank 0 — adjacent only
-              childResult("c_rrf", "p2", "真实命中")); // rank 1 — real hit
-      LinkedHashSet<String> rrfHits = setOf("c_rrf"); // p1 has no real hit
+              childResult(600L, 100L, "仅相邻"), // rank 0 — adjacent only
+              childResult(500L, 200L, "真实命中")); // rank 1 — real hit
+      LinkedHashSet<Long> rrfHits = setOf(500L); // p1 has no real hit
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
       assertThat(candidates).hasSize(1);
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p2");
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(200L);
     }
   }
 
@@ -302,18 +302,18 @@ class RetrievalEvidenceTest {
     void truncatedChildNotInMatchedChildIds() {
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c1", "p1", "C1"), // rank 0 — in window
-              childResult("c2", "p2", "C2"), // rank 1 — in window
-              childResult("c3", "p1", "C3")); // rank 2 — outside window (windowN=2)
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2", "c3");
+              childResult(1001L, 100L, "C1"), // rank 0 — in window
+              childResult(1002L, 200L, "C2"), // rank 1 — in window
+              childResult(1003L, 100L, "C3")); // rank 2 — outside window (windowN=2)
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L, 1003L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 2);
 
       // c3 (rank 2) is outside the 2-window, so it doesn't appear in p1's matchedChildIds
       assertThat(candidates).hasSize(2);
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p1");
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c1"); // c3 truncated
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(100L);
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(1001L); // c3 truncated
     }
 
     @Test
@@ -323,10 +323,10 @@ class RetrievalEvidenceTest {
       // Only c_adj (adjacent, rank 0) is inside the window
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c_adj", "p1", "相邻扩展"), // rank 0 — adjacent
-              childResult("c_rrf", "p1", "RRF 命中"), // rank 1 — real hit but outside window
-              childResult("c2", "p2", "C2")); // rank 2 — also outside
-      LinkedHashSet<String> rrfHits = setOf("c_rrf", "c2");
+              childResult(600L, 100L, "相邻扩展"), // rank 0 — adjacent
+              childResult(500L, 100L, "RRF 命中"), // rank 1 — real hit but outside window
+              childResult(1002L, 200L, "C2")); // rank 2 — also outside
+      LinkedHashSet<Long> rrfHits = setOf(500L, 1002L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 1);
@@ -350,18 +350,18 @@ class RetrievalEvidenceTest {
     void childWithBlankParentIdSkipped() {
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c1", null, "无 parent"), // skipped
-              childResult("c2", "", "blank parent"), // skipped
-              childResult("c3", "  ", "blank parent"), // skipped
-              childResult("c4", "p1", "有效")); // rank 0 for p1
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2", "c3", "c4");
+              childResult(1001L, 0L, "无 parent"), // skipped — parentChunkId is 0
+              childResult(1002L, 0L, "blank parent"), // skipped — parentChunkId is 0
+              childResult(1003L, 0L, "blank parent"), // skipped — parentChunkId is 0
+              childResult(1004L, 100L, "有效")); // rank 0 for p1
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L, 1003L, 1004L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
       assertThat(candidates).hasSize(1);
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p1");
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c4");
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(100L);
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(1004L);
     }
 
     @Test
@@ -372,17 +372,17 @@ class RetrievalEvidenceTest {
       // removed
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c1", "p1", "C1"),
-              childResult("c1", "p1", "C1 dupe"), // same chunk ID, same parent
-              childResult("c2", "p1", "C2"));
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2");
+              childResult(1001L, 100L, "C1"),
+              childResult(1001L, 100L, "C1 dupe"), // same chunk ID, same parent
+              childResult(1002L, 100L, "C2"));
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
       assertThat(candidates).hasSize(1);
       // c1 appears only once due to LinkedHashSet dedup
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c1", "c2");
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(1001L, 1002L);
     }
 
     @Test
@@ -407,11 +407,11 @@ class RetrievalEvidenceTest {
       // with unscored maintaining original relative order
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c1", "p1", "scored high"),
-              childResult("c2", "p2", "scored low"),
-              childResult("c3", "p1", "unscored — original order preserved"),
-              childResult("c4", "p1", "unscored — original order preserved"));
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2", "c3", "c4");
+              childResult(1001L, 100L, "scored high"),
+              childResult(1002L, 200L, "scored low"),
+              childResult(1003L, 100L, "unscored — original order preserved"),
+              childResult(1004L, 100L, "unscored — original order preserved"));
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L, 1003L, 1004L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
@@ -420,9 +420,9 @@ class RetrievalEvidenceTest {
       // p2 has child at rank 1 → best rank = 1
       assertThat(candidates)
           .extracting(EvidenceCandidate::parentChunkId)
-          .containsExactly("p1", "p2");
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c1", "c3", "c4");
-      assertThat(candidates.get(1).matchedChildIds()).containsExactly("c2");
+          .containsExactly(100L, 200L);
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(1001L, 1003L, 1004L);
+      assertThat(candidates.get(1).matchedChildIds()).containsExactly(1002L);
     }
   }
 
@@ -439,12 +439,12 @@ class RetrievalEvidenceTest {
     void rrfHitIdsMaintainFusionOrder() {
       // The order in realRrfHitChunkIds is the RRF fusion order (by RRF score descending).
       // This order is preserved through LinkedHashSet.
-      LinkedHashSet<String> rrfHits = new LinkedHashSet<>();
-      rrfHits.add("c3"); // highest RRF score
-      rrfHits.add("c1"); // medium RRF score
-      rrfHits.add("c2"); // lowest RRF score
+      LinkedHashSet<Long> rrfHits = new LinkedHashSet<>();
+      rrfHits.add(1003L); // highest RRF score
+      rrfHits.add(1001L); // medium RRF score
+      rrfHits.add(1002L); // lowest RRF score
 
-      assertThat(rrfHits).containsExactly("c3", "c1", "c2");
+      assertThat(rrfHits).containsExactly(1003L, 1001L, 1002L);
     }
 
     @Test
@@ -453,17 +453,17 @@ class RetrievalEvidenceTest {
       // c2 appears earlier in rerank (rank 0), c1 appears later (rank 2)
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c2", "p1", "C2"), // rank 0
-              childResult("cx", "p2", "CX"), // rank 1
-              childResult("c1", "p1", "C1")); // rank 2
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2"); // RRF order
+              childResult(1002L, 100L, "C2"), // rank 0
+              childResult(700L, 200L, "CX"), // rank 1
+              childResult(1001L, 100L, "C1")); // rank 2
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L); // RRF order
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
 
-      assertThat(candidates.get(0).parentChunkId()).isEqualTo("p1");
+      assertThat(candidates.get(0).parentChunkId()).isEqualTo(100L);
       // matchedChildIds follow rerank order: c2 (rank 0) before c1 (rank 2)
-      assertThat(candidates.get(0).matchedChildIds()).containsExactly("c2", "c1");
+      assertThat(candidates.get(0).matchedChildIds()).containsExactly(1002L, 1001L);
     }
   }
 
@@ -481,12 +481,12 @@ class RetrievalEvidenceTest {
       // All children belong to p1, so only 1 parent even with topN=5
       List<ChunkSearchResult> reranked =
           List.of(
-              childResult("c1", "p1", "C1"),
-              childResult("c2", "p1", "C2"),
-              childResult("c3", "p1", "C3"),
-              childResult("c4", "p1", "C4"),
-              childResult("c5", "p1", "C5"));
-      LinkedHashSet<String> rrfHits = setOf("c1", "c2", "c3", "c4", "c5");
+              childResult(1001L, 100L, "C1"),
+              childResult(1002L, 100L, "C2"),
+              childResult(1003L, 100L, "C3"),
+              childResult(1004L, 100L, "C4"),
+              childResult(1005L, 100L, "C5"));
+      LinkedHashSet<Long> rrfHits = setOf(1001L, 1002L, 1003L, 1004L, 1005L);
 
       List<EvidenceCandidate> candidates =
           RetrievalService.aggregateEvidenceCandidates(reranked, rrfHits, 5);
@@ -498,10 +498,10 @@ class RetrievalEvidenceTest {
     @DisplayName("多 parent 散列时窗口限制 parent 数量")
     void windowLimitsParentCount() {
       List<ChunkSearchResult> reranked = new java.util.ArrayList<>();
-      LinkedHashSet<String> rrfHits = new LinkedHashSet<>();
+      LinkedHashSet<Long> rrfHits = new LinkedHashSet<>();
       for (int i = 0; i < 10; i++) {
-        String pid = "p" + i;
-        String cid = "c" + i;
+        long pid = 1000L + i;
+        long cid = 2000L + i;
         reranked.add(childResult(cid, pid, "content " + i));
         rrfHits.add(cid);
       }
@@ -513,17 +513,17 @@ class RetrievalEvidenceTest {
       assertThat(candidates).hasSize(5);
       assertThat(candidates)
           .extracting(EvidenceCandidate::parentChunkId)
-          .containsExactly("p0", "p1", "p2", "p3", "p4");
+          .containsExactly(1000L, 1001L, 1002L, 1003L, 1004L);
     }
 
     @Test
     @DisplayName("不截断时返回所有有真实命中的 parent")
     void noTruncationReturnsAllParents() {
       List<ChunkSearchResult> reranked = new java.util.ArrayList<>();
-      LinkedHashSet<String> rrfHits = new LinkedHashSet<>();
+      LinkedHashSet<Long> rrfHits = new LinkedHashSet<>();
       for (int i = 0; i < 10; i++) {
-        String pid = "p" + i;
-        String cid = "c" + i;
+        long pid = 1000L + i;
+        long cid = 2000L + i;
         reranked.add(childResult(cid, pid, "content " + i));
         rrfHits.add(cid);
       }
@@ -542,7 +542,7 @@ class RetrievalEvidenceTest {
 
   /** 创建带有指定 parentChunkId 的 ChunkSearchResult. */
   private static ChunkSearchResult childResult(
-      String chunkId, String parentChunkId, String content) {
+      long chunkId, long parentChunkId, String content) {
     ChunkBO bo = new ChunkBO(chunkId, parentChunkId, null, content);
     RrfFusionResult rrf = new RrfFusionResult(bo, 0.5, null, null);
     return ChunkSearchResult.fromRrfWithRerank(rrf, 0.5);

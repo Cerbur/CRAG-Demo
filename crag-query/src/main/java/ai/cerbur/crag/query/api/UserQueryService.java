@@ -365,7 +365,7 @@ public class UserQueryService {
     if (evidence == null || evidence.isEmpty()) {
       return "";
     }
-    java.util.Set<String> includedParents =
+    java.util.Set<Long> includedParents =
         sources.stream()
             .map(QuerySource::parentChunkId)
             .collect(java.util.stream.Collectors.toSet());

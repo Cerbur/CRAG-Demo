@@ -50,7 +50,7 @@ class AdminRagControllerComponentTest {
   @DisplayName("successful upload returns AdminRagResponse with correct fields")
   void successfulUpload() throws Exception {
     when(adminRagService.ingest(any(), any(), any()))
-        .thenReturn(new AdminRagResult("abc-123", 5, "PENDING", List.of("p-1")));
+        .thenReturn(new AdminRagResult(1001L, 5, "PENDING", List.of(2001L)));
 
     String body =
         """
@@ -61,17 +61,17 @@ class AdminRagControllerComponentTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.code").value(0))
-        .andExpect(jsonPath("$.result.docId").value("abc-123"))
+        .andExpect(jsonPath("$.result.docId").value("1001"))
         .andExpect(jsonPath("$.result.chunks").value(5))
         .andExpect(jsonPath("$.result.status").value("PENDING"))
-        .andExpect(jsonPath("$.result.parentChunkIds[0]").value("p-1"));
+        .andExpect(jsonPath("$.result.parentChunkIds[0]").value("2001"));
   }
 
   @Test
   @DisplayName("response JSON has exactly three top-level fields: success, code, result")
   void responseHasExactlyThreeFields() throws Exception {
     when(adminRagService.ingest(any(), any(), any()))
-        .thenReturn(new AdminRagResult("id", 1, "PENDING", List.of("p-abc")));
+        .thenReturn(new AdminRagResult(1L, 1, "PENDING", List.of(2L)));
 
     String body =
         """
@@ -101,7 +101,7 @@ class AdminRagControllerComponentTest {
       "response result has exactly four business fields: docId, chunks, status, parentChunkIds")
   void resultHasFourBusinessFields() throws Exception {
     when(adminRagService.ingest(any(), any(), any()))
-        .thenReturn(new AdminRagResult("id", 3, "PENDING", List.of("px", "py")));
+        .thenReturn(new AdminRagResult(3L, 3, "PENDING", List.of(10L, 11L)));
 
     String body =
         """

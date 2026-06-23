@@ -61,7 +61,7 @@ public class ContextBuilder {
       return new QueryContext("", List.of(), 0);
     }
 
-    Set<String> seenIds = new HashSet<>();
+    Set<Long> seenIds = new HashSet<>();
     List<QuerySource> sources = new ArrayList<>();
     StringBuilder contextBuilder = new StringBuilder();
     int includedCount = 0;
