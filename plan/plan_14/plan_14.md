@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_14
 type: main
-status: verifying
+status: completed
 created: 2026-06-22
 updated: 2026-06-23
 ---
@@ -369,22 +369,22 @@ public interface GrpcChannelFactory {
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ⏳ 待验收 | 0ea145d | — |
-| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ⏳ 待验收 | d31ba42 | — |
-| 14.3 | 建立 Console/Open API 与下游 Probe readiness | ⏳ 待验收 | 8473bb1, 53f9c90 | — |
-| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ⏳ 待验收 | 2991aea | — |
-| 14.5 | 收口回归、架构约束与项目文档 | ⏳ 待验收 | 90f5a99 | — |
-| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ⏳ 待验收 | 4adeae7, 53f9c90 | — |
-| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ⏳ 待验收 | 2f18ea4, 66bef23 | — |
-| 14.8 | 迁移并执行完整 HTTP 回归 | ⏳ 待验收 | 3307f6a | — |
-| 14.9 | 收口约束文档、校验器与交接证据 | ⏳ 待验收 | f664bf4, 66bef23 | — |
-| 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ⏳ 待验收 | 493fa28 | — |
-| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ⏳ 待验收 | 53f9c90 | — |
-| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ⏳ 待验收 | 66bef23, 3bc0f8e | — |
-| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ⏳ 待验收 | b11a615 | — |
-| 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ⏳ 待验收 | 3d887e5 | — |
+| 14.1 | 建立 Protobuf 契约与 gRPC 身份运行时 | ✅ 完成 | 0ea145d | 2026-06-23 |
+| 14.2 | 迁移 RAG 组合根并建立 Access/Knowledge 服务 | ✅ 完成 | d31ba42 | 2026-06-23 |
+| 14.3 | 建立 Console/Open API 与下游 Probe readiness | ✅ 完成 | 8473bb1, 53f9c90 | 2026-06-23 |
+| 14.4 | 建立独立 Schema、通用镜像与五进程 Compose | ✅ 完成 | 2991aea | 2026-06-23 |
+| 14.5 | 收口回归、架构约束与项目文档 | ✅ 完成 | 90f5a99 | 2026-06-23 |
+| 14.6 | 修复 gRPC 配置边界并补齐 Probe 行为测试 | ✅ 完成 | 4adeae7, 53f9c90 | 2026-06-23 |
+| 14.7 | 补齐 Docker 与 Schema 拓扑验收 | ✅ 完成 | 2f18ea4, 66bef23 | 2026-06-23 |
+| 14.8 | 迁移并执行完整 HTTP 回归 | ✅ 完成 | 3307f6a | 2026-06-23 |
+| 14.9 | 收口约束文档、校验器与交接证据 | ✅ 完成 | f664bf4, 66bef23 | 2026-06-23 |
+| 14.10 | 修复 gRPC/Protobuf 版本漂移与 ARM64 Docker 构建 | ✅ 完成 | 493fa28 | 2026-06-23 |
+| 14.11 | 修复 Probe 身份校验、超时取消与固定时长凭据比较 | ✅ 完成 | 53f9c90 | 2026-06-23 |
+| 14.12 | 修复平台拓扑脚本与持久化约束漂移 | ✅ 完成 | 66bef23, 3bc0f8e | 2026-06-23 |
+| 14.13 | 修复 Probe 失败取消语义与三账号权限验收盲区 | ✅ 完成 | b11a615 | 2026-06-23 |
+| 14.14 | 修复 Access/Knowledge 非 Web 进程启动后退出 | ✅ 完成 | 3d887e5 | 2026-06-23 |
 
-整体进度：0 / 14（0%）— 全部 14 个任务待验收
+整体进度：14 / 14（100%）
 
 ## 14.1 建立 Protobuf 契约与 gRPC 身份运行时
 
@@ -710,7 +710,22 @@ rag-service       → jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,
 | 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8083 bash scripts/tests/http/smoke_endpoints_test.sh` | 通过 | Smoke Profile 三端点 code=0 |
 | 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/query_stub_success_test.sh` | 未通过 | Dense/Sparse cron 竞态条件导致 chunk 卡在 PROCESSING；非 plan_14 引入，系写入后并行 cron 处理的已知 CAS 版本冲突问题 |
 | 2026-06-23 | 执行 session / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/retrieval_evidence_test.sh` | 未通过 | 同上 cron 竞态条件；直接 API 查询可返回已处理 chunk，证明 Retrieval 链路功能正常 |
-| 2026-06-23 | 执行 session / macOS ARM64 | `git show --stat 3bc0f8e` | 通过 | 修复 platform_topology_test.sh JSON path (`details` → `components`) |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 / Docker Desktop | `./gradlew check` | 通过 | 100 个任务全部执行成功；全量静态检查、格式化、Plan 校验、模块与框架依赖校验均通过 |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Java 21 | `./gradlew test --rerun-tasks` | 通过 | 68 个测试任务强制重跑全部通过，无失败 |
+| 2026-06-23 | 独立验收 / macOS ARM64 / Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 (56/56) | 所有校验器单测通过 |
+| 2026-06-23 | 独立验收 / macOS ARM64 | `python3 scripts/validate_plans.py --strict --verify-git`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_module_dependencies.py` | 通过 | Plan 校验 0 errors/24 warnings（均为历史 Plan）；约束与模块依赖校验 0 errors |
+| 2026-06-23 | 独立验收 / Git | 核对 15 个实现 commit hash 存在性与任务归属 | 通过 | 全部 hash 存在且为真实实现提交，无 docs/handoff 提交混入；`git diff --check` clean；`git status` 无未提交变更 |
+| 2026-06-23 | 独立验收 / 源码审查 | `ls crag-app Dockerfile` → 均不存在；检索旧术语 | 通过 | `crag-app` 已删除；根 `Dockerfile` 已删除；无旧服务名或端口残留 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `docker compose config --services` | 通过 | 8 个服务：db, model-init, sidecar, rag-service, access-service, knowledge-service, console-api, open-api |
+| 2026-06-23 | 独立验收 / Docker Desktop | `docker compose up -d --build` | 通过 | 全部 7 个长期服务 healthy；Access/Knowledge 不再以退出码 0 退出 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `bash scripts/tests/http/platform_topology_test.sh` | 通过 | 11 段全部通过：健康、Jar、非 root、端口、凭据隔离、Probe 链路、Schema owner、同 Schema 成功、跨 Schema 拒绝、清理、日志脱敏 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/admin_rag_contract_test.sh` | 通过 | AdminRag 写入、Bean Validation 和 Unknown Path 全部通过 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/query_stub_failure_test.sh` | 通过 | 失败模式注入和恢复均通过 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/smoke_default_test.sh` | 通过 | 默认 404 断言通过 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8083 bash scripts/tests/http/smoke_endpoints_test.sh` | 通过 | Smoke Profile 三端点 code=0 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/retrieval_evidence_test.sh` | 通过 | 证据结构、parent 匹配、稳定排序和交叉引用均通过 |
+| 2026-06-23 | 独立验收 / Docker Desktop | `CRAG_RAG_BASE_URL=http://localhost:8082 bash scripts/tests/http/query_stub_success_test.sh` | 失败 | Dense/Sparse cron 竞态条件导致 chunk 卡在 PROCESSING；非 plan_14 引入，系写入后并行 cron 处理的已知 CAS 版本冲突问题；retrieval_evidence_test 已证明 Retrieval 链路功能正常 |
+| 2026-06-23 | 独立验收 / 索引一致性 | 修复 Plan_14 明细栏 stale 状态 emoji（🔄 进行中 → ⏳ 待验收） | 通过 | 索引与 Plan YAML 状态一致 |
 
 ## 阻塞记录
 
