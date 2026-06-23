@@ -313,7 +313,7 @@ HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> pa
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 15.1 | `crag-id` 核心 Snowflake 编解码与实体注册 | ⏳ 待验收 | af72298 | — |
-| 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待开始 | — | — |
+| 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74 | — |
 | 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待开始 | — | — |
 | 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待开始 | — | — |
 | 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待开始 | — | — |
@@ -650,6 +650,9 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 | 2026-06-24 | macOS, Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 errors，crag-id 模块已加入白名单 |
 | 2026-06-24 | macOS, Python 3 | `python3 scripts/tests/test_validate_module_dependencies.py` | 通过 | 9/9 tests OK |
 | 2026-06-24 | macOS, Java 21 | `./gradlew :crag-id:spotlessCheck` | 通过 | 格式检查通过 |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-id:test` | 通过 | 42 个测试全部通过：SnowflakeLayoutTest（8）、SnowflakeSequenceTest（6）、CragIdParserTest（8）、RedisWorkerLeaseRepositoryTest（12）、CragIdConfigurationComponentTest（8） |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-id:spotlessCheck` | 通过 | 格式检查通过 |
+| 2026-06-24 | macOS, Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 errors |
 
 ## 阻塞记录
 
