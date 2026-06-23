@@ -68,6 +68,13 @@ WRITE_CODE=$(json_code "$RESP_BODY")
 if [ "$WRITE_CODE" = "0" ]; then
   PARENT_ID=$(echo "$RESP_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['parent_chunk_ids'][0])" 2>/dev/null || echo "")
   echo "PASS: /chunk write success, parent_id=$PARENT_ID"
+  # Verify parent_id is decimal string
+  if [ -n "$PARENT_ID" ] && echo "$PARENT_ID" | grep -Eq '^[0-9]+$'; then
+    echo "PASS: Written parent_chunk_id is decimal string → $PARENT_ID"
+  else
+    echo "FAIL: Written parent_chunk_id is not decimal string → $PARENT_ID"
+    FAILED=1
+  fi
 else
   echo "FAIL: /chunk returned code=$WRITE_CODE, resp=$RESP_BODY"
   FAILED=1
@@ -150,6 +157,33 @@ print('OK' if isinstance(matched, list) and len(matched) > 0 else 'EMPTY_LIST')
   else
     echo "FAIL: Evidence response missing required fields"
     FAILED=1
+  fi
+
+  # ── 4a0. Verify first parentChunkId is decimal string ──
+  if echo "$FIRST_PARENT" | grep -Eq '^[0-9]+$'; then
+    echo "PASS: First evidence parentChunkId is decimal string → $FIRST_PARENT"
+  else
+    echo "FAIL: First evidence parentChunkId is not decimal string → $FIRST_PARENT"
+    FAILED=1
+  fi
+
+  # ── 4a1. Verify matchedChildIds are decimal strings ──
+  MATCHED_IDS=$(echo "$EVIDENCE_RESP" | python3 -c "
+import sys, json
+results = json.load(sys.stdin)['result']
+first = results[0]
+print(' '.join(str(cid) for cid in first.get('matchedChildIds', [])))
+" 2>/dev/null || echo "")
+  if [ -n "$MATCHED_IDS" ]; then
+    for CID in $MATCHED_IDS; do
+      if echo "$CID" | grep -Eq '^[0-9]+$'; then
+        :
+      else
+        echo "FAIL: Evidence matchedChildId not decimal string → $CID"
+        FAILED=1
+      fi
+    done
+    echo "PASS: All evidence matchedChildIds are decimal strings → $MATCHED_IDS"
   fi
 
   # ── 4a. Assert first result parentChunkId matches written parent ──

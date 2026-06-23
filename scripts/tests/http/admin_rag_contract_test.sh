@@ -71,12 +71,15 @@ assert_json "AdminRag code" "code" "0" "$CODE"
 assert_json "AdminRag top-level keys" "top-level keys" "code,result,success" "$TOP_KEYS"
 assert_json "AdminRag result keys" "result keys" "chunks,docId,parentChunkIds,status" "$RESULT_KEYS"
 
-# 验证 result 含 docId（UUID 格式）且非空
+# 验证 result 含 docId（decimal string 格式）且非空
 if [ "$DOC_ID" = "PARSE_ERROR" ] || [ -z "$DOC_ID" ]; then
   echo "FAIL: AdminRag result.docId → missing or parse error"
   FAILED=1
+elif echo "$DOC_ID" | grep -Eq '^[0-9]+$'; then
+  echo "PASS: AdminRag result.docId → $DOC_ID (decimal string)"
 else
-  echo "PASS: AdminRag result.docId → $DOC_ID"
+  echo "FAIL: AdminRag result.docId → not a decimal string: $DOC_ID"
+  FAILED=1
 fi
 
 # chunks 应为正整数（含0）
@@ -89,6 +92,27 @@ fi
 
 # status 应为 PENDING
 assert_json "AdminRag status" "result.status" "PENDING" "$STATUS"
+
+# 验证 parentChunkIds 每项是 decimal string
+PARENT_CHUNK_IDS=$(echo "$BODY" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin)['result'].get('parentChunkIds', [])))" 2>/dev/null || echo "PARSE_ERROR")
+if [ "$PARENT_CHUNK_IDS" = "PARSE_ERROR" ]; then
+  echo "FAIL: AdminRag result.parentChunkIds → parse error"
+  FAILED=1
+else
+  ALL_DECIMAL=1
+  for PID in $PARENT_CHUNK_IDS; do
+    if echo "$PID" | grep -Eq '^[0-9]+$'; then
+      :
+    else
+      echo "FAIL: AdminRag parentChunkId → not a decimal string: $PID"
+      FAILED=1
+      ALL_DECIMAL=0
+    fi
+  done
+  if [ "$ALL_DECIMAL" -eq 1 ]; then
+    echo "PASS: AdminRag parentChunkIds all decimal strings → $PARENT_CHUNK_IDS"
+  fi
+fi
 
 echo ""
 

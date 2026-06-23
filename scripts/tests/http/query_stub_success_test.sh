@@ -236,11 +236,44 @@ else
     FAILED=1
   fi
 
+  # Verify parentChunkId is decimal string
+  if echo "$MATCH_PID" | grep -Eq '^[0-9]+$'; then
+    echo "PASS: Matching source parentChunkId is decimal string → $MATCH_PID"
+  else
+    echo "FAIL: Matching source parentChunkId is not decimal string → $MATCH_PID"
+    FAILED=1
+  fi
+
   # Verify matchedChildIds is non-empty
   if [ "$MATCH_CHILDREN" = "OK" ]; then
     echo "PASS: Matching source matchedChildIds is non-empty"
   else
     echo "FAIL: Matching source matchedChildIds check: $MATCH_CHILDREN"
+    FAILED=1
+  fi
+
+  # Verify each matchedChildId is decimal string
+  MATCHED_IDS_RAW=$(echo "$QUERY_RESP" | python3 -c "
+import sys, json
+resp = json.load(sys.stdin)
+sources = resp.get('result', {}).get('sources', [])
+for s in sources:
+    if s.get('parentChunkId') == '$MATCH_PID':
+        print(' '.join(str(cid) for cid in s.get('matchedChildIds', [])))
+        break
+" 2>/dev/null || echo "")
+  if [ -n "$MATCHED_IDS_RAW" ]; then
+    for CID in $MATCHED_IDS_RAW; do
+      if echo "$CID" | grep -Eq '^[0-9]+$'; then
+        :
+      else
+        echo "FAIL: matchedChildId not decimal string → $CID"
+        FAILED=1
+      fi
+    done
+    echo "PASS: All matchedChildIds are decimal strings → $MATCHED_IDS_RAW"
+  else
+    echo "FAIL: Could not extract matchedChildIds for decimal string check"
     FAILED=1
   fi
 fi
