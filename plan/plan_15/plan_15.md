@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_15
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-24
 updated: 2026-06-24
 ---
@@ -313,10 +313,10 @@ HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> pa
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 15.1 | `crag-id` 核心 Snowflake 编解码与实体注册 | ⏳ 待验收 | af72298 | — |
-| 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74 | — |
-| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | 🔵 进行中 | 38ed9e9 | — |
-| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | 🔵 进行中 | 1ee473f | — |
-| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | 🔵 进行中 | 584d213 | — |
+| 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74, f62b2b7b, edf52c4b | — |
+| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待验收 | 38ed9e9, 04d835dc, e9c1df8e, 200479fa, cfaa2e3b | — |
+| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待验收 | 1ee473f | — |
+| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待验收 | 584d213, 41b4336b, 5d72653e, b003e2db | — |
 
 整体进度：0 / 5（0%）
 
@@ -677,11 +677,29 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 | 2026-06-24 | macOS, 代码审查 | HTTP 测试脚本内容审查 | **缺陷** | `admin_rag_contract_test.sh` 等脚本未按 plan 15.5 Step 1 要求添加 decimal string 格式断言（`^[0-9]+$`）；仅做存在性检查 |
 | 2026-06-24 | macOS, 代码审查 | SnowflakeLayout bit layout / IdEntityType / Redis lease / schema.sql / Controller mapping / Compose Redis topology | 通过 | 关键代码实现与 plan 设计一致 |
 
-**验收结论：退回。** 发现 4 个缺陷阻塞完成：
-1. Spotless 格式违规（AdminRagServiceTest.java）
-2. `crag-rag-service` 组件测试 Hibernate entity 识别失败（6 tests）
-3. `java-service.Dockerfile` 缺少 `crag-id` 模块 COPY（Docker 构建失败）
-4. HTTP 测试脚本缺少 decimal string 格式断言
+**验收结论（初次）：退回。** 发现 4 个缺陷阻塞完成（详见上表）。
+
+### 缺陷修复验证
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-ingestion:spotlessApply :crag-ingestion:spotlessCheck` | 通过 | 缺陷 1 修复：AdminRagServiceTest 长链式调用换行格式化 |
+| 2026-06-24 | macOS, Java 21 | `./gradlew :crag-rag-service:cleanTest :crag-rag-service:test --rerun-tasks` | 通过 | 缺陷 2 修复：16/16 测试通过 — EntityScanPackages 替换 AutoConfigurationPackages + TestCragIdConfig mock 发号器 |
+| 2026-06-24 | macOS, Docker | `docker compose build rag-service` | 通过 | 缺陷 3 修复：crag-id 模块已加入 Dockerfile COPY |
+| 2026-06-24 | macOS, bash | `bash -n scripts/tests/http/*.sh` | 通过 | 缺陷 4 修复：所有 HTTP 测试脚本语法正确 |
+| 2026-06-24 | macOS, Java 21 | `./gradlew check` | 通过 | 全量 Gradle 检查通过（含 Plan 校验、约束校验、模块依赖、spotless 和全部非 Docker 测试） |
+| 2026-06-24 | macOS, Docker | `docker compose up -d --build` + `bash scripts/tests/http/admin_rag_contract_test.sh` | 通过 | AdminRag 返回 decimal string ID，格式断言 `^[0-9]+$` 通过 |
+| 2026-06-24 | macOS, Docker | `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | Query 链路 decimal string 断言通过，parentChunkId 和 matchedChildIds 格式正确 |
+| 2026-06-24 | macOS, Docker | `bash scripts/tests/http/retrieval_evidence_test.sh` | 通过 | Evidence 链路 decimal string 断言通过，cross-reference 验证通过 |
+| 2026-06-24 | macOS, Docker | `curl http://localhost:8082/actuator/health/readiness` | 通过 | `{"status":"UP"}` — RAG readiness 正常 |
+
+**追加修复发现：**
+- 健康检查贡献者名称 `cragIdHealth` → `cragId`（Actuator 自动去除 `HealthIndicator` 后缀）
+- `CragIdConfiguration` 中 lease map 变量遮蔽导致发号器永远看不到已获取的租约
+- `CragIdConfiguration` 中 `@ConditionalOnBean(TaskScheduler.class)` 在 Spring Boot 4.1.0 下不满足（`@EnableScheduling` 不自动创建 TaskScheduler bean），改为自包含 ThreadPoolTaskScheduler
+- schema.sql `CREATE TABLE IF NOT EXISTS` 不覆盖旧 VARCHAR 列，新增 `DROP TABLE IF EXISTS` cold reset
+
+**交接结论：** 4 个退回缺陷及 4 个追加缺陷已全部修复；全部未完成有效任务实现、自测、提交并记录实现 hash；Plan 转为 `verifying`，移交独立验收 session。
 
 ## 阻塞记录
 
@@ -694,3 +712,4 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 | 2026-06-24 | 创建计划 | 固定 Plan 15 Snowflake ID、Redis Worker lease 与 RAG ID cold switch 范围 | 进入 ready，等待计划提交后执行 |
 | 2026-06-24 | 优化任务执行细节 | 使用 writing-plans 补齐接口约定、测试先行步骤、验证命令和提交边界 | 状态与范围不变；执行者可按任务独立实现 |
 | 2026-06-24 | 验收退回 | 独立验收发现 4 个缺陷：spotless 格式违规、Hibernate entity 识别失败、Dockerfile 缺少 crag-id、测试脚本缺少格式断言 | Plan 退回 `in_progress`；15.3/15.4/15.5 退回 `in_progress`；15.1/15.2 保留待验收 |
+| 2026-06-24 | 缺陷修复与交接 | 修复 4 个退回缺陷 + 4 个追加缺陷（health contributor 命名、lease map 遮蔽、TaskScheduler、schema cold reset）；`./gradlew check` 通过；Docker HTTP 回归全绿 | Plan 转为 `verifying`；全部 5 个任务待验收 |
