@@ -20,6 +20,7 @@ SETTINGS_COMMON = """\
 rootProject.name = "crag-demo"
 
 include(
+    "crag-id",
     "crag-common",
     "crag-storage",
     "crag-retrieval",
@@ -117,6 +118,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
         settings_path.write_text(SETTINGS_COMMON, encoding="utf-8")
         (root / ".git").mkdir(exist_ok=True)
         defaults = {
+            "crag-id": BUILD_NO_DEPS,
             "crag-common": BUILD_NO_DEPS,
             "crag-storage": BUILD_STORAGE,
             "crag-retrieval": BUILD_RETRIEVAL,
@@ -138,6 +140,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
             self._setup_repo(
                 root,
                 [
+                    "crag-id",
                     "crag-common",
                     "crag-storage",
                     "crag-retrieval",

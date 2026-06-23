@@ -18,6 +18,7 @@ class Diagnostic(NamedTuple):
 # Keys are target module names (crag-api is the target name for current crag-admin).
 # crag-app has special "all" handling.
 MODULE_WHITELIST: dict[str, set[str]] = {
+    "crag-id": set(),
     "crag-common": set(),
     "crag-storage": {"crag-common"},
     "crag-retrieval": {"crag-storage", "crag-common"},

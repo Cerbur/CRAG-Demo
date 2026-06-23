@@ -8,6 +8,7 @@ pluginManagement {
 }
 
 include(
+    "crag-id",
     "crag-common",
     "crag-storage",
     "crag-ingestion",

@@ -29,6 +29,7 @@ Base package 统一为 `ai.cerbur.crag`。
 
 | 模块 | 职责 | 禁止事项 |
 | --- | --- | --- |
+| `crag-id` | 分布式 Snowflake ID 基础设施：实体类型注册、编解码、时钟回拨处理、Worker 租约和 readiness | 禁止依赖业务模块；禁止承载 HTTP Controller；禁止暴露 Repository |
 | `crag-common` | 真正跨多个模块、无明确业务归属的稳定基础类型 | 禁止收纳业务 DTO、Entity、Service、Client、单模块工具或为绕开依赖环而搬入的类型 |
 | `crag-storage` | JPA Entity、Repository、DAO 和数据库投影 | Repository 禁止被模块外调用；禁止承载检索、入库或问答业务编排 |
 | `crag-ingestion` | AdminRag 写入、ChunkSplit、Sparse/Dense 索引构建和 Cron 编排 | 禁止暴露 HTTP Controller；禁止依赖 Retrieval 内部实现 |
@@ -52,6 +53,7 @@ Base package 统一为 `ai.cerbur.crag`。
 
 | 调用模块 | 允许直接依赖 |
 | --- | --- |
+| `crag-id` | 无 |
 | `crag-common` | 无 |
 | `crag-storage` | `crag-common` |
 | `crag-retrieval` | `crag-storage`、`crag-common` |
@@ -157,6 +159,23 @@ ai.cerbur.crag.query.api
 ## 九、当前实现索引
 
 本节只反映当前源码事实。完整文件列表以源码为准；这里只列包职责、公开调用点和有架构意义的关键实现。
+
+### `crag-id`
+
+```text
+ai.cerbur.crag.id
+├── api/
+│   ├── CragIdGenerator        — 公开发号入口
+│   ├── CragIdParser           — 公开解析入口与 CragIdParts
+│   ├── IdEntityType           — 实体类型注册（LEGACY_DOCUMENT、CHUNK）
+│   └── InvalidCragIdException — 请求解析与实体校验失败异常
+└── internal/
+    ├── SnowflakeLayout        — bit shift/mask/epoch 编解码
+    ├── SnowflakeSequence      — timestamp/sequence 状态机
+    ├── MonotonicClock         — 可测试时钟抽象
+    ├── SystemMonotonicClock   — 生产用 SystemClock 实现
+    └── ClockRollbackException — 大时钟回拨停止发号异常
+```
 
 ### `crag-common`
 
