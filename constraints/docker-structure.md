@@ -245,7 +245,9 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 容器名 | `crag-rag-service-smoke` |
 | 端口 | `8083:8082` |
 | Profile | `smoke` |
-| 就绪条件 | `db` 健康 且 `sidecar` 健康 |
+| Redis | `redis:6379`（Worker lease） |
+| 就绪条件 | `db` 健康 且 `redis` 健康 且 `sidecar` 健康 |
+| ID 配置 | `crag.id.service-domain=rag`、required-entities `LEGACY_DOCUMENT,CHUNK` |
 | Compose Profile | `smoke` |
 | 网络 | `crag-net` |
 

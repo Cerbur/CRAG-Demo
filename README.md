@@ -24,7 +24,7 @@ docker compose up -d --build
 
 等待健康检查通过（约 90 秒，首次需下载模型约 2 分钟）。
 
-> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL 和 Sidecar。RAG 兼容 HTTP 入口在 `localhost:8082`。
+> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL、Redis 和 Sidecar。RAG 兼容 HTTP 入口在 `localhost:8082`。
 
 ### 写入知识 + 发起问答
 
@@ -78,7 +78,7 @@ curl http://localhost:8083/api/v1/test/smoke
 
 **① 文档入库** `POST /api/v1/admin/rag` → `crag-ingestion`
 
-你上传的文本存入 `document` 表，状态标记 `PENDING_CHUNK`。
+你上传的文本存入 `document` 表，状态标记 `PENDING_CHUNK`。文档与 Chunk 的业务 ID 由 `crag-id` 以 Snowflake `BIGINT` 分配（HTTP 边界以 decimal string 输出，避免前端精度损失）。
 👉 代码入口：`crag-api` Controller → `crag-ingestion` AdminRagService
 
 **② 文档分块** Cron: `DocChunkSplitListener`
@@ -133,6 +133,7 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 
 ```
 ├── crag-common/      # 跨模块共享：统一响应结构、基础异常类型
+├── crag-id/          # 分布式 Snowflake ID 基础设施：发号、Redis Worker 租约、时钟回拨处理
 ├── crag-storage/     # 持久层：JPA Entity、Repository、DAO、表结构（schema.sql）
 ├── crag-ingestion/   # 写入链路：AdminRag、ChunkSplit、Sparse/Dense 索引 Cron
 ├── crag-retrieval/   # 检索层：Sparse/Dense 查询、RRF 融合、Rerank、Embedding Client
@@ -163,6 +164,7 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 | 构建 | Gradle (Kotlin DSL) | 多模块项目统一管理 |
 | ORM | Spring Data JPA | 基于 Hibernate 的声明式持久层 |
 | 向量库 | PostgreSQL 17 + pgvector | 向量存储、余弦相似度检索 |
+| 协调 | Redis 7.4 | Snowflake ID Worker 租约（ID 基础设施，非业务缓存/事件总线） |
 | 嵌入模型 | gte (GTE Chinese) | 中文句向量，Python Sidecar 托管 |
 | 重排模型 | bge-reranker-v2-m3 | 跨语言重排序，Python Sidecar 托管 |
 | LLM | Stub / DeepSeek | Stub 免 Key 调试；DeepSeek 生产可用 |
