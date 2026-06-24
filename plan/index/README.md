@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_15 第二次独立验收退回：15.5 README 与 docker-structure 5.10 文档同步缺失）
+> 最后更新：2026-06-25（plan_15 第三次独立验收退回：15.5 README 与 docker-structure 5.10 文档同步缺陷自 `156c11c2` 后未修复，依旧存在）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -94,7 +94,7 @@ plan/
 ## 当前执行队列
 
 ```text
-plan_15 — 分布式 Snowflake ID 与 RAG ID 切换（第二次独立验收退回：15.5 README 与 docker-structure 5.10 文档同步缺失）
+plan_15 — 分布式 Snowflake ID 与 RAG ID 切换（第三次独立验收退回：15.5 README 与 docker-structure 5.10 文档同步缺陷自 `156c11c2` 后未修复，依旧存在）
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
