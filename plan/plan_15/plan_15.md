@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_15
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-24
-updated: 2026-06-24
+updated: 2026-06-25
 ---
 
 # plan_15 — 分布式 Snowflake ID 与 RAG ID 切换
@@ -316,7 +316,7 @@ HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> pa
 | 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74, f62b2b7b, edf52c4b | — |
 | 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待验收 | 38ed9e9, 04d835dc, e9c1df8e, 200479fa, cfaa2e3b | — |
 | 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待验收 | 1ee473f | — |
-| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待验收 | 584d213, 41b4336b, 5d72653e, b003e2db | — |
+| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | 🔵 进行中 | 584d213, 41b4336b, 5d72653e, b003e2db | — |
 
 整体进度：0 / 5（0%）
 
@@ -701,6 +701,31 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 
 **交接结论：** 4 个退回缺陷及 4 个追加缺陷已全部修复；全部未完成有效任务实现、自测、提交并记录实现 hash；Plan 转为 `verifying`，移交独立验收 session。
 
+### 独立验收（第二轮，2026-06-25）
+
+验收者：未参与实现的独立 agent session；从仓库事实重建上下文，不依赖执行 session 的结论。
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-25 | macOS | `git show --stat <hash>`（×14） | 通过 | 5 个任务全部实现 hash + 9 个修复 hash 均存在，文件范围与各自任务匹配 |
+| 2026-06-25 | macOS, Python 3 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors，24 warnings（全部为历史 Plan 未使用 workflow v3，与本计划无关）；全部声明 hash 通过 git 校验 |
+| 2026-06-25 | macOS, Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 errors，`crag-id` 白名单与依赖方向正确 |
+| 2026-06-25 | macOS, Java 21 | `./gradlew check` | 通过 | BUILD SUCCESSFUL：Plan/约束/模块依赖/spotless/全部非 Docker 测试通过 |
+| 2026-06-25 | macOS, Java 21 | `./gradlew test --rerun-tasks` | 通过 | BUILD SUCCESSFUL，72 个 task 全量重跑（非缓存），0 失败：crag-id / crag-rag-service / crag-ingestion / crag-storage / crag-api / crag-query / crag-retrieval / crag-smoke 全绿 |
+| 2026-06-25 | macOS, 代码审查 | 15.1 crag-id 核心 | 通过 | `EPOCH_MILLIS=1767225600000L`、bit layout `sign1\|entity8\|ts41\|worker4\|seq10`、shift 正确；sequence 溢出等待下一毫秒、小回拨等待/大回拨抛 `ClockRollbackException`、实体注册与 parser 校验均符合接口约定 |
+| 2026-06-25 | macOS, 代码审查 | 15.2 Redis lease + Spring 配置（含 3 处修复） | 通过 | SET NX 获取、compare-and-set 续约、compare-and-delete 释放；lease map 遮蔽（edf52c4b）、TaskScheduler 自包含（f62b2b7b）、health 贡献者命名（b003e2db）三处修复在当前代码已生效；owner token 不入日志 |
+| 2026-06-25 | macOS, 代码审查 | 15.3 RAG 持久化 BIGINT + cold reset | 通过 | `Chunk` 三 ID 为 `long`、`NO_PARENT=0L`、createParent 置 0/createChild 置真实 parent；`schema.sql` 全 `BIGINT`、`parent_chunk_id DEFAULT 0`、RAG-only `DROP TABLE` cold reset；`AdminRagService` 注入 generator 调 `LEGACY_DOCUMENT`/`CHUNK` |
+| 2026-06-25 | macOS, 代码审查 | 15.4 HTTP decimal string 边界 | 通过 | AdminRag/UserQuery Controller 在边界 `Long.toString`；DTO 字段为 `String`；当前无入参业务 ID 解析点（`parseDecimal`/`requireEntityType` 已实现备用）；HTTP 脚本 `^[0-9]+$` 断言齐全 |
+| 2026-06-25 | macOS, 代码审查 | 15.5 Compose Redis + application.yml + HTTP 脚本 | 通过 | `redis` 服务 + `redis-cli ping`；rag-service/rag-service-smoke 注入 redis 与 `crag.id` 配置；readiness 组含 `cragId`；3 个 HTTP 脚本含 decimal string 断言 |
+| 2026-06-25 | macOS | `git log --oneline 0a49d73c^..HEAD -- README.md` | **缺陷** | README.md 自 plan_15 创建（`0a49d73c`）以来零提交，最后改动为 plan_14/14.9（`f664bf4c`）。本计划「范围」与 15.5 Step 4 明确要求 README 补充 Redis Worker lease 是 ID 基础设施、非缓存/事件总线，Step 7 `git add` 也含 `README.md`，但未执行。当前 README「一键启动」遗漏 Redis、项目结构遗漏 `crag-id`、技术栈遗漏 Redis，与仓库事实漂移 |
+| 2026-06-25 | macOS, 代码审查 | `constraints/docker-structure.md` 5.10 rag-service-smoke 就绪条件 | **缺陷** | 文档 5.10 记「`db` 健康 且 `sidecar` 健康」，但 `docker-compose.yml` rag-service-smoke `depends_on` 为 db+redis+sidecar（smoke 复用发号链路，需 redis）。rag-service 5.7 已正确含 redis，仅 smoke 条目遗漏 redis |
+
+**验收结论（第二轮）：退回。** 14 个 hash 范围核对无误、`./gradlew check` 与 `test --rerun-tasks`（全量重跑）全绿、`validate_plans`/`validate_module_dependencies` 0 errors、15.1–15.4 全部验收标准逐条通过；但 15.5 存在 2 个文档同步缺陷阻塞完成：① **README.md 文档同步整项缺失**（「范围」+ Step 4 强制要求 + Step 7 `git add` 均明确，未执行，且导致主文档与拓扑/模块/ID 事实漂移）；② **docker-structure.md 5.10 rag-service-smoke 就绪条件遗漏 redis**。两者均属 15.5「约束/文档同步」交付物，未触及运行时行为或测试。
+
+**处置：** 不修改实现与文档代码。按 `constraints/plan-workflow.md` 9.2，将 15.5 退回 `in_progress`、plan_15 退回 `in_progress`；15.1–15.4 经本轮逐条核对全部通过，保留 `待验收`（plan 未整体完成，待 15.5 修复后随最终验收一并完成）。修复范围狭窄：仅需 README 文档同步（补充 Redis/crag-id/BIGINT 当前事实）与 docker-structure.md 5.10 补 redis，不涉及功能或测试改动，可由新执行 session 在一个提交内完成。
+
+> 注：Docker HTTP 端到端回归（`docker compose up -d --build` + 5 个 `scripts/tests/http/*.sh`）证据来自首轮执行 session 记录，本轮独立 session 未重跑（受限于模型下载与全栈启动开销）；本轮对支撑该回归的 compose/application.yml/HTTP 脚本/Controller 代码做了静态审查并确认一致。
+
 ## 阻塞记录
 
 无。
@@ -713,3 +738,4 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 | 2026-06-24 | 优化任务执行细节 | 使用 writing-plans 补齐接口约定、测试先行步骤、验证命令和提交边界 | 状态与范围不变；执行者可按任务独立实现 |
 | 2026-06-24 | 验收退回 | 独立验收发现 4 个缺陷：spotless 格式违规、Hibernate entity 识别失败、Dockerfile 缺少 crag-id、测试脚本缺少格式断言 | Plan 退回 `in_progress`；15.3/15.4/15.5 退回 `in_progress`；15.1/15.2 保留待验收 |
 | 2026-06-24 | 缺陷修复与交接 | 修复 4 个退回缺陷 + 4 个追加缺陷（health contributor 命名、lease map 遮蔽、TaskScheduler、schema cold reset）；`./gradlew check` 通过；Docker HTTP 回归全绿 | Plan 转为 `verifying`；全部 5 个任务待验收 |
+| 2026-06-25 | 第二次独立验收退回 | 逐条核对：14 个 hash 范围正确、`./gradlew check` 与 `test --rerun-tasks`（全量重跑）全绿、`validate_plans`/`validate_module_dependencies` 0 errors、15.1–15.4 验收标准全通过；但发现 15.5 两处文档同步缺陷：① README.md 文档同步整项缺失（范围 + Step 4 + Step 7 均要求，未执行，致主文档漂移），② docker-structure.md 5.10 rag-service-smoke 就绪条件遗漏 redis | 15.5 退回 `in_progress`；plan_15 退回 `in_progress`；15.1–15.4 保留 `待验收` |
