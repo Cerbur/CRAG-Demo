@@ -162,8 +162,11 @@ services:
           "spring.data.redis.port": 6379,
           "crag.event.claim-idle": "5s",
           "crag.event.max-deliveries": 3,
-          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}"
+          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
+          "crag.knowledge.filestore.root": "/app/knowledge-files"
         }
+    volumes:
+      - ./data/knowledge-files-smoke:/app/knowledge-files
     depends_on:
       db:
         condition: service_healthy

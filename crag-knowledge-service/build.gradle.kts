@@ -29,6 +29,12 @@ dependencies {
 }
 
 tasks.named<Jar>("jar") { enabled = false }
+
+tasks.test {
+    // plan_18 引入多个 @SpringBootTest 上下文；增大 Spring Test 上下文缓存上限，
+    // 避免共享上下文被驱逐→关闭→重启（gRPC Server 单次使用，重启会抛 "Already started"）。
+    systemProperty("spring.test.context.cache.maxSize", "20")
+}
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveFileName.set("crag-knowledge-service.jar")
 }
