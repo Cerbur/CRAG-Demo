@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_6.hotfix_7
 type: hotfix
 parent_plan: plan_6
-status: in_progress
+status: verifying
 created: 2026-06-25
 updated: 2026-06-25
 ---
@@ -92,7 +92,7 @@ updated: 2026-06-25
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 6.hotfix_7.1 | Dense 召回根因（ivfflat 空表索引）修复 | ✅ 完成 | 93fb345a | 2026-06-25 |
-| 6.hotfix_7.2 | Sparse partial-match 查询语义修正与召回测试 | ⏳ 待开始 | — | — |
+| 6.hotfix_7.2 | Sparse partial-match 查询语义修正与召回测试 | ⏳ 待验收 | 99a845c1 | — |
 
 整体进度：1 / 2（50%）
 
@@ -138,6 +138,14 @@ updated: 2026-06-25
 | 2026-06-25 | macOS, Docker | `bash scripts/tests/http/query_stub_success_test.sh`（rag-service 8082） | 通过 | 独立新鲜证据：Query ready after 1 attempt，sources 非空（2 项），写入 parent `72305905186324480` 命中、reference/decimal/matchedChildIds 全断言 PASS；rag-service 日志 `Retrieval search — sparse=0, dense=2`（修复前 dense=0）→ dense>0 成立 |
 | 2026-06-25 | macOS, Docker | `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083`（rag-service-smoke） | 通过 | 无退化：全 7 节断言 PASS（写入 parent 命中、稳定排序、matchedChildIds 交叉引用真实 child）；同一条 Dense→hnsw 链路对 evidence 路径有效 |
 | 2026-06-25 | macOS, 独立验收 | 6.hotfix_7.1 验收结论 | 通过 | 5 项验收标准全部满足：dense>0（日志 dense=2）、query_stub Docker PASS、既有单测不退化、retrieval_evidence 不退化、根因（ivfflat 空表索引失效）与 commit `93fb345a` 已记录。任务标 ✅ 完成。**Plan 仍 `in_progress`**：6.hotfix_7.2（Sparse partial-match）待开始，query_stub 当前仅靠 Dense 命中通过，未达整个 Hotfix 完成门槛 |
+| 2026-06-25 | macOS, Docker DB | psql 复现 RED：旧 `@@ plainto_tsquery` 对 `verify-qs-… 使用什么数据库？` | 失败 | 0 行匹配——AND 语义要求 query 全部 token（含 `什/么/数/据/库`）都在 chunk 中，目标陈述句 chunk 不含这些 token，Sparse 返回空 |
+| 2026-06-25 | macOS, Docker DB | psql 候选 tsquery 对比：`websearch_to_tsquery`+OR vs `to_tsvector`-unnest OR | 通过 | 两者均命中目标 chunk；选 **to_tsvector-unnest OR（候选 C）**——复用写入侧同一 `to_tsvector('simple', …)` 分词，query/document token 语义最一致，纯 OR 语义最干净；`websearch` 走独立解析器、对 verify code 产生 `<->` 短语副作用，次选 |
+| 2026-06-25 | macOS, Docker DB | psql 边界用例：empty / whitespace / 纯标点 / 无匹配 token / 全 token 命中 / 仅疑问词 | 通过 | empty·whitespace·纯标点·无匹配 各 0 行（无错误、无全表扫描）；question-word 命中目标（score≈0.0374），all-tokens-present 排序最高（≈0.0608），仅疑问词仍命中（≈0.0174）——ts_rank DESC + chunk_id ASC 稳定 |
+| 2026-06-25 | macOS | `./gradlew :crag-storage:test :crag-retrieval:test` | 通过 | BUILD SUCCESSFUL；本任务为 SQL-only 改动，DAO/Service Java 逻辑未变，既有 Mockito 单测覆盖空查询守卫、列映射、顺序保持与参数透传，无退化 |
+| 2026-06-25 | macOS, Docker | `docker compose up -d --build rag-service` + `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | GREEN：Query ready after 1 attempt，sources 非空（parent `72305933522911232` 命中，reference/decimal/matchedChildIds 全断言 PASS）；rag-service 日志 `Retrieval search — sparse=1, dense=1`（修复前 `sparse=0`）→ Sparse 路独立 sparse>0 证据成立；实现 commit `99a845c1` |
+| 2026-06-25 | macOS, Docker | `docker compose --profile smoke up -d --build rag-service-smoke` + `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083` | 通过 | 无退化：全 7 节断言 PASS（parent 命中、稳定排序、matchedChildIds 交叉引用真实 child）；smoke 日志 `sparse=1, dense=1`，同一条新 Sparse 链路对 evidence 路径同样有效 |
+| 2026-06-25 | macOS, 执行 session | 6.hotfix_7.2 Sparse 修复说明（tsquery 构造 / 不拼接原始输入 / 空 query 不全表扫描） | 通过 | 最终构造：`to_tsvector('simple', CJK 预处理 query)` unnest 出的 lexeme 以 `\|` 组合（候选 C），`COALESCE` 回退 `''::tsquery`；query 以绑定参数 `:query` 传入，`\|` 由固定 SQL 注入而非用户输入；空 query 回退空 tsquery 使 `@@` 不匹配任何行，且空白 query 已被 DAO `isBlank` 守卫拦截，不会全表扫描 |
+| 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用 | 未执行 | 本任务只改 Sparse FTS 查询 SQL，不涉及 LLM/供应商边界；Query Stub 回归已覆盖必跑项；无残留风险 |
 
 ## 阻塞记录
 
