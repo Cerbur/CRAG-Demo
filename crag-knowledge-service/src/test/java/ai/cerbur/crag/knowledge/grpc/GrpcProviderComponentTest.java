@@ -48,6 +48,8 @@ class GrpcProviderComponentTest {
   static void filestoreRoot(DynamicPropertyRegistry registry) throws IOException {
     Path dir = Files.createTempDirectory("knowledge-grpc-test");
     registry.add("crag.knowledge.filestore.root", dir::toString);
+    registry.add("spring.sql.init.mode", () -> "always");
+    registry.add("spring.sql.init.schema-locations", () -> "classpath:schema-knowledge.sql");
   }
 
   @Autowired private KnowledgeBaseGrpcProvider knowledgeBaseProvider;

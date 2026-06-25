@@ -17,6 +17,10 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema-knowledge.sql
+  data:
+    redis:
+      host: ${CARG_REDIS_HOST:redis}
+      port: ${CARG_REDIS_PORT:6379}
 
 crag:
   grpc:
@@ -25,6 +29,13 @@ crag:
       shutdown-timeout: PT5S
       allowed-callers:
         console-api: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
+  event:
+    stream-key: crag:event:knowledge
+    dlq-stream-key: crag:event:knowledge:dlq
+    publisher:
+      enabled: true
+      max-attempts: 5
+      claim-duration: 30s
 
 management:
   endpoints:

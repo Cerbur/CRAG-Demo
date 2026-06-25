@@ -18,6 +18,7 @@ import ai.cerbur.crag.knowledge.dao.entity.FileObjectEntity;
 import ai.cerbur.crag.knowledge.dao.entity.KnowledgeBaseEntity;
 import ai.cerbur.crag.knowledge.filestore.LocalFileStore;
 import ai.cerbur.crag.knowledge.filestore.StorageKeyGenerator;
+import ai.cerbur.crag.knowledge.producer.DocUploadedOutboxWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,6 +47,7 @@ class DocumentUploadServiceTest {
   @Mock private KnowledgeBaseDao knowledgeBaseDao;
   @Mock private DocumentDao documentDao;
   @Mock private FileObjectDao fileObjectDao;
+  @Mock private DocUploadedOutboxWriter outboxWriter;
 
   @TempDir Path filestoreRoot;
 
@@ -61,6 +63,7 @@ class DocumentUploadServiceTest {
         service, "fileStore", new LocalFileStore(filestoreRoot.toString()));
     ReflectionTestUtils.setField(service, "storageKeyGenerator", new StorageKeyGenerator());
     ReflectionTestUtils.setField(service, "uploadPolicy", new DocumentUploadPolicy());
+    ReflectionTestUtils.setField(service, "outboxWriter", outboxWriter);
   }
 
   @Test
@@ -88,6 +91,7 @@ class DocumentUploadServiceTest {
     verify(fileObjectDao).insert(fileCaptor.capture());
     assertThat(fileCaptor.getValue().getDocId()).isEqualTo(42L);
     assertThat(fileCaptor.getValue().getSizeBytes()).isEqualTo(content.length);
+    verify(outboxWriter).write(any(DocumentResult.class));
   }
 
   @Test
@@ -137,6 +141,7 @@ class DocumentUploadServiceTest {
 
     verify(documentDao, never()).insert(any());
     verify(fileObjectDao, never()).insert(any());
+    verify(outboxWriter, never()).write(any());
     assertThat(Files.walk(filestoreRoot).filter(p -> !p.equals(filestoreRoot)).count())
         .as("临时文件已清理")
         .isZero();

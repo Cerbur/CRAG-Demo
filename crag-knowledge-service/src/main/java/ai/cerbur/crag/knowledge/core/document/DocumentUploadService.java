@@ -10,6 +10,7 @@ import ai.cerbur.crag.knowledge.filestore.CompletedUpload;
 import ai.cerbur.crag.knowledge.filestore.FileStore;
 import ai.cerbur.crag.knowledge.filestore.StorageKeyGenerator;
 import ai.cerbur.crag.knowledge.filestore.TempFileSink;
+import ai.cerbur.crag.knowledge.producer.DocUploadedOutboxWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,7 @@ public class DocumentUploadService {
   @Autowired private FileStore fileStore;
   @Autowired private StorageKeyGenerator storageKeyGenerator;
   @Autowired private DocumentUploadPolicy uploadPolicy;
+  @Autowired private DocUploadedOutboxWriter outboxWriter;
 
   /** 校验 metadata 与知识库归属，开启临时写入槽。metadata 非法或知识库不存在时抛异常，不创建任何文件。 */
   public UploadHandle begin(DocumentUploadCommand command) {
@@ -85,19 +87,22 @@ public class DocumentUploadService {
       fileObjectDao.insert(
           FileObjectEntity.create(
               doc.getDocId(), storageKey, completed.sizeBytes(), completed.sha256()));
-      return new DocumentResult(
-          doc.getDocId(),
-          handle.command().tenantId(),
-          handle.command().knowledgeBaseId(),
-          handle.command().uploadedByUserId(),
-          handle.command().originalFilename(),
-          handle.command().fileType(),
-          completed.sizeBytes(),
-          completed.sha256(),
-          doc.getIngestionStatus(),
-          doc.getOperationVersion(),
-          DocumentResult.epochMillis(doc.getCreatedAt()),
-          DocumentResult.epochMillis(doc.getUpdatedAt()));
+      DocumentResult result =
+          new DocumentResult(
+              doc.getDocId(),
+              handle.command().tenantId(),
+              handle.command().knowledgeBaseId(),
+              handle.command().uploadedByUserId(),
+              handle.command().originalFilename(),
+              handle.command().fileType(),
+              completed.sizeBytes(),
+              completed.sha256(),
+              doc.getIngestionStatus(),
+              doc.getOperationVersion(),
+              DocumentResult.epochMillis(doc.getCreatedAt()),
+              DocumentResult.epochMillis(doc.getUpdatedAt()));
+      outboxWriter.write(result);
+      return result;
     } catch (RuntimeException e) {
       cleanup(completed, storageKey);
       throw e;
