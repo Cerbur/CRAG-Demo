@@ -262,17 +262,31 @@ ai.cerbur.crag.grpc.runtime
 
 ```text
 ai.cerbur.crag.event
-└── api/                                — 领域无关事件契约
-    ├── EventEnvelope                   — 稳定事件信封，eventId/resourceId/operationVersion 十进制字符串边界
-    ├── EventHandler                    — 事件处理契约（必须可重复调用）
-    ├── EventHandlerResult              — success / retryableFailure / nonRetryableFailure 与 outcome 决策
-    ├── OutboxEventStatus               — PENDING/PUBLISHING/PUBLISHED/RETRY_WAIT/DEAD 状态机
-    ├── ProcessedEventStatus            — PROCESSED/FAILED/DEAD_LETTERED
-    ├── ProcessedEventIdempotencyKey    — eventType:resourceType:resourceId:operationVersion 稳定幂等键
-    └── EventErrorCode                  — REDIS_UNAVAILABLE/MESSAGE_MALFORMED/HANDLER_FAILED/HANDLER_NON_RETRYABLE/OUTBOX_CAS_CONFLICT/OUTBOX_EXHAUSTED
+├── api/                                — 领域无关事件契约
+│   ├── EventEnvelope                   — 稳定事件信封，eventId/resourceId/operationVersion 十进制字符串边界
+│   ├── EventHandler                    — 事件处理契约（必须可重复调用）
+│   ├── EventHandlerResult              — success / retryableFailure / nonRetryableFailure 与 outcome 决策
+│   ├── OutboxEventStatus               — PENDING/PUBLISHING/PUBLISHED/RETRY_WAIT/DEAD 状态机
+│   ├── ProcessedEventStatus            — PROCESSED/FAILED/DEAD_LETTERED
+│   ├── ProcessedEventIdempotencyKey    — eventType:resourceType:resourceId:operationVersion 稳定幂等键
+│   └── EventErrorCode                  — REDIS_UNAVAILABLE/MESSAGE_MALFORMED/HANDLER_FAILED/HANDLER_NON_RETRYABLE/OUTBOX_CAS_CONFLICT/OUTBOX_EXHAUSTED
+├── jdbc/                               — 本地 schema 内 Outbox/processed_event 数据访问与发布编排
+│   ├── JdbcOutboxEventDao              — insert、claimBatch（逐条版本 CAS）、markPublished/markRetryWait/markDead
+│   ├── JdbcProcessedEventDao           — insertPlaceholder 幂等占位、markProcessed/markFailed/markDeadLettered
+│   ├── OutboxPublisherService          — claim→投递→标记编排（不绑定传输）
+│   ├── OutboxBackoffPolicy             — 指数退避，封顶 max
+│   ├── OutboxEventRecord/OutboxClaim/ProcessedEventRecord/PublishResult — 不可变行/结果快照
+│   └── EventPublishAction              — 投递动作函数式契约（Redis 实现见 redis 包）
+└── redis/                              — Redis Streams 传输层
+    ├── RedisStreamOps / RedisTemplateStreamOps — Stream 命令抽象与 StringRedisTemplate 实现
+    ├── RedisStreamEventMapper          — 字段化 Stream entry 与 EventEnvelope 互转
+    ├── RedisStreamEventPublisher       — 实现 EventPublishAction，写入 Redis Stream
+    ├── RedisStreamEventConsumer        — consumer group 读取、幂等、handler 调度与 ACK
+    ├── RedisPendingReclaimer           — pending idle 重领与超 delivery 的 DLQ
+    └── DeadLetterPublisher             — 写入 DLQ stream
 ```
 
-JDBC、Redis Streams 与 Spring auto-configuration 子包由 `plan_17` 后续任务补全。
+Spring auto-configuration、Knowledge smoke 接入、Docker 回归与约束文档同步由 `plan_17` 后续任务补全。
 
 ### `crag-access-service`
 
