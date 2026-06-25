@@ -11,9 +11,13 @@ java {
 dependencies {
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
+    implementation(project(":crag-common"))
+    implementation(project(":crag-event"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

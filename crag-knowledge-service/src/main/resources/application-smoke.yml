@@ -1,0 +1,30 @@
+# Smoke profile for the Knowledge service: enables the crag-event closed loop (plan_17).
+# The default application.yml leaves publisher/consumer disabled; this profile turns them on and
+# creates the smoke event tables so the smoke endpoints can drive a real publish/consume/DLQ cycle.
+spring:
+  data:
+    redis:
+      host: ${CARG_REDIS_HOST:redis}
+      port: ${CARG_REDIS_PORT:6379}
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-event-smoke.sql
+
+crag:
+  event:
+    publisher:
+      enabled: true
+    consumer:
+      enabled: true
+    stream-key: crag:event:knowledge
+    dlq-stream-key: crag:event:knowledge:dlq
+    group-name: knowledge-smoke
+    consumer-name: knowledge-smoke-1
+    batch-size: 20
+    claim-idle: 30s
+    max-deliveries: 3
+    poll-interval: 1s
+    backoff:
+      initial: 1s
+      max: 30s

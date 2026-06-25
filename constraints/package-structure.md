@@ -67,7 +67,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-event` | 无 |
 | `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id` |
 | `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
-| `crag-knowledge-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-knowledge-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-open-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 
@@ -301,7 +301,11 @@ ai.cerbur.crag.access
 ```text
 ai.cerbur.crag.knowledge
 ├── app/                                — KnowledgeServiceApplication
-└── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+├── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+└── smoke/                              — 仅 smoke Profile 启用的事件诊断闭环（plan_17）
+    ├── controller/                     — KnowledgeEventSmokeController（@Profile("smoke")，/api/v1/smoke/events）
+    ├── dto/                            — KnowledgeSmokeEventRequest/Response/StatusResponse、KnowledgeSmokeFailMode
+    └── event/                          — KnowledgeSmokeEventService（写 outbox + 查诊断）、KnowledgeSmokeEventHandler（按 failMode 返回结果）
 ```
 
 ### `crag-console-api`
