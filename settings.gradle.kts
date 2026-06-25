@@ -10,12 +10,6 @@ pluginManagement {
 include(
     "crag-id",
     "crag-common",
-    "crag-storage",
-    "crag-ingestion",
-    "crag-retrieval",
-    "crag-query",
-    "crag-api",
-    "crag-smoke",
     "crag-platform-contracts",
     "crag-grpc-runtime",
     "crag-access-service",

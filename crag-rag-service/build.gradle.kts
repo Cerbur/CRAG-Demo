@@ -10,12 +10,6 @@ java {
 
 dependencies {
     implementation(project(":crag-common"))
-    implementation(project(":crag-storage"))
-    implementation(project(":crag-ingestion"))
-    implementation(project(":crag-retrieval"))
-    implementation(project(":crag-query"))
-    implementation(project(":crag-api"))
-    runtimeOnly(project(":crag-smoke"))
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
     implementation(project(":crag-id"))
@@ -24,9 +18,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.ai:spring-ai-anthropic")
+    implementation(libs.spring.ai.commons)
     implementation("org.postgresql:postgresql")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("com.h2database:h2")
