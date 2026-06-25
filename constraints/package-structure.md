@@ -33,13 +33,14 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-common` | 真正跨多个模块、无明确业务归属的稳定基础类型 | 禁止收纳业务 DTO、Entity、Service、Client、单模块工具或为绕开依赖环而搬入的类型 |
 | `crag-platform-contracts` | 跨领域通用 Protobuf 基础契约（Platform Probe） | 禁止 Spring、Runtime 或业务依赖 |
 | `crag-grpc-runtime` | 协议无关 gRPC Server/Client 生命周期、认证、Health、deadline | 禁止依赖 Contracts 或任何 Application 组合根 |
+| `crag-event` | 领域无关可靠事件基础设施：事件信封、Outbox/processed_event DAO、Redis Streams publisher/consumer、Reclaim/DLQ 与 Spring auto-configuration | 禁止依赖任何业务 application module；禁止承载 HTTP Controller 或业务事件类型 |
 | `crag-rag-service` | RAG 业务组合根，唯一承载 storage/retrieval/query/ingestion 内部业务包、smoke 验证 HTTP、gRPC Server 与 Platform Probe | 禁止被 Access/Knowledge 依赖；legacy HTTP 仅限 smoke Profile |
 | `crag-access-service` | Access 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务依赖 |
 | `crag-knowledge-service` | Knowledge 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务依赖 |
 | `crag-console-api` | 正式 Console HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `crag-open-api` | 正式 Open HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 
-五个 Application 组合根各自生成独立可启动 jar；`crag-id`、`crag-common`、`crag-platform-contracts` 和 `crag-grpc-runtime` 为 library module。正式 HTTP 入口由 `crag-console-api` 与 `crag-open-api` 承担；现有 AdminRag 写入与 UserQuery 行为只在 `crag-rag-service` 的 `smoke` Profile 下作为验证端点。
+五个 Application 组合根各自生成独立可启动 jar；`crag-id`、`crag-common`、`crag-platform-contracts`、`crag-grpc-runtime` 和 `crag-event` 为 library module。正式 HTTP 入口由 `crag-console-api` 与 `crag-open-api` 承担；现有 AdminRag 写入与 UserQuery 行为只在 `crag-rag-service` 的 `smoke` Profile 下作为验证端点。
 
 ### 3.1 `crag-rag-service` 内部包边界
 
@@ -63,6 +64,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-common` | 无 |
 | `crag-platform-contracts` | 无 |
 | `crag-grpc-runtime` | 无 |
+| `crag-event` | 无 |
 | `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id` |
 | `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-knowledge-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
@@ -255,6 +257,22 @@ ai.cerbur.crag.grpc.runtime
 ├── client/                             — GrpcChannelFactory、DefaultGrpcChannelFactory、DeadlineGuardClientInterceptor、GrpcClientProperties
 └── config/                             — GrpcServerConfiguration、GrpcClientConfiguration
 ```
+
+### `crag-event`
+
+```text
+ai.cerbur.crag.event
+└── api/                                — 领域无关事件契约
+    ├── EventEnvelope                   — 稳定事件信封，eventId/resourceId/operationVersion 十进制字符串边界
+    ├── EventHandler                    — 事件处理契约（必须可重复调用）
+    ├── EventHandlerResult              — success / retryableFailure / nonRetryableFailure 与 outcome 决策
+    ├── OutboxEventStatus               — PENDING/PUBLISHING/PUBLISHED/RETRY_WAIT/DEAD 状态机
+    ├── ProcessedEventStatus            — PROCESSED/FAILED/DEAD_LETTERED
+    ├── ProcessedEventIdempotencyKey    — eventType:resourceType:resourceId:operationVersion 稳定幂等键
+    └── EventErrorCode                  — REDIS_UNAVAILABLE/MESSAGE_MALFORMED/HANDLER_FAILED/HANDLER_NON_RETRYABLE/OUTBOX_CAS_CONFLICT/OUTBOX_EXHAUSTED
+```
+
+JDBC、Redis Streams 与 Spring auto-configuration 子包由 `plan_17` 后续任务补全。
 
 ### `crag-access-service`
 

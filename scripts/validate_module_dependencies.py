@@ -24,6 +24,7 @@ MODULE_WHITELIST: dict[str, set[str]] = {
     "crag-common": set(),
     "crag-platform-contracts": set(),
     "crag-grpc-runtime": set(),
+    "crag-event": set(),
 }
 
 # Name mapping from historical module names to current whitelist keys.
