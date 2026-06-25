@@ -7,9 +7,11 @@
 
 | Skill | 作用 | 状态 | 入口 |
 | --- | --- | --- | --- |
+| accept-crag-plan | 按 workflow v3 独立验收或重新验收指定 Plan，记录通过或失败结论 | ✅ 可用 | [accept-crag-plan/SKILL.md](accept-crag-plan/SKILL.md) |
 | crag-benchmark | 生成随机 benchmark 数据、运行 Docker-only Retrieval / Query 验证、评分并维护报告 | ✅ 可用 | [crag-benchmark/SKILL.md](crag-benchmark/SKILL.md) |
 | execute-crag-plan | 按 workflow v3 执行、恢复或修复指定 Plan，并交接独立验收 | ✅ 可用 | [execute-crag-plan/SKILL.md](execute-crag-plan/SKILL.md) |
 | execute-plan-with-opencode | 历史 OpenCode 编排流程 | ⛔ 停用 | [execute-plan-with-opencode/SKILL.md](execute-plan-with-opencode/SKILL.md) |
+| repair-crag-plan | 验收失败后修复指定 Plan 的退回问题，并重新交接验收 | ✅ 可用 | [repair-crag-plan/SKILL.md](repair-crag-plan/SKILL.md) |
 
 ## execute-crag-plan 路由
 
@@ -21,6 +23,28 @@
 - 继续完成 Plan 中未完成任务并交接验收。
 
 该 Skill 是执行 session 流程，不负责最终独立验收。旧 `execute-plan-with-opencode` 不再使用。
+
+## accept-crag-plan 路由
+
+以下意图必须路由到 [`accept-crag-plan/SKILL.md`](accept-crag-plan/SKILL.md)：
+
+- “验收 plan7”“独立验收 Plan 7”。
+- “重新验收 plan_7”。
+- “验收失败，记录失败结论”。
+- 实现 session 已交接后，需要判定 Plan 是否可以完成。
+
+该 Skill 不负责实现修复；验收失败后需要修复时，使用 `repair-crag-plan`。
+
+## repair-crag-plan 路由
+
+以下意图必须路由到 [`repair-crag-plan/SKILL.md`](repair-crag-plan/SKILL.md)：
+
+- “修复 plan7 验收失败项”。
+- “处理验收退回”。
+- “根据验收失败记录修复 Plan”。
+- “修完后重新交接验收”。
+
+该 Skill 不负责最终验收；修复完成后应交给新的独立验收 session 使用 `accept-crag-plan`。
 
 ## crag-benchmark 任务入口
 
