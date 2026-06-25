@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_17
 type: main
-status: ready
+status: verifying
 created: 2026-06-25
-updated: 2026-06-25
+updated: 2026-06-26
 ---
 
 # plan_17 — 可靠事件基础设施
@@ -194,12 +194,12 @@ updated: 2026-06-25
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 17.1 | 创建 `crag-event` 模块、API 类型与架构约束 | ⏳ 待开始 | — | — |
-| 17.2 | 实现 Outbox 与 processed_event JDBC 基础设施 | ⏳ 待开始 | — | — |
-| 17.3 | 实现 Redis Streams publisher、consumer、Reclaim 与 DLQ | ⏳ 待开始 | — | — |
-| 17.4 | 接入 Knowledge smoke 事件闭环 | ⏳ 待开始 | — | — |
-| 17.5 | 补齐可观测性、约束文档、校验器与 Docker 回归 | ⏳ 待开始 | — | — |
-| 17.6 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待开始 | — | — |
+| 17.1 | 创建 `crag-event` 模块、API 类型与架构约束 | ⏳ 待验收 | 25451c05 | — |
+| 17.2 | 实现 Outbox 与 processed_event JDBC 基础设施 | ⏳ 待验收 | 79151e3a | — |
+| 17.3 | 实现 Redis Streams publisher、consumer、Reclaim 与 DLQ | ⏳ 待验收 | 18eeee90 | — |
+| 17.4 | 接入 Knowledge smoke 事件闭环 | ⏳ 待验收 | 4aeb186b | — |
+| 17.5 | 补齐可观测性、约束文档、校验器与 Docker 回归 | ⏳ 待验收 | fb789a9e | — |
+| 17.6 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待验收 | d809668b | — |
 
 整体进度：0 / 6（0%）
 
@@ -267,6 +267,22 @@ updated: 2026-06-25
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-26 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew :crag-event:test` | 通过 | API/JDBC/Redis/auto-config 单元与轻量组件测试全量通过 |
+| 2026-06-26 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew :crag-knowledge-service:test` | 通过 | Knowledge smoke handler/profile/controller 组件测试通过 |
+| 2026-06-26 | macOS / Java 21 / Gradle 9.4.1 | `./gradlew :crag-event:spotlessCheck :crag-knowledge-service:spotlessCheck` | 通过 | Spotless 格式校验通过 |
+| 2026-06-26 | macOS / Python 3 | `python3 scripts/validate_plans.py --strict` | 通过 | 0 error，24 个 P101 历史计划警告（非阻断） |
+| 2026-06-26 | macOS / Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 模块依赖白名单 0 error |
+| 2026-06-26 | macOS / Python 3 | `python3 scripts/validate_constraints.py` | 通过 | 约束校验 0 error（含新增 REDIS_ROLE_DRIFT） |
+| 2026-06-26 | macOS / Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints` | 通过 | 37 项校验器单测通过 |
+| 2026-06-26 | macOS / Docker 29.5.2 | `scripts/tests/http/event_smoke_success_test.sh` 等 3 脚本 | 未执行 | 见下方风险：本环境无法完成 Docker 构建，须由独立验收 session 执行 |
+
+### 未执行项与风险
+
+- **Docker HTTP 回归未执行**：`event_smoke_success_test.sh`、`event_smoke_dlq_test.sh`、`event_smoke_default_disabled_test.sh` 三个脚本已创建并以 `chmod +x` 标记可执行，但本执行 session 无法完成镜像构建——BuildKit 解析 `# syntax=docker/dockerfile:1.7` 与容器内 Gradle 依赖下载需访问 docker.io / Maven 中央仓库，环境网络多次出现 `TLS handshake timeout`，`--no-cache` 全量构建在 10+ 分钟后仍停滞在依赖下载。这是环境阻塞，非代码缺陷。
+- **真实 Redis Streams 行为未验证**：H2/fake 测试只覆盖 DAO 与编排逻辑，真实 `XREADGROUP`/`XPENDING`/`XCLAIM`、publish→consume→PROCESSED 成功路径与 retryable→DLQ 路径必须由独立验收 session 运行上述 Docker HTTP 回归证明。未通过前不得判完成。
+- **并发提交**：实现期间观察到 plan_16 验收（`b908e04c`）与 plan_7.hotfix_1（`27e44ac0`）由其他 session 并发提交到 `main`；与 plan_17 文件边界不重叠，已隔离未纳入 plan_17 提交。
+- **DLQ 回归时效**：smoke 容器 `crag.event.claim-idle=5s`、`max-deliveries=3`，retryable 进 DLQ 约需 15–20s；脚本超时 180s，验收时注意 reclaim/XPENDING 投递计数语义可能与 fake 模型存在差异。
+
 
 ## 阻塞记录
 
@@ -282,3 +298,5 @@ updated: 2026-06-25
 | --- | --- | --- | --- |
 | 2026-06-25 | 创建计划 | 用户确认可靠事件基础设施设计，并要求实际创建 plan17 | 初始范围为 `crag-event`、本地 Outbox/processed_event、Redis Streams、Knowledge smoke 闭环、可观测性、约束和 Docker 回归 |
 | 2026-06-25 | 允许与 plan16 并发 | 用户确认若无文件冲突，plan17 可与待验收的 plan16 并发执行 | plan17 状态保持待开始；新增并行执行与共享文件冲突保护 |
+| 2026-06-26 | 17.6 范围微调 | api/persistence/test 约束同步随收尾任务（17.6）落地，而非 17.5 | 17.6 实现提交承担剩余约束文档同步；功能与文件边界不变 |
+| 2026-06-26 | 实现完成并交接 | 17.1–17.6 全部实现、自测通过并回填短 hash | status → verifying；六项转待验收；执行 session 自测记录与 Docker 未执行风险记入验收记录 |

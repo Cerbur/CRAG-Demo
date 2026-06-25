@@ -96,14 +96,13 @@ plan/
 | plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | ✅ 完成 (14/14) | — | [plan_14.md](../plan_14/plan_14.md) |
 | plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | ✅ 完成 (5/5) | — | [plan_15.md](../plan_15/plan_15.md) |
 | plan_16 | RAG Service Module 收口与 Smoke HTTP 入口重整，合并 RAG 内部 subproject 并将 legacy HTTP 迁入 smoke namespace | ✅ 完成 (5/5) | — | [plan_16.md](../plan_16/plan_16.md) |
-| plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | 🟡 待开始 (0/6) | — | [plan_17.md](../plan_17/plan_17.md) |
+| plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | ⏳ 待验收 (0/6) | — | [plan_17.md](../plan_17/plan_17.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
-plan_17 — 可靠事件基础设施
 plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
 plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径可达（非优先，测试脚本修复）
 ```
@@ -115,7 +114,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 ## 当前验收队列
 
 ```text
-（空）
+plan_17 — 可靠事件基础设施
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -258,7 +257,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_17.md](../plan_17/plan_17.md) | 可靠事件基础设施，新增 `crag-event` library module、本地 `outbox_event` / `processed_event`、Redis Streams publisher/consumer、ACK/Reclaim/DLQ、Spring auto-configuration 与 Knowledge smoke-only 事件闭环 | 🟡 待开始 (0/6) |
+| [plan_17.md](../plan_17/plan_17.md) | 可靠事件基础设施，新增 `crag-event` library module、本地 `outbox_event` / `processed_event`、Redis Streams publisher/consumer、ACK/Reclaim/DLQ、Spring auto-configuration 与 Knowledge smoke-only 事件闭环 | ⏳ 待验收 (0/6) |
 
 ---
 
