@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-26（plan_17 修复验收退回项后重新进入待验收：修复 session 定位并修复四个根因——Dockerfile 未 COPY `crag-event`、`EventAutoConfiguration` 缺 auto-config ordering、`ensureGroup` 未走 cause chain、`event_smoke_default_disabled_test.sh` 用 container 名调 compose exec（`dcfabdc6`）；三脚本、Gradle、校验器均通过，等待独立验收 session 重跑确认。plan_16 已完成验收）
+> 最后更新：2026-06-26（plan_17 独立验收通过：未参与实现的 session 从仓库事实重建上下文，独立重跑 7 个实现提交核对、Gradle spotless/test --rerun/check、三项 Python 校验器与 37 项单测、三个 Docker HTTP smoke 脚本（default 404 / success PROCESSED / dlq DEAD_LETTERED+attempts=3）全部通过并完成全量代码审查；plan_17 完成验收，验收队列为空。plan_16 已完成验收）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -96,7 +96,7 @@ plan/
 | plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | ✅ 完成 (14/14) | — | [plan_14.md](../plan_14/plan_14.md) |
 | plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | ✅ 完成 (5/5) | — | [plan_15.md](../plan_15/plan_15.md) |
 | plan_16 | RAG Service Module 收口与 Smoke HTTP 入口重整，合并 RAG 内部 subproject 并将 legacy HTTP 迁入 smoke namespace | ✅ 完成 (5/5) | — | [plan_16.md](../plan_16/plan_16.md) |
-| plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | ⏳ 待验收 (0/6) | — | [plan_17.md](../plan_17/plan_17.md) |
+| plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | ✅ 完成 (6/6) | — | [plan_17.md](../plan_17/plan_17.md) |
 
 ---
 
@@ -114,7 +114,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 ## 当前验收队列
 
 ```text
-plan_17 — 可靠事件基础设施（修复验收退回项后重新待验收：`dcfabdc6` 修复 Dockerfile/crag-event COPY、EventAutoConfiguration auto-config ordering、ensureGroup cause chain、default_disabled 脚本；三脚本与 Gradle/校验器已通过，独立验收 session 须重跑确认）
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -257,7 +257,7 @@ plan_17 — 可靠事件基础设施（修复验收退回项后重新待验收�
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_17.md](../plan_17/plan_17.md) | 可靠事件基础设施，新增 `crag-event` library module、本地 `outbox_event` / `processed_event`、Redis Streams publisher/consumer、ACK/Reclaim/DLQ、Spring auto-configuration 与 Knowledge smoke-only 事件闭环 | ⏳ 待验收 (0/6) |
+| [plan_17.md](../plan_17/plan_17.md) | 可靠事件基础设施，新增 `crag-event` library module、本地 `outbox_event` / `processed_event`、Redis Streams publisher/consumer、ACK/Reclaim/DLQ、Spring auto-configuration 与 Knowledge smoke-only 事件闭环 | ✅ 完成 (6/6) |
 
 ---
 

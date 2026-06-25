@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_17
 type: main
-status: verifying
+status: completed
 created: 2026-06-25
 updated: 2026-06-26
 ---
@@ -195,14 +195,14 @@ updated: 2026-06-26
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 17.1 | 创建 `crag-event` 模块、API 类型与架构约束 | ⏳ 待验收 | 25451c05 | — |
-| 17.2 | 实现 Outbox 与 processed_event JDBC 基础设施 | ⏳ 待验收 | 79151e3a | — |
-| 17.3 | 实现 Redis Streams publisher、consumer、Reclaim 与 DLQ | ⏳ 待验收 | 18eeee90 | — |
-| 17.4 | 接入 Knowledge smoke 事件闭环 | ⏳ 待验收 | 4aeb186b | — |
-| 17.5 | 补齐可观测性、约束文档、校验器与 Docker 回归 | ⏳ 待验收 | fb789a9e, dcfabdc6 | — |
-| 17.6 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待验收 | d809668b | — |
+| 17.1 | 创建 `crag-event` 模块、API 类型与架构约束 | ✅ 完成 | 25451c05 | 2026-06-26 |
+| 17.2 | 实现 Outbox 与 processed_event JDBC 基础设施 | ✅ 完成 | 79151e3a | 2026-06-26 |
+| 17.3 | 实现 Redis Streams publisher、consumer、Reclaim 与 DLQ | ✅ 完成 | 18eeee90 | 2026-06-26 |
+| 17.4 | 接入 Knowledge smoke 事件闭环 | ✅ 完成 | 4aeb186b | 2026-06-26 |
+| 17.5 | 补齐可观测性、约束文档、校验器与 Docker 回归 | ✅ 完成 | fb789a9e, dcfabdc6 | 2026-06-26 |
+| 17.6 | 完成全量验证、Plan 交接和索引同步 | ✅ 完成 | d809668b | 2026-06-26 |
 
-整体进度：0 / 6（0%）
+整体进度：6 / 6（100%）
 
 ## 17.1 创建 `crag-event` 模块、API 类型与架构约束
 
@@ -288,9 +288,20 @@ updated: 2026-06-26
 | 2026-06-26 | 修复 session / Docker 29.5.2 | `event_smoke_default_disabled_test.sh` | 通过 | 默认 profile `/api/v1/smoke/events` 返回 404；脚本改用 service 名调 `docker compose exec` |
 | 2026-06-26 | 修复 session / Java 21 / Gradle 9.4.1 | `./gradlew spotlessCheck :crag-event:test :crag-knowledge-service:test` | 通过 | 含新增 `EventAutoConfigurationOrderingTest`、`RedisTemplateStreamOpsTest`；BUILD SUCCESSFUL |
 | 2026-06-26 | 修复 session / Python 3 | `validate_{plans,module_dependencies,constraints}.py` + 校验器单测 | 通过 | 三项 0 error（24 个 P101 历史 v2 警告，非阻断）；37 项校验器单测通过 |
+| 2026-06-26 | 独立验收 / macOS | `git show --stat` 对 7 个实现提交（25451c05…d809668b） | 通过 | 全部提交存在、文件范围服务对应任务、无其他 Plan/无关改动混入 |
+| 2026-06-26 | 独立验收 / macOS / Java 21 / Gradle 9.4.1 | `./gradlew spotlessCheck --no-daemon` | 通过 | 20 任务全执行，BUILD SUCCESSFUL，exit 0 |
+| 2026-06-26 | 独立验收 / macOS / Java 21 / Gradle 9.4.1 | `./gradlew :crag-event:test :crag-knowledge-service:test --rerun-tasks` | 通过 | 22 任务全执行，BUILD SUCCESSFUL，exit 0；测试源无 `@Disabled/@Ignore/assumeTrue` 等跳过注解，无失败无跳过 |
+| 2026-06-26 | 独立验收 / macOS / Java 21 / Gradle 9.4.1 | `./gradlew check` | 通过 | BUILD SUCCESSFUL（含 `validatePlans`），exit 0 |
+| 2026-06-26 | 独立验收 / Python 3 | `validate_plans.py --strict --verify-git` / `validate_module_dependencies.py` / `validate_constraints.py` / 校验器单测 | 通过 | 三项 0 error（24 个 P101 历史 v2 警告，非阻断）；37 项校验器单测 OK |
+| 2026-06-26 | 独立验收 / Docker 29.5.2 | `event_smoke_default_disabled_test.sh` | 通过 | 默认 profile `/api/v1/smoke/events` 返回 404；镜像全新构建（含 `crag-event` COPY 层）成功 |
+| 2026-06-26 | 独立验收 / Docker 29.5.2 | `event_smoke_success_test.sh` | 通过 | outbox=PUBLISHED processed=PROCESSED deadLettered=False；真实 Redis Streams publish→consume→PROCESSED 闭环成立 |
+| 2026-06-26 | 独立验收 / Docker 29.5.2 | `event_smoke_dlq_test.sh` | 通过 | processed=DEAD_LETTERED deadLettered=True handlerAttempts=3；retryable→reclaim→DLQ 成立 |
+| 2026-06-26 | 独立验收 / 代码审查 | crag-event + knowledge smoke 全量复核 | 通过 | 模块边界（`crag-common` 无事件类型、`crag-event` 无 `project()` 与应用模块依赖）、CAS/version 递增、`(consumer,event_id)`+`(consumer,idempotency_key)` 双幂等键、malformed→DLQ+ACK、success→PROCESSED+ACK、retryable 不 ACK、non-retryable→DLQ+ACK、smoke profile 门禁、不回显完整 payload 均符合验收标准 |
 
 ### 未执行项与风险
 
+- **✅ 独立验收确认（独立验收 session，2026-06-26）**：本次验收由未参与实现的 session 从仓库事实重建上下文，独立重跑全部验证：7 个实现提交 `git show --stat` 范围核对、Gradle `spotlessCheck`/`test --rerun-tasks`/`check`、三项 Python 校验器与 37 项单测、三个 Docker HTTP smoke 脚本（default 404 / success PROCESSED / dlq DEAD_LETTERED+attempts=3）均通过。原始失败证据保留不改。
+- **观察项（非阻塞）**：`crag-knowledge-service` 组件测试在上下文 shutdown 阶段，消费者调度器最后一次 poll 命中 `LettuceConnectionFactory is STOPPING`，`ensureGroup` 只捕获 `RedisSystemException` 故该 `IllegalStateException` 被 Spring 调度器 `TaskUtils$LoggingErrorHandler` 记录为 ERROR 并吞掉。属 shutdown 时序竞态，非测试失败、非生产路径缺陷；真实 Redis 行为由 Docker HTTP 回归证明。不阻塞验收。
 - **✅ 已修复（修复 session `dcfabdc6`，2026-06-26）**：下方原始失败证据保留不改。构建缺陷与真实 Redis Streams 链路均已修复，并经三脚本 + Gradle + 校验器验证通过（见上方验收记录新增行）。修复 session 另发现并修复三个 H2/fake 测试无法暴露的运行时缺陷：`EventAutoConfiguration` 缺 auto-config ordering（事件 bean 全部被跳过）、`RedisTemplateStreamOps.ensureGroup` 未走 cause chain（consumer 跨运行崩溃）、`event_smoke_default_disabled_test.sh` 用 container 名调 `docker compose exec`（默认服务被误判未运行）。
 - **🔴 构建缺陷（验收退回根因，已修复）**：`docker/java-service.Dockerfile` 未 COPY `crag-event/` 目录，而 `settings.gradle.kts`（17.1）已 include crag-event。独立验收 session 重试构建时，BuildKit 前端拉取一度恢复，但 Gradle 配置阶段确定性失败：`Configuring project ':crag-event' without an existing directory is not allowed`。影响面：`knowledge-service-smoke`（以及任何全新构建的 Java 服务镜像）无法构建，故 Docker HTTP 回归无法运行。`docker/java-service.Dockerfile` 未列入本计划文件边界，是规划遗漏；修复需将其纳入 plan_17 范围并补 `COPY crag-event/build.gradle.kts` 与 `COPY crag-event/src/`。执行 session 此前因 docker.io 网络 `TLS handshake timeout` 未能触达此 Gradle 阶段，误判为纯环境阻塞。
 - **真实 Redis Streams 行为未验证（已验证）**：H2/fake 测试只覆盖 DAO 与编排逻辑，真实 `XREADGROUP`/`XPENDING`/`XCLAIM`、publish→consume→PROCESSED 成功路径与 retryable→DLQ 路径必须由独立验收 session 运行上述 Docker HTTP 回归证明。修复 session 已运行三脚本并通过（success: PROCESSED；dlq: DEAD_LETTERED/handlerAttempts=3；default: 404），独立验收 session 仍须自行重跑确认。
@@ -316,3 +327,4 @@ updated: 2026-06-26
 | 2026-06-26 | 实现完成并交接 | 17.1–17.6 全部实现、自测通过并回填短 hash | status → verifying；六项转待验收；执行 session 自测记录与 Docker 未执行风险记入验收记录 |
 | 2026-06-26 | 独立验收失败退回 | 验收发现构建缺陷：`docker/java-service.Dockerfile` 未 COPY `crag-event/`，`settings.gradle.kts` include crag-event 致全新镜像构建失败、Docker HTTP 回归无法运行；非纯网络阻塞 | status → in_progress；17.5/17.6 退回进行中；失败证据记入验收记录，未修改任何实现代码 |
 | 2026-06-26 | 修复验收退回项并重新交接 | 修复 session 运行 Docker HTTP 回归后定位并修复四个根因（`dcfabdc6`）：Dockerfile 未 COPY `crag-event`、`EventAutoConfiguration` 无 auto-config ordering 致事件 bean 全部被跳过、`ensureGroup` 未走 cause chain 致 consumer 跨运行崩溃、`event_smoke_default_disabled_test.sh` 用 container 名调 compose exec；新增两个回归测试 | status → verifying；`docker/java-service.Dockerfile` 纳入文件边界；17.5 追加 `dcfabdc6`、17.5/17.6 转待验收；三脚本、Gradle、校验器均通过；原始失败证据保留 |
+| 2026-06-26 | 独立验收通过 | 未参与实现的 session 从仓库事实重建上下文，独立重跑全部验证（7 提交核对、Gradle spotless/test --rerun/check、三项 Python 校验器 + 37 单测、三个 Docker HTTP smoke 脚本）全部通过，并完成全量代码审查 | status → completed；17.1–17.6 全部 ✅ 完成，完成日期 2026-06-26；整体进度 6/6；索引与验收队列同步 |
