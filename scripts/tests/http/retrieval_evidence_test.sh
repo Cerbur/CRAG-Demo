@@ -61,7 +61,7 @@ json_code() {
 
 # ── 1. Write a parent+child document ──
 echo "--- 1. Write test document ---"
-http_post "$BASE_URL/api/v1/test/chunk" \
+http_post "$BASE_URL/api/v1/smoke/test/chunk" \
   "{\"title\":\"evidence-test-$RUN_ID\",\"content\":\"$RUN_ID parent evidence test content for verification purposes\"}" \
   "/chunk write"
 WRITE_CODE=$(json_code "$RESP_BODY")
@@ -88,7 +88,7 @@ while [ $WAITED -lt $MAX_WAIT ]; do
   sleep 5
   WAITED=$((WAITED + 5))
   # Use raw curl (not http_get) since the server may not be ready yet
-  RET_RESP=$(curl -s "$BASE_URL/api/v1/test/retrieval?query=$RUN_ID&topN=1" || echo '{"code":-1}')
+  RET_RESP=$(curl -s "$BASE_URL/api/v1/smoke/test/retrieval?query=$RUN_ID&topN=1" || echo '{"code":-1}')
   RET_CODE=$(json_code "$RET_RESP")
   if [ "$RET_CODE" = "0" ]; then
     RESULT_COUNT=$(echo "$RET_RESP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['result']['results']))" 2>/dev/null || echo "0")
@@ -108,7 +108,7 @@ done
 
 # ── 3. Call /retrieval/evidence (first call) ──
 echo "--- 3. Parent evidence retrieval (call 1) ---"
-http_get "$BASE_URL/api/v1/test/retrieval/evidence?query=$RUN_ID&topN=3" "/retrieval/evidence (call 1)"
+http_get "$BASE_URL/api/v1/smoke/test/retrieval/evidence?query=$RUN_ID&topN=3" "/retrieval/evidence (call 1)"
 EVIDENCE_RESP="$RESP_BODY"
 EVIDENCE_CODE=$(json_code "$EVIDENCE_RESP")
 if [ "$EVIDENCE_CODE" != "0" ]; then
@@ -213,7 +213,7 @@ fi
 
 # ── 5. Verify stable ordering (same request twice) ──
 echo "--- 5. Verify stable ordering ---"
-http_get "$BASE_URL/api/v1/test/retrieval/evidence?query=$RUN_ID&topN=3" "/retrieval/evidence (call 2)"
+http_get "$BASE_URL/api/v1/smoke/test/retrieval/evidence?query=$RUN_ID&topN=3" "/retrieval/evidence (call 2)"
 EVIDENCE_RESP2="$RESP_BODY"
 ORDER1=$(echo "$EVIDENCE_RESP" | python3 -c "import sys,json; print([r['parentChunkId'] for r in json.load(sys.stdin).get('result',[])])" 2>/dev/null || echo "[]")
 ORDER2=$(echo "$EVIDENCE_RESP2" | python3 -c "import sys,json; print([r['parentChunkId'] for r in json.load(sys.stdin).get('result',[])])" 2>/dev/null || echo "[]")
@@ -242,7 +242,7 @@ fi
 # ── 7. Cross-reference matchedChildIds against real child retrieval ──
 echo "--- 7. Verify matchedChildIds from real RRF hits ---"
 if [ "$RESULT_COUNT" -gt 0 ]; then
-  http_get "$BASE_URL/api/v1/test/retrieval?query=$RUN_ID&topN=20" "/retrieval child lookup"
+  http_get "$BASE_URL/api/v1/smoke/test/retrieval?query=$RUN_ID&topN=20" "/retrieval child lookup"
   CHILD_RET_CODE=$(json_code "$RESP_BODY")
   if [ "$CHILD_RET_CODE" != "0" ]; then
     echo "FAIL: Child retrieval returned code=$CHILD_RET_CODE"

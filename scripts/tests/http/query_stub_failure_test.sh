@@ -42,7 +42,7 @@ json_code() {
 }
 
 # ── Helper: wait for rag-service to be ready ──
-# Polls /api/v1/query until any response (not connection refused).
+# Polls /api/v1/smoke/query until any response (not connection refused).
 wait_for_app() {
   local label="$1"
   local max_wait=120
@@ -53,7 +53,7 @@ wait_for_app() {
     waited=$((waited + 3))
     # Use curl with short timeout to detect connection refused
     local resp
-    resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/query" 2>/dev/null || echo "000")
+    resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/smoke/query" 2>/dev/null || echo "000")
     if [[ "$resp" =~ ^[245][0-9][0-9]$ ]]; then
       echo "  rag-service ready after ${waited}s (HTTP $resp)"
       return 0
@@ -86,7 +86,7 @@ fi
 # 3. Send query and assert 502 / 50201
 echo ""
 echo "--- 3. Send query in failure mode ---"
-http_post_raw "$BASE_URL/api/v1/query" '{"question":"测试问题"}' "Query in failure mode"
+http_post_raw "$BASE_URL/api/v1/smoke/query" '{"question":"测试问题"}' "Query in failure mode"
 
 if [ "$RESP_CODE" = "502" ]; then
   echo "PASS: HTTP status 502"
@@ -132,7 +132,7 @@ fi
 # Confirm success mode works
 echo ""
 echo "--- Confirm success mode ---"
-http_post_raw "$BASE_URL/api/v1/query" '{"question":"测试确认问题"}' "Query in restored success mode"
+http_post_raw "$BASE_URL/api/v1/smoke/query" '{"question":"测试确认问题"}' "Query in restored success mode"
 RESTORE_CODE=$(json_code "$RESP_BODY")
 if [ "$RESTORE_CODE" = "0" ]; then
   echo "PASS: Restored success mode confirmed (code=0)"

@@ -286,15 +286,15 @@ check_health_endpoint 8081 "/actuator/health/readiness" "200" "open-api /actuato
 check_http_status "http://localhost:8082/actuator/env" "404" "rag-service /actuator/env" || FAILED=1
 
 # Smoke 端点默认不暴露
-check_http_status "http://localhost:8082/api/v1/test/smoke" "404" "rag-service /api/v1/test/smoke" || FAILED=1
+check_http_status "http://localhost:8082/api/v1/smoke/test/smoke" "404" "rag-service /api/v1/smoke/test/smoke" || FAILED=1
 
 # ─── 测试 4: AdminRag 写入 ───
 
 echo ""
 echo "=== 测试 4: AdminRag 写入 ==="
 
-# 通过 rag-service POST /api/v1/admin/rag 写入标题含 runId 的文档
-admin_response=$(curl -s -m 10 -X POST "http://localhost:8082/api/v1/admin/rag" \
+# 通过 rag-service POST /api/v1/smoke/admin/rag 写入标题含 runId 的文档
+admin_response=$(curl -s -m 10 -X POST "http://localhost:8082/api/v1/smoke/admin/rag" \
   -H "Content-Type: application/json" \
   -d "{\"title\":\"readiness-test-$RUN_ID\",\"content\":\"Docker readiness regression test document\",\"metadata\":{\"source\":\"readiness-test\"}}" 2>/dev/null)
 
@@ -341,8 +341,8 @@ check_health_endpoint 8082 "/actuator/health" "200" "rag-service:8082 /actuator/
 check_health_endpoint 8083 "/actuator/health" "200" "rag-service-smoke:8083 /actuator/health" || FAILED=1
 
 # 只有 rag-service-smoke 的 Smoke 诊断端点成功
-check_http_status "http://localhost:8083/api/v1/test/smoke" "200" "rag-service-smoke:8083 /api/v1/test/smoke" || FAILED=1
-check_http_status "http://localhost:8082/api/v1/test/smoke" "404" "rag-service:8082 /api/v1/test/smoke (应 404)" || FAILED=1
+check_http_status "http://localhost:8083/api/v1/smoke/test/smoke" "200" "rag-service-smoke:8083 /api/v1/smoke/test/smoke" || FAILED=1
+check_http_status "http://localhost:8082/api/v1/smoke/test/smoke" "404" "rag-service:8082 /api/v1/smoke/test/smoke (应 404)" || FAILED=1
 
 # ─── 测试 6: 数据库故障恢复 ───
 

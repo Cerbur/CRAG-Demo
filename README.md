@@ -24,13 +24,18 @@ docker compose up -d --build
 
 等待健康检查通过（约 90 秒，首次需下载模型约 2 分钟）。
 
-> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL、Redis 和 Sidecar。RAG 兼容 HTTP 入口在 `localhost:8082`。
+> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL、Redis 和 Sidecar。`rag-service`（8082）承载 RAG 运行时与 gRPC，默认不暴露业务 HTTP；RAG 写入与问答的 HTTP 验证入口统一在 `smoke` Profile 下的 `rag-service-smoke`（8083），使用 `/api/v1/smoke/**` 前缀。
 
 ### 写入知识 + 发起问答
 
+默认 `docker compose up` 的 `rag-service`（8082）只暴露健康检查与 gRPC；RAG 写入与问答的 HTTP 验证入口在 `smoke` Profile 下。先启动 smoke 实例再调用 `/api/v1/smoke/**`：
+
 ```bash
+# 启动 RAG smoke 验证实例（端口 8083，承载 /api/v1/smoke/** 验证端点）
+docker compose --profile smoke up -d --build rag-service-smoke
+
 # 1. 写入一篇中文知识
-curl -X POST http://localhost:8082/api/v1/admin/rag \
+curl -X POST http://localhost:8083/api/v1/smoke/admin/rag \
   -H "Content-Type: application/json" \
   -d '{"title":"RAG 介绍","content":"RAG（检索增强生成）是一种结合信息检索与文本生成的技术架构。它先从知识库中检索相关文档片段，再将这些片段作为上下文交给大语言模型生成答案，从而有效减少幻觉、提升回答的事实准确性。"}'
 
@@ -38,7 +43,7 @@ curl -X POST http://localhost:8082/api/v1/admin/rag \
 sleep 10
 
 # 3. 发起问答
-curl -X POST http://localhost:8082/api/v1/query \
+curl -X POST http://localhost:8083/api/v1/smoke/query \
   -H "Content-Type: application/json" \
   -d '{"question":"什么是 RAG？"}'
 ```
@@ -51,8 +56,8 @@ curl -X POST http://localhost:8082/api/v1/query \
 | --- | --- | --- |
 | `console-api` | 8080 | Console HTTP 入口 |
 | `open-api` | 8081 | Open HTTP 入口 |
-| `rag-service` | 8082 | RAG 兼容 HTTP 入口（AdminRag/UserQuery） |
-| `rag-service-smoke` | 8083 | Smoke 诊断（Profile 激活） |
+| `rag-service` | 8082 | RAG 运行时（健康检查 + gRPC；默认不暴露业务 HTTP） |
+| `rag-service-smoke` | 8083 | RAG smoke 验证（`/api/v1/smoke/**`，需 smoke Profile） |
 
 ### Smoke 诊断模式
 
@@ -63,7 +68,7 @@ Smoke 模式提供分阶段诊断端点，需显式 Profile 激活：
 docker compose --profile smoke up -d --build rag-service-smoke
 
 # 验证全链路
-curl http://localhost:8083/api/v1/test/smoke
+curl http://localhost:8083/api/v1/smoke/test/smoke
 ```
 
 ## 🗺️ 全链路架构
@@ -76,46 +81,46 @@ curl http://localhost:8083/api/v1/test/smoke
 
 ### 写入链路（图上左侧）
 
-**① 文档入库** `POST /api/v1/admin/rag` → `crag-ingestion`
+**① 文档入库** `POST /api/v1/smoke/admin/rag` → `crag-rag-service`
 
 你上传的文本存入 `document` 表，状态标记 `PENDING_CHUNK`。文档与 Chunk 的业务 ID 由 `crag-id` 以 Snowflake `BIGINT` 分配（HTTP 边界以 decimal string 输出，避免前端精度损失）。
-👉 代码入口：`crag-api` Controller → `crag-ingestion` AdminRagService
+👉 代码入口：`crag-rag-service` Controller → `crag-rag-service` AdminRagService
 
 **② 文档分块** Cron: `DocChunkSplitListener`
 
 定时扫描待处理的文档，按句子边界切分为 Chunk，写入 `chunk` 表。
-👉 代码入口：`crag-ingestion` / Cron / DocChunkSplitListener
+👉 代码入口：`crag-rag-service` / Cron / DocChunkSplitListener
 
 **③ 索引构建** Cron: `SparseIndexListener` + `DenseIndexListener`
 
 Chunk 变更后，分别构建：
 - **Dense 向量索引**：调用 Python Sidecar `/embed`（gte 中文模型）→ 写入 pgvector
 - **Sparse 全文索引**：分词后写入 `sparse_index` 表
-👉 代码入口：`crag-ingestion` / Cron，Sidecar 交互见 `crag-retrieval` EmbeddingClient
+👉 代码入口：`crag-rag-service` / Cron，Sidecar 交互见 `crag-rag-service` EmbeddingClient
 
 ### 查询链路（图上右侧）
 
-**④ 双路召回** `POST /api/v1/query` → `crag-retrieval`
+**④ 双路召回** `POST /api/v1/smoke/query` → `crag-rag-service`
 
 用户问题同时走两路：
 - **Dense 语义召回**：问题向量化 → pgvector 余弦相似度 Top-K
 - **Sparse 关键词召回**：分词 → 全文检索 Top-K
-👉 代码入口：`crag-retrieval` / SparseRetrievalService、DenseRetrievalService
+👉 代码入口：`crag-rag-service` / SparseRetrievalService、DenseRetrievalService
 
-**⑤ RRF 融合** `crag-retrieval` / RRF
+**⑤ RRF 融合** `crag-rag-service` / RRF
 
 Reciprocal Rank Fusion 合并双路结果，去重后重排。
-👉 代码入口：`crag-retrieval` / RrfService
+👉 代码入口：`crag-rag-service` / RrfService
 
-**⑥ Rerank 重排序** `crag-retrieval` → Sidecar `/rerank`
+**⑥ Rerank 重排序** `crag-rag-service` → Sidecar `/rerank`
 
 用 bge-reranker-v2-m3 模型对候选 Chunk 精排，取 Top-N。
-👉 代码入口：`crag-retrieval` / RerankClient
+👉 代码入口：`crag-rag-service` / RerankClient
 
-**⑦ LLM 生成** `crag-query` → LLM
+**⑦ LLM 生成** `crag-rag-service` → LLM
 
 精排后的 Chunk 作为 Context 拼入 Prompt，调用 LLM 生成最终答案 + 来源引用。
-👉 代码入口：`crag-query` / QueryService → LLM Client
+👉 代码入口：`crag-rag-service` / QueryService → LLM Client
 
 ### 一张图总结
 
@@ -132,28 +137,22 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 ## 📦 项目结构
 
 ```
-├── crag-common/      # 跨模块共享：统一响应结构、基础异常类型
-├── crag-id/          # 分布式 Snowflake ID 基础设施：发号、Redis Worker 租约、时钟回拨处理
-├── crag-storage/     # 持久层：JPA Entity、Repository、DAO、表结构（schema.sql）
-├── crag-ingestion/   # 写入链路：AdminRag、ChunkSplit、Sparse/Dense 索引 Cron
-├── crag-retrieval/   # 检索层：Sparse/Dense 查询、RRF 融合、Rerank、Embedding Client
-├── crag-query/       # 查询编排：UserQuery、Prompt 组装、LLM 调用
-├── crag-api/         # HTTP 层：Controller、请求 DTO、异常映射
-├── crag-smoke/       # Smoke 诊断：独立 Profile 的诊断端点与验证脚本
+├── crag-common/              # 跨模块共享：统一响应结构、基础异常类型
+├── crag-id/                  # 分布式 Snowflake ID 基础设施：发号、Redis Worker 租约、时钟回拨处理
 ├── crag-platform-contracts/  # 跨领域通用 Protobuf 基础契约（Platform Probe）
-├── crag-grpc-runtime/       # 协议无关 gRPC Server/Client 生命周期、认证、Health
-├── crag-rag-service/        # RAG 业务组合根、兼容 HTTP 所有者、gRPC Server
-├── crag-access-service/     # Access 组合根、gRPC Server、Schema readiness
-├── crag-knowledge-service/  # Knowledge 组合根、gRPC Server、Schema readiness
-├── crag-console-api/        # Console HTTP 入口、下游 Probe readiness
-├── crag-open-api/           # Open HTTP 入口、下游 Probe readiness
-├── sidecar/          # Python 模型 Sidecar：/embed（gte）、/rerank（bge-reranker）
-├── plan/             # 项目规划文档与设计决策
-├── constraints/      # 编码规范与架构约束
-└── scripts/          # 运维与验收脚本
+├── crag-grpc-runtime/        # 协议无关 gRPC Server/Client 生命周期、认证、Health
+├── crag-rag-service/         # RAG 业务组合根：storage/retrieval/query/ingestion 内部包 + smoke 验证 HTTP + gRPC Server
+├── crag-access-service/      # Access 组合根、gRPC Server、Schema readiness
+├── crag-knowledge-service/   # Knowledge 组合根、gRPC Server、Schema readiness
+├── crag-console-api/         # Console HTTP 入口、下游 Probe readiness
+├── crag-open-api/            # Open HTTP 入口、下游 Probe readiness
+├── sidecar/                  # Python 模型 Sidecar：/embed（gte）、/rerank（bge-reranker）
+├── plan/                     # 项目规划文档与设计决策
+├── constraints/              # 编码规范与架构约束
+└── scripts/                  # 运维与验收脚本
 ```
 
-> 💡 **学习路径**：建议从 `crag-api`（HTTP 入口）→ `crag-query`（核心编排）→ `crag-retrieval`（检索细节）→ `crag-ingestion`（写入链路）的顺序阅读代码。
+> 💡 **学习路径**：建议从 `crag-rag-service` 的 smoke Controller（HTTP 验证入口）→ query 包（核心编排）→ retrieval 包（检索细节）→ ingestion 包（写入链路）的顺序阅读代码。
 
 ## 🛠️ 技术栈
 

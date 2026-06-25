@@ -107,7 +107,7 @@ wait_for_app() {
     sleep 5
     waited=$((waited + 5))
     local resp
-    resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/query" 2>/dev/null || echo "000")
+    resp=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$BASE_URL/api/v1/smoke/query" 2>/dev/null || echo "000")
     if [[ "$resp" =~ ^[245][0-9][0-9]$ ]]; then
       echo "  rag-service ready after ${waited}s (HTTP $resp)"
       return 0
@@ -135,7 +135,7 @@ echo "DEEPSEEK_API_KEY is set (value hidden)"
 
 # Quick reachability check (informational only)
 echo "--- Phase 0: Pre-flight reachability check ---"
-HEALTH_CHECK=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$BASE_URL/api/v1/query" 2>/dev/null || echo "unreachable")
+HEALTH_CHECK=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$BASE_URL/api/v1/smoke/query" 2>/dev/null || echo "unreachable")
 if [ "$HEALTH_CHECK" = "unreachable" ]; then
   echo "WARNING: $BASE_URL appears unreachable — may fail later if services not running"
 else
@@ -171,7 +171,7 @@ fi
 # ── Phase 1a: Write test data via AdminRag ──
 echo ""
 echo "--- Phase 1a: Write test data via AdminRag (stub mode) ---"
-http_post "$BASE_URL/api/v1/admin/rag" \
+http_post "$BASE_URL/api/v1/smoke/admin/rag" \
   "{\"title\":\"deepseek-accept-${RUN_ID}\",\"content\":\"${VERIFICATION_CODE} CRAG-Demo 是一个基于 RAG 的问答机器人，使用 PostgreSQL 数据库和 pgvector 向量扩展进行混合检索。\"}" \
   "AdminRag write"
 
@@ -203,7 +203,7 @@ while [ $INDEX_ATTEMPT -lt $MAX_INDEX_ATTEMPTS ]; do
   sleep 3
 
   # Poll query — Stub mode, so NO real LLM call, but Retrieval + sources are real
-  INDEX_RESP=$(curl -s -X POST "$BASE_URL/api/v1/query" \
+  INDEX_RESP=$(curl -s -X POST "$BASE_URL/api/v1/smoke/query" \
     -H "Content-Type: application/json" \
     -d "{\"question\":\"${VERIFICATION_CODE} 使用什么数据库？\"}" || echo '{"code":-1}')
   INDEX_CODE=$(json_code "$INDEX_RESP")
@@ -275,7 +275,7 @@ fi
 echo ""
 echo "=== Phase 3: Execute single DeepSeek query (exactly 1 real API call) ==="
 
-QUERY_RAW=$(curl -s -w '\n%{http_code}' -X POST "$BASE_URL/api/v1/query" \
+QUERY_RAW=$(curl -s -w '\n%{http_code}' -X POST "$BASE_URL/api/v1/smoke/query" \
   -H "Content-Type: application/json" \
   -d "{\"question\":\"${VERIFICATION_CODE} CRAG-Demo 使用什么数据库？\"}" || printf '{"code":-1}\n000')
 
@@ -537,7 +537,7 @@ fi
 # Confirm stub success mode works
 echo ""
 echo "--- Confirm stub success mode ---"
-http_post_raw "$BASE_URL/api/v1/query" "{\"question\":\"确认恢复问题\"}" "Query in restored stub mode"
+http_post_raw "$BASE_URL/api/v1/smoke/query" "{\"question\":\"确认恢复问题\"}" "Query in restored stub mode"
 RESTORE_CODE=$(json_code "$RESP_BODY")
 if [ "$RESTORE_CODE" = "0" ]; then
   echo "PASS: Restored stub success mode confirmed (code=0)"

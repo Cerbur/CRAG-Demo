@@ -49,7 +49,7 @@ TITLE="contract-test-$RUN_ID"
 CONTENT="Contract test content for $RUN_ID"
 
 RESPONSE=$(curl -s -w "\n%{http_code}" \
-  -X POST "$BASE_URL/api/v1/admin/rag" \
+  -X POST "$BASE_URL/api/v1/smoke/admin/rag" \
   -H "Content-Type: application/json" \
   -d "{\"title\": \"$TITLE\", \"content\": \"$CONTENT\"}")
 
@@ -121,7 +121,7 @@ echo ""
 echo "--- 2. Bean Validation Failure ---"
 
 VALIDATION_RESPONSE=$(curl -s -w "\n%{http_code}" \
-  -X POST "$BASE_URL/api/v1/admin/rag" \
+  -X POST "$BASE_URL/api/v1/smoke/admin/rag" \
   -H "Content-Type: application/json" \
   -d '{}')
 

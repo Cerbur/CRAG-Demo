@@ -17,7 +17,7 @@ echo "RUN_ID=$RUN_ID"
 
 # 1. /smoke — 基础连通性
 echo "--- /smoke ---"
-resp=$(curl -s "$BASE_URL/api/v1/test/smoke" || echo '{"code":-1}')
+resp=$(curl -s "$BASE_URL/api/v1/smoke/test/smoke" || echo '{"code":-1}')
 code=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
 if [ "$code" = "0" ]; then
   echo "PASS: /smoke code=$code"
@@ -28,7 +28,7 @@ fi
 
 # 2. /chunk — 写入
 echo "--- /chunk ---"
-resp=$(curl -s -X POST "$BASE_URL/api/v1/test/chunk" \
+resp=$(curl -s -X POST "$BASE_URL/api/v1/smoke/test/chunk" \
   -H "Content-Type: application/json" \
   -d "{\"title\":\"smoke test $RUN_ID\",\"content\":\"smoke test content for verification $RUN_ID\"}" || echo '{"code":-1}')
 code=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
@@ -41,7 +41,7 @@ fi
 
 # 3. /retrieval — 检索全链路
 echo "--- /retrieval ---"
-resp=$(curl -s "$BASE_URL/api/v1/test/retrieval?query=test&topN=3" || echo '{"code":-1}')
+resp=$(curl -s "$BASE_URL/api/v1/smoke/test/retrieval?query=test&topN=3" || echo '{"code":-1}')
 code=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
 if [ "$code" = "0" ]; then
   echo "PASS: /retrieval code=$code"

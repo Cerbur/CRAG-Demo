@@ -61,7 +61,7 @@ json_code() {
 # ── 1. Write a document via AdminRag API ──
 echo ""
 echo "--- 1. Write test document via AdminRag ---"
-http_post "$BASE_URL/api/v1/admin/rag" \
+http_post "$BASE_URL/api/v1/smoke/admin/rag" \
   "{\"title\":\"query-test-${RUN_ID}\",\"content\":\"${VERIFICATION_CODE} 项目使用 PostgreSQL 和 pgvector 进行向量存储和混合检索。\"}" \
   "AdminRag write"
 
@@ -89,7 +89,7 @@ QUERY_CODE=""
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
   ATTEMPT=$((ATTEMPT + 1))
   sleep 3
-  QUERY_RESP=$(curl -s -X POST "$BASE_URL/api/v1/query" \
+  QUERY_RESP=$(curl -s -X POST "$BASE_URL/api/v1/smoke/query" \
     -H "Content-Type: application/json" \
     -d "{\"question\":\"${VERIFICATION_CODE} 使用什么数据库？\"}" || echo '{"code":-1}')
   QUERY_CODE=$(json_code "$QUERY_RESP")
