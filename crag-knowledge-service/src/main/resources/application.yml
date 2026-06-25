@@ -15,7 +15,8 @@ spring:
     show-sql: false
   sql:
     init:
-      mode: never
+      mode: always
+      schema-locations: classpath:schema-knowledge.sql
 
 crag:
   grpc:

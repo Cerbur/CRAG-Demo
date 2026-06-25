@@ -32,7 +32,7 @@ import org.springframework.web.client.RestClient;
       "spring.datasource.driver-class-name=org.h2.Driver",
       "spring.datasource.username=sa",
       "spring.sql.init.mode=always",
-      "spring.sql.init.schema-locations=classpath:schema-event-smoke.sql",
+      "spring.sql.init.schema-locations=classpath:schema-knowledge.sql",
       "crag.event.consumer.consumer-name=knowledge-smoke-1"
     })
 @DisplayName("KnowledgeEventSmokeController")
