@@ -141,6 +141,7 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 ├── crag-id/                  # 分布式 Snowflake ID 基础设施：发号、Redis Worker 租约、时钟回拨处理
 ├── crag-platform-contracts/  # 跨领域通用 Protobuf 基础契约（Platform Probe）
 ├── crag-grpc-runtime/        # 协议无关 gRPC Server/Client 生命周期、认证、Health
+├── crag-event/               # 领域无关可靠事件基础设施：Outbox、processed_event、Redis Streams、ACK/Reclaim/DLQ
 ├── crag-rag-service/         # RAG 业务组合根：storage/retrieval/query/ingestion 内部包 + smoke 验证 HTTP + gRPC Server
 ├── crag-access-service/      # Access 组合根、gRPC Server、Schema readiness
 ├── crag-knowledge-service/   # Knowledge 组合根、gRPC Server、Schema readiness
@@ -163,7 +164,7 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 | 构建 | Gradle (Kotlin DSL) | 多模块项目统一管理 |
 | ORM | Spring Data JPA | 基于 Hibernate 的声明式持久层 |
 | 向量库 | PostgreSQL 17 + pgvector | 向量存储、余弦相似度检索 |
-| 协调 | Redis 7.4 | Snowflake ID Worker 租约（ID 基础设施，非业务缓存/事件总线） |
+| 协调 | Redis 7.4 | Snowflake ID Worker 租约 + Redis Streams 可靠事件传输（传输层，非业务事实来源） |
 | 嵌入模型 | gte (GTE Chinese) | 中文句向量，Python Sidecar 托管 |
 | 重排模型 | bge-reranker-v2-m3 | 跨语言重排序，Python Sidecar 托管 |
 | LLM | Stub / DeepSeek | Stub 免 Key 调试；DeepSeek 生产可用 |

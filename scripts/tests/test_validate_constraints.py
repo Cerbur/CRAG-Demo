@@ -367,5 +367,36 @@ class TestCheckDockerPersistencePath(unittest.TestCase):
             self.assertEqual([], diags)
 
 
+class TestCheckRedisStreamsRole(unittest.TestCase):
+    def _docker_doc(self, root: Path) -> Path:
+        d = root / "constraints"
+        d.mkdir(parents=True, exist_ok=True)
+        return d / "docker-structure.md"
+
+    def test_pass_mentions_redis_streams(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._docker_doc(root).write_text(
+                "### 5.1 `redis` — Worker Lease\n\n"
+                "| 持久化 | 无（Worker lease 与 Redis Streams 事件传输） |\n\n"
+                "### 5.2 `db`\n",
+                encoding="utf-8",
+            )
+            diags = vc.check_redis_streams_role(root)
+            self.assertEqual([], diags)
+
+    def test_fail_omits_redis_streams(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._docker_doc(root).write_text(
+                "### 5.1 `redis` — Worker Lease\n\n"
+                "| 持久化 | 无（仅 Worker lease，非业务数据） |\n\n"
+                "### 5.2 `db`\n",
+                encoding="utf-8",
+            )
+            diags = vc.check_redis_streams_role(root)
+            self.assertTrue(any(d.code == "REDIS_ROLE_DRIFT" for d in diags))
+
+
 if __name__ == "__main__":
     unittest.main()

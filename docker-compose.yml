@@ -138,6 +138,48 @@ services:
     networks:
       - crag-net
 
+  # --- Knowledge Service Smoke (Profile) ---
+  # plan_17: smoke-only event closed loop. Runs crag-knowledge-service under the smoke profile with
+  # the crag-event publisher/consumer enabled and Redis Streams transport. Default startup does not
+  # bring this service up; activate via `docker compose --profile smoke up`.
+  knowledge-service-smoke:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        SERVICE_MODULE: crag-knowledge-service
+    container_name: crag-knowledge-service-smoke
+    ports:
+      - "8094:8092"
+    environment:
+      SPRING_PROFILES_ACTIVE: smoke
+      SPRING_APPLICATION_JSON: >
+        {
+          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge",
+          "spring.datasource.username": "crag_knowledge",
+          "spring.datasource.password": "${CARG_KNOWLEDGE_PASSWORD:-knowledge_demo}",
+          "spring.data.redis.host": "redis",
+          "spring.data.redis.port": 6379,
+          "crag.event.claim-idle": "5s",
+          "crag.event.max-deliveries": 3,
+          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}"
+        }
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8092/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - crag-net
+    profiles:
+      - smoke
+
   # --- RAG Service ---
   rag-service:
     build:

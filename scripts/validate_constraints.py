@@ -416,6 +416,36 @@ def check_docker_persistence_path(root: Path) -> list[Diagnostic]:
 
 
 # ---------------------------------------------------------------------------
+# Check 7 – Redis Streams role drift
+# ---------------------------------------------------------------------------
+
+def check_redis_streams_role(root: Path) -> list[Diagnostic]:
+    """Ensure docker-structure.md documents Redis as carrying Redis Streams event transport.
+
+    plan_17 extended Redis to carry event streams alongside Worker lease; this check prevents the
+    constraint from regressing to "Redis does not carry events".
+    """
+    doc = root / "constraints" / "docker-structure.md"
+    if not doc.exists():
+        return []
+    text = doc.read_text(encoding="utf-8")
+    redis_section = re.search(
+        r"^###\s+5\.1\s+`redis`.*?(?=^###\s)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if redis_section and "Redis Streams" not in redis_section.group(0):
+        return [
+            Diagnostic(
+                "ERROR",
+                "REDIS_ROLE_DRIFT",
+                "constraints/docker-structure.md 5.1 redis 必须声明承载 Redis Streams 事件传输。",
+            )
+        ]
+    return []
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -430,6 +460,7 @@ def validate(root: Path) -> list[Diagnostic]:
     diagnostics.extend(check_topology_critical_assertions(root))
     diagnostics.extend(check_topology_three_account_coverage(root))
     diagnostics.extend(check_docker_persistence_path(root))
+    diagnostics.extend(check_redis_streams_role(root))
     return diagnostics
 
 

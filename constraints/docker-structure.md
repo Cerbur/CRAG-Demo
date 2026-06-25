@@ -24,16 +24,17 @@
 
 | 服务 | 职责 | 禁止事项 |
 | --- | --- | --- |
-| `redis` | Redis 7.4，提供 Snowflake ID Worker lease（不承载业务数据、缓存或事件） | 禁止承载业务持久化、缓存或事件总线 |
+| `redis` | Redis 7.4，提供 Snowflake ID Worker lease 与 Redis Streams 事件传输（传输层，非业务事实来源） | 禁止承载业务持久化或缓存；禁止把 Redis 当作业务事实来源 |
 | `db` | PostgreSQL 17 + pgvector，提供持久化与向量检索能力 | 禁止承载业务逻辑 |
 | `model-init` | 一次性下载 Sidecar 所需模型到共享卷，成功后退出 | 禁止伪装健康检查；禁止作为长期服务运行 |
 | `sidecar` | Python 模型推理服务，提供 `/embed` 与 `/rerank` | 禁止承载业务编排或直接访问数据库 |
 | `rag-service` | RAG 业务组合根，承载检索、入库、查询运行时、gRPC Server 与 Platform Probe | 禁止被其他 Application 模块直接依赖；legacy 写入/查询 HTTP 仅在 smoke Profile 下由 rag-service-smoke 暴露 |
 | `access-service` | Access 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
-| `knowledge-service` | Knowledge 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
+| `knowledge-service` | Knowledge 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖；正式 API 不暴露 smoke 事件端点 |
 | `console-api` | Console HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `open-api` | Open HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `rag-service-smoke` | 仅在显式激活 Smoke Profile 时存在的 RAG 诊断实例 | 禁止在默认启动中出现；禁止承载正式业务能力 |
+| `knowledge-service-smoke` | 仅在显式激活 Smoke Profile 时存在的 Knowledge 事件诊断实例（`crag-event` 闭环） | 禁止在默认启动中出现；禁止承载正式业务能力 |
 
 ### 3.2 依赖方向与启动顺序
 
@@ -53,6 +54,7 @@ access / knowledge / rag 健康 → console-api / open-api（健康）
 - `db` 以健康检查通过作为 `access-service` 和 `knowledge-service` 的就绪条件。
 - `console-api` 和 `open-api` 以下游 Platform Probe 通过作为就绪条件。
 - `rag-service-smoke` 的依赖链与 `rag-service` 相同。
+- `knowledge-service-smoke` 的就绪条件为 `db` 健康且 `redis` 健康（Redis Streams 传输需要）。
 
 ### 3.3 健康检查
 
@@ -121,7 +123,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 镜像 | `redis:7.4-alpine` |
 | 容器名 | `crag-redis` |
 | 端口 | 不暴露 |
-| 持久化 | 无（仅 Worker lease，非业务数据） |
+| 持久化 | 无（Worker lease 与 Redis Streams 事件传输；Redis 是传输层，不是业务事实来源） |
 | 健康检查 | `redis-cli ping`，间隔 5s，超时 3s，重试 5 次 |
 | 网络 | `crag-net` |
 
@@ -251,7 +253,23 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | Compose Profile | `smoke` |
 | 网络 | `crag-net` |
 
-### 5.11 网络
+### 5.11 `knowledge-service-smoke` — Knowledge Smoke 事件诊断
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-knowledge-service` |
+| 容器名 | `crag-knowledge-service-smoke` |
+| 端口 | `8094:8092` |
+| Profile | `smoke`（`SPRING_PROFILES_ACTIVE=smoke`） |
+| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge`，账号 `crag_knowledge` |
+| Redis | `redis:6379`（Redis Streams 事件传输） |
+| 事件配置 | `crag.event.publisher.enabled=true`、`crag.event.consumer.enabled=true`、`crag.event.claim-idle=5s`、`crag.event.max-deliveries=3` |
+| 就绪条件 | `db` 健康 且 `redis` 健康 |
+| 健康检查 | `curl http://localhost:8092/actuator/health/readiness` |
+| Compose Profile | `smoke` |
+| 网络 | `crag-net` |
+
+### 5.12 网络
 
 | 属性 | 当前值 |
 | --- | --- |

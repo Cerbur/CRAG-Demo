@@ -286,7 +286,7 @@ ai.cerbur.crag.event
     └── DeadLetterPublisher             — 写入 DLQ stream
 ```
 
-Spring auto-configuration、Knowledge smoke 接入、Docker 回归与约束文档同步由 `plan_17` 后续任务补全。
+`ai.cerbur.crag.event.spring`（EventProperties、EventAutoConfiguration、EventHealthIndicator、EventMetrics 与 `META-INF/spring/...AutoConfiguration.imports`）提供 Spring Boot 自动装配，publisher/consumer 经 `crag.event.*` 显式启用。Knowledge smoke 接入由 `crag-knowledge-service` 的 smoke 包承载。
 
 ### `crag-access-service`
 
