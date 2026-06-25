@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_16
 type: main
-status: verifying
+status: completed
 created: 2026-06-25
 updated: 2026-06-25
 ---
@@ -171,13 +171,13 @@ updated: 2026-06-25
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 16.1 | 合并 RAG 内部业务 packages 到 `crag-rag-service` | ⏳ 待验收 | f40d0eba | — |
-| 16.2 | 迁移 legacy HTTP 为 smoke-only `/api/v1/smoke/**` | ⏳ 待验收 | 5dc0d93a | — |
-| 16.3 | 更新架构规则、约束文档和静态校验器 | ⏳ 待验收 | a4e04cbb | — |
-| 16.4 | 更新 HTTP 回归脚本 URL 与 README 当前事实 | ⏳ 待验收 | 89410552 | — |
-| 16.5 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待验收 | 63edde11 | — |
+| 16.1 | 合并 RAG 内部业务 packages 到 `crag-rag-service` | ✅ 完成 | f40d0eba | 2026-06-25 |
+| 16.2 | 迁移 legacy HTTP 为 smoke-only `/api/v1/smoke/**` | ✅ 完成 | 5dc0d93a | 2026-06-25 |
+| 16.3 | 更新架构规则、约束文档和静态校验器 | ✅ 完成 | a4e04cbb | 2026-06-25 |
+| 16.4 | 更新 HTTP 回归脚本 URL 与 README 当前事实 | ✅ 完成 | 89410552 | 2026-06-25 |
+| 16.5 | 完成全量验证、Plan 交接和索引同步 | ✅ 完成 | 63edde11 | 2026-06-25 |
 
-整体进度：0 / 5（0%）
+整体进度：5 / 5（100%）
 
 ## 16.1 合并 RAG 内部业务 packages 到 `crag-rag-service`
 
@@ -262,6 +262,49 @@ updated: 2026-06-25
   `smoke_endpoints` / `admin_rag_contract` 聚焦脚本覆盖。完整运行留待独立验收。
 - 重建 `rag-service` 与 `rag-service-smoke` 同时进行时会触发上述 schema 竞态导致其一启动失败；
   串行重启可恢复。属既有部署脆弱性，不在本计划范围。
+
+### 独立验收结论（2026-06-25，未参与实现的验收 session）
+
+**结论：通过验收，Plan 标记完成。**
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-25 | 本地 Java 21 / Gradle 9.4.1 | `./gradlew check` | 通过 | BUILD SUCCESSFUL |
+| 2026-06-25 | 本地 | `./gradlew :crag-rag-service:cleanTest :crag-rag-service:test`（强制重跑取新鲜证据） | 通过 | 99 test classes，356 tests，0 failures / 0 errors / 0 skipped（含 ArchitectureTest） |
+| 2026-06-25 | 本地 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error；24 条 P101 警告均为历史 v2 Plan，与本计划无关 |
+| 2026-06-25 | 本地 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v` | 通过 | 55 tests OK |
+| 2026-06-25 | 本地 | rg 残留检查（16.1/16.2/16.4） | 通过 | settings/rag-service build 无被移除 subproject 引用；rag-service src 无 `ai.cerbur.crag.api`/旧 URI；http 脚本与 README 无 `/api/v1/(admin/rag\|query\|test)` |
+| 2026-06-25 | Docker Engine 29.5.2 | `smoke_default_test.sh`（8082 默认 Profile） | 通过 | 四个 `/api/v1/smoke/test/**` 端点全部 404，验证 `@Profile("smoke")` 门控 |
+| 2026-06-25 | Docker | `smoke_endpoints_test.sh`（8083 smoke Profile） | 通过 | `/smoke` `/chunk` `/retrieval` 均 code=0 |
+| 2026-06-25 | Docker | `admin_rag_contract_test.sh`（8083） | 通过 | 写入成功（docId/parentChunkIds decimal string）、Bean Validation 400/40001、未知路径 404/40401 |
+| 2026-06-25 | Docker | `retrieval_evidence_test.sh`（8083） | 通过 | parent evidence matchedChildIds 与真实 child 检索交叉验证一致；稳定排序 |
+| 2026-06-25 | Docker | `query_stub_success_test.sh`（8083） | 通过 | AdminRag 写入 → 索引 → Query 全链路；固定 Stub 答案、parentChunkId/matchedChildIds decimal string |
+| 2026-06-25 | Docker | `query_stub_failure_test.sh`（8083） | 失败（预存缺陷，非本计划引入） | 见下「query_stub_failure 根因复核」 |
+| 2026-06-25 | Docker | `docker_readiness_test.sh` | 部分覆盖（见下说明） | plan_16 相关断言由上述聚焦脚本覆盖；DB 故障恢复/持久化（test 6/7）属 plan_10/plan_15 范围且触发预存 schema 竞态，未全量执行以避免拆栈 |
+| 2026-06-25 | — | `query_deepseek_acceptance_test.sh` | 未执行 | 无 DeepSeek 凭据/额度；本计划未触及 DeepSeek 供应商配置/SDK/协议，真实调用非完成门槛 |
+
+**query_stub_failure 根因复核（独立验证）：**
+
+执行 session 记录该脚本 Docker 回归失败并判断为环境/时序问题、非本计划引入。独立验收复跑确认失败，并定位到**确切的预存测试设计缺陷**，而非时序：
+
+- `UserQueryService.answer()` 在检索证据为空时短路返回 `"知识库证据不足"`（HTTP 200、code=0），**不调用 LLM**（见 `UserQueryService`「Empty context — no LLM call」分支）。
+- 脚本 Phase 1 直接以 `{"question":"测试问题"}` 发起查询，未先写入任何证据文档；该泛化问题命不中已索引文档，evidence 为空 → 短路返回 200，永远到不了 `llmClient.generate()`，故 Stub failure 模式从不触发，无法产生 502。
+- 独立复跑验证：先经 `/api/v1/smoke/admin/rag` 写入含唯一 `verify-fail-*` 标识的文档并等待索引，再在 failure 模式下查询同一问题，得到 `{"code":50201,"result":null,"success":false}` **HTTP 502** —— 证明失败路径在 evidence 存在时完全正确。
+- 失败路径的异常→HTTP 映射另由 `UserQueryControllerComponentTest.llmUnavailableReturns502`（断言 502/50201）覆盖，该测试在本次 356 tests 中通过。
+- `git diff --stat dfe330e 2ff799c2` 显示 plan_16 对 `UserQueryService.java`、`StubLlmAdapter.java` **0 行改动**（纯文件迁移），对 `GlobalExceptionHandler.java` 仅包名 `api→smoke` + `@Profile("smoke")`（4 行机械变更，异常映射 `@ExceptionHandler` 未改动）。
+
+结论：`query_stub_failure_test.sh` 失败是**预存测试脚本缺陷**（Phase 1 未 seed evidence），与本计划无关；plan_16 对该脚本仅做 URL path 迁移（16.4 非目标明确不修改脚本逻辑），迁移后的路径 `/api/v1/smoke/query` 工作正常。建议后续以独立 hotfix 修正脚本的 evidence 准备（参照 `plan_10.hotfix_1` 先例），不阻塞本计划验收。
+
+**docker_readiness 复核：**
+
+脚本中 plan_16 相关断言（test 3：8082 默认 `/api/v1/smoke/test/**` → 404；test 5：8083 smoke → 200；test 4：经 8083 `/api/v1/smoke/admin/rag` 写入）已被 `smoke_default_test.sh`、`smoke_endpoints_test.sh`、`admin_rag_contract_test.sh` 聚焦脚本覆盖且通过，并实测 `rag-service`(8082) 与 `rag-service-smoke`(8083) 并存 healthy。test 6（DB 故障恢复）与 test 7（持久化）验证 plan_10/plan_15 的基础设施行为，不受 plan_16 影响，且触发预存 schema 并发竞态（`spring.sql.init.mode=always` + 非幂等 `schema.sql` + 两实例共享 rag schema）；全量执行会 `docker compose down` 拆除运行栈且不新增 plan_16 证据，故未全量执行。
+
+**关键证据：**
+
+- 运行中的 `rag-service`(8082) 与 `rag-service-smoke`(8083) 镜像即为 plan_16 代码：旧代码服务 `/api/v1/admin/rag` 等正式路径，而当前镜像默认 8082 对 `/api/v1/smoke/test/**` 返回 404、smoke 8083 返回 200，正是 plan_16 的 `@Profile("smoke")` 门控结果。
+- 六个被合并 subproject（`crag-storage`/`crag-retrieval`/`crag-query`/`crag-ingestion`/`crag-api`/`crag-smoke`）已从 `settings.gradle.kts` 移除且无 `build.gradle.kts` 残留；`ai.cerbur.crag.api` 生产包不存在；`storage`/`retrieval`/`query`/`ingestion` package 名保持稳定。
+- Mockito MockMaker 资源位于 `crag-rag-service/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker`，内容为 `mock-maker-inline`（与变更记录一致）。
+- 工作区无 plan_16 未提交变更（验收提交前）。
 
 ## 阻塞记录
 
