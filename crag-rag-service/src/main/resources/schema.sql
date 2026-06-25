@@ -46,9 +46,13 @@ CREATE TABLE chunk_embedding (
     updated_at  TIMESTAMP DEFAULT NOW()              -- 最后更新时间
 );
 
--- IVFFlat 索引：余弦相似度，数据量上万后考虑切 HNSW
+-- HNSW 索引：余弦相似度（vector_cosine_ops）。HNSW 在 INSERT 时增量维护图，
+-- 不存在「空表建索引、之后插入的向量无法被 ANN 检索」的失效问题——ivfflat 在
+-- 空表上建索引时 k-means 无中心，会导致 ORDER BY embedding <=> q LIMIT 的查询
+-- 返回 0 行（见 plan_6.hotfix_7.1）。采用 pgvector 默认构建参数（m / ef_construction）
+-- 与查询 ef_search，对 demo 数据量结果等价精确。
 CREATE INDEX IF NOT EXISTS idx_chunk_embedding_vector
-    ON chunk_embedding USING ivfflat (embedding vector_cosine_ops);
+    ON chunk_embedding USING hnsw (embedding vector_cosine_ops);
 
 -- ============================================================
 -- Chunk FTS 表（Sparse 全文检索，与 chunk 主表解耦）
