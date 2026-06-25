@@ -9,6 +9,7 @@ set -euo pipefail
 
 TIMEOUT=120
 CONTAINER="crag-knowledge-service"
+SERVICE="knowledge-service"
 
 echo "=== Event Smoke Default Disabled Test ==="
 
@@ -29,7 +30,8 @@ if [ "$health" != "healthy" ]; then
 fi
 
 # 容器内访问 smoke 端点，应返回 404（默认未注册）。
-status=$(docker compose exec -T "$CONTAINER" \
+# docker compose exec 解析的是 service 名而非 container 名，故用 $SERVICE。
+status=$(docker compose exec -T "$SERVICE" \
   curl -s -o /dev/null -w "%{http_code}" "http://localhost:8092/api/v1/smoke/events/test" || echo "000")
 
 if [ "$status" = "404" ]; then

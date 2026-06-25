@@ -68,12 +68,29 @@ public class RedisTemplateStreamOps implements RedisStreamOps {
     try {
       redis.opsForStream().createGroup(streamKey, ReadOffset.from("0"), group);
     } catch (org.springframework.data.redis.RedisSystemException e) {
-      String message = e.getMessage();
-      if (message != null && message.contains("BUSYGROUP")) {
+      if (isBusyGroup(e)) {
         return;
       }
       throw e;
     }
+  }
+
+  /**
+   * Returns true when the exception (or any wrapped cause) reports a Redis {@code BUSYGROUP}, i.e.
+   * the consumer group already exists. Spring Data Redis wraps Lettuce's {@code RedisBusyException}
+   * inside a {@code RedisSystemException} whose own message is the generic {@code "Error in
+   * execution"}, so the whole cause chain must be inspected rather than just the top-level message.
+   */
+  private static boolean isBusyGroup(Throwable error) {
+    Throwable current = error;
+    while (current != null) {
+      String message = current.getMessage();
+      if (message != null && message.contains("BUSYGROUP")) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
   }
 
   @Override

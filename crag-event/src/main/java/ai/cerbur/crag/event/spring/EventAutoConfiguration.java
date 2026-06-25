@@ -38,8 +38,21 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
  * dedicated single-thread schedulers; a consumer with no registered {@link EventHandler} starts but
  * does not poll, logging once per tick. Real Redis and PostgreSQL behaviour is exercised by the
  * Docker HTTP regressions.
+ *
+ * <p>This configuration is ordered after the framework infra auto-configurations that create the
+ * beans its {@code @ConditionalOnBean} members depend on ({@code DataSource}, {@code JdbcTemplate},
+ * {@code StringRedisTemplate}, {@code MeterRegistry}). Without that ordering the conditions
+ * evaluate before those beans are registered, so every event bean is skipped and the closed loop
+ * silently never runs. FQN strings are used (not class refs) so this library does not
+ * compile-couple to the framework autoconfigure packages and survives their repackaging.
  */
-@AutoConfiguration
+@AutoConfiguration(
+    afterName = {
+      "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
+      "org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration",
+      "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration",
+      "org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration"
+    })
 @EnableConfigurationProperties(EventProperties.class)
 public class EventAutoConfiguration {
 
