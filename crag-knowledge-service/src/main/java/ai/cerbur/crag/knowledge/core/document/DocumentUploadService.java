@@ -63,7 +63,7 @@ public class DocumentUploadService {
 
   /** 完成上传：固化 sha256/大小，校验内容，原子落盘，同事务创建 Document 与 FileObject。任何失败均清理本次文件并抛出，事务回滚不留下业务记录。 */
   @Transactional
-  public DocumentUploadResult complete(UploadHandle handle) {
+  public DocumentResult complete(UploadHandle handle) {
     CompletedUpload completed = finishQuietlyOnFailure(handle);
     String storageKey = null;
     try {
@@ -85,7 +85,7 @@ public class DocumentUploadService {
       fileObjectDao.insert(
           FileObjectEntity.create(
               doc.getDocId(), storageKey, completed.sizeBytes(), completed.sha256()));
-      return DocumentUploadResult.of(
+      return new DocumentResult(
           doc.getDocId(),
           handle.command().tenantId(),
           handle.command().knowledgeBaseId(),
@@ -95,7 +95,9 @@ public class DocumentUploadService {
           completed.sizeBytes(),
           completed.sha256(),
           doc.getIngestionStatus(),
-          doc.getOperationVersion());
+          doc.getOperationVersion(),
+          DocumentResult.epochMillis(doc.getCreatedAt()),
+          DocumentResult.epochMillis(doc.getUpdatedAt()));
     } catch (RuntimeException e) {
       cleanup(completed, storageKey);
       throw e;

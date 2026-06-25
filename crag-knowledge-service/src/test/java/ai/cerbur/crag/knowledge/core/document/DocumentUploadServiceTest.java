@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,7 +77,7 @@ class DocumentUploadServiceTest {
             1L, 10L, 100L, "doc.txt", FileType.TXT, content.length, sha256(content));
     UploadHandle handle = service.begin(command);
     service.append(handle, content, 0, content.length);
-    DocumentUploadResult result = service.complete(handle);
+    DocumentResult result = service.complete(handle);
 
     assertThat(result.docId()).isEqualTo(42L);
     assertThat(result.sizeBytes()).isEqualTo(content.length);
@@ -150,6 +151,9 @@ class DocumentUploadServiceTest {
     when(entity.getDocId()).thenReturn(docId);
     when(entity.getIngestionStatus()).thenReturn(DocumentEntity.INGESTION_STATUS_PENDING);
     when(entity.getOperationVersion()).thenReturn(DocumentEntity.INITIAL_OPERATION_VERSION);
+    LocalDateTime now = LocalDateTime.now();
+    when(entity.getCreatedAt()).thenReturn(now);
+    when(entity.getUpdatedAt()).thenReturn(now);
     return entity;
   }
 
