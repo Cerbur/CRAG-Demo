@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_6.hotfix_7.2 独立验收通过：Sparse searchFts OR partial-match 修复经 Docker 回归 query_stub/retrieval_evidence 双 PASS、psql 边界对比 OR=1 vs 旧 AND=0、独立 sparse=1 证据确认；整份 plan_6.hotfix_7（7.1 Dense ivfflat→hnsw + 7.2 Sparse AND→OR）完成，移出验收队列）
+> 最后更新：2026-06-25（新增 plan_16：RAG Service Module 收口与 Smoke HTTP 入口重整，进入执行队列）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -64,6 +64,8 @@ plan/
 │   └── plan_14.md
 ├── plan_15/
 │   └── plan_15.md
+├── plan_16/
+│   └── plan_16.md
 └── plan_archive/
     └── README.md
 ```
@@ -90,12 +92,14 @@ plan/
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
 | plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | ✅ 完成 (14/14) | — | [plan_14.md](../plan_14/plan_14.md) |
 | plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | ✅ 完成 (5/5) | — | [plan_15.md](../plan_15/plan_15.md) |
+| plan_16 | RAG Service Module 收口与 Smoke HTTP 入口重整，合并 RAG 内部 subproject 并将 legacy HTTP 迁入 smoke namespace | 🟡 待开始 (0/5) | — | [plan_16.md](../plan_16/plan_16.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
+plan_16 — RAG Service Module 收口与 Smoke HTTP 入口重整
 plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
 ```
 
@@ -237,6 +241,12 @@ plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_15.md](../plan_15/plan_15.md) | 分布式 Snowflake ID、Redis Worker 租约、时钟回拨处理与 RAG `docId/chunkId/parentChunkId` 冷切换 | ✅ 完成 (5/5) |
+
+## Plan_16 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_16.md](../plan_16/plan_16.md) | RAG Service Module 收口与 Smoke HTTP 入口重整，合并 `crag-storage` / `crag-retrieval` / `crag-query` / `crag-ingestion` / `crag-api` / `crag-smoke` 到 `crag-rag-service` 并统一 legacy HTTP smoke URI | 🟡 待开始 (0/5) |
 
 ---
 

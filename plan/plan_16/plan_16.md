@@ -1,0 +1,249 @@
+---
+workflow_version: 3
+plan_id: plan_16
+type: main
+status: ready
+created: 2026-06-25
+updated: 2026-06-25
+---
+
+# plan_16 — RAG Service Module 收口与 Smoke HTTP 入口重整
+
+> **For agentic workers:** 执行本计划必须先读取 `skill/execute-crag-plan/SKILL.md`；实现步骤使用测试先行、任务级提交和独立验收交接。
+
+**Goal**：将 RAG 内部能力从多个 Gradle subproject 收口到 `crag-rag-service`，并把现有写入/Query HTTP 入口转为 `smoke` Profile 下的验证能力。
+
+**Architecture**：`crag-rag-service` 成为唯一 RAG Gradle module，拥有 storage、retrieval、query、ingestion、smoke 和 rag app package。`crag-console-api` 与 `crag-open-api` 保持为未来正式 HTTP 入口；当前 legacy RAG 写入和 Query HTTP 行为只保留为 `/api/v1/smoke/**` 验证端点。Gradle module 边界被 package + ArchUnit 规则替代，业务行为不做重写。
+
+**Tech Stack**：Java 21、Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0、Gradle 9.4.1、PostgreSQL 17、Docker Compose、ArchUnit、Spotless。
+
+## 全局实现约束
+
+- `crag-rag-service` 是唯一 RAG Gradle module；`crag-storage`、`crag-retrieval`、`crag-query`、`crag-ingestion`、`crag-api`、`crag-smoke` 必须从 `settings.gradle.kts` 移除。
+- `ai.cerbur.crag.storage`、`ai.cerbur.crag.retrieval`、`ai.cerbur.crag.query`、`ai.cerbur.crag.ingestion` package 名保持稳定，避免无收益 import churn。
+- 现有写入与 Query HTTP 行为不再是正式 API，只能作为 `smoke` Profile 下的验证入口。
+- 所有 legacy RAG HTTP 验证 URI 使用 `/api/v1/smoke/**` 前缀。
+- HTTP 回归脚本只允许替换 URL path；不得修改请求体、断言、等待、清理、执行顺序或业务判断。
+- 不改造 ingestion、retrieval、query、storage、LLM、Embedding、Sparse、Dense、RRF 或 Rerank 的业务语义。
+- 新增或迁移 Java 代码遵守 `constraints/code-style.md`；HTTP 边界遵守更新后的 `constraints/api-style.md`；持久化遵守 `constraints/persistence-style.md`；测试遵守 `constraints/test-workflow.md`。
+
+## 背景与目标
+
+当前 RAG 实现分散在 `crag-storage`、`crag-retrieval`、`crag-query`、`crag-ingestion`、`crag-api` 和 `crag-smoke` 六个 Gradle subproject 中。这些模块没有独立部署、独立版本或跨 RAG runtime 的复用需求，最终都由 `crag-rag-service` 组合启动。继续保留这些 Gradle module 会让内部包边界、依赖白名单、测试命令和未来 console/open API 演进变得更重。
+
+用户已确认目标形态为完整收口：`crag-rag-service` 承载 RAG 内部能力与 smoke 验证入口；未来正式 HTTP API 由 `crag-console-api` 和 `crag-open-api` 承担。现有 `AdminRagController` 与 `UserQueryController` 不再代表正式 API，而是 smoke 验证写入与 Query 链路的工具。
+
+本计划根据设计文档 `docs/superpowers/specs/2026-06-25-rag-service-module-consolidation-design.md` 执行。
+
+## 范围
+
+- 将 `crag-storage`、`crag-retrieval`、`crag-query`、`crag-ingestion` 的生产源码、测试源码和测试资源迁入 `crag-rag-service`。
+- 将 `crag-api` 的 Controller、DTO、异常映射和组件测试迁入 `crag-rag-service` 的 smoke package。
+- 将 `crag-smoke` 的诊断 Controller 迁入 `crag-rag-service` 的 smoke package。
+- 从 `settings.gradle.kts` 移除被合并的六个 subproject，并删除对应 `build.gradle.kts`。
+- 在 `crag-rag-service/build.gradle.kts` 合并被迁移模块需要的生产和测试依赖。
+- 将 legacy RAG HTTP 验证 URI 统一为 `/api/v1/smoke/**`。
+- 更新 ArchUnit、依赖校验器、框架依赖校验器及其测试，使其验证 package 边界和新的 module 事实。
+- 更新 `constraints/package-structure.md`、`constraints/api-style.md`、`constraints/docker-structure.md`、`constraints/test-workflow.md` 中受影响的当前事实。
+- 更新 `scripts/tests/http/**` 中旧 RAG HTTP URL，只替换 path。
+- 更新 README 中受影响的模块索引、学习路径和 smoke URL 当前事实。
+
+## 非目标
+
+- 不设计或实现新的 `crag-console-api` / `crag-open-api` 正式 HTTP 契约。
+- 不改变现有写入、检索、问答、索引构建、LLM 或 Sidecar 行为。
+- 不重命名 `storage`、`retrieval`、`query`、`ingestion` 业务 package。
+- 不新增跨服务 RPC、事件、异步链路或数据库 schema 语义。
+- 不重写 Docker HTTP 回归脚本逻辑；脚本只做 URL path 替换。
+- 不修改历史已完成 Plan 文件中的旧事实；历史 Plan 保留当时上下文。
+
+## 前置依赖
+
+- **执行前置 Plan**：无
+- 设计文档 `docs/superpowers/specs/2026-06-25-rag-service-module-consolidation-design.md` 已提交，提交为 `dfe330e`。
+- 进入实现前必须先提交本计划和索引；未提交规划修订时不得开始 16.1。
+
+## 文件边界
+
+- `settings.gradle.kts`
+- `build.gradle.kts`
+- `crag-rag-service/**`
+- `crag-storage/**`
+- `crag-retrieval/**`
+- `crag-query/**`
+- `crag-ingestion/**`
+- `crag-api/**`
+- `crag-smoke/**`
+- `constraints/package-structure.md`
+- `constraints/api-style.md`
+- `constraints/docker-structure.md`
+- `constraints/test-workflow.md`
+- `scripts/validate_module_dependencies.py`
+- `scripts/tests/test_validate_module_dependencies.py`
+- `scripts/validate_framework_dependencies.py`
+- `scripts/tests/test_validate_framework_dependencies.py`
+- `scripts/validate_constraints.py`
+- `scripts/tests/test_validate_constraints.py`
+- `scripts/tests/http/**`
+- `README.md`
+- `plan/plan_16/plan_16.md`
+- `plan/index/README.md`
+
+## 实现文件地图
+
+### Gradle 与源码迁移
+
+- `settings.gradle.kts`：移除 `crag-storage`、`crag-retrieval`、`crag-query`、`crag-ingestion`、`crag-api`、`crag-smoke`。
+- `crag-rag-service/build.gradle.kts`：保留 Boot application module；合并 JPA、Web MVC、Validation、Redis、Actuator、Spring AI、PostgreSQL、ArchUnit、H2、Mockito extension 所需依赖；移除对被合并 subproject 的 `implementation` / `runtimeOnly`。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/storage/**`：从 `crag-storage` 迁入。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/retrieval/**`：从 `crag-retrieval` 迁入。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/query/**`：从 `crag-query` 迁入。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/ingestion/**`：从 `crag-ingestion` 迁入。
+- `crag-rag-service/src/test/java/ai/cerbur/crag/storage/**`、`retrieval/**`、`query/**`、`ingestion/**`：迁入对应纯单元测试和组件测试。
+- `crag-rag-service/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker`：保留迁入模块使用的 Mockito inline mock maker 资源。
+
+### Smoke HTTP 边界
+
+- `crag-rag-service/src/main/java/ai/cerbur/crag/smoke/controller/AdminRagController.java`：从原 `crag-api` 迁入，新增 `@Profile("smoke")`，路径改为 `POST /api/v1/smoke/admin/rag`。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/smoke/controller/UserQueryController.java`：从原 `crag-api` 迁入，新增 `@Profile("smoke")`，路径改为 `POST /api/v1/smoke/query`。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/smoke/controller/TestController.java`：从原 `crag-smoke` 迁入，保留 `@Profile("smoke")`，路径从 `/api/v1/test` 改为 `/api/v1/smoke/test`。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/smoke/controller/advice/GlobalExceptionHandler.java`：从原 `crag-api` 迁入，继续作为 smoke HTTP 异常映射边界。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/smoke/dto/rag/**`：从原 `crag-api.dto.rag` 迁入。
+- `crag-rag-service/src/main/java/ai/cerbur/crag/smoke/dto/query/**`：从原 `crag-api.dto.query` 迁入。
+- `crag-rag-service/src/test/java/ai/cerbur/crag/smoke/**`：迁入并更新原 `crag-api` Controller、DTO、异常映射测试。
+
+### 架构与校验器
+
+- `crag-rag-service/src/test/java/ai/cerbur/crag/rag/app/arch/ModuleBoundaryArchitectureTest.java`：改为验证新 package 边界、smoke profile、Repository 内聚和 Access/Knowledge 禁止 RAG 依赖。
+- `scripts/validate_module_dependencies.py`：删除被移除 RAG subproject 的白名单项；保留剩余 module 依赖规则。
+- `scripts/tests/test_validate_module_dependencies.py`：更新示例 settings/build 文件，覆盖被移除 module 不再作为必需白名单项。
+- `scripts/validate_framework_dependencies.py`：更新 Spring AI BOM / dependency allowlist，允许 Spring AI 依赖集中在 `crag-rag-service`，删除对已移除 subproject 的期望。
+- `scripts/tests/test_validate_framework_dependencies.py`：同步测试数据和断言。
+- `scripts/validate_constraints.py`：更新对 `crag-api`、`crag-smoke`、RAG 子模块当前事实的约束检查。
+- `scripts/tests/test_validate_constraints.py`：同步约束校验测试。
+
+### HTTP 回归脚本与文档
+
+- `scripts/tests/http/admin_rag_contract_test.sh`：`/api/v1/admin/rag` 改为 `/api/v1/smoke/admin/rag`。
+- `scripts/tests/http/query_stub_success_test.sh`：写入和 Query URL 改为 smoke namespace。
+- `scripts/tests/http/query_stub_failure_test.sh`：Query URL 改为 smoke namespace。
+- `scripts/tests/http/query_deepseek_acceptance_test.sh`：写入和 Query URL 改为 smoke namespace。
+- `scripts/tests/http/retrieval_evidence_test.sh`：`/api/v1/test/**` 改为 `/api/v1/smoke/test/**`。
+- `scripts/tests/http/smoke_default_test.sh`：默认启动下不可访问路径改为 `/api/v1/smoke/test/**`。
+- `scripts/tests/http/smoke_endpoints_test.sh`：诊断路径改为 `/api/v1/smoke/test/**`。
+- `scripts/tests/http/docker_readiness_test.sh`：RAG smoke/default URL 改为 `/api/v1/smoke/**`，保持原健康检查逻辑。
+- `README.md`：更新 curl 示例、模块索引、学习路径和 legacy smoke HTTP 说明。
+- `constraints/*.md`：同步当前事实，不复制 Plan 任务细节。
+
+## 关键决策
+
+- Gradle module 边界收口，Java package 边界保留。
+- `crag-api` 不再代表正式 API；现有 Controller 迁入 smoke package。
+- 所有 legacy RAG HTTP 验证端点必须使用 `/api/v1/smoke/**`，避免与未来正式 console/open API 混淆。
+- Smoke Controller 使用类级 `@Profile("smoke")`，不只依赖包扫描或配置类。
+- HTTP 脚本只做 URL path 替换，避免把 module 迁移和业务回归逻辑改写混在一起。
+- 已完成历史 Plan 中的旧 module/URL 描述不回改；本 Plan 和约束文档记录新的目标事实。
+- 若文件移动导致 Git 无法识别 rename，不以保留 rename 统计为目标；以编译、测试和边界规则为准。
+
+## 未决问题
+
+无。
+
+## 风险与回滚
+
+- 风险：多 source set 合并后可能出现重复测试资源、重复测试配置或依赖缺失。预防措施是先完成 Gradle/source 迁移并运行定向 `:crag-rag-service:test`，再迁 smoke HTTP。
+- 风险：旧 URL 残留会导致 Docker HTTP 回归脚本误打正式路径。预防措施是对 `scripts/tests/http/**`、`README.md`、Controller 测试和生产 Controller 注释执行旧路径检索。
+- 风险：移除 module 后校验器与约束文档继续假设旧白名单。预防措施是把校验器、ArchUnit 和约束文档作为独立任务，并运行对应 Python 单测与 Plan 校验。
+- 风险：`@Profile("smoke")` 遗漏会让验证端点在默认 RAG 服务暴露。预防措施是 ArchUnit 规则和 `smoke_default_test.sh` 双重验证。
+- 回滚：本计划不包含不可逆数据库或运行时迁移。若迁移失败，可通过 `git revert` 回退实现提交；若只完成部分任务，按任务提交边界逐个 revert，并恢复 `settings.gradle.kts` 中被移除的 subproject include。
+
+## 测试与验证计划
+
+- 纯单元测试：`./gradlew test`，覆盖迁入后的 storage、retrieval、query、ingestion 纯单元测试。
+- 轻量组件测试：`./gradlew test --tests '*ComponentTest'`，覆盖 smoke Controller、异常映射、RAG application context 和 H2 替身装配。
+- 架构测试：`./gradlew :crag-rag-service:test --tests '*ArchitectureTest'`，覆盖 package 边界、Repository 内聚、smoke profile 和禁止 Access/Knowledge 依赖 RAG。
+- 静态与格式：`./gradlew spotlessCheck`、`./gradlew check`。
+- Plan 校验：`python3 scripts/validate_plans.py`；完成前由验收 session 运行 `python3 scripts/validate_plans.py --strict --verify-git`。
+- 约束/依赖校验器：`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v`。
+- Docker HTTP 回归：通过 Docker Compose 执行受影响脚本，至少包括 `scripts/tests/http/smoke_default_test.sh`、`scripts/tests/http/smoke_endpoints_test.sh`、`scripts/tests/http/admin_rag_contract_test.sh`、`scripts/tests/http/query_stub_success_test.sh`、`scripts/tests/http/query_stub_failure_test.sh`、`scripts/tests/http/retrieval_evidence_test.sh` 和 `scripts/tests/http/docker_readiness_test.sh`。真实 DeepSeek 脚本 `query_deepseek_acceptance_test.sh` 仅在凭据、额度和网络可用时执行；不可用时必须在验收记录中说明风险。
+
+## 进度追踪
+
+| 编号 | 任务 | 状态 | 提交 | 完成时间 |
+| --- | --- | --- | --- | --- |
+| 16.1 | 合并 RAG 内部业务 packages 到 `crag-rag-service` | ⏳ 待开始 | — | — |
+| 16.2 | 迁移 legacy HTTP 为 smoke-only `/api/v1/smoke/**` | ⏳ 待开始 | — | — |
+| 16.3 | 更新架构规则、约束文档和静态校验器 | ⏳ 待开始 | — | — |
+| 16.4 | 更新 HTTP 回归脚本 URL 与 README 当前事实 | ⏳ 待开始 | — | — |
+| 16.5 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待开始 | — | — |
+
+整体进度：0 / 5（0%）
+
+## 16.1 合并 RAG 内部业务 packages 到 `crag-rag-service`
+
+**目标**：`storage`、`retrieval`、`query`、`ingestion` 四个内部业务 package 迁入 `crag-rag-service`，被合并 subproject 不再参与 Gradle 构建。  
+**前置任务**：无  
+**范围**：迁移四个业务 module 的 main/test/resources；合并 `crag-rag-service/build.gradle.kts` 依赖；从 `settings.gradle.kts` 移除 `crag-storage`、`crag-retrieval`、`crag-query`、`crag-ingestion`；删除四个 module 的 `build.gradle.kts` 和迁空后的源码目录；修正因 source set 合并产生的 import、测试配置和依赖问题。  
+**非目标**：不迁移 `crag-api` / `crag-smoke`；不改变 HTTP URI；不改业务行为。  
+**验收标准**：`crag-rag-service` 能编译并发现迁入的四类业务测试；`settings.gradle.kts` 不再 include 四个内部业务 subproject；生产代码仍使用 `ai.cerbur.crag.storage`、`retrieval`、`query`、`ingestion` package；无 `project(":crag-storage")`、`project(":crag-retrieval")`、`project(":crag-query")`、`project(":crag-ingestion")` 依赖残留。  
+**验证方式**：运行 `./gradlew :crag-rag-service:test --tests '*Chunk*Test' --tests '*Retrieval*Test' --tests '*UserQueryServiceTest' --tests '*AdminRagServiceTest'`；运行 `rg 'project\\(\":crag-(storage|retrieval|query|ingestion)\"\\)|include\\([^)]*\"crag-(storage|retrieval|query|ingestion)\"' settings.gradle.kts crag-rag-service/build.gradle.kts` 应无业务 subproject 依赖残留。  
+**涉及文件**：`settings.gradle.kts`、`crag-rag-service/**`、`crag-storage/**`、`crag-retrieval/**`、`crag-query/**`、`crag-ingestion/**`
+
+## 16.2 迁移 legacy HTTP 为 smoke-only `/api/v1/smoke/**`
+
+**目标**：原 `crag-api` 和 `crag-smoke` 的 HTTP 能力进入 `crag-rag-service` smoke package，默认启动不暴露 legacy RAG HTTP 验证端点。  
+**前置任务**：16.1  
+**范围**：迁移 `AdminRagController`、`UserQueryController`、`GlobalExceptionHandler`、HTTP DTO、Controller 组件测试和 `TestController`；包名改为 `ai.cerbur.crag.smoke.*`；所有 smoke Controller 使用类级 `@Profile("smoke")`；URI 改为 `POST /api/v1/smoke/admin/rag`、`POST /api/v1/smoke/query`、`/api/v1/smoke/test/**`；从 `settings.gradle.kts` 移除 `crag-api`、`crag-smoke`；删除两个 module 的 `build.gradle.kts` 和迁空后的源码目录。  
+**非目标**：不修改 HTTP 请求体、响应字段、错误码语义或业务编排；不新增正式 console/open API。  
+**验收标准**：默认 RAG application context 不注册 smoke Controller；`smoke` Profile 下 Controller 测试通过；原 `ai.cerbur.crag.api` 生产包不存在；`crag-api` 和 `crag-smoke` 不再是 Gradle subproject；Controller 测试只断言 `/api/v1/smoke/**`。  
+**验证方式**：运行 `./gradlew :crag-rag-service:test --tests '*ControllerComponentTest' --tests '*GlobalExceptionHandlerComponentTest' --tests '*RagServiceComponentTest'`；运行 `rg 'ai\\.cerbur\\.crag\\.api|/api/v1/admin/rag|/api/v1/query|/api/v1/test' crag-rag-service/src/main crag-rag-service/src/test`，除迁移说明中允许的历史注释外不得出现旧生产路径。  
+**涉及文件**：`settings.gradle.kts`、`crag-rag-service/src/main/java/ai/cerbur/crag/smoke/**`、`crag-rag-service/src/test/java/ai/cerbur/crag/smoke/**`、`crag-api/**`、`crag-smoke/**`
+
+## 16.3 更新架构规则、约束文档和静态校验器
+
+**目标**：项目约束、ArchUnit 和 Python 校验器全部表达新的 package 边界与 Gradle module 事实。  
+**前置任务**：16.2  
+**范围**：更新 `ModuleBoundaryArchitectureTest`；更新 `constraints/package-structure.md`、`constraints/api-style.md`、`constraints/docker-structure.md`、`constraints/test-workflow.md`；更新 `scripts/validate_module_dependencies.py`、`scripts/validate_framework_dependencies.py`、`scripts/validate_constraints.py` 及其单测。  
+**非目标**：不回写历史 Plan；不修改与本迁移无关的约束章节；不放宽 Repository 内聚、smoke profile 或 Access/Knowledge 禁止依赖 RAG 的规则。  
+**验收标准**：约束文档不再把六个被合并 subproject 描述为当前 standalone module；`crag-rag-service` 被描述为 RAG internal packages 和 smoke verification HTTP 的所有者；正式 HTTP 入口归属 `crag-console-api` / `crag-open-api`；ArchUnit 验证 package 边界；Python 校验器单测反映新 module 集合。  
+**验证方式**：运行 `./gradlew :crag-rag-service:test --tests '*ArchitectureTest'`；运行 `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints -v`；运行 `python3 scripts/validate_plans.py`。  
+**涉及文件**：`crag-rag-service/src/test/java/ai/cerbur/crag/rag/app/arch/ModuleBoundaryArchitectureTest.java`、`constraints/package-structure.md`、`constraints/api-style.md`、`constraints/docker-structure.md`、`constraints/test-workflow.md`、`scripts/validate_module_dependencies.py`、`scripts/tests/test_validate_module_dependencies.py`、`scripts/validate_framework_dependencies.py`、`scripts/tests/test_validate_framework_dependencies.py`、`scripts/validate_constraints.py`、`scripts/tests/test_validate_constraints.py`
+
+## 16.4 更新 HTTP 回归脚本 URL 与 README 当前事实
+
+**目标**：所有当前 RAG HTTP 验证脚本和 README 示例使用 `/api/v1/smoke/**`，且脚本逻辑不被改写。  
+**前置任务**：16.3  
+**范围**：替换 `scripts/tests/http/**` 中旧 RAG 写入、Query 和 `/test` 诊断 URL path；更新 README 的 curl 示例、模块索引、学习路径和 smoke 说明；仅在注释直接提到旧路径时同步注释。  
+**非目标**：不修改脚本请求体、断言、等待、清理、执行顺序、服务端口或业务判断；不重命名脚本。  
+**验收标准**：`scripts/tests/http/**` 中不再出现 `/api/v1/admin/rag`、`/api/v1/query` 或 `/api/v1/test`；README 不再把 `crag-api` 描述为当前正式 RAG HTTP module；脚本 diff 只包含 URL path 和直接相关说明文本。  
+**验证方式**：运行 `rg '/api/v1/(admin/rag|query|test)' scripts/tests/http README.md` 应无旧路径；人工检查 `git diff -- scripts/tests/http` 确认没有脚本逻辑改动；后续 16.5 通过 Docker Compose 执行受影响脚本。  
+**涉及文件**：`scripts/tests/http/**`、`README.md`
+
+## 16.5 完成全量验证、Plan 交接和索引同步
+
+**目标**：完成本计划全部自测、格式、静态校验、Docker HTTP 回归和执行 session 交接记录。  
+**前置任务**：16.4  
+**范围**：运行必需 Gradle/Python/Docker 验证；修复验证发现的本计划范围内问题；回填 16.1-16.4 实现提交短 hash；将任务转为待验收；将 Plan 转为 `verifying`；同步 `plan/index/README.md` 验收队列。  
+**非目标**：不做最终验收完成；最终完成必须由未参与实现的独立验收 session 执行。  
+**验收标准**：`./gradlew spotlessCheck`、`./gradlew test`、`./gradlew check` 通过；Plan 校验通过；受影响 Docker HTTP smoke 回归脚本执行并记录结果；每个实现任务提交栏有真实短 hash；Plan 和索引均处于待验收状态且互相一致。  
+**验证方式**：运行 `./gradlew spotlessCheck`、`./gradlew test`、`./gradlew check`、`python3 scripts/validate_plans.py`；通过 Docker Compose 执行 `smoke_default_test.sh`、`smoke_endpoints_test.sh`、`admin_rag_contract_test.sh`、`query_stub_success_test.sh`、`query_stub_failure_test.sh`、`retrieval_evidence_test.sh`、`docker_readiness_test.sh`；真实 DeepSeek 脚本按凭据可用性执行或记录未执行原因。  
+**涉及文件**：`plan/plan_16/plan_16.md`、`plan/index/README.md`、本计划范围内因验证失败需要修正的文件
+
+## 验收记录
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+
+## 阻塞记录
+
+无。发生阻塞时记录原因、当前进度、解除条件、解除方、下一步与日期。
+
+## 废弃任务记录
+
+无。任务废弃时记录原因、日期及替代任务或决策。
+
+## 变更记录
+
+| 日期 | 变更 | 原因 | 影响 |
+| --- | --- | --- | --- |
+| 2026-06-25 | 创建计划 | 用户确认 RAG module 完整收口方案 A，并要求按 Plan workflow 新建计划 | 初始范围为 RAG 内部 module 合并、legacy HTTP smoke 化、脚本 URL 迁移、约束和验证同步 |
