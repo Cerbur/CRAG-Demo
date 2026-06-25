@@ -1,9 +1,9 @@
-package ai.cerbur.crag.api.dto.rag;
+package ai.cerbur.crag.smoke.dto.rag;
 
 import java.util.List;
 
 /**
- * POST /api/v1/admin/rag 成功响应 DTO.
+ * POST /api/v1/smoke/admin/rag 成功响应 DTO.
  *
  * <p>由 API 层从 AdminRagResult 映射，保持相同业务字段，避免直接序列化内部结果类型。
  *

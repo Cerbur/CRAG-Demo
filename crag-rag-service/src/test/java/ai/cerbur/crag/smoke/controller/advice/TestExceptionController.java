@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api.controller.advice;
+package ai.cerbur.crag.smoke.controller.advice;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,7 +12,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * <p>生产环境不会暴露这些端点；它们为 GlobalExceptionHandlerComponentTest 提供可控的异常触发路径。
  */
 @RestController
-@RequestMapping("/api/v1/test/exception")
+@RequestMapping("/api/v1/smoke/test/exception")
 public class TestExceptionController {
 
   /** 触发 IllegalArgumentException → INVALID_ARGUMENT / HTTP 400. */
@@ -31,6 +31,6 @@ public class TestExceptionController {
   @GetMapping("/not-found")
   String throwNotFound() throws NoResourceFoundException {
     throw new NoResourceFoundException(
-        HttpMethod.GET, "/api/v1/test/exception/not-found", "test resource not found");
+        HttpMethod.GET, "/api/v1/smoke/test/exception/not-found", "test resource not found");
   }
 }

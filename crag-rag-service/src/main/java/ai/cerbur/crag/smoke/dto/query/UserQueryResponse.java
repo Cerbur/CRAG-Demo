@@ -1,10 +1,10 @@
-package ai.cerbur.crag.api.dto.query;
+package ai.cerbur.crag.smoke.dto.query;
 
 import java.util.Collections;
 import java.util.List;
 
 /**
- * POST /api/v1/query 成功响应 DTO.
+ * POST /api/v1/smoke/query 成功响应 DTO.
  *
  * <p>由 API 层从 UserQueryResult 映射，保持相同业务字段，避免直接序列化内部结果类型。 sources 始终为非 null 列表（可能为空）.
  *

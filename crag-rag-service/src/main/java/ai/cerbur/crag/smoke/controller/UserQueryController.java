@@ -1,13 +1,14 @@
-package ai.cerbur.crag.api.controller;
+package ai.cerbur.crag.smoke.controller;
 
-import ai.cerbur.crag.api.dto.query.QuerySourceResponse;
-import ai.cerbur.crag.api.dto.query.UserQueryRequest;
-import ai.cerbur.crag.api.dto.query.UserQueryResponse;
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.query.api.UserQueryResult;
 import ai.cerbur.crag.query.api.UserQueryService;
+import ai.cerbur.crag.smoke.dto.query.QuerySourceResponse;
+import ai.cerbur.crag.smoke.dto.query.UserQueryRequest;
+import ai.cerbur.crag.smoke.dto.query.UserQueryResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,12 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 用户查询接口 —— 接收用户自然语言问题，返回 RAG 生成的回答.
  *
- * <p>POST /api/v1/query，接收 JSON 请求体，返回答案及引用来源.
+ * <p>POST /api/v1/smoke/query，接收 JSON 请求体，返回答案及引用来源.
  *
  * @since 2026-06-10
  */
+@Profile("smoke")
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/smoke")
 public class UserQueryController {
 
   @Autowired private UserQueryService userQueryService;

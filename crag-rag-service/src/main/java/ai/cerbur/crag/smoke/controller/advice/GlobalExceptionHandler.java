@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api.controller.advice;
+package ai.cerbur.crag.smoke.controller.advice;
 
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.common.dto.result.ResponseCode;
@@ -6,6 +6,7 @@ import ai.cerbur.crag.query.api.InvalidQueryException;
 import ai.cerbur.crag.query.api.LlmUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -20,6 +21,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *
  * @since 2026-06-13
  */
+@Profile("smoke")
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

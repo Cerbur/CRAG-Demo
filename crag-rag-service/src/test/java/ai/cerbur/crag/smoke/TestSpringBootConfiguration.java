@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api;
+package ai.cerbur.crag.smoke;
 
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;

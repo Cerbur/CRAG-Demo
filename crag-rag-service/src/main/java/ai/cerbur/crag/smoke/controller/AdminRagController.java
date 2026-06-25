@@ -1,12 +1,13 @@
-package ai.cerbur.crag.api.controller;
+package ai.cerbur.crag.smoke.controller;
 
-import ai.cerbur.crag.api.dto.rag.AdminRagRequest;
-import ai.cerbur.crag.api.dto.rag.AdminRagResponse;
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
+import ai.cerbur.crag.smoke.dto.rag.AdminRagRequest;
+import ai.cerbur.crag.smoke.dto.rag.AdminRagResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,13 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 管理端 RAG 知识库上传接口 —— 接收纯文本内容，分块入库并异步完成向量化.
  *
- * <p>POST /api/v1/admin/rag 接收 AdminRagRequest JSON，委托 AdminRagService 执行分块与持久化， 返回统一 Response 包装的
- * AdminRagResponse.
+ * <p>POST /api/v1/smoke/admin/rag 接收 AdminRagRequest JSON，委托 AdminRagService 执行分块与持久化， 返回统一
+ * Response 包装的 AdminRagResponse.
  *
  * @since 2026-06-10
  */
+@Profile("smoke")
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping("/api/v1/smoke/admin")
 public class AdminRagController {
 
   /** 管理端 RAG 服务，编排分块 + 写入. */

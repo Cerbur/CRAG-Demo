@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api.controller.advice;
+package ai.cerbur.crag.smoke.controller.advice;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -17,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>使用 @WebMvcTest 加载 MVC 切片，通过 @Import 显式注册 TestExceptionController 和 GlobalExceptionHandler。
  */
+@ActiveProfiles("smoke")
 @WebMvcTest
 @Import({TestExceptionController.class, GlobalExceptionHandler.class})
 class GlobalExceptionHandlerComponentTest {
@@ -31,7 +33,7 @@ class GlobalExceptionHandlerComponentTest {
     @DisplayName("returns INVALID_ARGUMENT with HTTP 400")
     void returnsInvalidArgument() throws Exception {
       mockMvc
-          .perform(get("/api/v1/test/exception/illegal-argument"))
+          .perform(get("/api/v1/smoke/test/exception/illegal-argument"))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.success").value(false))
           .andExpect(jsonPath("$.code").value(40002))
@@ -47,7 +49,7 @@ class GlobalExceptionHandlerComponentTest {
     @DisplayName("returns NOT_FOUND with HTTP 404")
     void returnsNotFound() throws Exception {
       mockMvc
-          .perform(get("/api/v1/test/exception/not-found"))
+          .perform(get("/api/v1/smoke/test/exception/not-found"))
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.success").value(false))
           .andExpect(jsonPath("$.code").value(40401))
@@ -63,7 +65,7 @@ class GlobalExceptionHandlerComponentTest {
     @DisplayName("returns INTERNAL_ERROR with HTTP 500")
     void returnsInternalError() throws Exception {
       mockMvc
-          .perform(get("/api/v1/test/exception/internal-error"))
+          .perform(get("/api/v1/smoke/test/exception/internal-error"))
           .andExpect(status().isInternalServerError())
           .andExpect(jsonPath("$.success").value(false))
           .andExpect(jsonPath("$.code").value(50001))

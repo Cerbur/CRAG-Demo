@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 冒烟测试接口 —— 仅在 {@code smoke} Profile 激活时启用，验证 HTTP 可达 + 数据库连通 + 检索全链路.
  *
  * <p>用于快速验证全链路基础设施是否就绪。所有端点统一受 {@link Profile @Profile("smoke")} 限制， 默认应用启动不暴露 {@code
- * /api/v1/test/**}。
+ * /api/v1/smoke/test/**}。
  *
  * <p>本类是计划 {@code plan_9} 任务 9.5 从 {@code crag-app} 迁移到 {@code crag-smoke} 的唯一受控诊断例外。
  *
@@ -42,7 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Profile("smoke")
 @RestController
-@RequestMapping("/api/v1/test")
+@RequestMapping("/api/v1/smoke/test")
 public class TestController {
 
   /** Chunk 主表 DAO，用于验证 chunk 表可查询. */
@@ -97,7 +97,7 @@ public class TestController {
    * 检索全链路冒烟测试 —— 委托 RetrievalService.retrieve(...) 执行完整门面链路.
    *
    * <p>覆盖 Embed → Sparse + Dense → RRF → 邻接扩展 → Rerank 全流程， 包括 plan 6.10 要求的"top RRF child + 同
-   * parent 相邻 child 参与 rerank"逻辑. 中间阶段计数请使用 /api/v1/test/rrf 独立端点.
+   * parent 相邻 child 参与 rerank"逻辑. 中间阶段计数请使用 /api/v1/smoke/test/rrf 独立端点.
    *
    * @param query 用户查询文本
    * @param topN 最终返回数量，默认 10

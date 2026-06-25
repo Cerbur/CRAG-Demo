@@ -1,10 +1,10 @@
-package ai.cerbur.crag.api.dto.query;
+package ai.cerbur.crag.smoke.dto.query;
 
 import java.util.Collections;
 import java.util.List;
 
 /**
- * POST /api/v1/query 成功响应中的来源 DTO —— 对应 QuerySource 的 API 层映射.
+ * POST /api/v1/smoke/query 成功响应中的来源 DTO —— 对应 QuerySource 的 API 层映射.
  *
  * <p>由 API 层从 {@code QuerySource} 映射，保持相同业务字段，避免直接序列化内部结果类型。matchedChildIds 始终为非 null 列表（可能为空）.
  *

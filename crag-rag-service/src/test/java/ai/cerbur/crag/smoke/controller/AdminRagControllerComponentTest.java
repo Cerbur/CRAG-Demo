@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api.controller;
+package ai.cerbur.crag.smoke.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ai.cerbur.crag.api.controller.advice.GlobalExceptionHandler;
 import ai.cerbur.crag.ingestion.api.AdminRagResult;
 import ai.cerbur.crag.ingestion.api.AdminRagService;
+import ai.cerbur.crag.smoke.controller.advice.GlobalExceptionHandler;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @MockitoBean 提供 AdminRagService 测试替身，并导入 GlobalExceptionHandler。
  */
+@ActiveProfiles("smoke")
 @WebMvcTest
 @Import({AdminRagController.class, AdminRagControllerComponentTest.StubConfig.class})
 class AdminRagControllerComponentTest {
@@ -57,7 +59,8 @@ class AdminRagControllerComponentTest {
         {"title": "Test Title", "content": "Test content"}""";
 
     mockMvc
-        .perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
+        .perform(
+            post("/api/v1/smoke/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.code").value(0))
@@ -80,7 +83,9 @@ class AdminRagControllerComponentTest {
     String content =
         mockMvc
             .perform(
-                post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
+                post("/api/v1/smoke/admin/rag")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -110,7 +115,9 @@ class AdminRagControllerComponentTest {
     String content =
         mockMvc
             .perform(
-                post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content(body))
+                post("/api/v1/smoke/admin/rag")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -131,7 +138,8 @@ class AdminRagControllerComponentTest {
   @DisplayName("validation failure on AdminRag request returns VALIDATION_ERROR")
   void validationFailure() throws Exception {
     mockMvc
-        .perform(post("/api/v1/admin/rag").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .perform(
+            post("/api/v1/smoke/admin/rag").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.success").value(false))
         .andExpect(jsonPath("$.code").value(40001));

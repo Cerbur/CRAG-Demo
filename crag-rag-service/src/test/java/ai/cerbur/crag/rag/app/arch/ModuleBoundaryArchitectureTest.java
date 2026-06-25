@@ -41,9 +41,8 @@ class ModuleBoundaryArchitectureTest {
           .that()
           .areAnnotatedWith(RestController.class)
           .should()
-          .resideInAnyPackage(
-              "ai.cerbur.crag.api.controller..", "ai.cerbur.crag.smoke.controller..")
-          .because("@RestController 仅允许在 crag-api 和 crag-smoke 中。");
+          .resideInAnyPackage("ai.cerbur.crag.smoke.controller..")
+          .because("legacy RAG HTTP 验证端点统一收口到 smoke 验证 HTTP 包。");
 
   @ArchTest
   static final ArchRule app_no_business_calls =
@@ -58,20 +57,6 @@ class ModuleBoundaryArchitectureTest {
               "ai.cerbur.crag.ingestion..",
               "ai.cerbur.crag.query..")
           .because("组合根禁止直接调用业务模块的 Java 类型。");
-
-  @ArchTest
-  static final ArchRule admin_only_ingestion_api =
-      noClasses()
-          .that()
-          .resideInAPackage("ai.cerbur.crag.api..")
-          .should()
-          .accessClassesThat()
-          .resideInAnyPackage(
-              "ai.cerbur.crag.ingestion.service..",
-              "ai.cerbur.crag.ingestion.chunk..",
-              "ai.cerbur.crag.ingestion.dense..",
-              "ai.cerbur.crag.ingestion.cron..")
-          .because("crag-api 只能通过 ingestion.api 包访问。");
 
   @ArchTest
   static final ArchRule ingestion_only_retrieval_api =
@@ -119,7 +104,7 @@ class ModuleBoundaryArchitectureTest {
           .areAnnotatedWith(RestController.class)
           .should()
           .beAnnotatedWith(org.springframework.context.annotation.Profile.class)
-          .because("crag-smoke 的诊断端点必须受 @Profile(\"smoke\") 限制。");
+          .because("smoke 验证端点必须受 @Profile(\"smoke\") 限制，默认启动不暴露。");
 
   @ArchTest
   static final ArchRule spring_components_use_field_injection =
@@ -158,7 +143,7 @@ class ModuleBoundaryArchitectureTest {
               "ai.cerbur.crag.ingestion..",
               "ai.cerbur.crag.retrieval..",
               "ai.cerbur.crag.query..",
-              "ai.cerbur.crag.api..")
+              "ai.cerbur.crag.smoke..")
           .allowEmptyShould(true)
-          .because("Access/Knowledge 不得依赖现有 RAG 业务模块。");
+          .because("Access/Knowledge 不得依赖现有 RAG 业务模块与 smoke 验证 HTTP。");
 }

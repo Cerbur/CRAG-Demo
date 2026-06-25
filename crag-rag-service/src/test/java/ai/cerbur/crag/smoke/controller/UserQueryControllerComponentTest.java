@@ -1,4 +1,4 @@
-package ai.cerbur.crag.api.controller;
+package ai.cerbur.crag.smoke.controller;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.reset;
@@ -7,12 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ai.cerbur.crag.api.controller.advice.GlobalExceptionHandler;
 import ai.cerbur.crag.query.api.InvalidQueryException;
 import ai.cerbur.crag.query.api.LlmUnavailableException;
 import ai.cerbur.crag.query.api.QuerySource;
 import ai.cerbur.crag.query.api.UserQueryResult;
 import ai.cerbur.crag.query.api.UserQueryService;
+import ai.cerbur.crag.smoke.controller.advice.GlobalExceptionHandler;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>使用 @WebMvcTest 只加载 MVC 切片。通过 @MockitoBean 提供 UserQueryService 测试替身，并导入控制器与
  * GlobalExceptionHandler。
  */
+@ActiveProfiles("smoke")
 @WebMvcTest
 @Import({UserQueryController.class, GlobalExceptionHandler.class})
 class UserQueryControllerComponentTest {
@@ -57,7 +59,7 @@ class UserQueryControllerComponentTest {
 
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"test question\"}"))
           .andExpect(status().isOk())
@@ -78,7 +80,7 @@ class UserQueryControllerComponentTest {
 
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"unknown question\"}"))
           .andExpect(status().isOk())
@@ -96,7 +98,7 @@ class UserQueryControllerComponentTest {
 
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"test\", \"extraField\": \"should be ignored\"}"))
           .andExpect(status().isOk())
@@ -114,7 +116,7 @@ class UserQueryControllerComponentTest {
     void blankQuestionReturnsBadRequest() throws Exception {
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"\"}"))
           .andExpect(status().isBadRequest())
@@ -127,7 +129,7 @@ class UserQueryControllerComponentTest {
     void whitespaceOnlyReturnsBadRequest() throws Exception {
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"   \"}"))
           .andExpect(status().isBadRequest())
@@ -141,7 +143,7 @@ class UserQueryControllerComponentTest {
       String longQuestion = "a".repeat(2001);
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"" + longQuestion + "\"}"))
           .andExpect(status().isBadRequest())
@@ -153,7 +155,8 @@ class UserQueryControllerComponentTest {
     @DisplayName("missing question field returns 400")
     void missingQuestionReturnsBadRequest() throws Exception {
       mockMvc
-          .perform(post("/api/v1/query").contentType(MediaType.APPLICATION_JSON).content("{}"))
+          .perform(
+              post("/api/v1/smoke/query").contentType(MediaType.APPLICATION_JSON).content("{}"))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.success").value(false))
           .andExpect(jsonPath("$.code").value(40001));
@@ -174,7 +177,7 @@ class UserQueryControllerComponentTest {
 
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"valid but service rejects\"}"))
           .andExpect(status().isBadRequest())
@@ -192,7 +195,7 @@ class UserQueryControllerComponentTest {
 
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"test\"}"))
           .andExpect(status().is(502))
@@ -208,7 +211,7 @@ class UserQueryControllerComponentTest {
 
       mockMvc
           .perform(
-              post("/api/v1/query")
+              post("/api/v1/smoke/query")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"question\": \"test\"}"))
           .andExpect(status().isInternalServerError())

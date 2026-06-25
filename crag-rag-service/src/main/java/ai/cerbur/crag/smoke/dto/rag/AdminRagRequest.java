@@ -1,10 +1,10 @@
-package ai.cerbur.crag.api.dto.rag;
+package ai.cerbur.crag.smoke.dto.rag;
 
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 
 /**
- * POST /api/v1/admin/rag 请求 DTO.
+ * POST /api/v1/smoke/admin/rag 请求 DTO.
  *
  * <p>携带文档标题、纯文本内容和可选扩展元数据. 校验通过 Jakarta Bean Validation 声明式完成，由 AOP 层统一处理校验异常.
  *
