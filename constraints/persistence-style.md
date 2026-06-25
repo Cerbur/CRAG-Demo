@@ -85,3 +85,14 @@ JPA `@Version` 只在受 EntityManager 管理的更新路径自动生效。自�
 - 查询场景先整理 ID 或条件集合，再批量查询并在内存中按业务顺序组装。
 - 写入场景先整理数据集合，再使用批量 insert、update 或 `saveAll`。
 - 只有 CAS 抢占、逐条幂等状态推进或单条失败隔离等需要逐条判断数据库结果的场景，才允许逐条 SQL；调用处必须说明原因。
+
+---
+
+## 六、可靠事件本地表
+
+`crag-event` 的 `outbox_event` 与 `processed_event` 属于各接入服务自己的本地 schema，不建立全局 event schema、不跨 schema 查询。
+
+- `outbox_event` 的 claim 与状态推进使用版本 CAS（`WHERE version = :v` 并递增），失败抛 `OutboxCasConflictException`；逐条 CAS claim 属于上文允许的逐条场景。
+- `processed_event` 以 `(consumer_name, event_id)` 与 `(consumer_name, idempotency_key)` 双唯一键保证消费幂等；状态推进为状态守护式更新，`PROCESSED` 与 `DEAD_LETTERED` 不被普通成功路径覆盖。
+- Redis Streams 是传输层，不是业务事实来源；事件事实来源是本地 schema 中的 `outbox_event`。
+

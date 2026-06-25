@@ -78,6 +78,8 @@ ai.cerbur.crag.smoke
     └── QuerySourceResponse — POST /api/v1/smoke/query 来源映射
 ```
 
+Knowledge 事件 smoke 仅在 `smoke` Profile 下暴露 `POST/GET /api/v1/smoke/events`，DTO 位于 `ai.cerbur.crag.knowledge.smoke.dto`（`KnowledgeSmokeEventRequest/Response/StatusResponse`），只接受受控字段 `runId/message/failMode` 且不回显完整 payload；正式 Knowledge 服务不暴露该端点。
+
 ---
 
 ## 四、请求校验

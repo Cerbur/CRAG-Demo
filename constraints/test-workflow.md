@@ -48,6 +48,8 @@ Docker HTTP 回归用于验证真实运行时业务链路：
 - `docker compose ps`、`logs`、`exec` 和数据库查询只可作为健康状态、诊断或结果辅助证据，不得替代 HTTP 业务入口。
 - 可证明容器装配、真实配置、HTTP 契约、PostgreSQL 与 pgvector 行为、Sidecar 协议和跨模块业务链路。
 
+可靠事件基础设施的真实 Redis Streams 行为（`XREADGROUP`/`XPENDING`/`XCLAIM`）由 `scripts/tests/http/event_smoke_{success,dlq,default_disabled}_test.sh` 通过 `knowledge-service-smoke`（smoke profile）HTTP 入口证明；H2/fake 单元与组件测试不得表述为该真实链路的替代证据。
+
 ## 二、Gradle 与 Docker 执行入口
 
 ### 2.1 Gradle 任务
