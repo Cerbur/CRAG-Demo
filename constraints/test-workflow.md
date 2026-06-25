@@ -50,6 +50,8 @@ Docker HTTP 回归用于验证真实运行时业务链路：
 
 可靠事件基础设施的真实 Redis Streams 行为（`XREADGROUP`/`XPENDING`/`XCLAIM`）由 `scripts/tests/http/event_smoke_{success,dlq,default_disabled}_test.sh` 通过 `knowledge-service-smoke`（smoke profile）HTTP 入口证明；H2/fake 单元与组件测试不得表述为该真实链路的替代证据。
 
+Knowledge 垂直链路（KnowledgeBase、Document 单次流式上传、文件存储、读取、`DOC_UPLOADED` 发布）由 `scripts/tests/http/knowledge_smoke_{default_disabled,upload_txt,upload_md,upload_invalid,event_published}_test.sh` 通过 `knowledge-service-smoke`（smoke profile）的 `/api/v1/smoke/knowledge/**` HTTP 入口证明真实 PostgreSQL、文件 volume 与 Redis Streams 发布链路；默认 profile 不暴露该入口。
+
 ## 二、Gradle 与 Docker 执行入口
 
 ### 2.1 Gradle 任务

@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。
  */
-@SpringBootTest
+@SpringBootTest(classes = KnowledgeDaoTestConfig.class)
 @Transactional
 @DisplayName("Knowledge DAO")
 class KnowledgeDaoComponentTest {

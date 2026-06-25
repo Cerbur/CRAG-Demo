@@ -140,11 +140,12 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 ├── crag-common/              # 跨模块共享：统一响应结构、基础异常类型
 ├── crag-id/                  # 分布式 Snowflake ID 基础设施：发号、Redis Worker 租约、时钟回拨处理
 ├── crag-platform-contracts/  # 跨领域通用 Protobuf 基础契约（Platform Probe）
+├── crag-knowledge-contracts/ # Knowledge 领域 Protobuf/gRPC 契约（KnowledgeBase、Document）
 ├── crag-grpc-runtime/        # 协议无关 gRPC Server/Client 生命周期、认证、Health
 ├── crag-event/               # 领域无关可靠事件基础设施：Outbox、processed_event、Redis Streams、ACK/Reclaim/DLQ
 ├── crag-rag-service/         # RAG 业务组合根：storage/retrieval/query/ingestion 内部包 + smoke 验证 HTTP + gRPC Server
 ├── crag-access-service/      # Access 组合根、gRPC Server、Schema readiness
-├── crag-knowledge-service/   # Knowledge 组合根、gRPC Server、Schema readiness
+├── crag-knowledge-service/   # Knowledge 组合根：KnowledgeBase/Document/文件上传/DOC_UPLOADED + gRPC Server + smoke 验证 HTTP
 ├── crag-console-api/         # Console HTTP 入口、下游 Probe readiness
 ├── crag-open-api/            # Open HTTP 入口、下游 Probe readiness
 ├── sidecar/                  # Python 模型 Sidecar：/embed（gte）、/rerank（bge-reranker）

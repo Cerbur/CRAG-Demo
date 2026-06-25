@@ -253,7 +253,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | Compose Profile | `smoke` |
 | 网络 | `crag-net` |
 
-### 5.11 `knowledge-service-smoke` — Knowledge Smoke 事件诊断
+### 5.11 `knowledge-service-smoke` — Knowledge Smoke 验证
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -263,7 +263,9 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | Profile | `smoke`（`SPRING_PROFILES_ACTIVE=smoke`） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge`，账号 `crag_knowledge` |
 | Redis | `redis:6379`（Redis Streams 事件传输） |
+| 文件存储 | bind mount `./data/knowledge-files-smoke:/app/knowledge-files`（上传文件 volume，脚本以 runId 隔离，不清表/不删 volume） |
 | 事件配置 | `crag.event.publisher.enabled=true`、`crag.event.consumer.enabled=true`、`crag.event.claim-idle=5s`、`crag.event.max-deliveries=3` |
+| 验证入口 | `/api/v1/smoke/events`（plan_17 事件诊断）与 `/api/v1/smoke/knowledge/**`（plan_18 KB/Document/文件上传读取） |
 | 就绪条件 | `db` 健康 且 `redis` 健康 |
 | 健康检查 | `curl http://localhost:8092/actuator/health/readiness` |
 | Compose Profile | `smoke` |

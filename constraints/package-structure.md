@@ -311,12 +311,27 @@ ai.cerbur.crag.access
 
 ```text
 ai.cerbur.crag.knowledge
-├── KnowledgeServiceApplication         — 组合根主类（plan_18 起位于根包）
+├── KnowledgeServiceApplication         — 组合根主类（根包，JPA + gRPC）
 ├── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+├── core/                               — 业务用例与核心规则
+│   ├── knowledgebase/                  — KnowledgeBaseService、KnowledgeBaseResult、KnowledgeBaseNotFoundException
+│   ├── document/                       — DocumentUploadService/Command/Policy、DocumentResult、DocumentQueryService、FileType、UploadHandle
+│   └── file/                           — FileReadService、FileRead
+├── dao/                                — KnowledgeBaseDao/DocumentDao/FileObjectDao
+│   ├── entity/                         — KnowledgeBase/Document/FileObjectEntity
+│   └── repository/                     — Spring Data Repository（仅 DAO 调用）
+├── filestore/                          — FileStore/LocalFileStore、StorageKeyGenerator、TempFileSink、CompletedUpload
+├── grpc/                               — gRPC 协议暴露
+│   ├── provider/                       — KnowledgeBaseGrpcProvider、DocumentGrpcProvider、DecimalId
+│   ├── mapper/                         — KnowledgeBaseMapper、DocumentMapper
+│   └── error/                          — GrpcErrorMapper
+├── producer/                           — DocUploadedOutboxWriter、DocumentUploadedPayload、KnowledgeEventTypes
+├── controller/
+│   └── smoke/                          — KnowledgeSmokeController、KnowledgeSmokeExceptionHandler、dto（@Profile("smoke")，/api/v1/smoke/knowledge）
 └── smoke/                              — 仅 smoke Profile 启用的事件诊断闭环（plan_17）
-    ├── controller/                     — KnowledgeEventSmokeController（@Profile("smoke")，/api/v1/smoke/events）
-    ├── dto/                            — KnowledgeSmokeEventRequest/Response/StatusResponse、KnowledgeSmokeFailMode
-    └── event/                          — KnowledgeSmokeEventService（写 outbox + 查诊断）、KnowledgeSmokeEventHandler（按 failMode 返回结果）
+    ├── controller/                     — KnowledgeEventSmokeController（/api/v1/smoke/events）
+    ├── dto/                            — KnowledgeSmokeEvent* DTO、KnowledgeSmokeFailMode
+    └── event/                          — KnowledgeSmokeEventService、KnowledgeSmokeEventHandler
 ```
 
 ### `crag-console-api`
