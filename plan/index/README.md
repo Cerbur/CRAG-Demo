@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_15 第四次独立验收通过，15.1–15.5 全部完成（5/5），转 `completed`；验收队列已空）
+> 最后更新：2026-06-25（plan_15 第四次独立验收通过；Docker HTTP 重跑发现 plan_6 检索召回与 plan_10 回归脚本计时两处既有缺陷，均非 plan_15 引入，分别登记 `plan_6.hotfix_7`、`plan_10.hotfix_1`，非优先闲时修复）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -38,7 +38,8 @@ plan/
 │   ├── plan_6.hotfix_3.md
 │   ├── plan_6.hotfix_4.md
 │   ├── plan_6.hotfix_5.md
-│   └── plan_6.hotfix_6.md
+│   ├── plan_6.hotfix_6.md
+│   └── plan_6.hotfix_7.md
 ├── plan_7/
 │   └── plan_7.md
 ├── plan_8/
@@ -51,7 +52,8 @@ plan/
 │   ├── plan_9.hotfix_4.md
 │   └── plan_9.hotfix_5.md
 ├── plan_10/
-│   └── plan_10.md
+│   ├── plan_10.md
+│   └── plan_10.hotfix_1.md
 ├── plan_11/
 │   └── plan_11.md
 ├── plan_12/
@@ -78,11 +80,11 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_7](../plan_6/plan_6.hotfix_7.md) 🟡待开始 (0/2) | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
-| plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | ✅ 完成 (3/3) | — | [plan_10.md](../plan_10/plan_10.md) |
+| plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | ✅ 完成 (3/3) | [plan_10.hotfix_1](../plan_10/plan_10.hotfix_1.md) 🟡待开始 (0/1) | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
@@ -94,7 +96,8 @@ plan/
 ## 当前执行队列
 
 ```text
-（空）
+plan_6.hotfix_7 — Retrieval 查询召回率修正（Sparse AND 语义过严 + Dense 0 结果；非优先，闲时修复）
+plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
@@ -171,6 +174,7 @@ plan/
 | [plan_6.hotfix_4.md](../plan_6/plan_6.hotfix_4.md) | Benchmark skill 任务路由补齐，确保 benchmark / evaluation / 回归测试意图索引到 `crag-benchmark` | ✅ 完成 |
 | [plan_6.hotfix_5.md](../plan_6/plan_6.hotfix_5.md) | 项目级 OpenCode Plan 执行 Skill，固化 Plan 完整度、SubAgent 实现、Review、测试与验收闭环 | ✅ 完成 |
 | [plan_6.hotfix_6.md](../plan_6/plan_6.hotfix_6.md) | 新增 parent evidence 公共入口，区分真实命中与相邻扩展并返回完整 parent Context | ✅ 完成 (3/3) |
+| [plan_6.hotfix_7.md](../plan_6/plan_6.hotfix_7.md) | Retrieval 查询召回率修正：Sparse `plainto_tsquery` AND 语义过严 + Dense Java 层 0 结果（plan_15 验收 Docker 重跑发现，非 plan_15 引入） | 🟡 待开始 (0/2) |
 
 ## Plan_7 明细
 
@@ -203,6 +207,7 @@ plan/
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_10.md](../plan_10/plan_10.md) | Docker 正式健康检查与部署验收，包含 Actuator probes、Compose readiness、默认/Smoke 并存、数据库故障恢复和持久化回归 | ✅ 完成 (3/3) |
+| [plan_10.hotfix_1.md](../plan_10/plan_10.hotfix_1.md) | Docker 回归脚本 `wait_for_http_status` 墙钟计时修正（`elapsed` 未计入 `curl -m` 耗时；plan_15 验收 Docker 重跑发现，非 plan_15 引入） | 🟡 待开始 (0/1) |
 
 ## Plan_11 明细
 
