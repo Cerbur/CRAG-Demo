@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package crag.knowledge.v1;
+
+option java_package = "ai.cerbur.crag.contracts.knowledge.v1";
+option java_multiple_files = true;
+
+// KnowledgeBase 领域 gRPC 契约：创建、查询和租户内列表。
+// 边界 ID（tenant、knowledgeBase、user）统一使用十进制字符串，避免跨服务 ID 编码差异。
+service KnowledgeBaseService {
+  rpc CreateKnowledgeBase(CreateKnowledgeBaseRequest) returns (KnowledgeBase);
+  rpc GetKnowledgeBase(GetKnowledgeBaseRequest) returns (KnowledgeBase);
+  rpc ListKnowledgeBases(ListKnowledgeBasesRequest) returns (ListKnowledgeBasesResponse);
+}
+
+message CreateKnowledgeBaseRequest {
+  // 租户 ID，十进制字符串。
+  string tenant_id = 1;
+  // 创建者用户 ID，十进制字符串。
+  string created_by_user_id = 2;
+  // 展示名，首版允许同租户内重名。
+  string name = 3;
+}
+
+message GetKnowledgeBaseRequest {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+}
+
+message ListKnowledgeBasesRequest {
+  string tenant_id = 1;
+  int32 page_size = 2;
+  // 不透明分页游标，首版可由调用方忽略。
+  string page_token = 3;
+}
+
+message ListKnowledgeBasesResponse {
+  repeated KnowledgeBase knowledge_bases = 1;
+  string next_page_token = 2;
+}
+
+// KnowledgeBase 视图。不包含任何文件存储或内部路径信息。
+message KnowledgeBase {
+  string knowledge_base_id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string created_by_user_id = 4;
+  // 状态展示值，首版固定为 "ACTIVE"。
+  string status = 5;
+  int64 created_at_epoch_millis = 6;
+  int64 updated_at_epoch_millis = 7;
+  int64 version = 8;
+}

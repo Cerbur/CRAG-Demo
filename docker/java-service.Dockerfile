@@ -22,6 +22,7 @@ COPY gradle/libs.versions.toml gradle/libs.versions.toml
 COPY crag-id/build.gradle.kts crag-id/build.gradle.kts
 COPY crag-common/build.gradle.kts crag-common/build.gradle.kts
 COPY crag-platform-contracts/build.gradle.kts crag-platform-contracts/build.gradle.kts
+COPY crag-knowledge-contracts/build.gradle.kts crag-knowledge-contracts/build.gradle.kts
 COPY crag-grpc-runtime/build.gradle.kts crag-grpc-runtime/build.gradle.kts
 COPY crag-event/build.gradle.kts crag-event/build.gradle.kts
 COPY crag-access-service/build.gradle.kts crag-access-service/build.gradle.kts
@@ -35,6 +36,7 @@ RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked 
 COPY crag-id/src/ crag-id/src/
 COPY crag-common/src/ crag-common/src/
 COPY crag-platform-contracts/src/ crag-platform-contracts/src/
+COPY crag-knowledge-contracts/src/ crag-knowledge-contracts/src/
 COPY crag-grpc-runtime/src/ crag-grpc-runtime/src/
 COPY crag-event/src/ crag-event/src/
 COPY crag-access-service/src/ crag-access-service/src/

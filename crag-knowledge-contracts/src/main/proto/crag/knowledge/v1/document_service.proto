@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package crag.knowledge.v1;
+
+option java_package = "ai.cerbur.crag.contracts.knowledge.v1";
+option java_multiple_files = true;
+
+// Document 领域 gRPC 契约：单次客户端流式上传、查询、列表和文件 server streaming 读取。
+// 边界 ID 统一使用十进制字符串。响应与文件读取 chunk 禁止包含 storage key 或文件路径。
+service DocumentService {
+  // 客户端流式上传：首条消息为 metadata，后续为 bytes chunk。
+  rpc UploadDocument(stream UploadDocumentRequest) returns (Document);
+  rpc GetDocument(GetDocumentRequest) returns (Document);
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+  // 服务端流式读取文件内容，首条消息携带安全 metadata，后续为 bytes chunk。
+  rpc ReadDocumentFile(ReadDocumentFileRequest) returns (stream DocumentFileChunk);
+}
+
+// 单次流式上传的请求 envelope。
+message UploadDocumentRequest {
+  oneof request {
+    UploadDocumentMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UploadDocumentMetadata {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  string uploaded_by_user_id = 3;
+  // 原始文件名，仅作展示，不参与 storage key 拼接。
+  string original_filename = 4;
+  // 声明文件类型，首版支持 "TXT"、"MARKDOWN"，需与扩展名一致。
+  string file_type = 5;
+  // 声明字节数，服务端与实际接收大小强校验。
+  int64 size_bytes = 6;
+  // 客户端计算的 sha256（十六进制小写），服务端边接收边校验。
+  string sha256 = 7;
+}
+
+// Document 视图。不包含文件路径、storage key 或文件内容。
+message Document {
+  string doc_id = 1;
+  string knowledge_base_id = 2;
+  string tenant_id = 3;
+  string uploaded_by_user_id = 4;
+  string original_filename = 5;
+  string file_type = 6;
+  int64 size_bytes = 7;
+  string sha256 = 8;
+  // 摄取状态展示值，首版创建时为 "PENDING"。
+  string ingestion_status = 9;
+  int64 operation_version = 10;
+  int64 created_at_epoch_millis = 11;
+  int64 updated_at_epoch_millis = 12;
+}
+
+message GetDocumentRequest {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  string doc_id = 3;
+}
+
+message ListDocumentsRequest {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListDocumentsResponse {
+  repeated Document documents = 1;
+  string next_page_token = 2;
+}
+
+message ReadDocumentFileRequest {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  string doc_id = 3;
+}
+
+// 文件读取 server streaming chunk。metadata 仅携带安全字段，绝不包含 storage key 或路径。
+message DocumentFileChunk {
+  oneof payload {
+    DocumentFileMetadata metadata = 1;
+    bytes data = 2;
+  }
+}
+
+message DocumentFileMetadata {
+  int64 size_bytes = 1;
+  string sha256 = 2;
+  string file_type = 3;
+}

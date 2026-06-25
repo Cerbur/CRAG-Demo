@@ -32,6 +32,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-id` | 分布式 Snowflake ID 基础设施：实体类型注册、编解码、时钟回拨处理、Worker 租约和 readiness | 禁止依赖业务模块；禁止承载 HTTP Controller；禁止暴露 Repository |
 | `crag-common` | 真正跨多个模块、无明确业务归属的稳定基础类型 | 禁止收纳业务 DTO、Entity、Service、Client、单模块工具或为绕开依赖环而搬入的类型 |
 | `crag-platform-contracts` | 跨领域通用 Protobuf 基础契约（Platform Probe） | 禁止 Spring、Runtime 或业务依赖 |
+| `crag-knowledge-contracts` | Knowledge 领域 Protobuf 与 gRPC 生成代码（KnowledgeBase、Document） | 禁止 Spring、Runtime、业务依赖或依赖 platform/其他 contracts |
 | `crag-grpc-runtime` | 协议无关 gRPC Server/Client 生命周期、认证、Health、deadline | 禁止依赖 Contracts 或任何 Application 组合根 |
 | `crag-event` | 领域无关可靠事件基础设施：事件信封、Outbox/processed_event DAO、Redis Streams publisher/consumer、Reclaim/DLQ 与 Spring auto-configuration | 禁止依赖任何业务 application module；禁止承载 HTTP Controller 或业务事件类型 |
 | `crag-rag-service` | RAG 业务组合根，唯一承载 storage/retrieval/query/ingestion 内部业务包、smoke 验证 HTTP、gRPC Server 与 Platform Probe | 禁止被 Access/Knowledge 依赖；legacy HTTP 仅限 smoke Profile |
@@ -40,7 +41,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-console-api` | 正式 Console HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `crag-open-api` | 正式 Open HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 
-五个 Application 组合根各自生成独立可启动 jar；`crag-id`、`crag-common`、`crag-platform-contracts`、`crag-grpc-runtime` 和 `crag-event` 为 library module。正式 HTTP 入口由 `crag-console-api` 与 `crag-open-api` 承担；现有 AdminRag 写入与 UserQuery 行为只在 `crag-rag-service` 的 `smoke` Profile 下作为验证端点。
+五个 Application 组合根各自生成独立可启动 jar；`crag-id`、`crag-common`、`crag-platform-contracts`、`crag-knowledge-contracts`、`crag-grpc-runtime` 和 `crag-event` 为 library module。正式 HTTP 入口由 `crag-console-api` 与 `crag-open-api` 承担；现有 AdminRag 写入与 UserQuery 行为只在 `crag-rag-service` 的 `smoke` Profile 下作为验证端点。
 
 ### 3.1 `crag-rag-service` 内部包边界
 
@@ -63,11 +64,12 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-id` | 无 |
 | `crag-common` | 无 |
 | `crag-platform-contracts` | 无 |
+| `crag-knowledge-contracts` | 无 |
 | `crag-grpc-runtime` | 无 |
 | `crag-event` | 无 |
 | `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id` |
 | `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
-| `crag-knowledge-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
+| `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-open-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 
@@ -248,6 +250,15 @@ ai.cerbur.crag.contracts.platform.v1
 └── PlatformProbeResponse               — 生成的 Protobuf 消息
 ```
 
+### `crag-knowledge-contracts`
+
+```text
+ai.cerbur.crag.contracts.knowledge.v1
+├── KnowledgeBaseServiceGrpc            — 生成的 KnowledgeBase gRPC Stub（Create/Get/List）
+├── DocumentServiceGrpc                 — 生成的 Document gRPC Stub（Upload 流式/Get/List/Read 流式）
+└── KnowledgeBase / Document 等消息     — 生成的 Protobuf 请求与响应消息
+```
+
 ### `crag-grpc-runtime`
 
 ```text
@@ -300,7 +311,7 @@ ai.cerbur.crag.access
 
 ```text
 ai.cerbur.crag.knowledge
-├── app/                                — KnowledgeServiceApplication
+├── KnowledgeServiceApplication         — 组合根主类（plan_18 起位于根包）
 ├── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
 └── smoke/                              — 仅 smoke Profile 启用的事件诊断闭环（plan_17）
     ├── controller/                     — KnowledgeEventSmokeController（@Profile("smoke")，/api/v1/smoke/events）

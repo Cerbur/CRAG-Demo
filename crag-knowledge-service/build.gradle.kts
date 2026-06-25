@@ -9,6 +9,7 @@ java {
 }
 
 dependencies {
+    implementation(project(":crag-knowledge-contracts"))
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
     implementation(project(":crag-common"))
@@ -21,6 +22,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("com.h2database:h2")
 }

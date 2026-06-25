@@ -7,6 +7,7 @@ import ai.cerbur.crag.knowledge.smoke.dto.KnowledgeSmokeEventStatusResponse;
 import ai.cerbur.crag.knowledge.smoke.event.KnowledgeSmokeEventService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,11 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/smoke/events")
 public class KnowledgeEventSmokeController {
 
-  private final KnowledgeSmokeEventService service;
-
-  public KnowledgeEventSmokeController(KnowledgeSmokeEventService service) {
-    this.service = service;
-  }
+  @Autowired private KnowledgeSmokeEventService service;
 
   /** Creates a smoke event in the Knowledge outbox. */
   @PostMapping
