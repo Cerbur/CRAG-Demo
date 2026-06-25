@@ -66,6 +66,9 @@ public class ChunkFtsDao {
   /**
    * FTS 全文检索查询 —— 委托 Repository 执行 ts_rank 排序检索，映射为 {@link SparseSearchResult}.
    *
+   * <p>Repository 采用部分匹配（OR）召回：含疑问词或扩展词、其部分 token 不在目标 chunk 中的 query 仍能命中任一匹配 token 的 chunk，排序为
+   * score 降序、chunk_id 升序。匹配语义与 SQL 细节见 {@link ChunkFtsRepository#searchFts}.
+   *
    * <p>流程： 1. 空查询保护：query 为 null 或空白时返回空列表 2. 委托 ChunkFtsRepository 执行 native SQL（CJK 预处理在 DB 侧完成）
    * 3. Object[] 列映射为 SparseSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=chunkIndex, 3=score,
    * 4=content）
