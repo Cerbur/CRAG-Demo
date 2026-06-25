@@ -28,7 +28,7 @@
 | `db` | PostgreSQL 17 + pgvector，提供持久化与向量检索能力 | 禁止承载业务逻辑 |
 | `model-init` | 一次性下载 Sidecar 所需模型到共享卷，成功后退出 | 禁止伪装健康检查；禁止作为长期服务运行 |
 | `sidecar` | Python 模型推理服务，提供 `/embed` 与 `/rerank` | 禁止承载业务编排或直接访问数据库 |
-| `rag-service` | RAG 业务组合根，承载检索、入库、查询和兼容 HTTP 入口 | 禁止被其他 Application 模块直接依赖 |
+| `rag-service` | RAG 业务组合根，承载检索、入库、查询运行时、gRPC Server 与 Platform Probe | 禁止被其他 Application 模块直接依赖；legacy 写入/查询 HTTP 仅在 smoke Profile 下由 rag-service-smoke 暴露 |
 | `access-service` | Access 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
 | `knowledge-service` | Knowledge 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
 | `console-api` | Console HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
@@ -200,7 +200,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | --- | --- |
 | 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-rag-service` |
 | 容器名 | `crag-rag-service` |
-| 端口 | `8082:8082`（兼容 AdminRag/UserQuery） |
+| 端口 | `8082:8082`（健康检查 + gRPC；业务 HTTP 验证在 `rag-service-smoke:8083` 的 `/api/v1/smoke/**`） |
 | 运行身份 | `appuser`（非 root） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions`，账号 `crag_rag` |
 | Sidecar | `http://sidecar:8001` |

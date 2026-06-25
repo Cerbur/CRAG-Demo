@@ -288,13 +288,19 @@ check_http_status "http://localhost:8082/actuator/env" "404" "rag-service /actua
 # Smoke 端点默认不暴露
 check_http_status "http://localhost:8082/api/v1/smoke/test/smoke" "404" "rag-service /api/v1/smoke/test/smoke" || FAILED=1
 
+# 写入端点为 smoke-only（@Profile("smoke")），先确保 rag-service-smoke 已启动
+docker compose --profile smoke up -d --build rag-service-smoke 2>&1 | tail -3
+if ! wait_for_healthy "rag-service-smoke" 120; then
+  FAILED=1
+fi
+
 # ─── 测试 4: AdminRag 写入 ───
 
 echo ""
 echo "=== 测试 4: AdminRag 写入 ==="
 
-# 通过 rag-service POST /api/v1/smoke/admin/rag 写入标题含 runId 的文档
-admin_response=$(curl -s -m 10 -X POST "http://localhost:8082/api/v1/smoke/admin/rag" \
+# 通过 rag-service-smoke POST /api/v1/smoke/admin/rag 写入标题含 runId 的文档
+admin_response=$(curl -s -m 10 -X POST "http://localhost:8083/api/v1/smoke/admin/rag" \
   -H "Content-Type: application/json" \
   -d "{\"title\":\"readiness-test-$RUN_ID\",\"content\":\"Docker readiness regression test document\",\"metadata\":{\"source\":\"readiness-test\"}}" 2>/dev/null)
 

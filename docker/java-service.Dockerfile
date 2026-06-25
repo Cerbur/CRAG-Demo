@@ -21,12 +21,6 @@ COPY settings.gradle.kts .
 COPY gradle/libs.versions.toml gradle/libs.versions.toml
 COPY crag-id/build.gradle.kts crag-id/build.gradle.kts
 COPY crag-common/build.gradle.kts crag-common/build.gradle.kts
-COPY crag-storage/build.gradle.kts crag-storage/build.gradle.kts
-COPY crag-retrieval/build.gradle.kts crag-retrieval/build.gradle.kts
-COPY crag-ingestion/build.gradle.kts crag-ingestion/build.gradle.kts
-COPY crag-query/build.gradle.kts crag-query/build.gradle.kts
-COPY crag-api/build.gradle.kts crag-api/build.gradle.kts
-COPY crag-smoke/build.gradle.kts crag-smoke/build.gradle.kts
 COPY crag-platform-contracts/build.gradle.kts crag-platform-contracts/build.gradle.kts
 COPY crag-grpc-runtime/build.gradle.kts crag-grpc-runtime/build.gradle.kts
 COPY crag-access-service/build.gradle.kts crag-access-service/build.gradle.kts
@@ -39,12 +33,6 @@ RUN --mount=type=cache,id=crag-gradle-cache,target=/root/.gradle,sharing=locked 
 
 COPY crag-id/src/ crag-id/src/
 COPY crag-common/src/ crag-common/src/
-COPY crag-storage/src/ crag-storage/src/
-COPY crag-retrieval/src/ crag-retrieval/src/
-COPY crag-ingestion/src/ crag-ingestion/src/
-COPY crag-query/src/ crag-query/src/
-COPY crag-api/src/ crag-api/src/
-COPY crag-smoke/src/ crag-smoke/src/
 COPY crag-platform-contracts/src/ crag-platform-contracts/src/
 COPY crag-grpc-runtime/src/ crag-grpc-runtime/src/
 COPY crag-access-service/src/ crag-access-service/src/
