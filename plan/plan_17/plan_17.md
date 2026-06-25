@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_17
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-25
 updated: 2026-06-26
 ---
@@ -90,6 +90,7 @@ updated: 2026-06-26
 - `crag-knowledge-service/src/test/java/ai/cerbur/crag/knowledge/**`
 - `crag-knowledge-service/src/test/resources/**`
 - `docker-compose.yml`
+- `docker/java-service.Dockerfile`
 - `constraints/package-structure.md`
 - `constraints/docker-structure.md`
 - `constraints/test-workflow.md`
@@ -198,8 +199,8 @@ updated: 2026-06-26
 | 17.2 | 实现 Outbox 与 processed_event JDBC 基础设施 | ⏳ 待验收 | 79151e3a | — |
 | 17.3 | 实现 Redis Streams publisher、consumer、Reclaim 与 DLQ | ⏳ 待验收 | 18eeee90 | — |
 | 17.4 | 接入 Knowledge smoke 事件闭环 | ⏳ 待验收 | 4aeb186b | — |
-| 17.5 | 补齐可观测性、约束文档、校验器与 Docker 回归 | 🟠 进行中 | fb789a9e | — |
-| 17.6 | 完成全量验证、Plan 交接和索引同步 | 🟠 进行中 | d809668b | — |
+| 17.5 | 补齐可观测性、约束文档、校验器与 Docker 回归 | ⏳ 待验收 | fb789a9e, dcfabdc6 | — |
+| 17.6 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待验收 | d809668b | — |
 
 整体进度：0 / 6（0%）
 
@@ -280,11 +281,19 @@ updated: 2026-06-26
 | 2026-06-26 | macOS / Python 3 | `validate_plans.py --strict --verify-git` / `validate_module_dependencies.py` / `validate_constraints.py` | 通过 | 三项均 0 error（24 个 P101 历史 v2 警告，非阻断） |
 | 2026-06-26 | 独立验收 / Docker 29.5.2 | `docker compose --profile smoke build knowledge-service-smoke` | 失败 | BuildKit 前端拉取在本 session 重试中恢复，但 Gradle 配置阶段失败：`Configuring project ':crag-event' without an existing directory is not allowed. projectDirectory '/workspace/crag-event' does not exist`。根因：`docker/java-service.Dockerfile` 未 COPY 新增的 `crag-event/` 目录，而 `settings.gradle.kts`（17.1）已 include crag-event，故任何 Java 服务镜像全新构建均失败。属实现缺陷，非网络问题 |
 | 2026-06-26 | 独立验收 / Docker 29.5.2 | `event_smoke_{success,dlq,default_disabled}_test.sh` | 未执行 | `knowledge-service-smoke` 镜像无法构建，三脚本无法运行；真实 Redis Streams 链路未被证明 |
+| 2026-06-26 | 修复 session / Docker 29.5.2 | `docker compose --profile smoke build knowledge-service-smoke` | 通过 | 补 `docker/java-service.Dockerfile` 的 `crag-event` COPY（dcfabdc6）后，全新镜像构建成功，原 Gradle 配置阶段失败已消除 |
+| 2026-06-26 | 修复 session / 条件评估报告 | `--debug` 启动 + Spring Boot 条件评估报告 | 通过 | 报告确认原根因：`EventAutoConfiguration` 无 auto-config ordering，`@ConditionalOnBean` 在 DataSource/JdbcTemplate/StringRedisTemplate/MeterRegistry 注册前评估，全部 negative match；补 `afterName` 后 publisher/consumer/DAO/RedisOps bean 全部创建 |
+| 2026-06-26 | 修复 session / Docker 29.5.2 | `event_smoke_success_test.sh` | 通过 | outbox=PUBLISHED processed=PROCESSED deadLettered=False；真实 Redis Streams publish→consume→PROCESSED 闭环成立 |
+| 2026-06-26 | 修复 session / Docker 29.5.2 | `event_smoke_dlq_test.sh` | 通过 | processed=DEAD_LETTERED deadLettered=True handlerAttempts=3；retryable→reclaim→DLQ 成立，`ensureGroup` 走 cause chain 修复后 consumer 跨运行幂等稳定 |
+| 2026-06-26 | 修复 session / Docker 29.5.2 | `event_smoke_default_disabled_test.sh` | 通过 | 默认 profile `/api/v1/smoke/events` 返回 404；脚本改用 service 名调 `docker compose exec` |
+| 2026-06-26 | 修复 session / Java 21 / Gradle 9.4.1 | `./gradlew spotlessCheck :crag-event:test :crag-knowledge-service:test` | 通过 | 含新增 `EventAutoConfigurationOrderingTest`、`RedisTemplateStreamOpsTest`；BUILD SUCCESSFUL |
+| 2026-06-26 | 修复 session / Python 3 | `validate_{plans,module_dependencies,constraints}.py` + 校验器单测 | 通过 | 三项 0 error（24 个 P101 历史 v2 警告，非阻断）；37 项校验器单测通过 |
 
 ### 未执行项与风险
 
-- **🔴 构建缺陷（验收退回根因）**：`docker/java-service.Dockerfile` 未 COPY `crag-event/` 目录，而 `settings.gradle.kts`（17.1）已 include crag-event。独立验收 session 重试构建时，BuildKit 前端拉取一度恢复，但 Gradle 配置阶段确定性失败：`Configuring project ':crag-event' without an existing directory is not allowed`。影响面：`knowledge-service-smoke`（以及任何全新构建的 Java 服务镜像）无法构建，故 Docker HTTP 回归无法运行。`docker/java-service.Dockerfile` 未列入本计划文件边界，是规划遗漏；修复需将其纳入 plan_17 范围并补 `COPY crag-event/build.gradle.kts` 与 `COPY crag-event/src/`。执行 session 此前因 docker.io 网络 `TLS handshake timeout` 未能触达此 Gradle 阶段，误判为纯环境阻塞。
-- **真实 Redis Streams 行为未验证**：H2/fake 测试只覆盖 DAO 与编排逻辑，真实 `XREADGROUP`/`XPENDING`/`XCLAIM`、publish→consume→PROCESSED 成功路径与 retryable→DLQ 路径必须由独立验收 session 运行上述 Docker HTTP 回归证明。镜像构建缺陷修复并重跑三脚本通过前不得判完成。
+- **✅ 已修复（修复 session `dcfabdc6`，2026-06-26）**：下方原始失败证据保留不改。构建缺陷与真实 Redis Streams 链路均已修复，并经三脚本 + Gradle + 校验器验证通过（见上方验收记录新增行）。修复 session 另发现并修复三个 H2/fake 测试无法暴露的运行时缺陷：`EventAutoConfiguration` 缺 auto-config ordering（事件 bean 全部被跳过）、`RedisTemplateStreamOps.ensureGroup` 未走 cause chain（consumer 跨运行崩溃）、`event_smoke_default_disabled_test.sh` 用 container 名调 `docker compose exec`（默认服务被误判未运行）。
+- **🔴 构建缺陷（验收退回根因，已修复）**：`docker/java-service.Dockerfile` 未 COPY `crag-event/` 目录，而 `settings.gradle.kts`（17.1）已 include crag-event。独立验收 session 重试构建时，BuildKit 前端拉取一度恢复，但 Gradle 配置阶段确定性失败：`Configuring project ':crag-event' without an existing directory is not allowed`。影响面：`knowledge-service-smoke`（以及任何全新构建的 Java 服务镜像）无法构建，故 Docker HTTP 回归无法运行。`docker/java-service.Dockerfile` 未列入本计划文件边界，是规划遗漏；修复需将其纳入 plan_17 范围并补 `COPY crag-event/build.gradle.kts` 与 `COPY crag-event/src/`。执行 session 此前因 docker.io 网络 `TLS handshake timeout` 未能触达此 Gradle 阶段，误判为纯环境阻塞。
+- **真实 Redis Streams 行为未验证（已验证）**：H2/fake 测试只覆盖 DAO 与编排逻辑，真实 `XREADGROUP`/`XPENDING`/`XCLAIM`、publish→consume→PROCESSED 成功路径与 retryable→DLQ 路径必须由独立验收 session 运行上述 Docker HTTP 回归证明。修复 session 已运行三脚本并通过（success: PROCESSED；dlq: DEAD_LETTERED/handlerAttempts=3；default: 404），独立验收 session 仍须自行重跑确认。
 - **并发提交**：实现期间观察到 plan_16 验收（`b908e04c`）与 plan_7.hotfix_1（`27e44ac0`）由其他 session 并发提交到 `main`；与 plan_17 文件边界不重叠，已隔离未纳入 plan_17 提交。
 - **DLQ 回归时效**：smoke 容器 `crag.event.claim-idle=5s`、`max-deliveries=3`，retryable 进 DLQ 约需 15–20s；脚本超时 180s，验收时注意 reclaim/XPENDING 投递计数语义可能与 fake 模型存在差异。
 
@@ -306,3 +315,4 @@ updated: 2026-06-26
 | 2026-06-26 | 17.6 范围微调 | api/persistence/test 约束同步随收尾任务（17.6）落地，而非 17.5 | 17.6 实现提交承担剩余约束文档同步；功能与文件边界不变 |
 | 2026-06-26 | 实现完成并交接 | 17.1–17.6 全部实现、自测通过并回填短 hash | status → verifying；六项转待验收；执行 session 自测记录与 Docker 未执行风险记入验收记录 |
 | 2026-06-26 | 独立验收失败退回 | 验收发现构建缺陷：`docker/java-service.Dockerfile` 未 COPY `crag-event/`，`settings.gradle.kts` include crag-event 致全新镜像构建失败、Docker HTTP 回归无法运行；非纯网络阻塞 | status → in_progress；17.5/17.6 退回进行中；失败证据记入验收记录，未修改任何实现代码 |
+| 2026-06-26 | 修复验收退回项并重新交接 | 修复 session 运行 Docker HTTP 回归后定位并修复四个根因（`dcfabdc6`）：Dockerfile 未 COPY `crag-event`、`EventAutoConfiguration` 无 auto-config ordering 致事件 bean 全部被跳过、`ensureGroup` 未走 cause chain 致 consumer 跨运行崩溃、`event_smoke_default_disabled_test.sh` 用 container 名调 compose exec；新增两个回归测试 | status → verifying；`docker/java-service.Dockerfile` 纳入文件边界；17.5 追加 `dcfabdc6`、17.5/17.6 转待验收；三脚本、Gradle、校验器均通过；原始失败证据保留 |
