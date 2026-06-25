@@ -266,7 +266,7 @@ DEPRECATED_TERMS: list[tuple[str, str, str, str, dict[str, str]]] = [
     ),
     (
         "crag-admin",
-        "crag-api（当前模块名）",
+        "crag-rag-service smoke 包（crag-admin → crag-api → plan_16 收口）",
         "TERM_DEPRECATED",
         # Allowed only in compatibility notices about the rename itself.
         r"禁止新增.*crag-admin|crag-admin\s*→\s*crag-api|"

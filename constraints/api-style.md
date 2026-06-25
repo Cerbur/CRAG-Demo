@@ -53,28 +53,29 @@
 
 ### 必须
 
-- HTTP DTO 的所有者是 API 边界模块 `crag-api`。
-- 禁止新增 `crag-admin` 模块或 `ai.cerbur.crag.admin` package；正式 HTTP 边界统一使用 `crag-api`。
+- HTTP DTO 的所有者按入口分层：legacy RAG 验证 DTO 归 `crag-rag-service` 的 smoke 包；未来正式 HTTP DTO 归 `crag-console-api` / `crag-open-api`。
+- 禁止新增 `crag-admin` 模块或 `ai.cerbur.crag.admin` package；`crag-api` / `crag-smoke` 已由 plan_16 收口进 `crag-rag-service` 的 smoke 包，不再作为独立 Gradle 模块。
+- 正式 HTTP 入口由 `crag-console-api` 与 `crag-open-api` 承担；现有 AdminRag 写入与 UserQuery 行为只在 `smoke` Profile 下作为 `/api/v1/smoke/**` 验证端点，不构成正式对外契约。
 - 按业务能力组织包，例如 `dto.rag`、`dto.query`，避免所有类型横向堆入单一 `request` 或 `response` 包。
 - 请求与响应使用独立契约，不直接暴露 Entity、内部 BO 或阶段结果。
-- DTO 与业务对象的转换发生在 API 边界，禁止下层模块依赖 HTTP DTO。
+- DTO 与业务对象的转换发生在 HTTP 边界，禁止下层模块依赖 HTTP DTO。
 - 正式 API 契约独立成文件；Controller 内部 record 仅用于测试或真正私有且不构成契约的小型结构。
 
 ### 推荐
 
 - 简单不可变 DTO 优先使用 Java `record`。
 
-### 当前 DTO 结构
+### 当前 smoke DTO 结构
 
 ```text
-ai.cerbur.crag.api
+ai.cerbur.crag.smoke
 ├── dto.rag/
-│   ├── AdminRagRequest     — POST /api/v1/admin/rag 请求
-│   └── AdminRagResponse    — POST /api/v1/admin/rag 成功响应
+│   ├── AdminRagRequest     — POST /api/v1/smoke/admin/rag 请求
+│   └── AdminRagResponse    — POST /api/v1/smoke/admin/rag 成功响应
 └── dto.query/
-    ├── UserQueryRequest    — POST /api/v1/query 请求
-    ├── UserQueryResponse   — POST /api/v1/query 成功响应
-    └── QuerySourceResponse — POST /api/v1/query 来源映射
+    ├── UserQueryRequest    — POST /api/v1/smoke/query 请求
+    ├── UserQueryResponse   — POST /api/v1/smoke/query 成功响应
+    └── QuerySourceResponse — POST /api/v1/smoke/query 来源映射
 ```
 
 ---

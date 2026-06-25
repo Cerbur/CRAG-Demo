@@ -58,7 +58,7 @@ access / knowledge / rag 健康 → console-api / open-api（健康）
 
 - 长期运行服务（`db`、`sidecar`、五个 Java 服务）必须具有验证真实可服务状态的健康检查。
 - 一次性任务（`model-init`）以成功退出作为就绪条件，不伪造健康检查。
-- Java 服务必须使用独立正式健康端点，不得依赖 `/api/v1/test/**` 或 Smoke 诊断端点。
+- Java 服务必须使用独立正式健康端点，不得依赖 `/api/v1/smoke/test/**` 或 Smoke 诊断端点。
 - Sidecar 使用其 `/health` 端点进行健康检查。
 
 ### 3.4 运行身份

@@ -16,18 +16,22 @@ def load_validator():
     return module
 
 
+# Current module set after plan_16: the six RAG subprojects were consolidated into
+# crag-rag-service, so only shared infrastructure modules + the five Application
+# roots remain.
 SETTINGS_COMMON = """\
 rootProject.name = "crag-demo"
 
 include(
     "crag-id",
     "crag-common",
-    "crag-storage",
-    "crag-retrieval",
-    "crag-ingestion",
-    "crag-query",
-    "crag-api",
-    "crag-rag-service"
+    "crag-platform-contracts",
+    "crag-grpc-runtime",
+    "crag-rag-service",
+    "crag-access-service",
+    "crag-knowledge-service",
+    "crag-console-api",
+    "crag-open-api"
 )
 """
 
@@ -39,69 +43,31 @@ dependencies {
 }
 """
 
-BUILD_STORAGE = """\
-plugins {
-    `java-library`
-}
-dependencies {
-    implementation(project(":crag-common"))
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-}
-"""
+# Shared infrastructure modules carry an empty whitelist — no project deps allowed.
+BUILD_CONTRACTS = BUILD_NO_DEPS
+BUILD_GRPC_RUNTIME = BUILD_NO_DEPS
 
-BUILD_RETRIEVAL = """\
-plugins {
-    `java-library`
-}
-dependencies {
-    implementation(project(":crag-common"))
-    implementation(project(":crag-storage"))
-}
-"""
-
-BUILD_INGESTION = """\
-plugins {
-    `java-library`
-}
-dependencies {
-    implementation(project(":crag-common"))
-    implementation(project(":crag-storage"))
-    implementation(project(":crag-retrieval"))
-}
-"""
-
-BUILD_QUERY = """\
-plugins {
-    `java-library`
-}
-dependencies {
-    implementation(project(":crag-common"))
-    implementation(project(":crag-retrieval"))
-}
-"""
-
-BUILD_API = """\
-plugins {
-    `java-library`
-}
-dependencies {
-    implementation(project(":crag-common"))
-    implementation(project(":crag-ingestion"))
-    implementation(project(":crag-query"))
-}
-"""
-
-BUILD_APP = """\
+# Application roots assemble shared modules (allowed because they are in APP_MODULES).
+BUILD_RAG_SERVICE = """\
 plugins {
     java
 }
 dependencies {
     implementation(project(":crag-common"))
-    implementation(project(":crag-storage"))
-    implementation(project(":crag-ingestion"))
-    implementation(project(":crag-retrieval"))
-    implementation(project(":crag-query"))
-    implementation(project(":crag-api"))
+    implementation(project(":crag-id"))
+    implementation(project(":crag-platform-contracts"))
+    implementation(project(":crag-grpc-runtime"))
+}
+"""
+
+BUILD_APP_OTHER = """\
+plugins {
+    java
+}
+dependencies {
+    implementation(project(":crag-common"))
+    implementation(project(":crag-platform-contracts"))
+    implementation(project(":crag-grpc-runtime"))
 }
 """
 
@@ -120,12 +86,13 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
         defaults = {
             "crag-id": BUILD_NO_DEPS,
             "crag-common": BUILD_NO_DEPS,
-            "crag-storage": BUILD_STORAGE,
-            "crag-retrieval": BUILD_RETRIEVAL,
-            "crag-ingestion": BUILD_INGESTION,
-            "crag-query": BUILD_QUERY,
-            "crag-api": BUILD_API,
-            "crag-rag-service": BUILD_APP,
+            "crag-platform-contracts": BUILD_CONTRACTS,
+            "crag-grpc-runtime": BUILD_GRPC_RUNTIME,
+            "crag-rag-service": BUILD_RAG_SERVICE,
+            "crag-access-service": BUILD_APP_OTHER,
+            "crag-knowledge-service": BUILD_APP_OTHER,
+            "crag-console-api": BUILD_APP_OTHER,
+            "crag-open-api": BUILD_APP_OTHER,
         }
         for mod in modules:
             mod_dir = root / mod
@@ -142,41 +109,38 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
                 [
                     "crag-id",
                     "crag-common",
-                    "crag-storage",
-                    "crag-retrieval",
-                    "crag-ingestion",
-                    "crag-query",
-                    "crag-api",
+                    "crag-platform-contracts",
+                    "crag-grpc-runtime",
                     "crag-rag-service",
+                    "crag-access-service",
+                    "crag-knowledge-service",
+                    "crag-console-api",
+                    "crag-open-api",
                 ],
             )
             diagnostics = self.validator.validate(root)
         errors = [item for item in diagnostics if item.level == "ERROR"]
         self.assertEqual([], errors, f"Unexpected errors: {errors}")
 
-    def test_rejects_unauthorized_dependency(self):
-        """A dependency not in the whitelist is rejected."""
+    def test_rejects_project_dep_in_infrastructure_module(self):
+        """A project dependency in a whitelisted infrastructure module is rejected."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             overrides = {
-                "crag-query": """\
+                "crag-grpc-runtime": """\
 plugins { `java-library` }
 dependencies {
-    implementation(project(":crag-common"))
-    implementation(project(":crag-retrieval"))
-    implementation(project(":crag-storage"))
+    implementation(project(":crag-rag-service"))
 }
 """,
             }
             self._setup_repo(
                 root,
                 [
+                    "crag-id",
                     "crag-common",
-                    "crag-storage",
-                    "crag-retrieval",
-                    "crag-ingestion",
-                    "crag-query",
-                    "crag-api",
+                    "crag-platform-contracts",
+                    "crag-grpc-runtime",
                     "crag-rag-service",
                 ],
                 overrides=overrides,
@@ -184,18 +148,18 @@ dependencies {
             diagnostics = self.validator.validate(root)
         errors = [item for item in diagnostics if item.level == "ERROR"]
         self.assertTrue(
-            any("crag-query" in err.message and "crag-storage" in err.message for err in errors),
-            f"Expected error about crag-query→crag-storage, got: {errors}",
+            any("crag-grpc-runtime" in err.message and "crag-rag-service" in err.message for err in errors),
+            f"Expected error about crag-grpc-runtime→crag-rag-service, got: {errors}",
         )
 
     def test_rejects_dependency_cycle(self):
         """A dependency cycle between modules is detected."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            # Create cycle: crag-common → crag-storage → crag-common
+            # Create cycle: crag-common → crag-grpc-runtime → crag-common
             settings = """\
 rootProject.name = "test"
-include("crag-common", "crag-storage")
+include("crag-common", "crag-grpc-runtime")
 """
             (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
             (root / ".git").mkdir(exist_ok=True)
@@ -206,15 +170,15 @@ include("crag-common", "crag-storage")
                 """\
 plugins { `java-library` }
 dependencies {
-    implementation(project(":crag-storage"))
+    implementation(project(":crag-grpc-runtime"))
 }
 """,
                 encoding="utf-8",
             )
 
-            storage_dir = root / "crag-storage"
-            storage_dir.mkdir(parents=True)
-            (storage_dir / "build.gradle.kts").write_text(
+            runtime_dir = root / "crag-grpc-runtime"
+            runtime_dir.mkdir(parents=True)
+            (runtime_dir / "build.gradle.kts").write_text(
                 """\
 plugins { `java-library` }
 dependencies {
@@ -231,41 +195,23 @@ dependencies {
             f"Expected cycle error, got: {errors}",
         )
 
-    def test_accepts_unknown_module_in_whitelist_as_no_error(self):
-        """Modules that don't exist (like crag-api, crag-smoke) don't cause errors."""
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            # Only crag-common exists, no crag-api/crag-smoke
-            settings = """\
-rootProject.name = "test"
-include("crag-common")
-"""
-            (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
-            (root / ".git").mkdir(exist_ok=True)
-            common_dir = root / "crag-common"
-            common_dir.mkdir(parents=True)
-            (common_dir / "build.gradle.kts").write_text(BUILD_NO_DEPS, encoding="utf-8")
-
-            diagnostics = self.validator.validate(root)
-        errors = [item for item in diagnostics if item.level == "ERROR"]
-        self.assertEqual([], errors)
-
-    def test_accepts_crag_api_whitelist_directly(self):
-        """crag-api module matches the whitelist entry directly (no name mapping)."""
+    def test_application_root_assembles_shared_modules(self):
+        """Application roots (e.g. crag-rag-service) may depend on shared modules."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._setup_repo(
                 root,
                 [
+                    "crag-id",
                     "crag-common",
-                    "crag-ingestion",
-                    "crag-query",
-                    "crag-api",
+                    "crag-platform-contracts",
+                    "crag-grpc-runtime",
+                    "crag-rag-service",
                 ],
             )
             diagnostics = self.validator.validate(root)
         errors = [item for item in diagnostics if item.level == "ERROR"]
-        self.assertEqual([], errors)
+        self.assertEqual([], errors, f"crag-rag-service assembly should pass, got: {errors}")
 
     def test_contracts_module_passes_with_no_deps(self):
         """crag-platform-contracts with no project dependencies passes."""
@@ -284,8 +230,8 @@ include("crag-platform-contracts")
         errors = [item for item in diagnostics if item.level == "ERROR"]
         self.assertEqual([], errors)
 
-    def test_contracts_module_rejects_spring_dep(self):
-        """crag-platform-contracts must not depend on any business module."""
+    def test_contracts_module_rejects_shared_dep(self):
+        """crag-platform-contracts must not depend on any other project module."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             settings = """\

@@ -29,6 +29,16 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# Path segments marking generated, VCS, build-tool, or agent-workspace directories.
+# Files beneath them (e.g. stale agent worktrees holding old module layouts) must
+# never be treated as authoritative repo sources.
+IGNORED_PATH_PARTS = ("/build/", "/bin/", "/.claude/", "/.git/", "/.gradle/", "/.idea/")
+
+
+def is_ignored_path(path: Path) -> bool:
+    text = str(path)
+    return any(part in text for part in IGNORED_PATH_PARTS)
+
 
 def read_toml(path: Path) -> dict:
     with open(path, "rb") as f:
@@ -94,7 +104,7 @@ def check_catalog_versions() -> list[str]:
     for kts_path in REPO_ROOT.rglob("build.gradle.kts"):
         rel = str(kts_path.relative_to(REPO_ROOT))
         # Exclude build output directories
-        if "/build/" in str(kts_path) or "/bin/" in str(kts_path):
+        if is_ignored_path(kts_path):
             continue
 
         content = read_file(kts_path)
@@ -121,7 +131,7 @@ def check_repositories() -> list[str]:
     ]
 
     for kts_path in REPO_ROOT.rglob("*.gradle.kts"):
-        if "/build/" in str(kts_path) or "/bin/" in str(kts_path):
+        if is_ignored_path(kts_path):
             continue
         content = read_file(kts_path)
         for pattern, desc in repo_patterns:
@@ -140,7 +150,7 @@ def check_no_platform_mixing() -> list[str]:
     ]
 
     for kts_path in REPO_ROOT.rglob("build.gradle.kts"):
-        if "/build/" in str(kts_path) or "/bin/" in str(kts_path):
+        if is_ignored_path(kts_path):
             continue
         content = read_file(kts_path)
         for pattern in platform_patterns:
@@ -157,21 +167,22 @@ def check_spring_ai_boundary() -> list[str]:
     """Verify Spring AI BOM only in crag-ingestion and only spring-ai-commons is used."""
     errors = []
 
-    # Spring AI BOM is allowed in crag-ingestion, crag-query, crag-api, and crag-app.
+    # Spring AI BOM is centralized in crag-rag-service after plan_16 consolidation.
     for kts_path in REPO_ROOT.rglob("build.gradle.kts"):
-        if "/build/" in str(kts_path) or "/bin/" in str(kts_path):
+        if is_ignored_path(kts_path):
             continue
         content = read_file(kts_path)
         rel = str(kts_path.relative_to(REPO_ROOT))
         if re.search(r"spring-ai-bom", content):
-            allowed = ("crag-ingestion", "crag-query", "crag-api", "crag-app", "crag-rag-service")
+            allowed = ("crag-rag-service",)
             if not any(a in rel for a in allowed):
                 errors.append(
                     f"{rel}: Spring AI BOM only allowed in "
                     f"{'/'.join(allowed)}/build.gradle.kts"
                 )
 
-    # Only spring-ai-commons and spring-ai-anthropic (crag-query only) are allowed.
+    # Only spring-ai-commons and spring-ai-anthropic are allowed; both are
+    # consolidated into crag-rag-service after plan_16.
     forbidden_ai_modules = [
         "spring-ai-openai",
         "spring-ai-transformers",
@@ -185,14 +196,11 @@ def check_spring_ai_boundary() -> list[str]:
     ]
 
     for kts_path in REPO_ROOT.rglob("build.gradle.kts"):
-        if "/build/" in str(kts_path) or "/bin/" in str(kts_path):
+        if is_ignored_path(kts_path):
             continue
         content = read_file(kts_path)
         for mod in forbidden_ai_modules:
             if mod in content:
-                # spring-ai-anthropic is allowed only in crag-query (plan_7 DeepSeek adapter)
-                if mod == "spring-ai-anthropic" and "crag-query" in str(kts_path):
-                    continue
                 errors.append(f"{kts_path.relative_to(REPO_ROOT)}: forbidden dependency [{mod}]")
 
     return errors
@@ -208,7 +216,7 @@ def check_autoconfig_and_dummy_keys() -> list[str]:
     ]
 
     for yml_path in REPO_ROOT.rglob("application*.yml"):
-        if "/build/" in str(yml_path) or "/bin/" in str(yml_path):
+        if is_ignored_path(yml_path):
             continue
         content = read_file(yml_path)
         for pattern, desc in forbidden_config:
@@ -250,9 +258,14 @@ def check_contracts_runtime_boundary() -> list[str]:
             errors.append(
                 "crag-grpc-runtime/build.gradle.kts: must not depend on crag-platform-contracts"
             )
+        # After plan_16 the RAG business lives in the Application roots; the
+        # gRPC runtime must not pull any of them in.
         business_modules = [
-            "crag-storage", "crag-ingestion", "crag-retrieval",
-            "crag-query", "crag-api", "crag-smoke",
+            "crag-rag-service",
+            "crag-access-service",
+            "crag-knowledge-service",
+            "crag-console-api",
+            "crag-open-api",
         ]
         for mod in business_modules:
             if re.search(rf'project\(":{mod}"\)', content):

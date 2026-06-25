@@ -113,7 +113,7 @@ dependencies {
 
     def test_detects_spring_ai_platform(self):
         """Spring AI BOM via platform() in submodule is forbidden — dependency-management handles BOM imports."""
-        self.write_file("crag-ingestion/build.gradle.kts", """
+        self.write_file("crag-rag-service/build.gradle.kts", """
 dependencies {
     implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0"))
     implementation("org.springframework.ai:spring-ai-commons")
@@ -190,8 +190,8 @@ class TestCheckSpringAiBoundary(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
 
-    def test_allows_bom_in_crag_ingestion(self):
-        self.write_file("crag-ingestion/build.gradle.kts", """
+    def test_allows_bom_in_crag_rag_service(self):
+        self.write_file("crag-rag-service/build.gradle.kts", """
 dependencyManagement {
     imports {
         mavenBom("org.springframework.ai:spring-ai-bom:2.0.0")
@@ -203,7 +203,7 @@ dependencies {
 """)
         errors = vld.check_spring_ai_boundary()
         self.assertEqual(errors, [],
-                        f"crag-ingestion should be allowed to import Spring AI BOM, got: {errors}")
+                        f"crag-rag-service should be allowed to import Spring AI BOM, got: {errors}")
 
     def test_detects_bom_in_root_build(self):
         """Root build.gradle.kts must NOT import Spring AI BOM globally."""
@@ -221,7 +221,7 @@ subprojects {
                         f"Root build should not import Spring AI BOM globally, got: {errors}")
 
     def test_detects_bom_in_other_submodule(self):
-        self.write_file("crag-retrieval/build.gradle.kts", """
+        self.write_file("crag-common/build.gradle.kts", """
 dependencyManagement {
     imports {
         mavenBom("org.springframework.ai:spring-ai-bom:2.0.0")
@@ -230,7 +230,7 @@ dependencyManagement {
 """)
         errors = vld.check_spring_ai_boundary()
         self.assertTrue(len(errors) > 0,
-                        f"Non-ingestion submodule should not import Spring AI BOM, got: {errors}")
+                        f"Non-rag-service submodule should not import Spring AI BOM, got: {errors}")
 
 
 class TestCheckContractsRuntimeBoundary(unittest.TestCase):
@@ -347,11 +347,11 @@ plugins {
     `java-library`
 }
 dependencies {
-    implementation(project(":crag-storage"))
+    implementation(project(":crag-rag-service"))
 }
 """)
         errors = vld.check_contracts_runtime_boundary()
-        self.assertTrue(any("crag-storage" in e for e in errors),
+        self.assertTrue(any("crag-rag-service" in e for e in errors),
                         f"Should detect business module dep, got: {errors}")
 
 

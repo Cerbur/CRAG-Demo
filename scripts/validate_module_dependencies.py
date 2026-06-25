@@ -15,33 +15,19 @@ class Diagnostic(NamedTuple):
 
 
 # Whitelist from constraints/package-structure.md section 4.
-# Keys are target module names (crag-api is the target name for current crag-admin).
-# crag-app has special "all" handling.
+# plan_16 consolidated crag-storage / crag-retrieval / crag-query / crag-ingestion /
+# crag-api / crag-smoke into crag-rag-service, so only the shared infrastructure
+# modules carry an explicit whitelist. The five Application roots (APP_MODULES)
+# are allowed to assemble any shared module.
 MODULE_WHITELIST: dict[str, set[str]] = {
     "crag-id": set(),
     "crag-common": set(),
-    "crag-storage": {"crag-common"},
-    "crag-retrieval": {"crag-storage", "crag-common"},
-    "crag-ingestion": {"crag-retrieval", "crag-storage", "crag-common", "crag-id"},
-    "crag-query": {"crag-retrieval", "crag-common"},
-    "crag-api": {"crag-ingestion", "crag-query", "crag-common"},
-    "crag-smoke": {
-        "crag-api",
-        "crag-ingestion",
-        "crag-query",
-        "crag-retrieval",
-        "crag-storage",
-        "crag-common",
-        "crag-id",
-    },
     "crag-platform-contracts": set(),
     "crag-grpc-runtime": set(),
-    # crag-app: allowed to depend on all application modules for runtime assembly.
-    # Handled specially below.
 }
 
-# Name mapping from current module names to target whitelist keys.
-# Empty after plan_9 9.2: crag-admin was renamed to crag-api and removed.
+# Name mapping from historical module names to current whitelist keys.
+# Empty: no remapping is needed after the plan_9 rename and plan_16 consolidation.
 MODULE_NAME_MAP: dict[str, str] = {}
 
 # Special modules.
