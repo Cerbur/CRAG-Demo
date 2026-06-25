@@ -91,7 +91,7 @@ updated: 2026-06-25
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_7.1 | Dense 召回根因（ivfflat 空表索引）修复 | ⏳ 待开始 | — | — |
+| 6.hotfix_7.1 | Dense 召回根因（ivfflat 空表索引）修复 | ⏳ 待验收 | 93fb345a | — |
 | 6.hotfix_7.2 | Sparse partial-match 查询语义修正与召回测试 | ⏳ 待开始 | — | — |
 
 整体进度：0 / 2（0%）
@@ -129,6 +129,10 @@ updated: 2026-06-25
 | 2026-06-25 | macOS, Docker | psql 纯距离 `SELECT ce.embedding <=> q FROM chunk_embedding ce`（无 ORDER BY） | 通过 | 返回 2 行，子 chunk dist≈0.1555——证明数据/算子/cast 正常；此前 `dist=0.1537` 证据即此类无 ORDER BY 直查，未覆盖走索引的完整 SQL |
 | 2026-06-25 | macOS, Docker | psql 完整 searchSimilar（`ORDER BY … LIMIT`，走 ivfflat 索引） | 失败 | 0 行；`SET enable_indexscan=off` 后同一 SQL 返回 2 行（score≈0.8445）——根因为 ivfflat 空表索引失效，非 Java |
 | 2026-06-25 | macOS, Docker | 运行 DB 临时 `DROP INDEX`+`CREATE … USING hnsw`，重跑完整 searchSimilar | 通过 | 返回 2 行（子 chunk score≈0.8445）——hnsw 修复假设验证通过，确认修复方向 |
+| 2026-06-25 | macOS, Docker | `docker compose up -d --build rag-service`（fresh schema.sql 重跑，表重建为 hnsw 索引）+ `bash scripts/tests/http/query_stub_success_test.sh` | 通过 | GREEN：Query ready after 2 attempts，sources 非空，全断言 PASS；日志 `Retrieval search — sparse=0, dense=1/3`（修复前 dense=0）；实现 commit `93fb345a` |
+| 2026-06-25 | macOS, Docker | `docker compose --profile smoke up -d --build rag-service-smoke` + `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083` | 通过 | 无退化：retrieveEvidence 全断言 PASS（含 matchedChildIds 交叉引用真实 child），证明同一条 Dense→hnsw 链路对 evidence 路径同样有效 |
+| 2026-06-25 | macOS | `./gradlew :crag-storage:test :crag-retrieval:test` | 通过 | BUILD SUCCESSFUL（任务 UP-TO-DATE：本任务未改 Java，缓存结果有效）；H2/单测不证明 pgvector，Dense 召回由上面 Docker 回归证明 |
+| 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用 | 未执行 | 本任务只改 pgvector 向量索引，不涉及 LLM/供应商边界，Stub 回归已覆盖必跑项；无残留风险 |
 
 ## 阻塞记录
 
