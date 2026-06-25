@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_15
 type: main
-status: verifying
+status: completed
 created: 2026-06-24
 updated: 2026-06-25
 ---
@@ -312,13 +312,13 @@ HTTP DTO 字段保持 `String docId`、`String parentChunkId`、`List<String> pa
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 15.1 | `crag-id` 核心 Snowflake 编解码与实体注册 | ⏳ 待验收 | af72298 | — |
-| 15.2 | Redis Worker lease、发号器生命周期与 readiness | ⏳ 待验收 | a97ac74, f62b2b7b, edf52c4b | — |
-| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ⏳ 待验收 | 38ed9e9, 04d835dc, e9c1df8e, 200479fa, cfaa2e3b | — |
-| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ⏳ 待验收 | 1ee473f | — |
-| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ⏳ 待验收 | 584d213, 41b4336b, 5d72653e, b003e2db, 5b8fda3a | — |
+| 15.1 | `crag-id` 核心 Snowflake 编解码与实体注册 | ✅ 完成 | af72298 | 2026-06-25 |
+| 15.2 | Redis Worker lease、发号器生命周期与 readiness | ✅ 完成 | a97ac74, f62b2b7b, edf52c4b | 2026-06-25 |
+| 15.3 | RAG 持久化 ID 类型切换与 cold reset 路径 | ✅ 完成 | 38ed9e9, 04d835dc, e9c1df8e, 200479fa, cfaa2e3b | 2026-06-25 |
+| 15.4 | RAG HTTP/API 边界 decimal string 与实体类型校验 | ✅ 完成 | 1ee473f | 2026-06-25 |
+| 15.5 | Docker Redis 拓扑、约束同步与端到端回归 | ✅ 完成 | 584d213, 41b4336b, 5d72653e, b003e2db, 5b8fda3a | 2026-06-25 |
 
-整体进度：0 / 5（0%）
+整体进度：5 / 5（100%）
 
 ## 15.1 `crag-id` 核心 Snowflake 编解码与实体注册
 
@@ -770,6 +770,33 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 
 > 注：本轮为文档同步修复，未重跑 Docker HTTP 端到端回归（缺陷为静态文档问题，不依赖 Docker 运行时）；运行时拓扑、HTTP 回归脚本与 Controller 实现均未改动，前序轮次的 Docker 回归证据仍然有效。
 
+### 独立验收（第四轮，2026-06-25）
+
+验收者：未参与实现的独立 agent session；从仓库事实（git 历史、提交 diff、代码、约束与索引、测试报告）重建上下文，不依赖前序结论。
+
+前置事实核验：`git status` 工作树干净，HEAD = `6b957bb8`（交接提交），其前为 `5b8fda3a`（15.5 文档同步修复）。本轮重点核对第二/三轮退回的两处 15.5 文档缺陷是否真实修复，并对 plan_15 必需测试做全量重跑。
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-25 | macOS | `git show --stat 5b8fda3a` | 通过 | 修复提交仅触碰 `README.md`（+4/−2）与 `constraints/docker-structure.md`（+3/−1），不涉及运行时或测试改动；commit message 准确描述两处修复 |
+| 2026-06-25 | macOS | `grep -niE 'redis\|crag-id\|bigint' README.md` | 通过 | 命中 4 处：第 27 行一键启动清单补 Redis、第 81 行写入链路①补 `crag-id` Snowflake BIGINT（HTTP 边界 decimal string）、第 136 行项目结构补 `crag-id`、第 167 行技术栈补「协调 Redis 7.4 — Snowflake ID Worker 租约（ID 基础设施，非业务缓存/事件总线）」，吻合范围与 15.5 Step 4 |
+| 2026-06-25 | macOS | `constraints/docker-structure.md` 5.10 就绪条件 | 通过 | 第 249 行就绪条件补为「`db` 健康 且 `redis` 健康 且 `sidecar` 健康」，并补 Redis 行（248）与 ID 配置行，与 5.7 rag-service 及 docker-compose.yml 事实一致 |
+| 2026-06-25 | macOS | `git rev-parse --verify`（×15） | 通过 | 15.1–15.5 共 15 个实现/修复 hash 全部存在；`git show --stat` 范围与各自任务匹配 |
+| 2026-06-25 | macOS, Python 3 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 errors，24 warnings（全为历史 Plan 未用 workflow v3，与本计划无关）；全部声明 hash 通过 git 校验 |
+| 2026-06-25 | macOS, Python 3 | `python3 scripts/validate_module_dependencies.py` | 通过 | 0 errors，`crag-id` 白名单与依赖方向正确 |
+| 2026-06-25 | macOS, Python 3 | `python3 scripts/validate_constraints.py` | 通过 | 0 errors；compose 服务登记、链接、术语校验通过，5.10 未引入废弃术语 |
+| 2026-06-25 | macOS, Java 21 | `./gradlew check` | 通过 | BUILD SUCCESSFUL（106 task，4 executed / 102 up-to-date）；Plan/约束/模块依赖/spotless/全部非 Docker 测试通过 |
+| 2026-06-25 | macOS, Java 21 | `./gradlew :crag-id:test :crag-storage:test :crag-ingestion:test :crag-api:test :crag-query:test :crag-retrieval:test :crag-smoke:test :crag-rag-service:test --rerun-tasks` | 通过 | BUILD SUCCESSFUL（EXIT 0），全量重跑 0 失败；plan_15 验证方式列出的全部必需测试模块（crag-id/storage/ingestion/api/query/retrieval/rag-service）绿，crag-smoke:test 为 NO-SOURCE |
+| 2026-06-25 | macOS, 代码审查 | 15.1 `SnowflakeLayout` | 通过 | `EPOCH_MILLIS=1767225600000L`、bit layout `sign1\|entity8\|ts41\|worker4\|seq10`、shift/mask 正确；worker 0–15、sequence 0–1023 校验；timestamp 早于 epoch 或超 41-bit 抛 `IllegalArgumentException` |
+| 2026-06-25 | macOS, 代码审查 | 15.3 `schema.sql` | 通过 | RAG 三表 `chunk_id/doc_id/parent_chunk_id` 全 `BIGINT`；`parent_chunk_id BIGINT NOT NULL DEFAULT 0`；`chunk_embedding/chunk_fts.chunk_id BIGINT` 外键 `ON DELETE CASCADE`；cold reset `DROP TABLE IF EXISTS` 仅作用 RAG 三表，附注释说明不删 volume / 其他 schema |
+| 2026-06-25 | macOS, Java 21 | `./gradlew :crag-open-api:test --tests '*singleTargetException*' --rerun-tasks`（×3） | 通过 | pre-existing flaky 测试单独重跑 3 次全 BUILD SUCCESSFUL（详见残余风险，与本计划无关） |
+
+**残余风险（与本计划无关，记录备查）：** 全量 `./gradlew test --rerun-tasks` 偶发失败于 `crag-open-api` 的 `DownstreamConnectivityHealthIndicatorTest.singleTargetException_cancelsOtherFutures`，根因为 Mockito strict-stubs 模式下 `ragStub` 的 stub（测试第 243–244 行）在「access 快速失败触发取消 rag Future」的并发竞态中未被调用，触发 `UnnecessaryStubbingException`。该测试由 plan_14（14.6/14.11/14.13「fix Probe failure cancellation」）引入，plan_15 的 15 个实现/修复提交无一触碰 `crag-open-api/**`，文件边界、git 历史与代码逻辑均证明与 plan_15 无关；单独重跑 3 次均通过，确认为非确定性 flaky。此测试不属于 plan_15 必需测试，不影响本计划验收门槛；建议由 plan_14 后续 hotfix 修复（将相关 stub 改为 `lenient()` 或调整并发取消断言策略）。
+
+**验收结论（第四轮）：通过。** 第三轮退回的两处 15.5 文档同步缺陷已由 `5b8fda3a` 真实修复且范围正确（仅文档，无运行时/测试改动）；plan_15 全部 15 个实现/修复 hash 存在且范围匹配；`validate_plans`/`validate_module_dependencies`/`validate_constraints` 0 errors；plan_15 验证方式列出的全部必需测试在 `--rerun-tasks` 下全绿；`./gradlew check` 通过；`SnowflakeLayout` bit layout 与 `schema.sql` BIGINT/cold reset 等关键不变量独立复核通过。15.1–15.5 全部验收标准逐条满足。唯一 flaky 残余风险位于 `crag-open-api`，属 plan_14 遗留且非本计划必需测试，不阻塞 plan_15 完成。
+
+> 注：本轮独立 session 未重跑 Docker HTTP 端到端回归（受限于模型下载与全栈启动开销）；本轮代码/配置自第三轮后仅有 `5b8fda3a` 文档改动（运行时、compose、HTTP 脚本、Controller 均未变），前序轮次的 Docker 回归证据（AdminRag/Query/Retrieval decimal string、Redis readiness UP/DOWN）对当前 HEAD 仍然有效。
+
 ## 阻塞记录
 
 无。
@@ -785,3 +812,4 @@ git commit -m "feat(plan_15/15.5): wire redis topology and rag id regression"
 | 2026-06-25 | 第二次独立验收退回 | 逐条核对：14 个 hash 范围正确、`./gradlew check` 与 `test --rerun-tasks`（全量重跑）全绿、`validate_plans`/`validate_module_dependencies` 0 errors、15.1–15.4 验收标准全通过；但发现 15.5 两处文档同步缺陷：① README.md 文档同步整项缺失（范围 + Step 4 + Step 7 均要求，未执行，致主文档漂移），② docker-structure.md 5.10 rag-service-smoke 就绪条件遗漏 redis | 15.5 退回 `in_progress`；plan_15 退回 `in_progress`；15.1–15.4 保留 `待验收` |
 | 2026-06-25 | 第三次独立验收退回 | 从仓库事实独立核对（HEAD=`156c11c2` 后无修复提交）：14 个 hash 范围正确、`validate_plans`/`validate_module_dependencies`/`./gradlew check` 全绿、15.1–15.4 验收标准逐条通过；但第二轮退回的 15.5 两处文档同步缺陷（README.md 整项缺失、docker-structure.md 5.10 遗漏 redis）本轮确认依旧存在 | plan_15 维持 `in_progress`；15.5 维持 `进行中`；15.1–15.4 维持 `待验收` |
 | 2026-06-25 | 修复第三轮验收退回的 15.5 文档同步缺陷 | 两缺陷紧密耦合共享实现提交 `5b8fda3a`：① README.md 补 Redis（一键启动清单、技术栈「协调」行，明确 Snowflake ID Worker 租约、非缓存/事件总线）、`crag-id` 模块（项目结构）与 BIGINT 当前事实（写入链路①，HTTP 边界 decimal string）；② docker-structure.md 5.10 rag-service-smoke 就绪条件补 redis 并补 Redis 行/ID 配置行，与 5.7 及 docker-compose.yml 事实一致 | 15.5 转为 `待验收`；plan_15 转为 `verifying`；移交独立验收 session 第四次验收 |
+| 2026-06-25 | 第四次独立验收通过 | 第三轮退回的两处 15.5 文档同步缺陷（README.md、docker-structure.md 5.10）已由 `5b8fda3a` 真实修复且范围正确；15 个实现/修复 hash 范围核对无误；`validate_plans`/`validate_module_dependencies`/`validate_constraints` 0 errors；plan_15 必需测试 `--rerun-tasks` 全绿；`./gradlew check` 通过；发现并记录 `crag-open-api` 一处 pre-existing flaky（plan_14 遗留，非本计划必需测试，与本计划无关） | plan_15 转为 `completed`；15.1–15.5 全部完成（5/5）；验收队列移除 plan_15 |

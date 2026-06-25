@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_15 修复 15.5 README 与 docker-structure 5.10 文档同步缺陷，重新进入待验收，等待第四次独立验收）
+> 最后更新：2026-06-25（plan_15 第四次独立验收通过，15.1–15.5 全部完成（5/5），转 `completed`；验收队列已空）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -87,7 +87,7 @@ plan/
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
 | plan_14 | 多服务骨架、gRPC 契约与身份、独立 Schema、五进程 Docker 基线 | ✅ 完成 (14/14) | — | [plan_14.md](../plan_14/plan_14.md) |
-| plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | 🟡 待验收 (0/5) | — | [plan_15.md](../plan_15/plan_15.md) |
+| plan_15 | 分布式 Snowflake ID、Redis Worker 租约与 RAG ID `BIGINT` 冷切换 | ✅ 完成 (5/5) | — | [plan_15.md](../plan_15/plan_15.md) |
 
 ---
 
@@ -104,7 +104,7 @@ plan/
 ## 当前验收队列
 
 ```text
-plan_15 — 分布式 Snowflake ID 与 RAG ID 切换（修复 15.5 README 与 docker-structure 5.10 文档同步缺陷后，等待第四次独立验收）
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -232,7 +232,7 @@ plan_15 — 分布式 Snowflake ID 与 RAG ID 切换（修复 15.5 README 与 do
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_15.md](../plan_15/plan_15.md) | 分布式 Snowflake ID、Redis Worker 租约、时钟回拨处理与 RAG `docId/chunkId/parentChunkId` 冷切换 | 🟡 待验收 (0/5) |
+| [plan_15.md](../plan_15/plan_15.md) | 分布式 Snowflake ID、Redis Worker 租约、时钟回拨处理与 RAG `docId/chunkId/parentChunkId` 冷切换 | ✅ 完成 (5/5) |
 
 ---
 
