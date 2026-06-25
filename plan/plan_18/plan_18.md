@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_18
 type: main
-status: ready
+status: verifying
 created: 2026-06-26
 updated: 2026-06-26
 ---
@@ -197,13 +197,13 @@ router1 需要把 Knowledge 侧第一个业务垂直切片打穿：Knowledge 能
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 18.1 | 建立 Knowledge contracts 与包结构护栏 | ⏳ 待开始 | — | — |
-| 18.2 | 落地 Knowledge 数据模型与 DAO | ⏳ 待开始 | — | — |
-| 18.3 | 实现文件存储与上传 core 链路 | ⏳ 待开始 | — | — |
-| 18.4 | 暴露 Knowledge gRPC provider | ⏳ 待开始 | — | — |
-| 18.5 | 接入 `DOC_UPLOADED` producer 与 Outbox 发布 | ⏳ 待开始 | — | — |
-| 18.6 | 提供 smoke HTTP 入口与 Docker 回归 | ⏳ 待开始 | — | — |
-| 18.7 | 同步约束文档、README 与全量验证 | ⏳ 待开始 | — | — |
+| 18.1 | 建立 Knowledge contracts 与包结构护栏 | ⏳ 待验收 | 51a53b93 | — |
+| 18.2 | 落地 Knowledge 数据模型与 DAO | ⏳ 待验收 | b52306a1 | — |
+| 18.3 | 实现文件存储与上传 core 链路 | ⏳ 待验收 | 441b550e | — |
+| 18.4 | 暴露 Knowledge gRPC provider | ⏳ 待验收 | 8b2b906d | — |
+| 18.5 | 接入 `DOC_UPLOADED` producer 与 Outbox 发布 | ⏳ 待验收 | 5071dc3e | — |
+| 18.6 | 提供 smoke HTTP 入口与 Docker 回归 | ⏳ 待验收 | 6ae8ff85 | — |
+| 18.7 | 同步约束文档、README 与全量验证 | ⏳ 待验收 | 3355ddad | — |
 
 整体进度：0 / 7（0%）
 
@@ -279,8 +279,14 @@ router1 需要把 Knowledge 侧第一个业务垂直切片打穿：Knowledge 能
 
 ## 验收记录
 
+> 以下为执行 session 自测记录；最终独立验收由未参与实现的新 agent session 完成。
+
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-26 | 本机 JDK 21 + Gradle 9.4.1 | `./gradlew check` | 通过 | 全模块测试、spotless、框架/模块依赖/约束/Plan 校验通过（24 个 P101 警告来自历史 v2 Plan，与 plan_18 无关）。 |
+| 2026-06-26 | 本机 JDK 21 | 各任务 `--tests` 验证命令 | 通过 | DocumentUploadPolicy/StorageKeyGenerator/DocumentUploadService/FileStore/KnowledgeDao/GrpcProvider/KnowledgeSmokeController/DocumentUploadedPayload/KnowledgeEventProducer/KnowledgeArchitecture 测试均通过。 |
+| 2026-06-26 | 本机 Python 3 | `python3 scripts/validate_plans.py`、`-m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints` | 通过 | 0 错误。 |
+| 2026-06-26 | Docker Compose（PostgreSQL17 + Redis7.4 + knowledge-service-smoke smoke profile） | `scripts/tests/http/knowledge_smoke_{default_disabled,upload_txt,upload_md,upload_invalid,event_published}_test.sh` | 通过 | 默认 profile 不暴露 smoke(404)；.txt/.md 上传成功(PENDING+读回)；4 类非法上传(400)；DOC_UPLOADED 发布到 Redis Streams(PUBLISHED)。 |
 
 ## 阻塞记录
 
@@ -295,3 +301,7 @@ router1 需要把 Knowledge 侧第一个业务垂直切片打穿：Knowledge 能
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-26 | 创建计划 | 将 router1 Knowledge 垂直链路设计转为 workflow v3 主 Plan | 初始范围，状态 ready |
+| 2026-06-26 | 18.1–18.7 实现交接 | 7 任务实现并回填真实短 hash | 状态 ready → verifying，整体进度 7/7 |
+| 2026-06-26 | ID 策略 | 业务主键采用数据库 identity 列（非 Snowflake） | plan_18 文件边界不含 crag-id；边界 ID 仍为十进制字符串，outbox event_id 取 Knowledge 本地序列 `knowledge_event_id_seq` |
+| 2026-06-26 | 默认 profile publisher | 默认 profile 不启用 publisher | 默认服务无上传入口；DOC_UPLOADED 发布由 smoke profile（publisher+redis+文件 volume）证明 |
+| 2026-06-26 | DAO 组件测试上下文 | KnowledgeDaoComponentTest 改用不含 gRPC 的窄上下文（KnowledgeDaoTestConfig） | 规避多 @SpringBootTest 共享全量上下文时 gRPC Server 单次使用的 "Already started" 重启问题 |
