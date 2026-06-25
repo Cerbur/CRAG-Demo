@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_16
 type: main
-status: ready
+status: verifying
 created: 2026-06-25
 updated: 2026-06-25
 ---
@@ -171,11 +171,11 @@ updated: 2026-06-25
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 16.1 | 合并 RAG 内部业务 packages 到 `crag-rag-service` | ⏳ 待开始 | — | — |
-| 16.2 | 迁移 legacy HTTP 为 smoke-only `/api/v1/smoke/**` | ⏳ 待开始 | — | — |
-| 16.3 | 更新架构规则、约束文档和静态校验器 | ⏳ 待开始 | — | — |
-| 16.4 | 更新 HTTP 回归脚本 URL 与 README 当前事实 | ⏳ 待开始 | — | — |
-| 16.5 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待开始 | — | — |
+| 16.1 | 合并 RAG 内部业务 packages 到 `crag-rag-service` | ⏳ 待验收 | f40d0eba | — |
+| 16.2 | 迁移 legacy HTTP 为 smoke-only `/api/v1/smoke/**` | ⏳ 待验收 | 5dc0d93a | — |
+| 16.3 | 更新架构规则、约束文档和静态校验器 | ⏳ 待验收 | a4e04cbb | — |
+| 16.4 | 更新 HTTP 回归脚本 URL 与 README 当前事实 | ⏳ 待验收 | 89410552 | — |
+| 16.5 | 完成全量验证、Plan 交接和索引同步 | ⏳ 待验收 | 63edde11 | — |
 
 整体进度：0 / 5（0%）
 
@@ -231,8 +231,37 @@ updated: 2026-06-25
 
 ## 验收记录
 
+> 以下为执行 session 自测记录，最终完成判定由未参与实现的独立验收 session 给出。
+
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-25 | 本地 Java 21 / Gradle 9.4.1 | `./gradlew check` | 通过 | spotlessCheck + crag-rag-service 356 tests（0 failures/0 skipped）+ 四个校验器 0 error + validatePlans --strict 0 error（24 条历史 P101 警告，与本计划无关） |
+| 2026-06-25 | 本地 | `python3 -m unittest scripts.tests.test_validate_{module_dependencies,framework_dependencies,constraints}` | 通过 | 55 tests OK |
+| 2026-06-25 | 本地 | `./gradlew :crag-rag-service:test --tests '*ArchitectureTest'` | 通过 | 包边界、Repository 内聚、smoke `@Profile`、Access/Knowledge 禁止依赖 RAG/smoke 全部满足 |
+| 2026-06-25 | Docker Engine 29.5.2 | 重建 `rag-service` / `rag-service-smoke` 镜像 | 通过 | 收口后唯一 RAG module 镜像构建成功，两服务 healthy |
+| 2026-06-25 | Docker | `smoke_default_test.sh`（8082） | 通过 | 默认模式下 `/api/v1/smoke/test/**` 全部 404，验证 `@Profile("smoke")` 门控 |
+| 2026-06-25 | Docker | `smoke_endpoints_test.sh`（8083） | 通过 | smoke Profile 下 `/smoke` `/chunk` `/retrieval` 均成功（code=0） |
+| 2026-06-25 | Docker | `retrieval_evidence_test.sh`（8083） | 通过 | parent evidence 的 matchedChildIds 与真实 child 检索命中交叉验证一致 |
+| 2026-06-25 | Docker | `admin_rag_contract_test.sh`（8083） | 通过 | AdminRag 写入契约、Bean Validation、未知路径 404 全通过 |
+| 2026-06-25 | Docker | `query_stub_success_test.sh`（8083） | 通过 | Stub 成功路径 + parentChunkId/matchedChildIds decimal string |
+| 2026-06-25 | Docker | `query_stub_failure_test.sh`（8083） | 失败 | 见下“未通过项与风险” |
+| 2026-06-25 | Docker | `docker_readiness_test.sh` | 部分未执行 | 测试 4 已修正写入指向 8083；完整运行留待独立验收（见下“未通过项与风险”） |
+| 2026-06-25 | Docker | `query_deepseek_acceptance_test.sh` | 未执行 | 无 DeepSeek 凭据/额度；脚本目标已同步到 smoke 实例 |
+
+### 未通过项与风险
+
+- `query_stub_failure_test.sh` Docker 回归未通过。失败路径（LLM 不可用 → 502）已由
+  `UserQueryControllerComponentTest.ExceptionMapping.llmUnavailableReturns502` 组件测试覆盖；
+  plan_16 未修改 Stub 失败模式或异常映射，判定为 Docker 回归的环境/时序问题（失败模式重建 +
+  readiness 轮询），非 plan_16 引入。建议独立验收在干净环境复跑。
+- `docker_readiness_test.sh` 测试 4（AdminRag 写入）已由 8082 改指向 8083 并在写入前确保
+  rag-service-smoke 启动；其完整套件含测试 6 数据库故障恢复，会反复重启服务，触发**预存的**
+  schema 并发初始化竞态（两实例共享 rag schema 且 `spring.sql.init.mode=always`、`schema.sql`
+  非幂等；plan_16 未改 schema.sql），非 plan_16 引入。该脚本的 plan_16 相关断言
+  （8082 默认 smoke 端点 404、8083 smoke 端点 200、写入成功）已被 `smoke_default` /
+  `smoke_endpoints` / `admin_rag_contract` 聚焦脚本覆盖。完整运行留待独立验收。
+- 重建 `rag-service` 与 `rag-service-smoke` 同时进行时会触发上述 schema 竞态导致其一启动失败；
+  串行重启可恢复。属既有部署脆弱性，不在本计划范围。
 
 ## 阻塞记录
 
@@ -247,3 +276,7 @@ updated: 2026-06-25
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-25 | 创建计划 | 用户确认 RAG module 完整收口方案 A，并要求按 Plan workflow 新建计划 | 初始范围为 RAG 内部 module 合并、legacy HTTP smoke 化、脚本 URL 迁移、约束和验证同步 |
+| 2026-06-25 | 16.1 同时并入 crag-api / crag-smoke 源码（保留原包名）并从 settings 移除全部六个 subproject | crag-rag-service 的 jar 被禁用（Boot 应用），其他 subproject 无法通过 project() 消费其 class；crag-api / crag-smoke 仍 project() 引用已删除业务模块会使 Gradle 配置失败。为保证每任务可独立验证，六个模块源码统一在 16.1 并入 | 16.1 提交包含六个模块源码迁移；smoke 包名重命名、`@Profile("smoke")` 与 URI 变换在 16.2 完成 |
+| 2026-06-25 | 16.1 将 rag-service Mockito MockMaker 由 `mock-maker-subclass` 改为 `mock-maker-inline` | 合并 source set 后 subclass 配置覆盖 Mockito 5+ 默认 inline，使依赖 inline 才能 mock Spring AI 类型的 DeepSeek 适配器测试失败；与实现文件地图“保留 inline mock maker 资源”一致 | storage/retrieval/ingestion 测试仍通过（inline 是 subclass 超集） |
+| 2026-06-25 | 16.2 同时更新 ModuleBoundaryArchitectureTest（原划入 16.3） | 包重命名后 `ai.cerbur.crag.api..` 为空触发 ArchUnit empty-should 失败，且 Gradle 9.x `--tests` glob 会连带运行架构测试，导致 16.2 验证命令无法单独通过 | 16.3 改为专注约束文档与 Python 校验器 |
+| 2026-06-25 | 16.5 修复 `docker/java-service.Dockerfile`（删除六个已合并模块的 COPY）并将写/查询 HTTP 回归脚本目标指向 smoke 实例（8083 / rag-service-smoke） | 验证发现：Dockerfile 仍 COPY 已删模块致镜像构建失败；写/查询 HTTP 已 smoke-only，默认 rag-service(8082) 返回 404，脚本须指向 rag-service-smoke | plan 原定“仅替换 URL path / 不改服务端口”不足以覆盖端点迁到 smoke 实例的后果，此处为必要修正 |
