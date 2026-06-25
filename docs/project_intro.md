@@ -24,4 +24,3 @@ CRAG-Demo 是一个基于 Java 21 + Spring Boot + PostgreSQL/pgvector 的 RAG �
 - 核心链路时序说明
 - 表结构与状态机说明
 - 后续 Roadmap
-

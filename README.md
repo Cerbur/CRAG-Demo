@@ -71,15 +71,15 @@ docker compose --profile smoke up -d --build rag-service-smoke
 curl http://localhost:8083/api/v1/smoke/test/smoke
 ```
 
-## 🗺️ 全链路架构
+## 🗺️ 平台架构
 
-![CRAG-Demo 全链路架构](./doc/assets/crag-demo-architecture.svg)
+![CRAG-Demo 多租户知识平台架构](./docs/assets/crag-demo-architecture.svg)
 
-> 上图是完整的 DDD 领域架构。下面沿着 RAG 主链路逐段走一遍——编号对应图上标注。
+> 上图反映当前平台方向：五个 Java 进程、gRPC 服务通信、PostgreSQL 独立 Schema、Redis Streams 可靠事件基础设施，以及仍作为核心的 RAG 主链路。实线表示已落地基础能力，虚线表示后续 router 阶段继续实现的业务链路。
 
 ## 🔢 RAG 管道：7 步走通检索增强生成
 
-### 写入链路（图上左侧）
+### 写入链路
 
 **① 文档入库** `POST /api/v1/smoke/admin/rag` → `crag-rag-service`
 
@@ -98,7 +98,7 @@ Chunk 变更后，分别构建：
 - **Sparse 全文索引**：分词后写入 `sparse_index` 表
 👉 代码入口：`crag-rag-service` / Cron，Sidecar 交互见 `crag-rag-service` EmbeddingClient
 
-### 查询链路（图上右侧）
+### 查询链路
 
 **④ 双路召回** `POST /api/v1/smoke/query` → `crag-rag-service`
 
