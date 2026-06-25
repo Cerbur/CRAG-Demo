@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_16 独立验收通过，全部 5 项任务完成；plan_17 可靠事件基础设施待开始）
+> 最后更新：2026-06-25（新增 plan_7.hotfix_1：修正 query_stub_failure_test.sh 未 seed evidence 使失败路径可达；plan_16 已完成验收）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -41,7 +41,8 @@ plan/
 │   ├── plan_6.hotfix_6.md
 │   └── plan_6.hotfix_7.md
 ├── plan_7/
-│   └── plan_7.md
+│   ├── plan_7.md
+│   └── plan_7.hotfix_1.md
 ├── plan_8/
 │   └── plan_8.md
 ├── plan_9/
@@ -85,7 +86,7 @@ plan/
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | — | [plan_7.md](../plan_7/plan_7.md) |
+| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | [plan_7.hotfix_1](../plan_7/plan_7.hotfix_1.md) 🟡待开始 (0/1) | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | ✅ 完成 (3/3) | [plan_10.hotfix_1](../plan_10/plan_10.hotfix_1.md) 🟡待开始 (0/1) | [plan_10.md](../plan_10/plan_10.md) |
@@ -104,6 +105,7 @@ plan/
 ```text
 plan_17 — 可靠事件基础设施
 plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
+plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径可达（非优先，测试脚本修复）
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
@@ -187,6 +189,7 @@ plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_7.md](../plan_7/plan_7.md) | Query Parent Context、引用、LLM contract/adapter、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化 HTTP 回归 | ✅ 完成 (8/8) |
+| [plan_7.hotfix_1.md](../plan_7/plan_7.hotfix_1.md) | 修正 query_stub_failure_test.sh 未 seed evidence 导致 LLM 失败路径（502）不可达 | 🟡 待开始 (0/1) |
 
 ## Plan_8 明细
 
