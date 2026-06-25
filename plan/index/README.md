@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_15 第四次独立验收通过；Docker HTTP 重跑发现 plan_6 检索召回与 plan_10 回归脚本计时两处既有缺陷，均非 plan_15 引入，分别登记 `plan_6.hotfix_7`、`plan_10.hotfix_1`，非优先闲时修复）
+> 最后更新：2026-06-25（plan_6.hotfix_7.1 独立验收通过：Dense ivfflat→hnsw 修复生效，Docker 回归 dense>0；6.hotfix_7.2 Sparse partial-match 仍待开始，Hotfix 整体进行中）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -80,7 +80,7 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_7](../plan_6/plan_6.hotfix_7.md) 🟠进行中 (0/2) | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_7](../plan_6/plan_6.hotfix_7.md) 🟠进行中 (1/2) | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
@@ -174,7 +174,7 @@ plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非
 | [plan_6.hotfix_4.md](../plan_6/plan_6.hotfix_4.md) | Benchmark skill 任务路由补齐，确保 benchmark / evaluation / 回归测试意图索引到 `crag-benchmark` | ✅ 完成 |
 | [plan_6.hotfix_5.md](../plan_6/plan_6.hotfix_5.md) | 项目级 OpenCode Plan 执行 Skill，固化 Plan 完整度、SubAgent 实现、Review、测试与验收闭环 | ✅ 完成 |
 | [plan_6.hotfix_6.md](../plan_6/plan_6.hotfix_6.md) | 新增 parent evidence 公共入口，区分真实命中与相邻扩展并返回完整 parent Context | ✅ 完成 (3/3) |
-| [plan_6.hotfix_7.md](../plan_6/plan_6.hotfix_7.md) | Retrieval 查询召回率修正：Sparse `plainto_tsquery` AND 语义过严 + Dense 召回根因为 `chunk_embedding` 的 ivfflat 索引在空表上创建失效（执行 session 复现确认，非 Java、非 plan_15 引入） | 🟠 进行中 (0/2) |
+| [plan_6.hotfix_7.md](../plan_6/plan_6.hotfix_7.md) | Retrieval 查询召回率修正：Sparse `plainto_tsquery` AND 语义过严 + Dense 召回根因为 `chunk_embedding` 的 ivfflat 索引在空表上创建失效（执行 session 复现确认，非 Java、非 plan_15 引入）。6.hotfix_7.1（Dense ivfflat→hnsw）已独立验收通过，6.hotfix_7.2（Sparse partial-match）待开始 | 🟠 进行中 (1/2) |
 
 ## Plan_7 明细
 

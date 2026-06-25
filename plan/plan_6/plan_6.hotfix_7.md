@@ -91,10 +91,10 @@ updated: 2026-06-25
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 6.hotfix_7.1 | Dense 召回根因（ivfflat 空表索引）修复 | ⏳ 待验收 | 93fb345a | — |
+| 6.hotfix_7.1 | Dense 召回根因（ivfflat 空表索引）修复 | ✅ 完成 | 93fb345a | 2026-06-25 |
 | 6.hotfix_7.2 | Sparse partial-match 查询语义修正与召回测试 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 2（0%）
+整体进度：1 / 2（50%）
 
 ## 6.hotfix_7.1 Dense 召回根因（ivfflat 空表索引）修复
 
@@ -133,6 +133,11 @@ updated: 2026-06-25
 | 2026-06-25 | macOS, Docker | `docker compose --profile smoke up -d --build rag-service-smoke` + `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083` | 通过 | 无退化：retrieveEvidence 全断言 PASS（含 matchedChildIds 交叉引用真实 child），证明同一条 Dense→hnsw 链路对 evidence 路径同样有效 |
 | 2026-06-25 | macOS | `./gradlew :crag-storage:test :crag-retrieval:test` | 通过 | BUILD SUCCESSFUL（任务 UP-TO-DATE：本任务未改 Java，缓存结果有效）；H2/单测不证明 pgvector，Dense 召回由上面 Docker 回归证明 |
 | 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用 | 未执行 | 本任务只改 pgvector 向量索引，不涉及 LLM/供应商边界，Stub 回归已覆盖必跑项；无残留风险 |
+| 2026-06-25 | macOS, 独立验收 | `git show 93fb345a` + 容器内 `app.jar` 的 `BOOT-INF/classes/schema.sql` + DB `pg_indexes` | 通过 | **【独立验收 session】** commit 仅改 `schema.sql`（+6/-2，无 Java）；容器打包 schema.sql 与运行 DB `rag.chunk_embedding` 索引均为 `USING hnsw (embedding vector_cosine_ops)`——三处事实一致，修复确已生效（非执行 session 诊断时手动建索引） |
+| 2026-06-25 | macOS, Docker | `./gradlew :crag-storage:test :crag-retrieval:test --rerun-tasks` | 通过 | 独立重跑：BUILD SUCCESSFUL in 12s，11 任务全部执行（非缓存）；既有 Dense/Sparse 单测与组件测试无退化 |
+| 2026-06-25 | macOS, Docker | `bash scripts/tests/http/query_stub_success_test.sh`（rag-service 8082） | 通过 | 独立新鲜证据：Query ready after 1 attempt，sources 非空（2 项），写入 parent `72305905186324480` 命中、reference/decimal/matchedChildIds 全断言 PASS；rag-service 日志 `Retrieval search — sparse=0, dense=2`（修复前 dense=0）→ dense>0 成立 |
+| 2026-06-25 | macOS, Docker | `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083`（rag-service-smoke） | 通过 | 无退化：全 7 节断言 PASS（写入 parent 命中、稳定排序、matchedChildIds 交叉引用真实 child）；同一条 Dense→hnsw 链路对 evidence 路径有效 |
+| 2026-06-25 | macOS, 独立验收 | 6.hotfix_7.1 验收结论 | 通过 | 5 项验收标准全部满足：dense>0（日志 dense=2）、query_stub Docker PASS、既有单测不退化、retrieval_evidence 不退化、根因（ivfflat 空表索引失效）与 commit `93fb345a` 已记录。任务标 ✅ 完成。**Plan 仍 `in_progress`**：6.hotfix_7.2（Sparse partial-match）待开始，query_stub 当前仅靠 Dense 命中通过，未达整个 Hotfix 完成门槛 |
 
 ## 阻塞记录
 
