@@ -155,6 +155,19 @@ updated: 2026-06-25
 | 2026-06-25 | macOS, 独立验收 | 6.hotfix_7.2 验收结论 | 通过 | 验收标准满足：①含疑问词 query Sparse 独立证据 sparse=1（日志）+ OR hits=1（psql）；②ts_rank 排序稳定（evidence 第 5 节 + SQL `ORDER BY score DESC, chunk_id ASC` 保留）；④Docker 回归 query_stub + retrieval_evidence 均 PASS。**第 ③ 条「新增召回单元/组件测试」处理说明**：本任务为 SQL-only 改动（Repository native SQL AND→OR），DAO/Service Java 方法体未变，既有 Mockito 单测覆盖 isBlank 守卫/列映射/参数透传仍有效；FTS OR 召回行为无法在单元/组件层证明（项目无 Testcontainers，H2 不支持 PG `to_tsvector`/`ts_rank`/`tsquery`，见 test-workflow 1.2/1.4 及 6.hotfix_7.1 Dense 同款处理），由 Docker HTTP 回归（query_stub 含疑问词命中即本修复核心场景）+ psql 边界对比独立证明。风险：部分匹配可能召回较低相关项，已由 ts_rank DESC 排序 + chunk_id tie-breaker 保证最相关优先，evidence 稳定排序回归无退化。**整份 Hotfix 6.hotfix_7.1+7.2 均完成，Plan 转 completed** |
 | 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用（独立验收） | 未执行 | 本任务只改 Sparse FTS 查询 SQL，不涉及 LLM/供应商边界；Query Stub 回归已覆盖必跑项；无残留风险（与执行 session 结论一致） |
 
+### 整体重验收（re-acceptance，2026-06-25 新 session，未参与实现）
+
+| 2026-06-25 | macOS, 独立重验收 | `git show --stat 93fb345a` / `git show --stat 99a845c1` | 通过 | commit 范围复核：93fb345a 仅 `schema.sql`（+6/-2，7.1）；99a845c1 仅 `ChunkFtsRepository.java`+`ChunkFtsDao.java`（+24/-7、+3 注释，7.2），无无关范围；HEAD=335d5d6e 含两处修复 |
+| 2026-06-25 | macOS, Docker | `docker compose up -d --build rag-service rag-service-smoke`（fresh 重建）+ `psql ... pg_indexes` | 通过 | 重建后 8082 DB `idx_chunk_embedding_vector` = `USING hnsw (embedding vector_cosine_ops)`——schema.sql 从空表重建即生效（7.1 在运行 DB）。注：双实例共享 `rag` schema 并发启动触发 schema.sql 竞态致 smoke 首启崩溃（`pg_type_typname_nsp_index` duplicate key），改 `docker compose up -d --no-deps --force-recreate rag-service-smoke` 单独重启后恢复——属启动竞态，非本 Hotfix 缺陷（DROP-on-startup 为 plan_15 既有冷切换行为） |
+| 2026-06-25 | macOS | `./gradlew :crag-storage:test :crag-retrieval:test --rerun-tasks` | 通过 | BUILD SUCCESSFUL in 10s，11 任务全部执行（非缓存）；Java 链路无退化 |
+| 2026-06-25 | macOS, Docker | `bash scripts/tests/http/query_stub_success_test.sh http://localhost:8082`（独立 RUN_ID `qs-1782385274-23017`） | 通过 | Query ready after 1 attempt，写入 parent `72305970154635264` 命中、answer/decimal string/matchedChildIds 全断言 PASS；日志 `Retrieval search — sparse=1, dense=0`（首次轮询 +6s 时 Dense embedding 尚未算完，Sparse 先命中通过） |
+| 2026-06-25 | macOS, Docker | 同疑问词 query 复查（embedding 就绪后）+ DB `chunk`/`chunk_embedding` 状态 | 通过 | 复查日志 `sparse=1, dense=1`——两路独立证据成立；DB 子 chunk `72305970154635265` dense_status=2、sparse_status=2、embedding 768 维已存——`dense=0` 系查询时序（embedding 未就绪）非索引回归 |
+| 2026-06-25 | macOS, Docker DB | psql 新 OR vs 旧 `plainto_tsquery` AND 边界对比（疑问词 query 对目标 child `72305970154635265`） | 通过 | 新 OR hits=1、旧 AND hits=0（直接对比证明 7.2 修复）；empty/whitespace/punct-only 各 hits=0（`COALESCE` 空回退，不全表扫描） |
+| 2026-06-25 | macOS, Docker | `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083`（smoke，独立 RUN_ID） | 通过 | 无退化：全 7 节断言 PASS（写入 parent 命中、稳定排序两次一致 `[72305972327220224, 72305970154635264]`、matchedChildIds 与真实 child retrieval 交叉引用 ALL_VERIFIED） |
+| 2026-06-25 | macOS | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error，24 warning（均为历史 Plan 未用 workflow v3 兼容模式，不阻断） |
+| 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用（重验收） | 未执行 | 本 Hotfix 仅改 pgvector 向量索引（7.1）与 Sparse FTS 查询 SQL（7.2），不涉及 LLM/供应商边界；Query Stub 回归已覆盖必跑项；无残留风险 |
+| 2026-06-25 | macOS, 独立重验收 | plan_6.hotfix_7 整体重验收结论 | 通过 | 7.1（dense>0：dense=1 + 运行 DB hnsw 索引 + 768 维 embedding）与 7.2（sparse>0：sparse=1 + psql OR=1 vs AND=0 + 空 query 安全）双路验收标准均以新鲜证据满足；query_stub/retrieval_evidence Docker 回归均 PASS；Java 无退化；静态校验通过。注：query_stub 可在 Dense embedding 就绪前仅凭 Sparse 通过（已知特性、非回归），已用复查日志 `sparse=1, dense=1` + DB embedding 事实 + psql 边界对比补齐双路独立证据。整份 Hotfix 维持 `completed` |
+
 ## 阻塞记录
 
 无。本 Hotfix 为非优先项，登记后等待闲时执行；当前不阻塞任何 Plan（详见索引阻塞说明）。
