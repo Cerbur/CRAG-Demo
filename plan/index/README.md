@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-25（plan_6.hotfix_7.2 Sparse partial-match 实现完成并交接验收：searchFts 由 `plainto_tsquery` AND 改为 `to_tsvector`-unnest OR，Docker 回归 sparse=1/dense=1；整份 Hotfix 进入待验收）
+> 最后更新：2026-06-25（plan_6.hotfix_7.2 独立验收通过：Sparse searchFts OR partial-match 修复经 Docker 回归 query_stub/retrieval_evidence 双 PASS、psql 边界对比 OR=1 vs 旧 AND=0、独立 sparse=1 证据确认；整份 plan_6.hotfix_7（7.1 Dense ivfflat→hnsw + 7.2 Sparse AND→OR）完成，移出验收队列）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -80,7 +80,7 @@ plan/
 | plan_3 | 项目介绍文档、架构 SVG、README 插图、协作约束抽取 | ✅ 完成 | — | [plan_3.md](../plan_3/plan_3.md) |
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
-| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | [plan_6.hotfix_7](../plan_6/plan_6.hotfix_7.md) 🟡待验收 (1/2) | [plan_6.md](../plan_6/plan_6.md) |
+| plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
@@ -106,7 +106,7 @@ plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非
 ## 当前验收队列
 
 ```text
-plan_6.hotfix_7 — Retrieval 查询召回率修正（Sparse AND 语义过严 + Dense 0 结果）
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -173,7 +173,7 @@ plan_6.hotfix_7 — Retrieval 查询召回率修正（Sparse AND 语义过严 + 
 | [plan_6.hotfix_4.md](../plan_6/plan_6.hotfix_4.md) | Benchmark skill 任务路由补齐，确保 benchmark / evaluation / 回归测试意图索引到 `crag-benchmark` | ✅ 完成 |
 | [plan_6.hotfix_5.md](../plan_6/plan_6.hotfix_5.md) | 项目级 OpenCode Plan 执行 Skill，固化 Plan 完整度、SubAgent 实现、Review、测试与验收闭环 | ✅ 完成 |
 | [plan_6.hotfix_6.md](../plan_6/plan_6.hotfix_6.md) | 新增 parent evidence 公共入口，区分真实命中与相邻扩展并返回完整 parent Context | ✅ 完成 (3/3) |
-| [plan_6.hotfix_7.md](../plan_6/plan_6.hotfix_7.md) | Retrieval 查询召回率修正：Sparse `plainto_tsquery` AND 语义过严 + Dense 召回根因为 `chunk_embedding` 的 ivfflat 索引在空表上创建失效（非 Java、非 plan_15 引入）。6.hotfix_7.1（Dense ivfflat→hnsw）已独立验收通过；6.hotfix_7.2（Sparse searchFts 改 `to_tsvector`-unnest OR 部分匹配，Docker 回归 sparse=1/dense=1）实现完成待验收 | 🟡 待验收 (1/2) |
+| [plan_6.hotfix_7.md](../plan_6/plan_6.hotfix_7.md) | Retrieval 查询召回率修正：Sparse `plainto_tsquery` AND 语义过严 + Dense 召回根因为 `chunk_embedding` 的 ivfflat 索引在空表上创建失效（非 Java、非 plan_15 引入）。6.hotfix_7.1（Dense ivfflat→hnsw）+ 6.hotfix_7.2（Sparse searchFts 改 `to_tsvector`-unnest OR 部分匹配）均独立验收通过 | ✅ 完成 (2/2) |
 
 ## Plan_7 明细
 

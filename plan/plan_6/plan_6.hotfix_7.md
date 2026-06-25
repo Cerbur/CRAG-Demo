@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_6.hotfix_7
 type: hotfix
 parent_plan: plan_6
-status: verifying
+status: completed
 created: 2026-06-25
 updated: 2026-06-25
 ---
@@ -92,9 +92,9 @@ updated: 2026-06-25
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 6.hotfix_7.1 | Dense 召回根因（ivfflat 空表索引）修复 | ✅ 完成 | 93fb345a | 2026-06-25 |
-| 6.hotfix_7.2 | Sparse partial-match 查询语义修正与召回测试 | ⏳ 待验收 | 99a845c1 | — |
+| 6.hotfix_7.2 | Sparse partial-match 查询语义修正与召回测试 | ✅ 完成 | 99a845c1 | 2026-06-25 |
 
-整体进度：1 / 2（50%）
+整体进度：2 / 2（100%）
 
 ## 6.hotfix_7.1 Dense 召回根因（ivfflat 空表索引）修复
 
@@ -146,6 +146,14 @@ updated: 2026-06-25
 | 2026-06-25 | macOS, Docker | `docker compose --profile smoke up -d --build rag-service-smoke` + `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083` | 通过 | 无退化：全 7 节断言 PASS（parent 命中、稳定排序、matchedChildIds 交叉引用真实 child）；smoke 日志 `sparse=1, dense=1`，同一条新 Sparse 链路对 evidence 路径同样有效 |
 | 2026-06-25 | macOS, 执行 session | 6.hotfix_7.2 Sparse 修复说明（tsquery 构造 / 不拼接原始输入 / 空 query 不全表扫描） | 通过 | 最终构造：`to_tsvector('simple', CJK 预处理 query)` unnest 出的 lexeme 以 `\|` 组合（候选 C），`COALESCE` 回退 `''::tsquery`；query 以绑定参数 `:query` 传入，`\|` 由固定 SQL 注入而非用户输入；空 query 回退空 tsquery 使 `@@` 不匹配任何行，且空白 query 已被 DAO `isBlank` 守卫拦截，不会全表扫描 |
 | 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用 | 未执行 | 本任务只改 Sparse FTS 查询 SQL，不涉及 LLM/供应商边界；Query Stub 回归已覆盖必跑项；无残留风险 |
+| 2026-06-25 | macOS, 独立验收 | `git show 99a845c1` + 容器 `BOOT-INF/lib/crag-storage.jar` 反编译 searchFts SQL | 通过 | **【独立验收 session】** commit 仅改 2 个生产文件（ChunkFtsRepository.java +24/-7、ChunkFtsDao.java +3 注释），无混入无关范围；容器内打包的 searchFts 为 `to_tsvector`-unnest `string_agg(lexeme,' \| ')` OR 构造 + `COALESCE(..., ''::tsquery)` 空回退，**无 `plainto_tsquery`**；保留 `ts_rank(cf.fts_content, qt.tsq) AS score`、`ORDER BY score DESC, c.chunk_id ASC`、`:query`/`:limit` 绑定、查询侧 CJK 预处理与写入侧 `insert` 完全一致 |
+| 2026-06-25 | macOS, 独立验收 | `./gradlew :crag-storage:test :crag-retrieval:test --rerun-tasks` | 通过 | 独立重跑 BUILD SUCCESSFUL in 9s，11 任务全部执行（非缓存）；既有 ChunkFtsDaoTest/SparseQueryServiceTest 覆盖 isBlank 守卫、Object[]→SparseSearchResult 列映射、query/limit 参数透传——本任务 DAO/Service Java 方法体未变，无退化 |
+| 2026-06-25 | macOS, 独立验收 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error，24 warning（均为历史 Plan 未用 workflow v3 兼容模式，不阻断） |
+| 2026-06-25 | macOS, Docker | `bash scripts/tests/http/query_stub_success_test.sh`（rag-service 8082，独立 RUN_ID `qs-1782384020-2851`） | 通过 | 独立新鲜证据：AdminRag 写入 parent `72305949600481280`；含疑问词 query `${verify-code} 使用什么数据库？` Query ready after 2 attempts，sources 非空（2 项，S1=写入 parent），answer=固定 Stub 文案、reference/decimal string/matchedChildIds 全断言 PASS；rag-service 日志 `Retrieval search — sparse=1, dense=2`（修复前 sparse=0）→ 含疑问词 query 的 **Sparse 路独立 sparse>0 证据成立** |
+| 2026-06-25 | macOS, Docker | `bash scripts/tests/http/retrieval_evidence_test.sh http://localhost:8083`（smoke，独立 RUN_ID） | 通过 | 无退化：全 7 节断言 PASS（写入 parent 命中、**稳定排序两次一致** `[72305950548460544, 72305949600481280, 72305936168387584]`、matchedChildIds 与真实 child retrieval 交叉引用 ALL_VERIFIED）；同一条新 Sparse 链路对 evidence 路径有效 |
+| 2026-06-25 | macOS, Docker DB | `psql` 最终 OR tsquery 边界对比（5 query vs 旧 `plainto_tsquery` AND） | 通过 | 独立边界证据：`使用什么数据库？` 新 OR hits=1、旧 AND hits=0（**直接对比证明修复**）；完整 verify-code query 同样 OR=1/AND=0；empty/whitespace/punct-only 各 OR hits=0 且 tsq 解析为空 `''::tsquery`（`@@` 不匹配任何行 → **不全表扫描**，且空白 query 已被 DAO `isBlank` 守卫拦截）——验证「空 query 不会全表扫描」「不拼接原始用户输入（`\|` 由固定 SQL `string_agg` 注入，query 经 `to_tsvector` 分词后为纯 lexeme）」 |
+| 2026-06-25 | macOS, 独立验收 | 6.hotfix_7.2 验收结论 | 通过 | 验收标准满足：①含疑问词 query Sparse 独立证据 sparse=1（日志）+ OR hits=1（psql）；②ts_rank 排序稳定（evidence 第 5 节 + SQL `ORDER BY score DESC, chunk_id ASC` 保留）；④Docker 回归 query_stub + retrieval_evidence 均 PASS。**第 ③ 条「新增召回单元/组件测试」处理说明**：本任务为 SQL-only 改动（Repository native SQL AND→OR），DAO/Service Java 方法体未变，既有 Mockito 单测覆盖 isBlank 守卫/列映射/参数透传仍有效；FTS OR 召回行为无法在单元/组件层证明（项目无 Testcontainers，H2 不支持 PG `to_tsvector`/`ts_rank`/`tsquery`，见 test-workflow 1.2/1.4 及 6.hotfix_7.1 Dense 同款处理），由 Docker HTTP 回归（query_stub 含疑问词命中即本修复核心场景）+ psql 边界对比独立证明。风险：部分匹配可能召回较低相关项，已由 ts_rank DESC 排序 + chunk_id tie-breaker 保证最相关优先，evidence 稳定排序回归无退化。**整份 Hotfix 6.hotfix_7.1+7.2 均完成，Plan 转 completed** |
+| 2026-06-25 | macOS | 未执行：真实 LLM 供应商调用（独立验收） | 未执行 | 本任务只改 Sparse FTS 查询 SQL，不涉及 LLM/供应商边界；Query Stub 回归已覆盖必跑项；无残留风险（与执行 session 结论一致） |
 
 ## 阻塞记录
 
