@@ -1,5 +1,7 @@
 package ai.cerbur.crag.ingestion.job;
 
+import ai.cerbur.crag.ingestion.producer.RagIngestionStatusEventTypes;
+import ai.cerbur.crag.ingestion.producer.RagIngestionStatusEventWriter;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.IngestionJobConflictException;
 import ai.cerbur.crag.storage.IngestionJobDao;
@@ -11,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Ingestion Job 编排服务（Plan 19）—— 管理消费 {@code DOC_UPLOADED} 后 Job 的幂等创建与状态机推进.
@@ -35,6 +38,8 @@ public class IngestionJobService {
   @Autowired private IngestionJobDao ingestionJobDao;
 
   @Autowired private ChunkDao chunkDao;
+
+  @Autowired private RagIngestionStatusEventWriter statusEventWriter;
 
   /**
    * 幂等创建或定位 Job，并给出是否继续处理的决策.
@@ -87,24 +92,28 @@ public class IngestionJobService {
   }
 
   /**
-   * CAS 推进 PENDING → PROCESSING.
+   * CAS 推进 PENDING → PROCESSING，并在成功后于同一事务写入 {@code INGESTION_PROCESSING} Outbox 事件.
    *
-   * <p>并发下另一实例已推进时抛出 {@link IngestionJobConflictException}；调用方按业务语义视为已处理.
+   * <p>并发下另一实例已推进时抛出 {@link IngestionJobConflictException}（不写事件）；调用方按业务语义视为已处理.
    *
    * @param job 当前 Job
    * @throws IngestionJobConflictException 状态或版本已被其他实例变更
    */
+  @Transactional
   public void markProcessing(IngestionJob job) {
     ingestionJobDao.markProcessing(job, LocalDateTime.now());
+    statusEventWriter.write(job, RagIngestionStatusEventTypes.INGESTION_PROCESSING, null, null);
     log.info(
         "Ingestion job PROCESSING — docId={} operationVersion={}",
         job.getDocId(),
         job.getOperationVersion());
   }
 
-  /** CAS 推进 PROCESSING → READY. */
+  /** CAS 推进 PROCESSING → READY，并在成功后于同一事务写入 {@code INGESTION_READY} Outbox 事件. */
+  @Transactional
   public void markReady(IngestionJob job) {
     ingestionJobDao.markReady(job, LocalDateTime.now());
+    statusEventWriter.write(job, RagIngestionStatusEventTypes.INGESTION_READY, null, null);
     log.info(
         "Ingestion job READY — docId={} operationVersion={}",
         job.getDocId(),
@@ -139,15 +148,18 @@ public class IngestionJobService {
   }
 
   /**
-   * CAS 推进 PROCESSING → FAILED，记录安全失败分类与短摘要.
+   * CAS 推进 PROCESSING → FAILED，记录安全失败分类与短摘要，并在成功后于同一事务写入 {@code INGESTION_FAILED} Outbox 事件.
    *
    * @param job 当前 Job
    * @param category 失败分类
    * @param message 失败安全短摘要（禁止透传敏感信息）
    */
+  @Transactional
   public void markFailed(IngestionJob job, IngestionJobFailureCategory category, String message) {
     String safeMessage = sanitizeFailureMessage(message);
     ingestionJobDao.markFailed(job, LocalDateTime.now(), category.name(), safeMessage);
+    statusEventWriter.write(
+        job, RagIngestionStatusEventTypes.INGESTION_FAILED, category.name(), safeMessage);
     log.warn(
         "Ingestion job FAILED — docId={} operationVersion={} category={}",
         job.getDocId(),

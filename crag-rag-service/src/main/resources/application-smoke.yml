@@ -12,6 +12,8 @@ crag:
   event:
     consumer:
       enabled: true
+    publisher:
+      enabled: true
     stream-key: crag:event:knowledge
     dlq-stream-key: crag:event:knowledge:dlq
     group-name: rag-ingestion

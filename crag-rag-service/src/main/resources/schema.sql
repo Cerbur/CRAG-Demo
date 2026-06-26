@@ -121,6 +121,8 @@ CREATE INDEX IF NOT EXISTS idx_ingestion_job_status ON ingestion_job(status);
 -- processed_event：DOC_UPLOADED 消费幂等记录（consumer_name + event_id / idempotency_key 双唯一键）。
 -- outbox_event：RAG 发布 INGESTION_PROCESSING / READY / FAILED 状态事件（Plan 19.6 启用）。
 -- ============================================================
+-- RAG ingestion 状态事件 ID 序列；outbox_event.event_id 由 producer 取 nextval，不依赖 Snowflake。
+CREATE SEQUENCE IF NOT EXISTS rag_event_id_seq START WITH 1 INCREMENT BY 1;
 CREATE TABLE IF NOT EXISTS outbox_event (
   event_id BIGINT NOT NULL PRIMARY KEY,
   event_type VARCHAR(64) NOT NULL,

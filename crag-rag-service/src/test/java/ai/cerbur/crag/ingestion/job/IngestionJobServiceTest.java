@@ -6,10 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ai.cerbur.crag.ingestion.producer.RagIngestionStatusEventTypes;
+import ai.cerbur.crag.ingestion.producer.RagIngestionStatusEventWriter;
+import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.IngestionJobConflictException;
 import ai.cerbur.crag.storage.IngestionJobDao;
 import ai.cerbur.crag.storage.entity.IngestionJob;
@@ -34,6 +38,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class IngestionJobServiceTest {
 
   @Mock private IngestionJobDao ingestionJobDao;
+
+  @Mock private ChunkDao chunkDao;
+
+  @Mock private RagIngestionStatusEventWriter statusEventWriter;
 
   @InjectMocks private IngestionJobService service;
 
@@ -101,13 +109,16 @@ class IngestionJobServiceTest {
   class StateTransition {
 
     @Test
-    @DisplayName("markProcessing → 委托 DAO")
+    @DisplayName("markProcessing → 委托 DAO 并写 INGESTION_PROCESSING 事件")
     void markProcessingDelegates() {
       IngestionJob job = pendingJob(100L, 1L);
 
       service.markProcessing(job);
 
       verify(ingestionJobDao).markProcessing(eq(job), any(LocalDateTime.class));
+      verify(statusEventWriter)
+          .write(
+              eq(job), eq(RagIngestionStatusEventTypes.INGESTION_PROCESSING), isNull(), isNull());
     }
 
     @Test
@@ -123,17 +134,19 @@ class IngestionJobServiceTest {
     }
 
     @Test
-    @DisplayName("markReady → 委托 DAO")
+    @DisplayName("markReady → 委托 DAO 并写 INGESTION_READY 事件")
     void markReadyDelegates() {
       IngestionJob job = jobWithStatus(100L, 1L, IngestionJobStatus.PROCESSING);
 
       service.markReady(job);
 
       verify(ingestionJobDao).markReady(eq(job), any(LocalDateTime.class));
+      verify(statusEventWriter)
+          .write(eq(job), eq(RagIngestionStatusEventTypes.INGESTION_READY), isNull(), isNull());
     }
 
     @Test
-    @DisplayName("markFailed → 委托 DAO 携带分类与安全摘要")
+    @DisplayName("markFailed → 委托 DAO 携带分类与安全摘要，并写 INGESTION_FAILED 事件")
     void markFailedDelegatesWithCategoryAndSafeMessage() {
       IngestionJob job = jobWithStatus(100L, 1L, IngestionJobStatus.PROCESSING);
 
@@ -142,6 +155,12 @@ class IngestionJobServiceTest {
       verify(ingestionJobDao)
           .markFailed(
               eq(job), any(LocalDateTime.class), eq("FILE_DECODE_FAILED"), eq("decode error"));
+      verify(statusEventWriter)
+          .write(
+              eq(job),
+              eq(RagIngestionStatusEventTypes.INGESTION_FAILED),
+              eq("FILE_DECODE_FAILED"),
+              eq("decode error"));
     }
   }
 
