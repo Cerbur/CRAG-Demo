@@ -229,16 +229,21 @@ ai.cerbur.crag.query                    — 原 crag-query
     └── config/                        — QueryProperties / DeepSeekApiKey / QueryLlmConfiguration
 
 ai.cerbur.crag.ingestion                — 原 crag-ingestion
-├── api/                               — AdminRagService / AdminRagResult（跨包公开入口）
+├── api/                               — AdminRagService / AdminRagResult（跨包公开入口，固定 smoke KB）
 ├── chunk.split/                       — ChunkSplit 能力与数据类型
+├── consumer/                          — DOC_UPLOADED EventHandler / payload 解析（Plan 19）
+├── job/                               — IngestionJobService / Orchestrator / Resolution / FailureCategory
+├── knowledge/                         — Knowledge gRPC ReadDocumentFile client（只依赖 contracts）
+├── producer/                          — INGESTION_PROCESSING/READY/FAILED 状态事件 Outbox 写入（Plan 19）
 ├── dense/                             — DenseEmbeddingService
-└── cron/                              — Dense / Sparse 定时编排
+└── cron/                              — Dense / Sparse 定时编排（索引完成后推进 Job READY）
 
 ai.cerbur.crag.smoke                    — 原 crag-api + crag-smoke
-├── controller/                        — AdminRagController / UserQueryController / TestController（@Profile("smoke")）
+├── controller/                        — AdminRagController / UserQueryController / TestController / RagIngestionSmokeController（@Profile("smoke")）
 ├── controller.advice/                 — GlobalExceptionHandler（@Profile("smoke")）
+├── ingestion/                         — RagIngestionSmokeService（router2 诊断：job/事件/chunk 计数，@Profile("smoke")）
 ├── dto.rag/                           — AdminRagRequest / AdminRagResponse
-└── dto.query/                         — UserQueryRequest / UserQueryResponse / QuerySourceResponse
+└── dto.query/                         — UserQueryRequest（含可选 knowledgeBaseId） / UserQueryResponse / QuerySourceResponse
 ```
 
 ### `crag-platform-contracts`

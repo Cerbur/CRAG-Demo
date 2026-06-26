@@ -15,10 +15,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * 排除 {@link EventAutoConfiguration} 等库模块的自动装配类被组件扫描过早加载：{@code @ComponentScan("ai.cerbur.crag")}
- * 覆盖 crag-event 包，会把带 {@code @Configuration} 元注解的 {@code EventAutoConfiguration} 当作普通配置在自动装配阶段
- * 之前处理，导致其 {@code @ConditionalOnBean(StringRedisTemplate/JdbcTemplate)} 在依赖 bean 注册前求值而失败。
- * 排除后 EventAutoConfiguration 仅由自动装配发现（带正确的 afterName 排序）.
+ * 排除 {@link EventAutoConfiguration} 等库模块的自动装配类被组件扫描过早加载：{@code @ComponentScan("ai.cerbur.crag")} 覆盖
+ * crag-event 包，会把带 {@code @Configuration} 元注解的 {@code EventAutoConfiguration} 当作普通配置在自动装配阶段
+ * 之前处理，导致其 {@code @ConditionalOnBean(StringRedisTemplate/JdbcTemplate)} 在依赖 bean 注册前求值而失败。 排除后
+ * EventAutoConfiguration 仅由自动装配发现（带正确的 afterName 排序）.
  */
 @SpringBootApplication
 @ComponentScan(

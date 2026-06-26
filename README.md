@@ -77,6 +77,15 @@ curl http://localhost:8083/api/v1/smoke/test/smoke
 
 > 上图反映当前平台方向：五个 Java 进程、gRPC 服务通信、PostgreSQL 独立 Schema、Redis Streams 可靠事件基础设施，以及仍作为核心的 RAG 主链路。实线表示已落地基础能力，虚线表示后续 router 阶段继续实现的业务链路。
 
+### router2：RAG 多知识库化（plan_19）
+
+RAG 已从单知识空间升级为多知识库隔离模型（见 `plan/plan_19`）：
+
+- **事件驱动摄入**：RAG 订阅 Knowledge 发布的 `DOC_UPLOADED`（Redis Streams，独立消费组 `rag-ingestion`），通过 Knowledge gRPC `ReadDocumentFile` 读取文件，校验 sha256/size/fileType 后切分写入；以 `(docId, operationVersion)` 为业务幂等键建立 `ingestion_job`，状态 `PENDING → PROCESSING → READY / FAILED`。
+- **按 KB 强隔离**：`chunk` / `chunk_embedding` / `chunk_fts` 三表显式落 `knowledge_base_id`，Sparse / Dense 查询、Rerank 相邻扩展、Parent Evidence 回表与 Query 入口均以 `knowledgeBaseId` 为必填强隔离键（`retrieve` / `retrieveEvidence` / `answer` 均接收 `knowledgeBaseId`）。
+- **状态事件**：RAG 发布 `INGESTION_PROCESSING / INGESTION_READY / INGESTION_FAILED` 状态事件（payload 仅含安全字段）。
+- **诊断**：router2 全链路在 smoke profile 下通过 `rag-service-smoke` + `knowledge-service-smoke` 的 `/api/v1/smoke/**` HTTP 入口验证（见 `scripts/tests/http/rag_smoke_*.sh`）。
+
 ## 🔢 RAG 管道：7 步走通检索增强生成
 
 ### 写入链路

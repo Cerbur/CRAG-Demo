@@ -247,13 +247,18 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 容器名 | `crag-rag-service-smoke` |
 | 端口 | `8083:8082` |
 | Profile | `smoke` |
-| Redis | `redis:6379`（Worker lease） |
+| Redis | `redis:6379`（Worker lease + Redis Streams 事件传输） |
 | 就绪条件 | `db` 健康 且 `redis` 健康 且 `sidecar` 健康 |
 | ID 配置 | `crag.id.service-domain=rag`、required-entities `LEGACY_DOCUMENT,CHUNK` |
+| 事件（Plan 19） | `crag.event.consumer/publisher.enabled=true`，消费 `crag:event:knowledge`（group `rag-ingestion`），发布 `INGESTION_*` 状态事件 |
+| gRPC client（Plan 19） | `crag.grpc.client.caller-service=rag-service`，`crag.rag.ingestion.knowledge.target=knowledge-service-smoke:9092`（读取 Knowledge 文件） |
 | Compose Profile | `smoke` |
 | 网络 | `crag-net` |
 
 ### 5.11 `knowledge-service-smoke` — Knowledge Smoke 验证
+
+> Plan 19 起在 `allowed-callers` 中增加 `rag-service`，允许 RAG 以 service token 调用 `ReadDocumentFile`。
+
 
 | 属性 | 当前值 |
 | --- | --- |

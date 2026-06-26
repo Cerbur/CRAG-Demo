@@ -52,6 +52,8 @@ Docker HTTP 回归用于验证真实运行时业务链路：
 
 Knowledge 垂直链路（KnowledgeBase、Document 单次流式上传、文件存储、读取、`DOC_UPLOADED` 发布）由 `scripts/tests/http/knowledge_smoke_{default_disabled,upload_txt,upload_md,upload_invalid,event_published}_test.sh` 通过 `knowledge-service-smoke`（smoke profile）的 `/api/v1/smoke/knowledge/**` HTTP 入口证明真实 PostgreSQL、文件 volume 与 Redis Streams 发布链路；默认 profile 不暴露该入口。
 
+router2 RAG 多知识库链路（消费 `DOC_UPLOADED`、Knowledge gRPC 读取、切分、Dense/Sparse 索引、按 `knowledgeBaseId` 查询隔离、状态事件发布）由 `scripts/tests/http/rag_smoke_multi_kb_{ingestion,isolation}_test.sh`、`rag_smoke_doc_uploaded_{idempotency,dlq}_test.sh` 与 `rag_smoke_ingestion_status_event_test.sh` 通过 `knowledge-service-smoke`（上传入口）与 `rag-service-smoke`（`/api/v1/smoke/rag/ingestion/**`、`/api/v1/smoke/query`、`/api/v1/smoke/test/retrieval/**` HTTP 入口）证明真实 PostgreSQL + pgvector + Redis Streams + Knowledge gRPC 全链路；默认 profile 不暴露 router2 smoke 入口。
+
 ## 二、Gradle 与 Docker 执行入口
 
 ### 2.1 Gradle 任务
