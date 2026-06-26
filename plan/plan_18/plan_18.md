@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_18
 type: main
-status: verifying
+status: completed
 created: 2026-06-26
 updated: 2026-06-26
 ---
@@ -197,15 +197,15 @@ router1 需要把 Knowledge 侧第一个业务垂直切片打穿：Knowledge 能
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 18.1 | 建立 Knowledge contracts 与包结构护栏 | ⏳ 待验收 | 51a53b93 | — |
-| 18.2 | 落地 Knowledge 数据模型与 DAO | ⏳ 待验收 | b52306a1 | — |
-| 18.3 | 实现文件存储与上传 core 链路 | ⏳ 待验收 | 441b550e | — |
-| 18.4 | 暴露 Knowledge gRPC provider | ⏳ 待验收 | 8b2b906d | — |
-| 18.5 | 接入 `DOC_UPLOADED` producer 与 Outbox 发布 | ⏳ 待验收 | 5071dc3e | — |
-| 18.6 | 提供 smoke HTTP 入口与 Docker 回归 | ⏳ 待验收 | 6ae8ff85 | — |
-| 18.7 | 同步约束文档、README 与全量验证 | ⏳ 待验收 | 3355ddad | — |
+| 18.1 | 建立 Knowledge contracts 与包结构护栏 | ✅ 完成 | 51a53b93 | 2026-06-26 |
+| 18.2 | 落地 Knowledge 数据模型与 DAO | ✅ 完成 | b52306a1 | 2026-06-26 |
+| 18.3 | 实现文件存储与上传 core 链路 | ✅ 完成 | 441b550e | 2026-06-26 |
+| 18.4 | 暴露 Knowledge gRPC provider | ✅ 完成 | 8b2b906d | 2026-06-26 |
+| 18.5 | 接入 `DOC_UPLOADED` producer 与 Outbox 发布 | ✅ 完成 | 5071dc3e | 2026-06-26 |
+| 18.6 | 提供 smoke HTTP 入口与 Docker 回归 | ✅ 完成 | 6ae8ff85 | 2026-06-26 |
+| 18.7 | 同步约束文档、README 与全量验证 | ✅ 完成 | 3355ddad | 2026-06-26 |
 
-整体进度：0 / 7（0%）
+整体进度：7 / 7（100%）
 
 ## 18.1 建立 Knowledge contracts 与包结构护栏
 
@@ -287,6 +287,28 @@ router1 需要把 Knowledge 侧第一个业务垂直切片打穿：Knowledge 能
 | 2026-06-26 | 本机 JDK 21 | 各任务 `--tests` 验证命令 | 通过 | DocumentUploadPolicy/StorageKeyGenerator/DocumentUploadService/FileStore/KnowledgeDao/GrpcProvider/KnowledgeSmokeController/DocumentUploadedPayload/KnowledgeEventProducer/KnowledgeArchitecture 测试均通过。 |
 | 2026-06-26 | 本机 Python 3 | `python3 scripts/validate_plans.py`、`-m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints` | 通过 | 0 错误。 |
 | 2026-06-26 | Docker Compose（PostgreSQL17 + Redis7.4 + knowledge-service-smoke smoke profile） | `scripts/tests/http/knowledge_smoke_{default_disabled,upload_txt,upload_md,upload_invalid,event_published}_test.sh` | 通过 | 默认 profile 不暴露 smoke(404)；.txt/.md 上传成功(PENDING+读回)；4 类非法上传(400)；DOC_UPLOADED 发布到 Redis Streams(PUBLISHED)。 |
+
+### 独立验收（2026-06-26，未参与实现的新 session）
+
+验收结论：**通过**。独立验收 session 从仓库事实重建上下文，重新运行全部必需验证，未修改任何实现代码或测试。
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-26 | 本机 JDK 21 + Gradle 9.4.1 | `./gradlew :crag-knowledge-service:cleanTest :crag-knowledge-service:test` | 通过 | 强制重跑知识服务全部纯单元/轻量组件/架构测试，BUILD SUCCESSFUL（23s）。 |
+| 2026-06-26 | 本机 JDK 21 | `./gradlew check` | 通过 | 全模块 spotless/测试/Plan/模块依赖/约束校验通过，BUILD SUCCESSFUL。 |
+| 2026-06-26 | 本机 Python 3 | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error；24 个 P101 警告均为历史 v2 Plan，与 plan_18 无关。 |
+| 2026-06-26 | 本机 Python 3 | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints -v` | 通过 | 37 个校验器单测全部 OK。 |
+| 2026-06-26 | Docker Compose（PostgreSQL17 + Redis7.4） | `scripts/tests/http/knowledge_smoke_default_disabled_test.sh` | 通过 | 默认 profile `/api/v1/smoke/knowledge/**` 返回 404。 |
+| 2026-06-26 | 同上 | `scripts/tests/http/knowledge_smoke_upload_txt_test.sh` | 通过 | .txt 上传 → doc=4 PENDING，读回内容一致。 |
+| 2026-06-26 | 同上 | `scripts/tests/http/knowledge_smoke_upload_md_test.sh` | 通过 | .md 上传 → doc=5 PENDING，读回内容一致。 |
+| 2026-06-26 | 同上 | `scripts/tests/http/knowledge_smoke_upload_invalid_test.sh` | 通过 | 非法扩展名 / sha256 不匹配 / 非 UTF-8 / 超 10 MiB 均返回 400。 |
+| 2026-06-26 | 同上 | `scripts/tests/http/knowledge_smoke_event_published_test.sh` | 通过 | DOC_UPLOADED 发布到 Redis Streams，状态 PUBLISHED（doc=6）。 |
+
+逐任务核对：7 个实现 commit（`51a53b93`…`3355ddad`）经 `git show --stat` 核对均服务对应任务，无跨 Plan 范围混入；交接提交 `029481eb` 与验收后 `af4f2adc`（仅改 `plan/plan_main.md`）不涉及实现证据。架构测试覆盖：无模块环依赖、Repository 仅 DAO 访问、DAO 不反向依赖上层、无 `dao.result` 包、Controller 收口 `controller.smoke` 且带 `@Profile("smoke")`、字段注入、不依赖 RAG 业务模块。代码核对：三张业务表均含 `created_at/updated_at/version`；`StorageKeyGenerator` 生成的 key 不含原始文件名；`DocumentUploadedPayload` 仅 7 个安全字段、无路径/storage key/内容；`DocumentUploadService.complete()` 同事务创建 Document(PENDING)+FileObject(STORED)+Outbox，失败清理文件并回滚，Redis 发布异步解耦故发布失败不回滚上传；默认 `application.yml` 不启用 publisher 且不暴露 smoke 入口。HTTP 脚本均以唯一 `runId`（`k-{type}-{epoch}-{pid}`）隔离数据，不清表、不删 volume。
+
+未执行项：无。Plan 与 `constraints/test-workflow.md` 要求的全部验证均有新鲜证据。
+
+观察（非阻塞）：`cleanTest` 重跑日志在 Spring Context 关闭阶段出现 `LettuceConnectionFactory is STOPPING`（`crag-event` consumer 调度器在 `ionShutdownHook` 时仍尝试 `createGroup`）。该 ERROR 发生在测试断言之后的销毁阶段，BUILD 成功，属 crag-event 既有关闭竞态，不影响测试结果与 plan_18 正确性。
 
 ## 阻塞记录
 
