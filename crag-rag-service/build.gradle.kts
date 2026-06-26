@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
     implementation(project(":crag-id"))
+    implementation(project(":crag-event"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")

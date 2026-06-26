@@ -1,0 +1,25 @@
+# Smoke profile for the RAG service: enables the crag-event consumer closed loop (plan_19).
+# The default application.yml leaves publisher/consumer disabled; this profile turns the consumer on
+# so RAG subscribes to Knowledge's DOC_UPLOADED events on the shared crag:event:knowledge stream under
+# a distinct consumer group (rag-ingestion), and creates the local outbox/processed_event tables.
+spring:
+  data:
+    redis:
+      host: ${CARG_REDIS_HOST:redis}
+      port: ${CARG_REDIS_PORT:6379}
+
+crag:
+  event:
+    consumer:
+      enabled: true
+    stream-key: crag:event:knowledge
+    dlq-stream-key: crag:event:knowledge:dlq
+    group-name: rag-ingestion
+    consumer-name: rag-ingestion-1
+    batch-size: 20
+    claim-idle: 30s
+    max-deliveries: 3
+    poll-interval: 1s
+    backoff:
+      initial: 1s
+      max: 30s
