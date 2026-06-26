@@ -224,4 +224,17 @@ public class ChunkDao {
     }
     return chunkRepository.findParentContentsByIds(chunkIds);
   }
+
+  /**
+   * 统计指定文档下尚未完全索引（Dense 或 Sparse 仍非终态）的 chunk 数量（Plan 19）.
+   *
+   * <p>0 表示该文档所有 child chunk 已完成 Dense+Sparse 索引，可用于推进 ingestion_job 为 READY.
+   *
+   * @param docId 文档 ID
+   * @return 尚未完全索引的 chunk 数量
+   */
+  public long countByDocIdNotFullyIndexed(long docId) {
+    return chunkRepository.countByDocIdNotFullyIndexed(
+        docId, List.of(ChunkStatus.SUCCESS, ChunkStatus.SKIPPED));
+  }
 }

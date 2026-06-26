@@ -229,4 +229,20 @@ public interface ChunkRepository extends JpaRepository<Chunk, Long> {
           + " FROM Chunk c"
           + " WHERE c.chunkId IN :chunkIds AND c.parentChunkId = 0L")
   List<ParentChunkContent> findParentContentsByIds(@Param("chunkIds") List<Long> chunkIds);
+
+  /**
+   * 统计指定文档下尚未完全索引的 chunk 数量（Plan 19）.
+   *
+   * <p>"未完全索引" = dense 或 sparse 仍处于非终态（非 SUCCESS / SKIPPED）。结果为 0 表示该文档所有 chunk 已完成 Dense+Sparse
+   * 索引（或无 child），可用于推进 ingestion_job 为 READY。parent chunk 的 dense/sparse 均为 SKIPPED，不被计入.
+   *
+   * @param docId 文档 ID
+   * @param indexed 已索引终态集合（SUCCESS、SKIPPED）
+   * @return 尚未完全索引的 chunk 数量
+   */
+  @Query(
+      "SELECT COUNT(c) FROM Chunk c WHERE c.docId = :docId"
+          + " AND (c.denseStatus NOT IN :indexed OR c.sparseStatus NOT IN :indexed)")
+  long countByDocIdNotFullyIndexed(
+      @Param("docId") long docId, @Param("indexed") List<ChunkStatus> indexed);
 }

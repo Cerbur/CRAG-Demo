@@ -1,5 +1,6 @@
 package ai.cerbur.crag.rag.app;
 
+import ai.cerbur.crag.grpc.runtime.config.GrpcClientConfiguration;
 import ai.cerbur.crag.grpc.runtime.config.GrpcServerConfiguration;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.SpringApplication;
@@ -15,7 +16,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @ComponentScan("ai.cerbur.crag")
 @EnableJpaRepositories("ai.cerbur.crag.storage.repository")
 @EnableScheduling
-@Import(GrpcServerConfiguration.class)
+@Import({GrpcServerConfiguration.class, GrpcClientConfiguration.class})
 public class RagServiceApplication {
 
   @Bean

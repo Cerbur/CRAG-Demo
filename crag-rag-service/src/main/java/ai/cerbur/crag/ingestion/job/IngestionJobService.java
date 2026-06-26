@@ -1,10 +1,12 @@
 package ai.cerbur.crag.ingestion.job;
 
+import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.IngestionJobConflictException;
 import ai.cerbur.crag.storage.IngestionJobDao;
 import ai.cerbur.crag.storage.entity.IngestionJob;
 import ai.cerbur.crag.storage.entity.IngestionJobStatus;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +33,8 @@ public class IngestionJobService {
   private static final Logger log = LoggerFactory.getLogger(IngestionJobService.class);
 
   @Autowired private IngestionJobDao ingestionJobDao;
+
+  @Autowired private ChunkDao chunkDao;
 
   /**
    * 幂等创建或定位 Job，并给出是否继续处理的决策.
@@ -105,6 +109,33 @@ public class IngestionJobService {
         "Ingestion job READY — docId={} operationVersion={}",
         job.getDocId(),
         job.getOperationVersion());
+  }
+
+  /**
+   * 若文档所有 chunk 已完成 Dense+Sparse 索引，则推进对应 PROCESSING Job 为 READY（Plan 19）.
+   *
+   * <p>由编排写入 chunk 后、以及 Dense/Sparse Cron 每次成功索引后调用。Job 非 PROCESSING 或仍有未索引 chunk 时为 no-op； CAS
+   * 冲突（已被推进）WARN 记录后忽略.
+   *
+   * @param docId 文档 ID
+   */
+  public void tryAdvanceReadyIfComplete(long docId) {
+    Optional<IngestionJob> processing =
+        ingestionJobDao.findByDocIdAndStatus(docId, IngestionJobStatus.PROCESSING);
+    if (processing.isEmpty()) {
+      return;
+    }
+    if (chunkDao.countByDocIdNotFullyIndexed(docId) > 0) {
+      return;
+    }
+    try {
+      markReady(processing.get());
+    } catch (IngestionJobConflictException e) {
+      log.warn(
+          "tryAdvanceReady conflict, job already advanced — docId={} operationVersion={}",
+          docId,
+          processing.get().getOperationVersion());
+    }
   }
 
   /**

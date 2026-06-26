@@ -5,6 +5,7 @@ import ai.cerbur.crag.event.api.EventHandler;
 import ai.cerbur.crag.event.api.EventHandlerResult;
 import ai.cerbur.crag.ingestion.job.IngestionJobResolution;
 import ai.cerbur.crag.ingestion.job.IngestionJobService;
+import ai.cerbur.crag.ingestion.job.IngestionOrchestrator;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,7 @@ public class DocUploadedEventHandler implements EventHandler {
 
   private final ObjectMapper objectMapper;
   private final IngestionJobService ingestionJobService;
+  private final IngestionOrchestrator ingestionOrchestrator;
   private final String streamKey;
   private final String groupName;
   private final String consumerName;
@@ -49,11 +51,13 @@ public class DocUploadedEventHandler implements EventHandler {
   public DocUploadedEventHandler(
       ObjectMapper objectMapper,
       IngestionJobService ingestionJobService,
+      IngestionOrchestrator ingestionOrchestrator,
       @Value("${crag.event.stream-key:crag:event:knowledge}") String streamKey,
       @Value("${crag.event.group-name:rag-ingestion}") String groupName,
       @Value("${crag.event.consumer.consumer-name:rag-ingestion-1}") String consumerName) {
     this.objectMapper = objectMapper;
     this.ingestionJobService = ingestionJobService;
+    this.ingestionOrchestrator = ingestionOrchestrator;
     this.streamKey = streamKey;
     this.groupName = groupName;
     this.consumerName = consumerName;
@@ -113,14 +117,19 @@ public class DocUploadedEventHandler implements EventHandler {
           payload.operationVersion(),
           resolution.fresh(),
           resolution.needsProcessing());
+      if (resolution.needsProcessing()) {
+        // 业务处理（读取、校验、切分、写入）在编排内推进 Job 至 PROCESSING / READY / FAILED；
+        // 业务失败进入终态 FAILED，不由消费层重试。仅瞬时基础设施异常向上传播触发 retry。
+        ingestionOrchestrator.process(resolution.job(), payload);
+      }
       return EventHandlerResult.success();
     } catch (RuntimeException e) {
-      // 瞬时异常（如 DB 不可达）：不 ACK，留 Pending 由 reclaim 重新投递。
+      // 瞬时异常（如 DB 不可达、gRPC 瞬时失败未被编排收敛）：不 ACK，留 Pending 由 reclaim 重新投递。
       log.warn(
-          "DOC_UPLOADED resolve failed, will retry — docId={} reason={}",
+          "DOC_UPLOADED processing failed transiently, will retry — docId={} reason={}",
           payload.docId(),
           e.getMessage());
-      return EventHandlerResult.retryableFailure("DOC_UPLOADED resolve failed");
+      return EventHandlerResult.retryableFailure("DOC_UPLOADED processing failed");
     }
   }
 }

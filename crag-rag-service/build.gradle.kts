@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":crag-grpc-runtime"))
     implementation(project(":crag-id"))
     implementation(project(":crag-event"))
+    implementation(project(":crag-knowledge-contracts"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
@@ -27,6 +28,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.0")
+    testImplementation(libs.grpc.inprocess)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("com.h2database:h2")
 }

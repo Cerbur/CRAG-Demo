@@ -30,7 +30,7 @@ public record DocUploadedPayload(
     String sha256) {
 
   /** RAG 支持的文件类型展示值. */
-  static final Set<String> SUPPORTED_FILE_TYPES = Set.of("TXT", "MARKDOWN");
+  public static final Set<String> SUPPORTED_FILE_TYPES = Set.of("TXT", "MARKDOWN");
 
   /**
    * 从 JSON 字符串解析并校验 payload.

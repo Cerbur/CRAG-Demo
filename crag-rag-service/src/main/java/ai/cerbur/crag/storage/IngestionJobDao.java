@@ -96,6 +96,11 @@ public class IngestionJobDao {
     return ingestionJobRepository.findByKnowledgeBaseIdAndDocId(knowledgeBaseId, docId);
   }
 
+  /** 按文档 ID + 状态查询 Job，供索引完成推进 READY 使用. */
+  public Optional<IngestionJob> findByDocIdAndStatus(long docId, IngestionJobStatus status) {
+    return ingestionJobRepository.findByDocIdAndStatus(docId, status);
+  }
+
   /**
    * CAS 状态推进 PENDING → PROCESSING.
    *

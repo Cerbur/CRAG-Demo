@@ -28,6 +28,9 @@ public interface IngestionJobRepository extends JpaRepository<IngestionJob, Long
   /** 按 KB + docId 查询 Job，供 smoke 诊断与查询隔离观察. */
   Optional<IngestionJob> findByKnowledgeBaseIdAndDocId(long knowledgeBaseId, long docId);
 
+  /** 按文档 ID + 状态查询 Job，供索引完成推进 READY 使用. */
+  Optional<IngestionJob> findByDocIdAndStatus(long docId, IngestionJobStatus status);
+
   /**
    * CAS 状态推进 PENDING → PROCESSING，并写入 started_at.
    *

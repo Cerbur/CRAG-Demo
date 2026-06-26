@@ -11,6 +11,7 @@ import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.EventHandlerResult;
 import ai.cerbur.crag.event.api.EventHandlerResult.Status;
 import ai.cerbur.crag.ingestion.job.IngestionJobService;
+import ai.cerbur.crag.ingestion.job.IngestionOrchestrator;
 import ai.cerbur.crag.storage.IngestionJobDao;
 import ai.cerbur.crag.storage.entity.IngestionJob;
 import ai.cerbur.crag.storage.entity.IngestionJobStatus;
@@ -39,9 +40,11 @@ class RagEventConsumerComponentTest {
   @Autowired private ObjectMapper objectMapper;
 
   private DocUploadedEventHandler handler() {
+    // 编排（读取/校验/切分/写入）在 IngestionOrchestratorTest 单独验证；此处用 no-op mock 聚焦 outcome 映射。
     return new DocUploadedEventHandler(
         objectMapper,
         ingestionJobService,
+        mock(IngestionOrchestrator.class),
         "crag:event:knowledge",
         "rag-ingestion",
         "rag-ingestion-1");
@@ -155,7 +158,8 @@ class RagEventConsumerComponentTest {
             anyLong(), anyLong(), eq(5004L), anyLong(), anyString(), anyLong(), anyString()))
         .thenThrow(new RuntimeException("db unavailable"));
     DocUploadedEventHandler h =
-        new DocUploadedEventHandler(objectMapper, failingService, "s", "g", "c");
+        new DocUploadedEventHandler(
+            objectMapper, failingService, mock(IngestionOrchestrator.class), "s", "g", "c");
 
     EventHandlerResult result = h.handle(docUploaded(5004L, 1L, validPayload(202L, 5004L, 1L)));
 
