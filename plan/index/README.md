@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-26（plan_18 Knowledge 垂直链路独立验收通过：7/7 任务完成，全部验证通过）
+> 最后更新：2026-06-26（创建 plan_19 RAG 多知识库化：ready，0/8 任务）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -71,6 +71,8 @@ plan/
 │   └── plan_17.md
 ├── plan_18/
 │   └── plan_18.md
+├── plan_19/
+│   └── plan_19.md
 └── plan_archive/
     └── README.md
 ```
@@ -100,12 +102,14 @@ plan/
 | plan_16 | RAG Service Module 收口与 Smoke HTTP 入口重整，合并 RAG 内部 subproject 并将 legacy HTTP 迁入 smoke namespace | ✅ 完成 (5/5) | — | [plan_16.md](../plan_16/plan_16.md) |
 | plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | ✅ 完成 (6/6) | — | [plan_17.md](../plan_17/plan_17.md) |
 | plan_18 | Knowledge 垂直链路，新增 Knowledge contracts、KnowledgeBase、Document、文件上传、存储、流式读取与 DOC_UPLOADED 事件 | ✅ 完成 (7/7) | — | [plan_18.md](../plan_18/plan_18.md) |
+| plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | 🟡 待开始 (0/8) | — | [plan_19.md](../plan_19/plan_19.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
+plan_19 — RAG 多知识库化（0/8）
 plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
 plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径可达（非优先，测试脚本修复）
 ```
@@ -267,6 +271,12 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_18.md](../plan_18/plan_18.md) | Knowledge 垂直链路，新增 `crag-knowledge-contracts`、KnowledgeBase、Document、FileObject、单次流式上传、文件存储、gRPC 流式读取、`DOC_UPLOADED` 事件和 smoke-only Docker 验收 | ✅ 完成 (7/7) |
+
+## Plan_19 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_19.md](../plan_19/plan_19.md) | RAG 多知识库化，新增 `DOC_UPLOADED` consumer、`ingestion_job`、Knowledge 文件读取、Chunk/Dense/Sparse `knowledgeBaseId` 隔离、Retrieval/Query 隔离、状态事件和 router2 smoke 验收 | 🟡 待开始 (0/8) |
 
 ---
 
