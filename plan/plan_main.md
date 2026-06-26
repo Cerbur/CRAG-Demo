@@ -1,7 +1,7 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-22（确立多租户知识平台演进方向）
+> 最后更新：2026-06-26（阶段路线改用 router 占位避免预占 Plan 编号）
 
 ---
 
@@ -145,7 +145,7 @@ KnowledgeBase 必须归 Tenant 所有。用户通过 Membership 访问 Tenant �
 - `crag-platform-contracts` 保存跨领域通用的 Protobuf 基础契约，例如请求/响应公共元数据、稳定错误信息和平台 Probe；不包含具体领域 RPC 或业务实现。
 - 领域 gRPC 契约按服务提供方归属，分别进入 `crag-access-contracts`、`crag-knowledge-contracts` 和 `crag-rag-contracts`。
 - 稳定事件信封由可靠事件基础设施阶段定义，不与具体领域事件载荷或 gRPC 契约混放。
-- Access、Knowledge、RAG 使用独立 Schema、数据库账号和迁移所有权。`plan_14` 只建立数据库、角色、Schema 与权限基线；版本化迁移机制在各服务首次引入业务表时分别由 `plan_17`（Knowledge）、`plan_18`（RAG）和 `plan_19`（Access）落地。
+- Access、Knowledge、RAG 使用独立 Schema、数据库账号和迁移所有权。`plan_14` 只建立数据库、角色、Schema 与权限基线；版本化迁移机制在各服务首次引入业务表时分别由 `router1`（Knowledge）、`router2`（RAG）和 `router3`（Access）落地；正式创建 Plan 时再分配真实 Plan 编号。
 - 服务间只保存对方资源 ID，不建立跨 Schema 外键。
 - Console API 可以编排多个服务，业务服务不得形成同步循环调用。
 - 所有消息采用至少一次投递，消费者必须幂等。
@@ -219,26 +219,27 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 ### 6.1 暴露边界
 
 - 对外业务流量最终只通过 Console API 与 Open API 进入。
-- `rag-service:8082` 是旧 AdminRag/UserQuery 的迁移期兼容入口，由 `plan_20` 移除。
-- `rag-service-smoke:8083` 只在显式 Smoke Profile 下用于测试诊断，由 `plan_20` 在旧入口退出时重新评估是否继续保留宿主机映射。
+- `rag-service:8082` 是旧 AdminRag/UserQuery 的迁移期兼容入口，由 `router4` 对应的正式 Plan 移除。
+- `rag-service-smoke:8083` 只在显式 Smoke Profile 下用于测试诊断，由 `router4` 对应的正式 Plan 在旧入口退出时重新评估是否继续保留宿主机映射。
 - `sidecar:8001` 是本地开发、Demo 与自动化回归的长期诊断例外，不属于公开业务 API；服务间调用仍必须使用 Compose 私有网络。
 
 ---
 
 ## 七、阶段路线
 
-以下路线只预留阶段编号、依赖顺序和交付边界，不表示对应 Plan 文件已经创建或进入 `draft`。除已创建的 `plan_14` 外，后续阶段在准备执行前以相关设计稿为事实来源；只有正式创建 Plan 文件后，任务、依赖、状态、进度和验收记录才进入 [`plan/index/README.md`](./index/README.md) 与对应 Plan。
+以下路线只预留依赖顺序和交付边界。已创建并完成的 `plan_14` 至 `plan_17` 保留真实 Plan 编号；尚未创建的后续阶段使用 `routerN` 作为路线占位，不表示对应 Plan 文件已经创建或进入 `draft`。后续阶段在准备执行前以相关设计稿为事实来源；只有正式创建 Plan 文件后，任务、依赖、状态、进度和验收记录才进入 [`plan/index/README.md`](./index/README.md) 与对应 Plan。
 
 | 路线编号 | 阶段 | 交付边界 |
 | --- | --- | --- |
 | `plan_14` | 多服务基础骨架 | 多服务骨架、独立 Schema、gRPC 契约与服务身份 |
 | `plan_15` | 分布式 ID | Snowflake ID、Redis Worker 租约、时钟回拨与发号健康状态 |
-| `plan_16` | 可靠事件基础设施 | Outbox、Redis Streams、事件信封、消费组、ACK、Reclaim 与消费幂等 |
-| `plan_17` | Knowledge 垂直链路 | KnowledgeBase、Document、文件上传、存储与流式读取 |
-| `plan_18` | RAG 多知识库化 | RAG 多知识库隔离、异步索引、Ingestion Job 与状态回传 |
-| `plan_19` | Access 与权限 | User、Tenant、Membership、JWT、Refresh Session 与 API Key |
-| `plan_20` | 双 API 入口 | Console API、Open API、完整用例编排与旧混合入口退出 |
-| `plan_21` | 生命周期可靠性 | 删除状态机、补偿、死信、监控、告警与故障恢复 |
+| `plan_16` | RAG Service Module 收口 | RAG 内部 subproject 合并、legacy HTTP 迁入 smoke namespace |
+| `plan_17` | 可靠事件基础设施 | Outbox、Redis Streams、事件信封、消费组、ACK、Reclaim 与消费幂等 |
+| `router1` | Knowledge 垂直链路 | KnowledgeBase、Document、文件上传、存储与流式读取 |
+| `router2` | RAG 多知识库化 | RAG 多知识库隔离、异步索引、Ingestion Job 与状态回传 |
+| `router3` | Access 与权限 | User、Tenant、Membership、JWT、Refresh Session 与 API Key |
+| `router4` | 双 API 入口 | Console API、Open API、完整用例编排与旧混合入口退出 |
+| `router5` | 生命周期可靠性 | 删除状态机、补偿、死信、监控、告警与故障恢复 |
 
 每个阶段必须在准备执行时创建独立主 Plan，达到 `ready` 并提交后才能开始实现；完成实现后由未参与实现的新 session 独立验收。不得仅凭本路线表更新执行队列或开始编码。
 
