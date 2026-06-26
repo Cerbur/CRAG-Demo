@@ -1,6 +1,7 @@
 package ai.cerbur.crag.ingestion.cron;
 
 import ai.cerbur.crag.ingestion.dense.DenseEmbeddingService;
+import ai.cerbur.crag.ingestion.job.IngestionJobService;
 import ai.cerbur.crag.retrieval.api.embedding.EmbeddingException;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.ChunkEmbeddingDao;
@@ -9,7 +10,9 @@ import ai.cerbur.crag.storage.entity.ChunkStatus;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +57,9 @@ public class DenseEmbeddingCron {
   /** Dense Embedding 服务 —— 调用 Sidecar /embed 做核心向量化. */
   @Autowired private DenseEmbeddingService denseEmbeddingService;
 
+  /** Ingestion Job 状态服务 —— Dense 索引完成后尝试推进对应文档 Job 为 READY（Plan 19）. */
+  @Autowired private IngestionJobService ingestionJobService;
+
   /**
    * Dense Embedding 定时处理 —— 每 10 秒执行一次.
    *
@@ -79,6 +85,7 @@ public class DenseEmbeddingCron {
     int successCount = 0;
     int failedCount = 0;
     int skippedCount = 0;
+    Set<Long> indexedDocIds = new LinkedHashSet<>();
 
     for (Chunk chunk : candidates) {
       // Step 2: 根据当前状态选择对应的 CAS 抢占 SQL，同时传入版本号做乐观锁校验
@@ -111,6 +118,7 @@ public class DenseEmbeddingCron {
         if (chunkEmbeddingDao.existsByChunkId(chunk.getChunkId())) {
           log.debug("Embedding already exists for chunk {}, marking SUCCESS", chunk.getChunkId());
           chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
+          indexedDocIds.add(chunk.getDocId());
           successCount++;
           continue;
         }
@@ -121,6 +129,7 @@ public class DenseEmbeddingCron {
         // knowledge_base_id 从可信 chunk 投影派生，保证三表 KB 一致。
         chunkEmbeddingDao.insert(chunk.getChunkId(), chunk.getKnowledgeBaseId(), vector);
         chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
+        indexedDocIds.add(chunk.getDocId());
         successCount++;
         log.debug("Dense embedding success — chunkId={}", chunk.getChunkId());
       } catch (EmbeddingException | DuplicateKeyException e) {
@@ -156,6 +165,11 @@ public class DenseEmbeddingCron {
               chunk.getChunkId());
         }
       }
+    }
+
+    // Dense 索引完成后，尝试推进对应文档的 ingestion_job 为 READY（当 Sparse 也完成时生效）。
+    for (long docId : indexedDocIds) {
+      ingestionJobService.tryAdvanceReadyIfComplete(docId);
     }
 
     log.info(

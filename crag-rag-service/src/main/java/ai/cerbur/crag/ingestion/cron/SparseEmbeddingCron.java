@@ -1,5 +1,6 @@
 package ai.cerbur.crag.ingestion.cron;
 
+import ai.cerbur.crag.ingestion.job.IngestionJobService;
 import ai.cerbur.crag.storage.ChunkDao;
 import ai.cerbur.crag.storage.ChunkFtsDao;
 import ai.cerbur.crag.storage.entity.Chunk;
@@ -7,7 +8,9 @@ import ai.cerbur.crag.storage.entity.ChunkStatus;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +54,9 @@ public class SparseEmbeddingCron {
   /** Chunk FTS 表 DAO —— 幂等检查 + FTS 写入. */
   @Autowired private ChunkFtsDao chunkFtsDao;
 
+  /** Ingestion Job 状态服务 —— Sparse 索引完成后尝试推进对应文档 Job 为 READY（Plan 19）. */
+  @Autowired private IngestionJobService ingestionJobService;
+
   /**
    * Sparse Embedding 定时处理 —— 每 10 秒执行一次.
    *
@@ -77,6 +83,7 @@ public class SparseEmbeddingCron {
     int successCount = 0;
     int failedCount = 0;
     int skippedCount = 0;
+    Set<Long> indexedDocIds = new LinkedHashSet<>();
 
     for (Chunk chunk : candidates) {
       // Step 2: 根据当前状态选择对应的 CAS 抢占 SQL，同时传入版本号做乐观锁校验
@@ -109,6 +116,7 @@ public class SparseEmbeddingCron {
         if (chunkFtsDao.existsByChunkId(chunk.getChunkId())) {
           log.debug("FTS already exists for chunk {}, marking SUCCESS", chunk.getChunkId());
           chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
+          indexedDocIds.add(chunk.getDocId());
           successCount++;
           continue;
         }
@@ -117,6 +125,7 @@ public class SparseEmbeddingCron {
         // knowledge_base_id 从可信 chunk 投影派生，保证三表 KB 一致。
         chunkFtsDao.insert(chunk.getChunkId(), chunk.getKnowledgeBaseId(), chunk.getContent());
         chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
+        indexedDocIds.add(chunk.getDocId());
         successCount++;
         log.debug("Sparse FTS success — chunkId={}", chunk.getChunkId());
       } catch (DuplicateKeyException e) {
@@ -151,6 +160,11 @@ public class SparseEmbeddingCron {
               chunk.getChunkId());
         }
       }
+    }
+
+    // Sparse 索引完成后，尝试推进对应文档的 ingestion_job 为 READY（当 Dense 也完成时生效）。
+    for (long docId : indexedDocIds) {
+      ingestionJobService.tryAdvanceReadyIfComplete(docId);
     }
 
     log.info(
