@@ -31,18 +31,22 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
   /**
    * 写入 embedding 向量 —— native SQL 处理 pgvector 类型转换.
    *
-   * <p>chunk_id 为 BIGINT，直接传入 long 即可. ?2::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转 vector(768)
-   * 类型. 调用方应先通过 existsByChunkId 做幂等检查，极端并发下 DuplicateKeyException 向上传播.
+   * <p>chunk_id 为 BIGINT，直接传入 long 即可. ?3::vector 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转 vector(768)
+   * 类型. 调用方应先通过 existsByChunkId 做幂等检查，极端并发下 DuplicateKeyException 向上传播. Plan 19 起 {@code
+   * knowledge_base_id} 必填，且只能从可信 chunk 投影派生，禁止调用方自行拼装不一致数据.
    *
    * @param chunkId chunk ID
+   * @param knowledgeBaseId 所属知识库 ID（须与 chunk 行一致）
    * @param vectorString pgvector 数组字面量，由 ChunkEmbeddingDao 负责 float[] → String 转换
    */
   @Modifying
   @Transactional
   @Query(
-      value = "INSERT INTO chunk_embedding (chunk_id, embedding) VALUES (?1, CAST(?2 AS vector))",
+      value =
+          "INSERT INTO chunk_embedding (chunk_id, knowledge_base_id, embedding)"
+              + " VALUES (?1, ?2, CAST(?3 AS vector))",
       nativeQuery = true)
-  void insert(long chunkId, String vectorString);
+  void insert(long chunkId, long knowledgeBaseId, String vectorString);
 
   /**
    * 向量相似度检索 —— 使用 pgvector {@code <=>} 余弦距离排序，JOIN chunk 表获取 child content 和 parent chunk ID.

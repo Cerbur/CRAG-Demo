@@ -41,14 +41,17 @@ public class ChunkEmbeddingDao {
    * 写入 embedding（纯 INSERT，不做 upsert）.
    *
    * <p>调用方应先通过 {@link #existsByChunkId(long)} 做幂等检查. 极端并发下可能抛出 DuplicateKeyException，由调用方决定重试策略.
+   * Plan 19 起 {@code knowledgeBaseId} 必填，且必须从可信 chunk 投影派生，保证 {@code chunk}、{@code chunk_embedding}
+   * 与 {@code chunk_fts} 三表 KB 一致.
    *
    * @param chunkId chunk ID
+   * @param knowledgeBaseId 所属知识库 ID（须与对应 chunk 行一致）
    * @param vector 768 维稠密向量
    * @throws DuplicateKeyException 同一 chunkId 已被其他实例写入
    */
-  public void insert(long chunkId, float[] vector) {
-    chunkEmbeddingRepository.insert(chunkId, toPgVectorString(vector));
-    log.debug("Embedding inserted — chunkId={}", chunkId);
+  public void insert(long chunkId, long knowledgeBaseId, float[] vector) {
+    chunkEmbeddingRepository.insert(chunkId, knowledgeBaseId, toPgVectorString(vector));
+    log.debug("Embedding inserted — chunkId={} knowledgeBaseId={}", chunkId, knowledgeBaseId);
   }
 
   /**

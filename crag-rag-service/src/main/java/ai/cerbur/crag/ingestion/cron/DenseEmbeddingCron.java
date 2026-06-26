@@ -117,8 +117,9 @@ public class DenseEmbeddingCron {
 
         float[] vector = denseEmbeddingService.embed(chunk.getContent());
 
-        // Step 4b: 写入 chunk_embedding（纯 INSERT，先查后插保证幂等）
-        chunkEmbeddingDao.insert(chunk.getChunkId(), vector);
+        // Step 4b: 写入 chunk_embedding（纯 INSERT，先查后插保证幂等）。
+        // knowledge_base_id 从可信 chunk 投影派生，保证三表 KB 一致。
+        chunkEmbeddingDao.insert(chunk.getChunkId(), chunk.getKnowledgeBaseId(), vector);
         chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
         successCount++;
         log.debug("Dense embedding success — chunkId={}", chunk.getChunkId());

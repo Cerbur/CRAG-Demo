@@ -6,26 +6,31 @@
 -- ============================================================
 
 -- Plan 15 冷切换：丢弃旧 UUID/VARCHAR 模式的 RAG 数据，重建为 BIGINT 列
--- 仅作用于 RAG 三张表，不删除 PostgreSQL volume 或其他服务 schema
+-- 仅作用于 RAG 表，不删除 PostgreSQL volume 或其他服务 schema
+-- Plan 19 多知识库化：三张索引表显式落 knowledge_base_id，移除内部索引表外键，
+-- 新增 ingestion_job 业务幂等表。测试与本地允许冷启动重建。
 DROP TABLE IF EXISTS chunk_fts CASCADE;
 DROP TABLE IF EXISTS chunk_embedding CASCADE;
+DROP TABLE IF EXISTS ingestion_job CASCADE;
 DROP TABLE IF EXISTS chunk CASCADE;
 
 -- Chunk 表：文档分块存储（child + parent 两种粒度）
 -- Plan 15 起所有 ID 切换为 BIGINT，由应用层 CragIdGenerator 预生成 Snowflake ID
+-- Plan 19 起显式落 knowledge_base_id，parent 与同组 child 必须携带同一 KB
 CREATE TABLE chunk (
-    chunk_id         BIGINT PRIMARY KEY,
-    doc_id           BIGINT NOT NULL,              -- 关联文档 ID（Snowflake LEGACY_DOCUMENT）
-    parent_chunk_id  BIGINT NOT NULL DEFAULT 0,   -- 0=parent chunk，其他=child 指向 parent
-    chunk_index      INTEGER,                     -- child 在 parent 中的序号（从 0 开始；parent 为 NULL）
-    content          TEXT NOT NULL,               -- chunk 文本内容
-    token_count      INTEGER,                     -- token 数量
-    metadata         JSONB DEFAULT '{}',          -- 扩展元数据 {tags, ...}
-    dense_status     SMALLINT DEFAULT 0,           -- Dense/Embedding 链路: 0=init 1=processing 2=success 3=failed 4=skipped
-    sparse_status    SMALLINT DEFAULT 0,           -- Sparse/FTS 链路:   0=init 1=processing 2=success 3=failed 4=skipped
-    version          INTEGER DEFAULT 0 NOT NULL,   -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
-    created_at       TIMESTAMP DEFAULT NOW(),
-    updated_at       TIMESTAMP DEFAULT NOW()
+    chunk_id          BIGINT PRIMARY KEY,
+    knowledge_base_id BIGINT NOT NULL,              -- 所属知识库（Knowledge Snowflake/IDENTITY ID）
+    doc_id            BIGINT NOT NULL,              -- 关联文档 ID（Snowflake LEGACY_DOCUMENT）
+    parent_chunk_id   BIGINT NOT NULL DEFAULT 0,    -- 0=parent chunk，其他=child 指向 parent
+    chunk_index       INTEGER,                      -- child 在 parent 中的序号（从 0 开始；parent 为 NULL）
+    content           TEXT NOT NULL,                -- chunk 文本内容
+    token_count       INTEGER,                      -- token 数量
+    metadata          JSONB DEFAULT '{}',           -- 扩展元数据 {tags, ...}
+    dense_status      SMALLINT DEFAULT 0,           -- Dense/Embedding 链路: 0=init 1=processing 2=success 3=failed 4=skipped
+    sparse_status     SMALLINT DEFAULT 0,           -- Sparse/FTS 链路:   0=init 1=processing 2=success 3=failed 4=skipped
+    version           INTEGER DEFAULT 0 NOT NULL,   -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
+    created_at        TIMESTAMP DEFAULT NOW(),
+    updated_at        TIMESTAMP DEFAULT NOW()
 );
 
 -- 查询索引
@@ -33,17 +38,23 @@ CREATE INDEX IF NOT EXISTS idx_chunk_dense_status ON chunk(dense_status);
 CREATE INDEX IF NOT EXISTS idx_chunk_sparse_status ON chunk(sparse_status);
 CREATE INDEX IF NOT EXISTS idx_chunk_doc_id ON chunk(doc_id);
 CREATE INDEX IF NOT EXISTS idx_chunk_parent ON chunk(parent_chunk_id);
+-- Plan 19：按 KB 隔离的文档/parent 定位
+CREATE INDEX IF NOT EXISTS idx_chunk_kb_doc ON chunk(knowledge_base_id, doc_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_kb_parent ON chunk(knowledge_base_id, parent_chunk_id);
 
 -- ============================================================
 -- Chunk Embedding 表（Dense 向量存储，与 chunk 主表解耦）
 -- 职责：存储 child chunk 的 embedding 向量，独立生命周期（换模型可 truncate + 重算）
+-- Plan 19：显式落 knowledge_base_id，不再建立指向 chunk 的数据库外键；
+-- 应用层一致性由 DAO 写入路径与测试护栏保证（孤儿/跨表 KB 不一致不被召回）。
 -- ============================================================
 CREATE TABLE chunk_embedding (
-    chunk_id    BIGINT PRIMARY KEY REFERENCES chunk(chunk_id) ON DELETE CASCADE,
-    embedding   vector(768) NOT NULL,
-    version     INTEGER DEFAULT 0 NOT NULL,          -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW()              -- 最后更新时间
+    chunk_id         BIGINT PRIMARY KEY,
+    knowledge_base_id BIGINT NOT NULL,
+    embedding        vector(768) NOT NULL,
+    version          INTEGER DEFAULT 0 NOT NULL,          -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
+    created_at       TIMESTAMP DEFAULT NOW(),
+    updated_at       TIMESTAMP DEFAULT NOW()              -- 最后更新时间
 );
 
 -- HNSW 索引：余弦相似度（vector_cosine_ops）。HNSW 在 INSERT 时增量维护图，
@@ -53,18 +64,53 @@ CREATE TABLE chunk_embedding (
 -- 与查询 ef_search，对 demo 数据量结果等价精确。
 CREATE INDEX IF NOT EXISTS idx_chunk_embedding_vector
     ON chunk_embedding USING hnsw (embedding vector_cosine_ops);
+-- Plan 19：按 KB 隔离定位向量行
+CREATE INDEX IF NOT EXISTS idx_chunk_embedding_kb_chunk ON chunk_embedding(knowledge_base_id, chunk_id);
 
 -- ============================================================
 -- Chunk FTS 表（Sparse 全文检索，与 chunk 主表解耦）
 -- 职责：存储 child chunk 的 tsvector 分词结果，独立生命周期（换分词策略可重建）
+-- Plan 19：显式落 knowledge_base_id，不再建立指向 chunk 的数据库外键。
 -- ============================================================
 CREATE TABLE chunk_fts (
-    chunk_id    BIGINT PRIMARY KEY REFERENCES chunk(chunk_id) ON DELETE CASCADE,
-    fts_content tsvector NOT NULL,
-    version     INTEGER DEFAULT 0 NOT NULL,          -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW()              -- 最后更新时间
+    chunk_id          BIGINT PRIMARY KEY,
+    knowledge_base_id BIGINT NOT NULL,
+    fts_content       tsvector NOT NULL,
+    version           INTEGER DEFAULT 0 NOT NULL,          -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
+    created_at        TIMESTAMP DEFAULT NOW(),
+    updated_at        TIMESTAMP DEFAULT NOW()              -- 最后更新时间
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunk_fts_content
     ON chunk_fts USING GIN (fts_content);
+-- Plan 19：按 KB 隔离定位 FTS 行
+CREATE INDEX IF NOT EXISTS idx_chunk_fts_kb_chunk ON chunk_fts(knowledge_base_id, chunk_id);
+
+-- ============================================================
+-- Ingestion Job 表（Plan 19）
+-- 职责：记录 RAG 消费 DOC_UPLOADED 后的异步索引任务，以 (doc_id, operation_version)
+-- 为业务幂等键；状态 PENDING → PROCESSING → READY / FAILED。业务失败进入终态 FAILED，
+-- 不做自动业务 retry。job_id 由数据库 IDENTITY 生成（边界不含 crag-id）。
+-- ============================================================
+CREATE TABLE ingestion_job (
+    job_id            BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    tenant_id         BIGINT NOT NULL,
+    knowledge_base_id BIGINT NOT NULL,
+    doc_id            BIGINT NOT NULL,
+    operation_version BIGINT NOT NULL,
+    status            SMALLINT NOT NULL,                   -- 0=PENDING 1=PROCESSING 2=READY 3=FAILED
+    file_type         VARCHAR(32),
+    size_bytes        BIGINT,
+    sha256            VARCHAR(64),
+    failure_category  VARCHAR(64),
+    failure_message   VARCHAR(512),                        -- 安全短摘要，不透传 SQL/堆栈/文件内容
+    started_at        TIMESTAMP,
+    completed_at      TIMESTAMP,
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    version           INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT uq_ingestion_job_doc_version UNIQUE (doc_id, operation_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingestion_job_kb_doc ON ingestion_job(knowledge_base_id, doc_id);
+CREATE INDEX IF NOT EXISTS idx_ingestion_job_status ON ingestion_job(status);

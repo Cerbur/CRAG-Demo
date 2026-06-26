@@ -32,6 +32,15 @@ public class AdminRagService {
 
   private static final Logger log = LoggerFactory.getLogger(AdminRagService.class);
 
+  /**
+   * 旧 smoke AdminRag 写入固定使用的知识库 ID（Plan 19）.
+   *
+   * <p>旧 AdminRag smoke 入口保留为历史诊断能力，不复用 Knowledge 上传链路，也不作为正式业务入口。它写入的 chunk 必须携带一个固定、且远离 Knowledge
+   * demo 身份号段的 {@code knowledgeBaseId}，避免与 router2 通过 Knowledge 创建的 知识库（DB identity 从 1
+   * 起的较小号段）发生召回串库。真实业务数据只应通过 Knowledge 上传 → DOC_UPLOADED → Ingestion Job 链路产生。
+   */
+  public static final long SMOKE_KNOWLEDGE_BASE_ID = 1_000_000_000_000L;
+
   /** 文档分块服务 —— 将纯文本拆分为 parent + child chunks. */
   @Autowired private ChunkSplitService chunkSplitService;
 
@@ -64,6 +73,7 @@ public class AdminRagService {
    */
   public AdminRagResult ingest(String title, String content, Map<String, Object> metadata) {
     long docId = cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT);
+    long knowledgeBaseId = SMOKE_KNOWLEDGE_BASE_ID;
     String metadataJson = buildMetadataJson(title, metadata, docId);
 
     ChunkSplitResult splitResult = chunkSplitService.split(content);
@@ -83,6 +93,7 @@ public class AdminRagService {
       Chunk parent =
           Chunk.createParent(
               parentChunkId,
+              knowledgeBaseId,
               docId,
               group.parentChunk().content(),
               group.parentChunk().tokenCount(),
@@ -96,6 +107,7 @@ public class AdminRagService {
         Chunk child =
             Chunk.createChild(
                 childChunkId,
+                knowledgeBaseId,
                 docId,
                 parentChunkId,
                 childData.content(),
@@ -110,8 +122,10 @@ public class AdminRagService {
     chunkDao.saveAll(allChunks);
 
     log.info(
-        "Document ingested: docId={}, title={}, parentGroups={}, childChunks={}, status=PENDING",
+        "Document ingested: docId={}, knowledgeBaseId={}, title={}, parentGroups={}, childChunks={},"
+            + " status=PENDING",
         docId,
+        knowledgeBaseId,
         title,
         groups.size(),
         childCount);

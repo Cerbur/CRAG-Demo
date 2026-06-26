@@ -113,8 +113,9 @@ public class SparseEmbeddingCron {
           continue;
         }
 
-        // Step 4b: 写入 chunk_fts（纯 INSERT，CJK 分词在 DB 侧完成）
-        chunkFtsDao.insert(chunk.getChunkId(), chunk.getContent());
+        // Step 4b: 写入 chunk_fts（纯 INSERT，CJK 分词在 DB 侧完成）。
+        // knowledge_base_id 从可信 chunk 投影派生，保证三表 KB 一致。
+        chunkFtsDao.insert(chunk.getChunkId(), chunk.getKnowledgeBaseId(), chunk.getContent());
         chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
         successCount++;
         log.debug("Sparse FTS success — chunkId={}", chunk.getChunkId());

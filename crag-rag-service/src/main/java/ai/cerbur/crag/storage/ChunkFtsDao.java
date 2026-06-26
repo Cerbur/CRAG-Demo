@@ -41,17 +41,19 @@ public class ChunkFtsDao {
    * 写入 FTS 全文检索记录（幂等）.
    *
    * <p>先通过 existsByChunkId 做幂等检查，已存在则跳过。 CJK 空格正则和 to_tsvector 格式转换在 Repository 层 native SQL 完成。
+   * Plan 19 起 {@code knowledgeBaseId} 必填，且必须从可信 chunk 投影派生，保证三表 KB 一致.
    *
    * @param chunkId chunk ID
+   * @param knowledgeBaseId 所属知识库 ID（须与对应 chunk 行一致）
    * @param rawContent 原始文本内容
    */
-  public void insert(long chunkId, String rawContent) {
+  public void insert(long chunkId, long knowledgeBaseId, String rawContent) {
     if (chunkFtsRepository.existsByChunkId(chunkId)) {
       log.debug("FTS already exists for chunk {}, skipping", chunkId);
       return;
     }
-    chunkFtsRepository.insert(chunkId, rawContent);
-    log.debug("FTS inserted — chunkId={}", chunkId);
+    chunkFtsRepository.insert(chunkId, knowledgeBaseId, rawContent);
+    log.debug("FTS inserted — chunkId={} knowledgeBaseId={}", chunkId, knowledgeBaseId);
   }
 
   /**

@@ -20,10 +20,17 @@ import java.time.LocalDateTime;
 @Table(name = "chunk_embedding")
 public class ChunkEmbedding {
 
-  /** Chunk ID，同时是主键和外键，关联 chunk(chunk_id)，级联删除. */
+  /** Chunk ID，同时是主键. Plan 19 起不再建立指向 chunk 的数据库外键，应用层保证一致性. */
   @Id
   @Column(name = "chunk_id", nullable = false)
   private Long chunkId;
+
+  /**
+   * 所属知识库 ID（Plan 19）. 必须与对应 chunk 行的 {@code knowledge_base_id} 一致；写入只能从 可信 chunk 投影派生，Dense
+   * 查询以此先行限定候选.
+   */
+  @Column(name = "knowledge_base_id", nullable = false)
+  private long knowledgeBaseId;
 
   /**
    * Embedding 向量，768 维（text2vec-base-chinese 输出维度）. 一期通过 JdbcTemplate / Native Query 操作，不依赖 JPA
@@ -52,6 +59,14 @@ public class ChunkEmbedding {
 
   public void setChunkId(Long chunkId) {
     this.chunkId = chunkId;
+  }
+
+  public long getKnowledgeBaseId() {
+    return knowledgeBaseId;
+  }
+
+  public void setKnowledgeBaseId(long knowledgeBaseId) {
+    this.knowledgeBaseId = knowledgeBaseId;
   }
 
   public String getEmbedding() {

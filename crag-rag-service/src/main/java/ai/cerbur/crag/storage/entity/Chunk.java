@@ -35,6 +35,13 @@ public class Chunk {
   @Column(name = "chunk_id", nullable = false, updatable = false)
   private Long chunkId;
 
+  /**
+   * 所属知识库 ID（Plan 19）. parent 与同组 child 必须携带同一 {@code knowledgeBaseId}， 写入与召回路径以此为强隔离键；RAG
+   * 内部索引表不建立数据库外键，由 DAO 写入路径与测试护栏保证一致.
+   */
+  @Column(name = "knowledge_base_id", nullable = false)
+  private long knowledgeBaseId;
+
   /** 关联文档 ID，标识该 chunk 所属的文档. */
   @Column(name = "doc_id", nullable = false)
   private long docId;
@@ -96,6 +103,7 @@ public class Chunk {
    * 创建 parent chunk —— dense/sparse 均为 SKIPPED，不做后续向量化/FTS. chunkId 由调用方从 CragIdGenerator 预分配.
    *
    * @param chunkId 预分配的唯一 chunk ID（Snowflake CHUNK 类型）
+   * @param knowledgeBaseId 所属知识库 ID
    * @param docId 文档 ID（Snowflake LEGACY_DOCUMENT 类型）
    * @param content 父级 chunk 文本（~1024 token 大窗口）
    * @param tokenCount token 数
@@ -105,6 +113,7 @@ public class Chunk {
    */
   public static Chunk createParent(
       long chunkId,
+      long knowledgeBaseId,
       long docId,
       String content,
       int tokenCount,
@@ -112,6 +121,7 @@ public class Chunk {
       String metadata) {
     Chunk chunk = new Chunk();
     chunk.setChunkId(chunkId);
+    chunk.setKnowledgeBaseId(knowledgeBaseId);
     chunk.setDocId(docId);
     chunk.setParentChunkId(NO_PARENT);
     chunk.setChunkIndex(chunkIndex);
@@ -128,6 +138,7 @@ public class Chunk {
    * 创建 child chunk —— dense/sparse 均为 INIT，等待 Cron 异步处理. chunkId 由调用方从 CragIdGenerator 预分配.
    *
    * @param chunkId 预分配的唯一 chunk ID（Snowflake CHUNK 类型）
+   * @param knowledgeBaseId 所属知识库 ID（须与同组 parent 一致）
    * @param docId 文档 ID（Snowflake LEGACY_DOCUMENT 类型）
    * @param parentChunkId 父 chunk ID
    * @param content 子级 chunk 文本（~256 token 细粒度）
@@ -138,6 +149,7 @@ public class Chunk {
    */
   public static Chunk createChild(
       long chunkId,
+      long knowledgeBaseId,
       long docId,
       long parentChunkId,
       String content,
@@ -146,6 +158,7 @@ public class Chunk {
       String metadata) {
     Chunk chunk = new Chunk();
     chunk.setChunkId(chunkId);
+    chunk.setKnowledgeBaseId(knowledgeBaseId);
     chunk.setDocId(docId);
     chunk.setParentChunkId(parentChunkId);
     chunk.setChunkIndex(chunkIndex);
@@ -166,6 +179,14 @@ public class Chunk {
 
   public void setChunkId(Long chunkId) {
     this.chunkId = chunkId;
+  }
+
+  public long getKnowledgeBaseId() {
+    return knowledgeBaseId;
+  }
+
+  public void setKnowledgeBaseId(long knowledgeBaseId) {
+    this.knowledgeBaseId = knowledgeBaseId;
   }
 
   public long getDocId() {

@@ -3,6 +3,7 @@ package ai.cerbur.crag.smoke.controller;
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.id.api.CragIdGenerator;
 import ai.cerbur.crag.id.api.IdEntityType;
+import ai.cerbur.crag.ingestion.api.AdminRagService;
 import ai.cerbur.crag.retrieval.api.RetrievalService;
 import ai.cerbur.crag.retrieval.api.embedding.EmbeddingClient;
 import ai.cerbur.crag.retrieval.api.result.ChunkSearchResult;
@@ -143,13 +144,28 @@ public class TestController {
   @PostMapping("/chunk")
   public Response<ChunkWriteResponse> writeChunk(@RequestBody ChunkWriteRequest request) {
     long docId = cragIdGenerator.nextId(IdEntityType.LEGACY_DOCUMENT);
+    long knowledgeBaseId = AdminRagService.SMOKE_KNOWLEDGE_BASE_ID;
     long parentId = cragIdGenerator.nextId(IdEntityType.CHUNK);
     Chunk parent =
-        Chunk.createParent(parentId, docId, request.content(), request.content().length(), 0, null);
+        Chunk.createParent(
+            parentId,
+            knowledgeBaseId,
+            docId,
+            request.content(),
+            request.content().length(),
+            0,
+            null);
     long childId = cragIdGenerator.nextId(IdEntityType.CHUNK);
     Chunk child =
         Chunk.createChild(
-            childId, docId, parentId, request.content(), request.content().length(), 0, null);
+            childId,
+            knowledgeBaseId,
+            docId,
+            parentId,
+            request.content(),
+            request.content().length(),
+            0,
+            null);
     List<Chunk> saved = chunkDao.saveAll(List.of(parent, child));
     List<Long> childIds =
         saved.stream()

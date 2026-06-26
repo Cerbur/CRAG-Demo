@@ -41,13 +41,13 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, Long> {
   @Query(
       value =
           """
-        INSERT INTO chunk_fts (chunk_id, fts_content)
-         VALUES (?1,
+        INSERT INTO chunk_fts (chunk_id, knowledge_base_id, fts_content)
+         VALUES (?1, ?2,
                 to_tsvector('simple',
-                    regexp_replace(?2, '([一-龥])', '\\1 ', 'g')))
+                    regexp_replace(?3, '([一-龥])', '\\1 ', 'g')))
         """,
       nativeQuery = true)
-  void insert(long chunkId, String rawContent);
+  void insert(long chunkId, long knowledgeBaseId, String rawContent);
 
   /**
    * FTS 全文检索查询 —— 使用 ts_rank 排序，JOIN chunk 表获取 child content 和 parent chunk ID.
