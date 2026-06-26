@@ -125,6 +125,11 @@ public class IngestionJob {
     job.setFileType(fileType);
     job.setSizeBytes(sizeBytes);
     job.setSha256(sha256);
+    // 显式设置审计时间：schema 列为 NOT NULL，JPA INSERT 会写入实体字段值（NULL 会违反约束，
+    // 数据库 DEFAULT 仅在列被省略时生效），因此工厂方法必须提供非空时间戳.
+    LocalDateTime now = LocalDateTime.now();
+    job.setCreatedAt(now);
+    job.setUpdatedAt(now);
     job.setVersion(0);
     return job;
   }

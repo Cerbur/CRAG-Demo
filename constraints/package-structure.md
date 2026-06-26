@@ -67,7 +67,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-knowledge-contracts` | 无 |
 | `crag-grpc-runtime` | 无 |
 | `crag-event` | 无 |
-| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id` |
+| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event`、`crag-knowledge-contracts` |
 | `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
