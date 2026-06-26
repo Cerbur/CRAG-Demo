@@ -13,4 +13,4 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootConfiguration
 @EnableAutoConfiguration
 @ComponentScan("ai.cerbur.crag.storage")
-class IngestionJobDaoTestConfig {}
+public class IngestionJobDaoTestConfig {}

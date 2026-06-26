@@ -241,4 +241,9 @@ public class ChunkDao {
     return chunkRepository.countByDocIdNotFullyIndexed(
         docId, List.of(ChunkStatus.SUCCESS, ChunkStatus.SKIPPED));
   }
+
+  /** 统计指定文档的 chunk 行数（smoke 幂等校验，Plan 19）. */
+  public long countByDocId(long docId) {
+    return chunkRepository.countByDocId(docId);
+  }
 }

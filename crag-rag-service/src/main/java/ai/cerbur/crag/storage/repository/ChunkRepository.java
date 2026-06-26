@@ -234,6 +234,9 @@ public interface ChunkRepository extends JpaRepository<Chunk, Long> {
   List<ParentChunkContent> findParentContentsByIds(
       @Param("knowledgeBaseId") long knowledgeBaseId, @Param("chunkIds") List<Long> chunkIds);
 
+  /** 统计指定文档的 chunk 行数（Plan 19，smoke 幂等校验）. */
+  long countByDocId(long docId);
+
   /**
    * 统计指定文档下尚未完全索引的 chunk 数量（Plan 19）.
    *
