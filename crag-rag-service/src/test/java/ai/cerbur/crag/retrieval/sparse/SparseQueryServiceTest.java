@@ -3,6 +3,7 @@ package ai.cerbur.crag.retrieval.sparse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -41,7 +42,7 @@ class SparseQueryServiceTest {
     @Test
     @DisplayName("query 为 null → 返回空列表，不调用 Dao")
     void nullQueryReturnsEmpty() {
-      List<SparseSearchResult> results = sparseQueryService.search(null, 10);
+      List<SparseSearchResult> results = sparseQueryService.search(100L, null, 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkFtsDao);
@@ -50,7 +51,7 @@ class SparseQueryServiceTest {
     @Test
     @DisplayName("query 为空字符串 → 返回空列表，不调用 Dao")
     void emptyStringReturnsEmpty() {
-      List<SparseSearchResult> results = sparseQueryService.search("", 10);
+      List<SparseSearchResult> results = sparseQueryService.search(100L, "", 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkFtsDao);
@@ -59,7 +60,7 @@ class SparseQueryServiceTest {
     @Test
     @DisplayName("query 为纯空白字符 → 返回空列表，不调用 Dao")
     void blankStringReturnsEmpty() {
-      List<SparseSearchResult> results = sparseQueryService.search("   \t\n  ", 10);
+      List<SparseSearchResult> results = sparseQueryService.search(100L, "   \t\n  ", 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkFtsDao);
@@ -68,8 +69,8 @@ class SparseQueryServiceTest {
     @Test
     @DisplayName("topK <= 0 → 返回空列表，不调用 Dao")
     void zeroOrNegativeTopKReturnsEmpty() {
-      assertThat(sparseQueryService.search("测试", 0)).isEmpty();
-      assertThat(sparseQueryService.search("测试", -1)).isEmpty();
+      assertThat(sparseQueryService.search(100L, "测试", 0)).isEmpty();
+      assertThat(sparseQueryService.search(100L, "测试", -1)).isEmpty();
 
       verifyNoInteractions(chunkFtsDao);
     }
@@ -88,9 +89,9 @@ class SparseQueryServiceTest {
               new ai.cerbur.crag.storage.result.SparseSearchResult(1001L, 100L, 0.90, "人工智能是..."),
               new ai.cerbur.crag.storage.result.SparseSearchResult(1002L, 200L, 0.70, "机器学习相关..."),
               new ai.cerbur.crag.storage.result.SparseSearchResult(1003L, 300L, 0.50, "深度学习介绍..."));
-      when(chunkFtsDao.searchFts(any(), anyInt())).thenReturn(daoResults);
+      when(chunkFtsDao.searchFts(anyLong(), any(), anyInt())).thenReturn(daoResults);
 
-      List<SparseSearchResult> results = sparseQueryService.search(query, 5);
+      List<SparseSearchResult> results = sparseQueryService.search(100L, query, 5);
 
       assertThat(results).hasSize(3);
       assertThat(results.get(0).getContent()).isEqualTo("人工智能是...");
@@ -103,17 +104,17 @@ class SparseQueryServiceTest {
     void queryAndTopKPassedThroughToDao() {
       String query = "向量检索";
 
-      sparseQueryService.search(query, 20);
+      sparseQueryService.search(100L, query, 20);
 
-      verify(chunkFtsDao).searchFts(query, 20);
+      verify(chunkFtsDao).searchFts(100L, query, 20);
     }
 
     @Test
     @DisplayName("Dao 返回空列表时正确返回空列表")
     void daoReturnsEmptyThenServiceReturnsEmpty() {
-      when(chunkFtsDao.searchFts(any(), anyInt())).thenReturn(Collections.emptyList());
+      when(chunkFtsDao.searchFts(anyLong(), any(), anyInt())).thenReturn(Collections.emptyList());
 
-      List<SparseSearchResult> results = sparseQueryService.search("搜索词", 5);
+      List<SparseSearchResult> results = sparseQueryService.search(100L, "搜索词", 5);
 
       assertThat(results).isEmpty();
     }

@@ -1,6 +1,8 @@
 package ai.cerbur.crag.smoke.controller;
 
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -54,7 +56,7 @@ class UserQueryControllerComponentTest {
     @DisplayName("valid question returns 200 with answer and sources")
     void validQuestionReturnsSuccess() throws Exception {
       QuerySource source = new QuerySource("S1", 100L, List.of(200L, 201L));
-      when(userQueryService.answer("test question"))
+      when(userQueryService.answer(anyLong(), eq("test question")))
           .thenReturn(new UserQueryResult("This is the answer.", List.of(source)));
 
       mockMvc
@@ -75,7 +77,7 @@ class UserQueryControllerComponentTest {
     @Test
     @DisplayName("evidence insufficient returns 200 with empty sources")
     void evidenceInsufficientReturnsSuccess() throws Exception {
-      when(userQueryService.answer("unknown question"))
+      when(userQueryService.answer(anyLong(), eq("unknown question")))
           .thenReturn(new UserQueryResult("知识库证据不足", List.of()));
 
       mockMvc
@@ -94,7 +96,8 @@ class UserQueryControllerComponentTest {
     @Test
     @DisplayName("unknown JSON fields are ignored")
     void unknownFieldsAreIgnored() throws Exception {
-      when(userQueryService.answer("test")).thenReturn(new UserQueryResult("answer", List.of()));
+      when(userQueryService.answer(anyLong(), eq("test")))
+          .thenReturn(new UserQueryResult("answer", List.of()));
 
       mockMvc
           .perform(
@@ -170,7 +173,7 @@ class UserQueryControllerComponentTest {
     @Test
     @DisplayName("InvalidQueryException returns 400 with VALIDATION_ERROR")
     void invalidQueryReturnsBadRequest() throws Exception {
-      when(userQueryService.answer(anyString()))
+      when(userQueryService.answer(anyLong(), anyString()))
           .thenThrow(
               new InvalidQueryException(
                   InvalidQueryException.Reason.QUESTION_REQUIRED, "Question must not be blank"));
@@ -188,7 +191,7 @@ class UserQueryControllerComponentTest {
     @Test
     @DisplayName("LlmUnavailableException returns 502 with LLM_UNAVAILABLE")
     void llmUnavailableReturns502() throws Exception {
-      when(userQueryService.answer(anyString()))
+      when(userQueryService.answer(anyLong(), anyString()))
           .thenThrow(
               new LlmUnavailableException(
                   "LLM provider failure", new RuntimeException("connection refused"), "deepseek"));
@@ -206,7 +209,7 @@ class UserQueryControllerComponentTest {
     @Test
     @DisplayName("RuntimeException returns 500 with INTERNAL_ERROR")
     void runtimeExceptionReturns500() throws Exception {
-      when(userQueryService.answer(anyString()))
+      when(userQueryService.answer(anyLong(), anyString()))
           .thenThrow(new RuntimeException("unexpected error"));
 
       mockMvc

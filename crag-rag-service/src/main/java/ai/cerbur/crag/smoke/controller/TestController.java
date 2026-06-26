@@ -107,10 +107,18 @@ public class TestController {
   @GetMapping("/retrieval")
   public Response<RetrievalSmokeResponse> retrieval(
       @RequestParam("query") String query,
-      @RequestParam(value = "topN", defaultValue = "10") int topN) {
+      @RequestParam(value = "topN", defaultValue = "10") int topN,
+      @RequestParam(value = "knowledgeBaseId", required = false, defaultValue = "0")
+          long knowledgeBaseId) {
+    long kbId = resolveSmokeKb(knowledgeBaseId);
     // 委托 RetrievalService 全链路：Embed → Sparse + Dense → RRF → 邻接扩展 → Rerank
-    List<ChunkSearchResult> results = retrievalService.retrieve(query, topN);
+    List<ChunkSearchResult> results = retrievalService.retrieve(kbId, query, topN);
     return Response.success(new RetrievalSmokeResponse(query, results));
+  }
+
+  /** 解析 smoke 请求的 knowledgeBaseId：未提供（0）时回退到固定 smoke KB，保证 legacy smoke 脚本兼容并使用隔离的 smoke KB. */
+  private long resolveSmokeKb(long requested) {
+    return requested != 0 ? requested : AdminRagService.SMOKE_KNOWLEDGE_BASE_ID;
   }
 
   /**
@@ -127,8 +135,11 @@ public class TestController {
   @GetMapping("/retrieval/evidence")
   public Response<List<ParentEvidenceResult>> retrievalEvidence(
       @RequestParam("query") String query,
-      @RequestParam(value = "topN", defaultValue = "5") int topN) {
-    List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(query, topN);
+      @RequestParam(value = "topN", defaultValue = "5") int topN,
+      @RequestParam(value = "knowledgeBaseId", required = false, defaultValue = "0")
+          long knowledgeBaseId) {
+    long kbId = resolveSmokeKb(knowledgeBaseId);
+    List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(kbId, query, topN);
     return Response.success(results);
   }
 
@@ -227,11 +238,14 @@ public class TestController {
   @GetMapping("/rrf")
   public Response<RrfSmokeResponse> rrf(
       @RequestParam("query") String query,
-      @RequestParam(value = "topN", defaultValue = "10") int topN) {
+      @RequestParam(value = "topN", defaultValue = "10") int topN,
+      @RequestParam(value = "knowledgeBaseId", required = false, defaultValue = "0")
+          long knowledgeBaseId) {
+    long kbId = resolveSmokeKb(knowledgeBaseId);
     float[] queryEmbedding = embeddingClient.embed(query);
     int topK = topN * 3;
-    List<SparseSearchResult> sparseResults = sparseQueryService.search(query, topK);
-    List<DenseSearchResult> denseResults = denseQueryService.search(queryEmbedding, topK);
+    List<SparseSearchResult> sparseResults = sparseQueryService.search(kbId, query, topK);
+    List<DenseSearchResult> denseResults = denseQueryService.search(kbId, queryEmbedding, topK);
     List<RrfFusionResult> fusedResults = rrfFusionService.fuse(sparseResults, denseResults, topN);
     return Response.success(
         new RrfSmokeResponse(query, sparseResults.size(), denseResults.size(), fusedResults));
@@ -250,11 +264,14 @@ public class TestController {
   @GetMapping("/rerank")
   public Response<RerankSmokeResponse> rerank(
       @RequestParam("query") String query,
-      @RequestParam(value = "topN", defaultValue = "10") int topN) {
+      @RequestParam(value = "topN", defaultValue = "10") int topN,
+      @RequestParam(value = "knowledgeBaseId", required = false, defaultValue = "0")
+          long knowledgeBaseId) {
+    long kbId = resolveSmokeKb(knowledgeBaseId);
     float[] queryEmbedding = embeddingClient.embed(query);
     int topK = topN * 3;
-    List<SparseSearchResult> sparseResults = sparseQueryService.search(query, topK);
-    List<DenseSearchResult> denseResults = denseQueryService.search(queryEmbedding, topK);
+    List<SparseSearchResult> sparseResults = sparseQueryService.search(kbId, query, topK);
+    List<DenseSearchResult> denseResults = denseQueryService.search(kbId, queryEmbedding, topK);
     List<RrfFusionResult> fusedResults = rrfFusionService.fuse(sparseResults, denseResults, topN);
     List<ChunkSearchResult> rerankedResults = rerankService.rerank(query, fusedResults);
     return Response.success(new RerankSmokeResponse(query, fusedResults, rerankedResults));

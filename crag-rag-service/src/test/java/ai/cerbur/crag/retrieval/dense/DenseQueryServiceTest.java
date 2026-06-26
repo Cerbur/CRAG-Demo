@@ -3,6 +3,7 @@ package ai.cerbur.crag.retrieval.dense;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -41,7 +42,7 @@ class DenseQueryServiceTest {
     @Test
     @DisplayName("queryEmbedding 为 null → 返回空列表，不调用 Dao")
     void nullEmbeddingReturnsEmpty() {
-      List<DenseSearchResult> results = denseQueryService.search(null, 10);
+      List<DenseSearchResult> results = denseQueryService.search(100L, null, 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkEmbeddingDao);
@@ -50,7 +51,7 @@ class DenseQueryServiceTest {
     @Test
     @DisplayName("queryEmbedding 长度为 0 → 返回空列表，不调用 Dao")
     void emptyEmbeddingReturnsEmpty() {
-      List<DenseSearchResult> results = denseQueryService.search(new float[0], 10);
+      List<DenseSearchResult> results = denseQueryService.search(100L, new float[0], 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkEmbeddingDao);
@@ -61,8 +62,8 @@ class DenseQueryServiceTest {
     void zeroOrNegativeTopKReturnsEmpty() {
       float[] vector = {0.1f, 0.2f};
 
-      assertThat(denseQueryService.search(vector, 0)).isEmpty();
-      assertThat(denseQueryService.search(vector, -1)).isEmpty();
+      assertThat(denseQueryService.search(100L, vector, 0)).isEmpty();
+      assertThat(denseQueryService.search(100L, vector, -1)).isEmpty();
 
       verifyNoInteractions(chunkEmbeddingDao);
     }
@@ -80,9 +81,9 @@ class DenseQueryServiceTest {
           List.of(
               new ai.cerbur.crag.storage.result.DenseSearchResult(1001L, 100L, 0.95, "结果一"),
               new ai.cerbur.crag.storage.result.DenseSearchResult(1002L, 200L, 0.80, "结果二"));
-      when(chunkEmbeddingDao.searchSimilar(any(), anyInt())).thenReturn(daoResults);
+      when(chunkEmbeddingDao.searchSimilar(anyLong(), any(), anyInt())).thenReturn(daoResults);
 
-      List<DenseSearchResult> results = denseQueryService.search(vector, 10);
+      List<DenseSearchResult> results = denseQueryService.search(100L, vector, 10);
 
       assertThat(results).hasSize(2);
       assertThat(results.get(0).getContent()).isEqualTo("结果一");
@@ -94,18 +95,19 @@ class DenseQueryServiceTest {
     void topKPassedThroughToDao() {
       float[] vector = {0.1f};
 
-      denseQueryService.search(vector, 15);
+      denseQueryService.search(100L, vector, 15);
 
-      verify(chunkEmbeddingDao).searchSimilar(vector, 15);
+      verify(chunkEmbeddingDao).searchSimilar(100L, vector, 15);
     }
 
     @Test
     @DisplayName("Dao 返回空列表时正确返回空列表")
     void daoReturnsEmptyThenServiceReturnsEmpty() {
       float[] vector = {0.3f};
-      when(chunkEmbeddingDao.searchSimilar(any(), anyInt())).thenReturn(Collections.emptyList());
+      when(chunkEmbeddingDao.searchSimilar(anyLong(), any(), anyInt()))
+          .thenReturn(Collections.emptyList());
 
-      List<DenseSearchResult> results = denseQueryService.search(vector, 5);
+      List<DenseSearchResult> results = denseQueryService.search(100L, vector, 5);
 
       assertThat(results).isEmpty();
     }

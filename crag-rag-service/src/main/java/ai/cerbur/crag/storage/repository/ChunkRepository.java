@@ -206,29 +206,33 @@ public interface ChunkRepository extends JpaRepository<Chunk, Long> {
   List<Chunk> findByParentChunkId(long parentChunkId);
 
   /**
-   * 按 parent chunk ID 与 child index 批量查询候选 child chunk.
+   * 按 parent chunk ID 与 child index 批量查询候选 child chunk（Plan 19 起限定 knowledge_base_id）.
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param parentChunkIds parent chunk ID 列表
    * @param chunkIndexes child chunk index 列表
-   * @return 命中 parent/index 集合的 child chunk 列表
+   * @return 命中 KB + parent/index 集合的 child chunk 列表
    */
-  List<Chunk> findByParentChunkIdInAndChunkIndexIn(
-      List<Long> parentChunkIds, List<Integer> chunkIndexes);
+  List<Chunk> findByKnowledgeBaseIdAndParentChunkIdInAndChunkIndexIn(
+      long knowledgeBaseId, List<Long> parentChunkIds, List<Integer> chunkIndexes);
 
   /**
-   * 按 chunk ID 列表批量查询 parent chunk 内容投影.
+   * 按 chunk ID 列表批量查询 parent chunk 内容投影（Plan 19 起限定 knowledge_base_id）.
    *
    * <p>仅返回 {@code chunkId} 和 {@code content}，且限定 parent 行（parent_chunk_id = 0）， 用于 Evidence 回表组装.
-   * 不返回完整 Entity 以避免跨模块传播.
+   * 不返回完整 Entity 以避免跨模块传播. Parent 回表必须带 {@code knowledgeBaseId}，避免跨库召回.
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param chunkIds chunk ID 列表
    * @return parent chunk 内容投影列表
    */
   @Query(
       "SELECT new ai.cerbur.crag.storage.result.ParentChunkContent(c.chunkId, c.content)"
           + " FROM Chunk c"
-          + " WHERE c.chunkId IN :chunkIds AND c.parentChunkId = 0L")
-  List<ParentChunkContent> findParentContentsByIds(@Param("chunkIds") List<Long> chunkIds);
+          + " WHERE c.knowledgeBaseId = :knowledgeBaseId AND c.chunkId IN :chunkIds"
+          + " AND c.parentChunkId = 0L")
+  List<ParentChunkContent> findParentContentsByIds(
+      @Param("knowledgeBaseId") long knowledgeBaseId, @Param("chunkIds") List<Long> chunkIds);
 
   /**
    * 统计指定文档下尚未完全索引的 chunk 数量（Plan 19）.

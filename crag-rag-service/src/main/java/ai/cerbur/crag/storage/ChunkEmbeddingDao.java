@@ -74,13 +74,14 @@ public class ChunkEmbeddingDao {
    * @param limit 返回数量上限
    * @return 按相似度降序排列的 DenseSearchResult 列表
    */
-  public List<DenseSearchResult> searchSimilar(float[] vector, int limit) {
+  public List<DenseSearchResult> searchSimilar(long knowledgeBaseId, float[] vector, int limit) {
     if (vector == null || vector.length == 0) {
       return Collections.emptyList();
     }
 
     String vectorLiteral = toPgVectorString(vector);
-    List<Object[]> rows = chunkEmbeddingRepository.searchSimilar(vectorLiteral, limit);
+    List<Object[]> rows =
+        chunkEmbeddingRepository.searchSimilar(knowledgeBaseId, vectorLiteral, limit);
 
     List<DenseSearchResult> results = new ArrayList<>(rows.size());
     for (Object[] row : rows) {

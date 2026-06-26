@@ -94,8 +94,8 @@ class ChunkDaoTest {
     @Test
     @DisplayName("空输入返回空列表")
     void emptyInputReturnsEmptyList() {
-      assertThat(chunkDao.findParentContentsByIds(null)).isEmpty();
-      assertThat(chunkDao.findParentContentsByIds(Collections.emptyList())).isEmpty();
+      assertThat(chunkDao.findParentContentsByIds(100L, null)).isEmpty();
+      assertThat(chunkDao.findParentContentsByIds(100L, Collections.emptyList())).isEmpty();
     }
 
     @Test
@@ -104,9 +104,9 @@ class ChunkDaoTest {
       List<Long> ids = List.of(1L, 2L);
       List<ParentChunkContent> expected =
           List.of(new ParentChunkContent(1L, "content 1"), new ParentChunkContent(2L, "content 2"));
-      when(chunkRepository.findParentContentsByIds(ids)).thenReturn(expected);
+      when(chunkRepository.findParentContentsByIds(100L, ids)).thenReturn(expected);
 
-      List<ParentChunkContent> result = chunkDao.findParentContentsByIds(ids);
+      List<ParentChunkContent> result = chunkDao.findParentContentsByIds(100L, ids);
 
       assertThat(result).isEqualTo(expected);
       assertThat(result).hasSize(2);

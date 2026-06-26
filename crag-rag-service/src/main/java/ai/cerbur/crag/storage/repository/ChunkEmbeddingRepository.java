@@ -53,8 +53,9 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
    *
    * <p>返回列顺序：[chunk_id, parent_chunk_id, chunk_index, score, content]，由 ChunkEmbeddingDao 负责映射.
    * {@code CAST(?1 AS vector)} 将 pgvector 数组字面量（如 "[0.1,0.2,...]"）转为向量类型. 分数 = 1 - 余弦距离，值域 [0,
-   * 2]，越大越相似.
+   * 2]，越大越相似. Plan 19 起以 {@code knowledge_base_id} 先行限定候选，保证 Dense 召回不跨库.
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param vectorLiteral pgvector 数组字面量，由 ChunkEmbeddingDao 做 float[] → String 转换
    * @param limit 返回数量上限
    * @return 原始列结果列表，每行为 [chunk_id, parent_chunk_id, chunk_index, score, content]
@@ -69,10 +70,13 @@ public interface ChunkEmbeddingRepository extends JpaRepository<ChunkEmbedding, 
                c.content
           FROM chunk_embedding ce
           JOIN chunk c ON c.chunk_id = ce.chunk_id
+         WHERE ce.knowledge_base_id = :knowledgeBaseId
          ORDER BY ce.embedding <=> CAST(:vectorLiteral AS vector) ASC, c.chunk_id ASC
          LIMIT :limit
         """,
       nativeQuery = true)
   List<Object[]> searchSimilar(
-      @Param("vectorLiteral") String vectorLiteral, @Param("limit") int limit);
+      @Param("knowledgeBaseId") long knowledgeBaseId,
+      @Param("vectorLiteral") String vectorLiteral,
+      @Param("limit") int limit);
 }

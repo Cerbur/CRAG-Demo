@@ -198,31 +198,35 @@ public class ChunkDao {
   }
 
   /**
-   * 按 parent chunk ID 与 child index 批量查询 child chunk（供 rerank 邻接窗口扩展使用）.
+   * 按 parent chunk ID 与 child index 批量查询 child chunk（供 rerank 邻接窗口扩展使用，Plan 19 起限定 KB）.
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param parentChunkIds parent chunk ID 列表
    * @param chunkIndexes child chunk index 列表
-   * @return 命中 parent/index 集合的 child chunk 列表
+   * @return 命中 KB + parent/index 集合的 child chunk 列表
    */
   public List<Chunk> findByParentChunkIdsAndChunkIndexes(
-      List<Long> parentChunkIds, List<Integer> chunkIndexes) {
-    return chunkRepository.findByParentChunkIdInAndChunkIndexIn(parentChunkIds, chunkIndexes);
+      long knowledgeBaseId, List<Long> parentChunkIds, List<Integer> chunkIndexes) {
+    return chunkRepository.findByKnowledgeBaseIdAndParentChunkIdInAndChunkIndexIn(
+        knowledgeBaseId, parentChunkIds, chunkIndexes);
   }
 
   /**
-   * 按 chunk ID 列表批量查询 parent chunk 内容投影.
+   * 按 chunk ID 列表批量查询 parent chunk 内容投影（Plan 19 起限定 KB）.
    *
    * <p>仅返回 {@code chunkId} 和 {@code content}，限定 parent 行（parent_chunk_id = 0）， 用于 Evidence 回表组装.
-   * 不做顺序保证，调用方自行按 chunkId 建立映射.
+   * 不做顺序保证，调用方自行按 chunkId 建立映射. Parent 回表必须带 {@code knowledgeBaseId}，避免跨库召回.
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param chunkIds chunk ID 列表
    * @return parent chunk 内容投影列表，不存在的 ID 不会出现在结果中
    */
-  public List<ParentChunkContent> findParentContentsByIds(List<Long> chunkIds) {
+  public List<ParentChunkContent> findParentContentsByIds(
+      long knowledgeBaseId, List<Long> chunkIds) {
     if (chunkIds == null || chunkIds.isEmpty()) {
       return Collections.emptyList();
     }
-    return chunkRepository.findParentContentsByIds(chunkIds);
+    return chunkRepository.findParentContentsByIds(knowledgeBaseId, chunkIds);
   }
 
   /**

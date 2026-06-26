@@ -2,6 +2,7 @@ package ai.cerbur.crag.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -43,7 +44,7 @@ class ChunkEmbeddingDaoTest {
     @Test
     @DisplayName("vector 为 null → 返回空列表，不调用 Repository")
     void nullVectorReturnsEmpty() {
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(null, 10);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, null, 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkEmbeddingRepository);
@@ -52,7 +53,7 @@ class ChunkEmbeddingDaoTest {
     @Test
     @DisplayName("vector 长度为 0 → 返回空列表，不调用 Repository")
     void emptyVectorReturnsEmpty() {
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(new float[0], 10);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, new float[0], 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkEmbeddingRepository);
@@ -73,10 +74,10 @@ class ChunkEmbeddingDaoTest {
     @Test
     @DisplayName("Repository 返回空列表 → searchSimilar 返回空列表")
     void emptyRepositoryResultReturnsEmpty() {
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(Collections.emptyList());
 
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(vector, 5);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, vector, 5);
 
       assertThat(results).isEmpty();
     }
@@ -85,10 +86,10 @@ class ChunkEmbeddingDaoTest {
     @DisplayName("单条结果 → chunkId/parentChunkId/chunkIndex/score/content 正确映射")
     void singleRowMapsCorrectly() {
       Object[] row = {100L, 200L, 2, 0.85, "这是匹配的内容"};
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row));
 
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(vector, 3);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, vector, 3);
 
       assertThat(results).hasSize(1);
       DenseSearchResult r = results.get(0);
@@ -105,10 +106,10 @@ class ChunkEmbeddingDaoTest {
       Object[] row1 = {1L, 10L, 0, 0.95, "内容一"};
       Object[] row2 = {2L, 20L, 1, 0.80, "内容二"};
       Object[] row3 = {3L, 30L, 2, 0.60, "内容三"};
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row1, row2, row3));
 
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(vector, 10);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, vector, 10);
 
       assertThat(results).hasSize(3);
       assertThat(results.get(0).getChunkId()).isEqualTo(1L);
@@ -120,10 +121,10 @@ class ChunkEmbeddingDaoTest {
     @DisplayName("score 为整数类型（如 Integer）→ doubleValue() 转换正确")
     void integerScoreConvertsToDouble() {
       Object[] row = {1L, 10L, 0, 1, "内容"};
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row));
 
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(vector, 1);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, vector, 1);
 
       assertThat(results).hasSize(1);
       assertThat(results.get(0).getDenseScore()).isEqualTo(1.0);
@@ -133,10 +134,10 @@ class ChunkEmbeddingDaoTest {
     @DisplayName("score 为 Long 类型 → doubleValue() 转换正确")
     void longScoreConvertsToDouble() {
       Object[] row = {1L, 10L, 0, 0L, "内容"};
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row));
 
-      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(vector, 1);
+      List<DenseSearchResult> results = chunkEmbeddingDao.searchSimilar(100L, vector, 1);
 
       assertThat(results).hasSize(1);
       assertThat(results.get(0).getDenseScore()).isEqualTo(0.0);
@@ -151,13 +152,13 @@ class ChunkEmbeddingDaoTest {
     @DisplayName("float[] → pgvector 字面量格式正确（紧凑带方括号）")
     void vectorFormatIsCompactWithBrackets() {
       float[] vector = {0.1f, 0.2f, 0.05f};
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(Collections.emptyList());
 
-      chunkEmbeddingDao.searchSimilar(vector, 5);
+      chunkEmbeddingDao.searchSimilar(100L, vector, 5);
 
       ArgumentCaptor<String> vectorCaptor = ArgumentCaptor.forClass(String.class);
-      verify(chunkEmbeddingRepository).searchSimilar(vectorCaptor.capture(), anyInt());
+      verify(chunkEmbeddingRepository).searchSimilar(anyLong(), vectorCaptor.capture(), anyInt());
 
       String literal = vectorCaptor.getValue();
       assertThat(literal).startsWith("[");
@@ -171,13 +172,13 @@ class ChunkEmbeddingDaoTest {
     @DisplayName("limit 参数透传到 Repository")
     void limitPassedThroughToRepository() {
       float[] vector = {0.5f};
-      when(chunkEmbeddingRepository.searchSimilar(anyString(), anyInt()))
+      when(chunkEmbeddingRepository.searchSimilar(anyLong(), anyString(), anyInt()))
           .thenReturn(Collections.emptyList());
 
-      chunkEmbeddingDao.searchSimilar(vector, 42);
+      chunkEmbeddingDao.searchSimilar(100L, vector, 42);
 
       ArgumentCaptor<Integer> limitCaptor = ArgumentCaptor.forClass(Integer.class);
-      verify(chunkEmbeddingRepository).searchSimilar(anyString(), limitCaptor.capture());
+      verify(chunkEmbeddingRepository).searchSimilar(anyLong(), anyString(), limitCaptor.capture());
 
       assertThat(limitCaptor.getValue()).isEqualTo(42);
     }

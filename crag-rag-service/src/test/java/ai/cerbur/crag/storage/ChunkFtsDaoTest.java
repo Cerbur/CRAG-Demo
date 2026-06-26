@@ -2,6 +2,7 @@ package ai.cerbur.crag.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -43,7 +44,7 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("query 为 null → 返回空列表，不调用 Repository")
     void nullQueryReturnsEmpty() {
-      List<SparseSearchResult> results = chunkFtsDao.searchFts(null, 10);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, null, 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkFtsRepository);
@@ -52,7 +53,7 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("query 为空字符串 → 返回空列表，不调用 Repository")
     void emptyStringReturnsEmpty() {
-      List<SparseSearchResult> results = chunkFtsDao.searchFts("", 10);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, "", 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkFtsRepository);
@@ -61,7 +62,7 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("query 为纯空白字符 → 返回空列表，不调用 Repository")
     void blankStringReturnsEmpty() {
-      List<SparseSearchResult> results = chunkFtsDao.searchFts("   \t\n  ", 10);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, "   \t\n  ", 10);
 
       assertThat(results).isEmpty();
       verifyNoInteractions(chunkFtsRepository);
@@ -80,9 +81,10 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("Repository 返回空列表 → searchFts 返回空列表")
     void emptyRepositoryResultReturnsEmpty() {
-      when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(Collections.emptyList());
+      when(chunkFtsRepository.searchFts(anyLong(), anyString(), anyInt()))
+          .thenReturn(Collections.emptyList());
 
-      List<SparseSearchResult> results = chunkFtsDao.searchFts("测试", 5);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, "测试", 5);
 
       assertThat(results).isEmpty();
     }
@@ -91,9 +93,10 @@ class ChunkFtsDaoTest {
     @DisplayName("单条结果 → chunkId/parentChunkId/chunkIndex/score/content 正确映射")
     void singleRowMapsCorrectly() {
       Object[] row = {100L, 200L, 3, 0.75, "全文检索匹配内容"};
-      when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(List.<Object[]>of(row));
+      when(chunkFtsRepository.searchFts(anyLong(), anyString(), anyInt()))
+          .thenReturn(List.<Object[]>of(row));
 
-      List<SparseSearchResult> results = chunkFtsDao.searchFts("关键词", 3);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, "关键词", 3);
 
       assertThat(results).hasSize(1);
       SparseSearchResult r = results.get(0);
@@ -110,10 +113,10 @@ class ChunkFtsDaoTest {
       Object[] row1 = {1L, 10L, 0, 0.90, "第一个匹配"};
       Object[] row2 = {2L, 20L, 1, 0.70, "第二个匹配"};
       Object[] row3 = {3L, 30L, 2, 0.50, "第三个匹配"};
-      when(chunkFtsRepository.searchFts(anyString(), anyInt()))
+      when(chunkFtsRepository.searchFts(anyLong(), anyString(), anyInt()))
           .thenReturn(List.<Object[]>of(row1, row2, row3));
 
-      List<SparseSearchResult> results = chunkFtsDao.searchFts("关键词", 10);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, "关键词", 10);
 
       assertThat(results).hasSize(3);
       assertThat(results.get(0).getChunkId()).isEqualTo(1L);
@@ -125,9 +128,10 @@ class ChunkFtsDaoTest {
     @DisplayName("score 为 Float → doubleValue() 转换正确")
     void floatScoreConvertsToDouble() {
       Object[] row = {1L, 10L, 0, 0.123f, "内容"};
-      when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(List.<Object[]>of(row));
+      when(chunkFtsRepository.searchFts(anyLong(), anyString(), anyInt()))
+          .thenReturn(List.<Object[]>of(row));
 
-      List<SparseSearchResult> results = chunkFtsDao.searchFts("q", 1);
+      List<SparseSearchResult> results = chunkFtsDao.searchFts(100L, "q", 1);
 
       assertThat(results).hasSize(1);
       assertThat(results.get(0).getSparseScore())
@@ -142,12 +146,13 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("query 原始文本原样透传到 Repository")
     void queryTextPassedThroughVerbatim() {
-      when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(Collections.emptyList());
+      when(chunkFtsRepository.searchFts(anyLong(), anyString(), anyInt()))
+          .thenReturn(Collections.emptyList());
 
-      chunkFtsDao.searchFts("人工智能与机器学习", 5);
+      chunkFtsDao.searchFts(100L, "人工智能与机器学习", 5);
 
       ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
-      verify(chunkFtsRepository).searchFts(queryCaptor.capture(), anyInt());
+      verify(chunkFtsRepository).searchFts(anyLong(), queryCaptor.capture(), anyInt());
 
       assertThat(queryCaptor.getValue()).isEqualTo("人工智能与机器学习");
     }
@@ -155,12 +160,13 @@ class ChunkFtsDaoTest {
     @Test
     @DisplayName("limit 参数透传到 Repository")
     void limitPassedThroughToRepository() {
-      when(chunkFtsRepository.searchFts(anyString(), anyInt())).thenReturn(Collections.emptyList());
+      when(chunkFtsRepository.searchFts(anyLong(), anyString(), anyInt()))
+          .thenReturn(Collections.emptyList());
 
-      chunkFtsDao.searchFts("测试", 77);
+      chunkFtsDao.searchFts(100L, "测试", 77);
 
       ArgumentCaptor<Integer> limitCaptor = ArgumentCaptor.forClass(Integer.class);
-      verify(chunkFtsRepository).searchFts(anyString(), limitCaptor.capture());
+      verify(chunkFtsRepository).searchFts(anyLong(), anyString(), limitCaptor.capture());
 
       assertThat(limitCaptor.getValue()).isEqualTo(77);
     }

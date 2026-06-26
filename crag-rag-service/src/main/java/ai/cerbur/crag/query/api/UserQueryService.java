@@ -61,15 +61,16 @@ public class UserQueryService {
   @Autowired private ReferenceAnalyzer referenceAnalyzer;
 
   /**
-   * 执行用户查询全链路.
+   * 执行用户查询全链路（限定知识库）.
    *
+   * @param knowledgeBaseId 知识库 ID（强隔离键）
    * @param question 用户问题
    * @return 查询结果
    * @throws InvalidQueryException 查询为空或超长
    * @throws LlmUnavailableException LLM 调用失败
    * @throws RuntimeException 检索内部错误
    */
-  public UserQueryResult answer(String question) {
+  public UserQueryResult answer(long knowledgeBaseId, String question) {
     Instant start = Instant.now();
 
     // MDC requestId — reuse existing or generate
@@ -110,7 +111,7 @@ public class UserQueryService {
       // 4. Retrieve evidence
       List<ParentEvidenceResult> evidence;
       try {
-        evidence = retrievalService.retrieveEvidence(trimmed, topN);
+        evidence = retrievalService.retrieveEvidence(knowledgeBaseId, trimmed, topN);
       } catch (Exception e) {
         log.error("requestId={} Retrieval service failed", requestId, e);
         throw new RuntimeException("Retrieval service failed", e);

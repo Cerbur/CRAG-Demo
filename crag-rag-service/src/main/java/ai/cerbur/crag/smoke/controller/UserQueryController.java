@@ -1,6 +1,7 @@
 package ai.cerbur.crag.smoke.controller;
 
 import ai.cerbur.crag.common.dto.result.Response;
+import ai.cerbur.crag.ingestion.api.AdminRagService;
 import ai.cerbur.crag.query.api.UserQueryResult;
 import ai.cerbur.crag.query.api.UserQueryService;
 import ai.cerbur.crag.smoke.dto.query.QuerySourceResponse;
@@ -36,7 +37,11 @@ public class UserQueryController {
    */
   @PostMapping("/query")
   public Response<UserQueryResponse> query(@Valid @RequestBody UserQueryRequest request) {
-    UserQueryResult result = userQueryService.answer(request.question());
+    long knowledgeBaseId =
+        (request.knowledgeBaseId() == null || request.knowledgeBaseId() == 0)
+            ? AdminRagService.SMOKE_KNOWLEDGE_BASE_ID
+            : request.knowledgeBaseId();
+    UserQueryResult result = userQueryService.answer(knowledgeBaseId, request.question());
     UserQueryResponse response =
         new UserQueryResponse(
             result.answer(),

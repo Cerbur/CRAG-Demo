@@ -79,12 +79,12 @@ public class ChunkFtsDao {
    * @param limit 返回数量上限
    * @return 按 ts_rank 降序排列的 SparseSearchResult 列表
    */
-  public List<SparseSearchResult> searchFts(String query, int limit) {
+  public List<SparseSearchResult> searchFts(long knowledgeBaseId, String query, int limit) {
     if (query == null || query.isBlank()) {
       return Collections.emptyList();
     }
 
-    List<Object[]> rows = chunkFtsRepository.searchFts(query, limit);
+    List<Object[]> rows = chunkFtsRepository.searchFts(knowledgeBaseId, query, limit);
 
     List<SparseSearchResult> results = new ArrayList<>(rows.size());
     for (Object[] row : rows) {

@@ -21,19 +21,21 @@ public class SparseQueryService {
   @Autowired private ChunkFtsDao chunkFtsDao;
 
   /**
-   * FTS 关键词检索.
+   * FTS 关键词检索（限定知识库）.
    *
-   * <p>委托 ChunkFtsDao.searchFts 执行 PostgreSQL 全文检索查询（CJK 预处理在 DB 侧完成）， topK 控制返回数量，空查询返回空列表.
+   * <p>委托 ChunkFtsDao.searchFts 执行 PostgreSQL 全文检索查询（CJK 预处理在 DB 侧完成），先以 {@code knowledgeBaseId}
+   * 限定候选再排序，topK 控制返回数量，空查询返回空列表.
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param query 用户问题
    * @param topK 返回数量
    * @return 按 ts_rank 降序排列的 SparseSearchResult 列表
    */
-  public List<SparseSearchResult> search(String query, int topK) {
+  public List<SparseSearchResult> search(long knowledgeBaseId, String query, int topK) {
     if (query == null || query.isBlank() || topK <= 0) {
       return Collections.emptyList();
     }
-    return chunkFtsDao.searchFts(query, topK).stream()
+    return chunkFtsDao.searchFts(knowledgeBaseId, query, topK).stream()
         .map(
             result ->
                 new SparseSearchResult(

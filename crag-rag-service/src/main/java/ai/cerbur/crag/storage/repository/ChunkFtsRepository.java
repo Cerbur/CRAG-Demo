@@ -87,10 +87,13 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, Long> {
                  FROM unnest(to_tsvector('simple',
                             regexp_replace(:query, '([一-龥])', '\\1 ', 'g')))
               ) qt
-         WHERE cf.fts_content @@ qt.tsq
+         WHERE cf.knowledge_base_id = :knowledgeBaseId AND cf.fts_content @@ qt.tsq
          ORDER BY score DESC, c.chunk_id ASC
          LIMIT :limit
         """,
       nativeQuery = true)
-  List<Object[]> searchFts(@Param("query") String query, @Param("limit") int limit);
+  List<Object[]> searchFts(
+      @Param("knowledgeBaseId") long knowledgeBaseId,
+      @Param("query") String query,
+      @Param("limit") int limit);
 }

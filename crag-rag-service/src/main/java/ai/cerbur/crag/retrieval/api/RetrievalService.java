@@ -66,27 +66,32 @@ public class RetrievalService {
   // ============================================================
 
   /**
-   * 执行混合检索全链路，返回 Rerank 重排后的检索结果列表.
+   * 执行混合检索全链路（限定知识库），返回 Rerank 重排后的检索结果列表.
    *
-   * <p>流水线步骤： 1. Query Embedding 向量化 2. Sparse FTS + Dense 向量并行检索（topK = topN × 3），各自返回窄类型 3. RRF
-   * 融合 → child chunk 维度的 RrfFusionResult 4. 取 top RRF child 及其相邻 child，送入 Rerank 语义重排序 5. 返回 Rerank
-   * 后的 ChunkSearchResult，不向查询链路透传 JPA Entity 6. 输出最终结果日志（含 sparse/dense/rrf/rerank 四路得分）
+   * <p>流水线步骤： 1. Query Embedding 向量化 2. Sparse FTS + Dense 向量并行检索（topK = topN × 3），各自返回窄类型， 先以
+   * {@code knowledgeBaseId} 限定候选 3. RRF 融合 → child chunk 维度的 RrfFusionResult 4. 取 top RRF child
+   * 及其相邻 child （同 KB 内扩展），送入 Rerank 语义重排序 5. 返回 Rerank 后的 ChunkSearchResult，不向查询链路透传 JPA Entity 6.
+   * 输出最终结果 日志（含 sparse/dense/rrf/rerank 四路得分；不含文档内容或向量）.
    *
+   * @param knowledgeBaseId 知识库 ID（强隔离键）
    * @param query 用户问题文本
    * @param topN 最终返回的 chunk 数量
    * @return 按 Rerank 分数降序排列的检索结果列表
    */
-  public List<ChunkSearchResult> retrieve(String query, int topN) {
+  public List<ChunkSearchResult> retrieve(long knowledgeBaseId, String query, int topN) {
     if (query == null || query.isBlank() || topN <= 0) {
       return Collections.emptyList();
     }
     int recallN = saturatingMultiply(topN, 3);
     PipelineConfig config = new PipelineConfig(recallN, topN, topN);
-    InternalRetrievalResult internal = retrieveInternal(query, config);
+    InternalRetrievalResult internal = retrieveInternal(knowledgeBaseId, query, config);
 
     List<ChunkSearchResult> topResults = internal.rerankedChildren().stream().limit(topN).toList();
 
-    log.info("Retrieval complete — {} chunks returned", topResults.size());
+    log.info(
+        "Retrieval complete — knowledgeBaseId={} {} chunks returned",
+        knowledgeBaseId,
+        topResults.size());
     logScores(topResults);
 
     return topResults;
@@ -111,14 +116,14 @@ public class RetrievalService {
    * @param topN 最终最多返回的不同 parent 数量
    * @return 按 Evidence 排名升序排列的 parent evidence 列表
    */
-  public List<ParentEvidenceResult> retrieveEvidence(String query, int topN) {
+  public List<ParentEvidenceResult> retrieveEvidence(long knowledgeBaseId, String query, int topN) {
     if (query == null || query.isBlank() || topN <= 0) {
       return Collections.emptyList();
     }
 
     int limit = saturatingMultiply(topN, 3);
     PipelineConfig config = new PipelineConfig(limit, limit, limit);
-    InternalRetrievalResult internal = retrieveInternal(query, config);
+    InternalRetrievalResult internal = retrieveInternal(knowledgeBaseId, query, config);
 
     if (internal.rerankedChildren().isEmpty()) {
       return Collections.emptyList();
@@ -133,9 +138,10 @@ public class RetrievalService {
       return Collections.emptyList();
     }
 
-    // Batch read parent content — no N+1, no order dependency
+    // Batch read parent content — no N+1, no order dependency, KB-scoped
     List<Long> parentIds = candidates.stream().map(EvidenceCandidate::parentChunkId).toList();
-    List<ParentChunkContent> parentContents = chunkDao.findParentContentsByIds(parentIds);
+    List<ParentChunkContent> parentContents =
+        chunkDao.findParentContentsByIds(knowledgeBaseId, parentIds);
 
     // Build content map (first occurrence wins for duplicate projections)
     Map<Long, String> contentMap = new LinkedHashMap<>();
@@ -211,15 +217,22 @@ public class RetrievalService {
    * <p>返回 {@link InternalRetrievalResult}，同时包含 Rerank 后的完整 child 列表和真实 RRF 命中 child ID 的有序集合，供
    * Evidence 候选聚合使用.
    */
-  InternalRetrievalResult retrieveInternal(String query, PipelineConfig config) {
+  InternalRetrievalResult retrieveInternal(
+      long knowledgeBaseId, String query, PipelineConfig config) {
     // Step 1: Query embedding
     float[] queryEmbedding = embeddingClient.embed(query);
 
-    // Step 2: Parallel search — Sparse FTS + Dense vector (narrow types)
-    List<SparseSearchResult> sparseResults = sparseQueryService.search(query, config.recallN);
-    List<DenseSearchResult> denseResults = denseQueryService.search(queryEmbedding, config.recallN);
+    // Step 2: Parallel search — Sparse FTS + Dense vector (narrow types), both KB-scoped
+    List<SparseSearchResult> sparseResults =
+        sparseQueryService.search(knowledgeBaseId, query, config.recallN);
+    List<DenseSearchResult> denseResults =
+        denseQueryService.search(knowledgeBaseId, queryEmbedding, config.recallN);
 
-    log.info("Retrieval search — sparse={}, dense={}", sparseResults.size(), denseResults.size());
+    log.info(
+        "Retrieval search — knowledgeBaseId={} sparse={} dense={}",
+        knowledgeBaseId,
+        sparseResults.size(),
+        denseResults.size());
 
     // Step 3: RRF fusion stays at child chunk granularity.
     List<RrfFusionResult> fusedResults =
@@ -231,8 +244,9 @@ public class RetrievalService {
     }
     log.info("RRF fusion — {} child chunks", fusedResults.size());
 
-    // Step 4: Rerank top RRF child chunks plus adjacent child chunks. Track real RRF hit IDs.
-    RerankCandidateSet candidateSet = prepareRerankCandidates(fusedResults);
+    // Step 4: Rerank top RRF child chunks plus adjacent child chunks (same KB). Track real RRF hit
+    // IDs.
+    RerankCandidateSet candidateSet = prepareRerankCandidates(knowledgeBaseId, fusedResults);
     List<ChunkSearchResult> rerankedResults =
         rerankService.rerank(query, candidateSet.allCandidates());
 
@@ -248,7 +262,8 @@ public class RetrievalService {
    *
    * <p>返回 {@link RerankCandidateSet}，区分真实 RRF 命中 child 与相邻扩展 child. 禁止通过分数是否为 null 或零反推来源.
    */
-  RerankCandidateSet prepareRerankCandidates(List<RrfFusionResult> fusedResults) {
+  RerankCandidateSet prepareRerankCandidates(
+      long knowledgeBaseId, List<RrfFusionResult> fusedResults) {
     LinkedHashSet<Long> rrfHitIds = new LinkedHashSet<>();
     Map<Long, RrfFusionResult> candidates = new LinkedHashMap<>();
     Set<ParentIndexKey> adjacentKeys = new LinkedHashSet<>();
@@ -265,7 +280,7 @@ public class RetrievalService {
       adjacentKeys.add(new ParentIndexKey(fused.getParentChunkId(), fused.getChunkIndex() + 1));
     }
 
-    for (Chunk adjacent : findAdjacentChunks(adjacentKeys)) {
+    for (Chunk adjacent : findAdjacentChunks(knowledgeBaseId, adjacentKeys)) {
       candidates.putIfAbsent(
           adjacent.getChunkId(), new RrfFusionResult(toChunkBO(adjacent), 0.0, null, null));
     }
@@ -273,8 +288,8 @@ public class RetrievalService {
     return new RerankCandidateSet(new ArrayList<>(candidates.values()), rrfHitIds);
   }
 
-  /** 一次性查询所有相邻 child，并过滤掉 parent/index 交叉命中的多余行. */
-  private List<Chunk> findAdjacentChunks(Set<ParentIndexKey> adjacentKeys) {
+  /** 一次性查询所有相邻 child（限定 KB），并过滤掉 parent/index 交叉命中的多余行. */
+  private List<Chunk> findAdjacentChunks(long knowledgeBaseId, Set<ParentIndexKey> adjacentKeys) {
     if (adjacentKeys.isEmpty()) {
       return Collections.emptyList();
     }
@@ -283,7 +298,9 @@ public class RetrievalService {
     List<Integer> chunkIndexes =
         adjacentKeys.stream().map(ParentIndexKey::chunkIndex).distinct().toList();
 
-    return chunkDao.findByParentChunkIdsAndChunkIndexes(parentChunkIds, chunkIndexes).stream()
+    return chunkDao
+        .findByParentChunkIdsAndChunkIndexes(knowledgeBaseId, parentChunkIds, chunkIndexes)
+        .stream()
         .filter(
             chunk ->
                 adjacentKeys.contains(

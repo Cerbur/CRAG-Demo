@@ -44,6 +44,7 @@ class UserQueryServiceTest {
 
   @InjectMocks private UserQueryService service;
 
+  private static final long KB = 31337L;
   private static final String REQUEST_ID = "test-request-id-123";
   private static final String QUESTION = "什么是CRAG？";
   private static final String TRIMMED_QUESTION = "什么是CRAG？";
@@ -99,7 +100,8 @@ class UserQueryServiceTest {
     @DisplayName("完整流程：问题 → 证据 → 上下文 → LLM → 分析 → 结果")
     void fullPipeline() {
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       QueryContext queryContext = makeContext();
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -114,14 +116,14 @@ class UserQueryServiceTest {
       given(referenceAnalyzer.analyze(LLM_ANSWER, 1))
           .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
 
       assertThat(result.answer()).isEqualTo(LLM_ANSWER);
       assertThat(result.sources()).hasSize(1);
       assertThat(result.sources().get(0).reference()).isEqualTo("S1");
       assertThat(result.sources().get(0).parentChunkId()).isEqualTo(PARENT_CHUNK_ID);
 
-      then(retrievalService).should().retrieveEvidence(TRIMMED_QUESTION, 8);
+      then(retrievalService).should().retrieveEvidence(KB, TRIMMED_QUESTION, 8);
       then(contextBuilder).should().build(anyList(), anyInt(), any(SourceBoundaryFactory.class));
       then(promptBuilder).should().build(TRIMMED_QUESTION, queryContext);
       then(llmClient).should().generate(llmRequest);
@@ -140,7 +142,7 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("null 问题 → InvalidQueryException(QUESTION_REQUIRED)")
     void nullQuestion() {
-      assertThatThrownBy(() -> service.answer(null))
+      assertThatThrownBy(() -> service.answer(KB, null))
           .isInstanceOf(InvalidQueryException.class)
           .hasFieldOrPropertyWithValue("reason", InvalidQueryException.Reason.QUESTION_REQUIRED);
     }
@@ -148,7 +150,7 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("空白问题 → InvalidQueryException(QUESTION_REQUIRED)")
     void blankQuestion() {
-      assertThatThrownBy(() -> service.answer("   "))
+      assertThatThrownBy(() -> service.answer(KB, "   "))
           .isInstanceOf(InvalidQueryException.class)
           .hasFieldOrPropertyWithValue("reason", InvalidQueryException.Reason.QUESTION_REQUIRED);
     }
@@ -156,7 +158,7 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("空字符串 → InvalidQueryException(QUESTION_REQUIRED)")
     void emptyQuestion() {
-      assertThatThrownBy(() -> service.answer(""))
+      assertThatThrownBy(() -> service.answer(KB, ""))
           .isInstanceOf(InvalidQueryException.class)
           .hasFieldOrPropertyWithValue("reason", InvalidQueryException.Reason.QUESTION_REQUIRED);
     }
@@ -166,7 +168,7 @@ class UserQueryServiceTest {
     void questionTooLong() {
       String longQuestion = "A".repeat(2001);
 
-      assertThatThrownBy(() -> service.answer(longQuestion))
+      assertThatThrownBy(() -> service.answer(KB, longQuestion))
           .isInstanceOf(InvalidQueryException.class)
           .hasFieldOrPropertyWithValue("reason", InvalidQueryException.Reason.QUESTION_TOO_LONG);
     }
@@ -176,7 +178,7 @@ class UserQueryServiceTest {
     void exactlyMaxLength() {
       String exactQuestion = "B".repeat(2000);
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(exactQuestion, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, exactQuestion, 8)).willReturn(List.of(evidence));
 
       QueryContext queryContext = makeContext();
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -191,7 +193,7 @@ class UserQueryServiceTest {
       given(referenceAnalyzer.analyze("answer with [S1]", 1))
           .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-      UserQueryResult result = service.answer(exactQuestion);
+      UserQueryResult result = service.answer(KB, exactQuestion);
       assertThat(result.answer()).isEqualTo("answer with [S1]");
     }
 
@@ -200,7 +202,8 @@ class UserQueryServiceTest {
     void questionIsTrimmed() {
       String questionWithSpaces = "  什么是CRAG？  ";
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       QueryContext queryContext = makeContext();
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -215,7 +218,7 @@ class UserQueryServiceTest {
       given(referenceAnalyzer.analyze("answer [S1]", 1))
           .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-      UserQueryResult result = service.answer(questionWithSpaces);
+      UserQueryResult result = service.answer(KB, questionWithSpaces);
       assertThat(result.answer()).isEqualTo("answer [S1]");
     }
   }
@@ -231,12 +234,12 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("检索返回空列表 → 知识库证据不足，不调用 LLM")
     void emptyRetrieval() {
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of());
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8)).willReturn(List.of());
 
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
           .willReturn(new QueryContext("", List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
 
       assertThat(result.answer()).isEqualTo(UserQueryService.INSUFFICIENT_EVIDENCE_ANSWER);
       assertThat(result.sources()).isEmpty();
@@ -249,12 +252,12 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("检索返回 null → 知识库证据不足，不调用 LLM")
     void nullRetrieval() {
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(null);
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8)).willReturn(null);
 
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
           .willReturn(new QueryContext("", List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
 
       assertThat(result.answer()).isEqualTo(UserQueryService.INSUFFICIENT_EVIDENCE_ANSWER);
       assertThat(result.sources()).isEmpty();
@@ -266,12 +269,13 @@ class UserQueryServiceTest {
     @DisplayName("有证据但被预算全部跳过 → 知识库证据不足，不调用 LLM")
     void budgetEmptyContext() {
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
           .willReturn(new QueryContext("", List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
 
       assertThat(result.answer()).isEqualTo(UserQueryService.INSUFFICIENT_EVIDENCE_ANSWER);
       assertThat(result.sources()).isEmpty();
@@ -291,10 +295,10 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("RetrievalService 抛出异常 → 包装为 RuntimeException")
     void retrievalServiceThrows() {
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8))
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
           .willThrow(new RuntimeException("DB connection failed"));
 
-      assertThatThrownBy(() -> service.answer(QUESTION))
+      assertThatThrownBy(() -> service.answer(KB, QUESTION))
           .isInstanceOf(RuntimeException.class)
           .hasMessage("Retrieval service failed")
           .hasCauseInstanceOf(RuntimeException.class);
@@ -304,7 +308,8 @@ class UserQueryServiceTest {
     @DisplayName("LLM ProviderException → LlmUnavailableException")
     void llmProviderException() {
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       QueryContext queryContext = makeContext();
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -317,7 +322,7 @@ class UserQueryServiceTest {
           new LlmProviderException(LlmFailureCategory.SERVER_ERROR, "Service overloaded", null);
       given(llmClient.generate(llmRequest)).willThrow(providerEx);
 
-      assertThatThrownBy(() -> service.answer(QUESTION))
+      assertThatThrownBy(() -> service.answer(KB, QUESTION))
           .isInstanceOf(LlmUnavailableException.class)
           .hasMessage("LLM provider failure: SERVER_ERROR")
           .hasCause(providerEx);
@@ -336,7 +341,8 @@ class UserQueryServiceTest {
     @DisplayName("MDC 中无 requestId → 自动生成 UUID 格式")
     void generatesRequestId() {
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       QueryContext queryContext = makeContext();
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -351,7 +357,7 @@ class UserQueryServiceTest {
       given(referenceAnalyzer.analyze("answer [S1]", 1))
           .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-      service.answer(QUESTION);
+      service.answer(KB, QUESTION);
 
       String currentRequestId = MDC.get("requestId");
       assertThat(currentRequestId).isNull();
@@ -364,7 +370,8 @@ class UserQueryServiceTest {
         MDC.put("requestId", REQUEST_ID);
 
         ParentEvidenceResult evidence = makeEvidence();
-        given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+        given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+            .willReturn(List.of(evidence));
 
         QueryContext queryContext = makeContext();
         given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -379,7 +386,7 @@ class UserQueryServiceTest {
         given(referenceAnalyzer.analyze("answer [S1]", 1))
             .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-        service.answer(QUESTION);
+        service.answer(KB, QUESTION);
 
         assertThat(MDC.get("requestId")).isEqualTo(REQUEST_ID);
       } finally {
@@ -393,10 +400,10 @@ class UserQueryServiceTest {
       try {
         MDC.put("requestId", REQUEST_ID);
 
-        given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8))
+        given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
             .willThrow(new RuntimeException("fail"));
 
-        assertThatThrownBy(() -> service.answer(QUESTION)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> service.answer(KB, QUESTION)).isInstanceOf(RuntimeException.class);
 
         assertThat(MDC.get("requestId")).isEqualTo(REQUEST_ID);
       } finally {
@@ -407,10 +414,10 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("最初无 MDC 时异常后 MDC 被清除")
     void mdcClearedAfterExceptionWhenNoOriginal() {
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8))
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
           .willThrow(new RuntimeException("fail"));
 
-      assertThatThrownBy(() -> service.answer(QUESTION)).isInstanceOf(RuntimeException.class);
+      assertThatThrownBy(() -> service.answer(KB, QUESTION)).isInstanceOf(RuntimeException.class);
 
       assertThat(MDC.get("requestId")).isNull();
     }
@@ -428,7 +435,8 @@ class UserQueryServiceTest {
     @DisplayName("sources 从 QueryContext 传入 UserQueryResult")
     void sourcesPassedToResult() {
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       QuerySource querySource = makeSource();
       QueryContext queryContext =
@@ -445,7 +453,7 @@ class UserQueryServiceTest {
       given(referenceAnalyzer.analyze("answer [S1]", 1))
           .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
 
       assertThat(result.sources()).containsExactly(querySource);
     }
@@ -454,7 +462,8 @@ class UserQueryServiceTest {
     @DisplayName("LLM 使用 null/available 时正常工作")
     void llmUsageOptional() {
       ParentEvidenceResult evidence = makeEvidence();
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of(evidence));
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8))
+          .willReturn(List.of(evidence));
 
       QueryContext queryContext = makeContext();
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
@@ -469,7 +478,7 @@ class UserQueryServiceTest {
       given(referenceAnalyzer.analyze("answer with usage [S1]", 1))
           .willReturn(new ReferenceAnalysis(1, 1, 1, List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
       assertThat(result.answer()).isEqualTo("answer with usage [S1]");
     }
   }
@@ -485,12 +494,12 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("LLM 未在空上下文时调用")
     void llmNotCalledForEmptyContext() {
-      given(retrievalService.retrieveEvidence(TRIMMED_QUESTION, 8)).willReturn(List.of());
+      given(retrievalService.retrieveEvidence(KB, TRIMMED_QUESTION, 8)).willReturn(List.of());
 
       given(contextBuilder.build(anyList(), anyInt(), any(SourceBoundaryFactory.class)))
           .willReturn(new QueryContext("", List.of(), 0));
 
-      UserQueryResult result = service.answer(QUESTION);
+      UserQueryResult result = service.answer(KB, QUESTION);
 
       assertThat(result.answer()).isEqualTo(UserQueryService.INSUFFICIENT_EVIDENCE_ANSWER);
       then(llmClient).shouldHaveNoInteractions();
@@ -501,7 +510,7 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("输入校验失败时所有下游均未调用")
     void noDownstreamOnValidationFailure() {
-      assertThatThrownBy(() -> service.answer(null)).isInstanceOf(InvalidQueryException.class);
+      assertThatThrownBy(() -> service.answer(KB, null)).isInstanceOf(InvalidQueryException.class);
 
       then(retrievalService).shouldHaveNoInteractions();
       then(contextBuilder).shouldHaveNoInteractions();
