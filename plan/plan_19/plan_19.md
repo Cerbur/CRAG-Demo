@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_19
 type: main
-status: ready
+status: verifying
 created: 2026-06-26
-updated: 2026-06-26
+updated: 2026-06-27
 ---
 
 # plan_19 — RAG 多知识库化
@@ -180,14 +180,14 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 19.1 | 建立 RAG 多 KB schema 与 Ingestion Job 基础模型 | ⏳ 待开始 | — | — |
-| 19.2 | 接入 `DOC_UPLOADED` consumer 与消费可靠性 | ⏳ 待开始 | — | — |
-| 19.3 | 实现 Knowledge 文件读取与 Ingestion 编排 | ⏳ 待开始 | — | — |
-| 19.4 | 改造 Chunk / Dense / Sparse 写入为多 KB 模型 | ⏳ 待开始 | — | — |
-| 19.5 | 改造 Retrieval / Query 为强制 KB 隔离 | ⏳ 待开始 | — | — |
-| 19.6 | 发布 RAG ingestion 状态事件 | ⏳ 待开始 | — | — |
-| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | ⏳ 待开始 | — | — |
-| 19.8 | 同步约束文档、README 与全量验证 | ⏳ 待开始 | — | — |
+| 19.1 | 建立 RAG 多 KB schema 与 Ingestion Job 基础模型 | ⏳ 待验收 | 0a06458d | — |
+| 19.2 | 接入 `DOC_UPLOADED` consumer 与消费可靠性 | ⏳ 待验收 | 0b22afcc | — |
+| 19.3 | 实现 Knowledge 文件读取与 Ingestion 编排 | ⏳ 待验收 | 6ba5b387 | — |
+| 19.4 | 改造 Chunk / Dense / Sparse 写入为多 KB 模型 | ⏳ 待验收 | b945228d | — |
+| 19.5 | 改造 Retrieval / Query 为强制 KB 隔离 | ⏳ 待验收 | 45b1802c | — |
+| 19.6 | 发布 RAG ingestion 状态事件 | ⏳ 待验收 | 44e4b819 | — |
+| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | ⏳ 待验收 | 5bae5915, 4078f16c | — |
+| 19.8 | 同步约束文档、README 与全量验证 | ⏳ 待验收 | 9867f8f2 | — |
 
 整体进度：0 / 8（0%）
 
@@ -275,6 +275,26 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-27 | 本机 JDK 21 + Gradle | `./gradlew :crag-rag-service:test` | 通过 | 全量模块单测/组件/架构测试通过（含 IngestionJobDaoComponentTest、RagEventConsumerComponentTest、IngestionOrchestratorTest、KnowledgeDocumentFileClientTest、RagIngestionStatusEventTest、ChunkMultiKbComponentTest、RagIngestionSmokeComponentTest 等）|
+| 2026-06-27 | 本机 JDK 21 + Gradle | `./gradlew check` | 通过 | 格式、静态检查、Plan 校验、全量测试通过 |
+| 2026-06-27 | 本机 Python | `python3 scripts/validate_plans.py` | 通过 | 0 错误（24 WARNING 均为历史 v2 Plan）|
+| 2026-06-27 | 本机 Python | `python3 scripts/validate_module_dependencies.py` | 通过 | 模块依赖白名单 0 错误 |
+| 2026-06-27 | 本机 Python | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints -v` | 通过 | 37 项约束/依赖校验单测通过 |
+| 2026-06-27 | 本机 Python | `rg 'REFERENCES chunk\|foreign key\|FOREIGN KEY' crag-rag-service/src/main/resources/schema.sql` | 通过 | RAG 内部索引表无外键 |
+| 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_multi_kb_ingestion_test.sh` | 通过 | Knowledge 上传 → DOC_UPLOADED → RAG 消费 → Knowledge gRPC 读取 → 切分 → Dense/Sparse 索引 → 两个 KB 均 READY |
+| 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_multi_kb_isolation_test.sh` | 通过 | KB-A 只召回 A、KB-B 只召回 B，互不串召回 |
+| 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_doc_uploaded_idempotency_test.sh` | 通过 | 重复投递前后 chunk 计数不变（注：脚本内事件重投递解析未命中，机制由 IngestionJobServiceTest 单测覆盖）|
+| 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_doc_uploaded_dlq_test.sh` | 通过 | 非法 DOC_UPLOADED 进入 DLQ 且未创建 Job |
+| 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_ingestion_status_event_test.sh` | 通过 | outbox_event 出现 INGESTION_PROCESSING 与 INGESTION_READY（PUBLISHED）|
+
+### 未执行项与风险
+
+- `rag_smoke_ingestion_status_event_test.sh` 脚本在执行 session 间或因 Docker 基础镜像 registry 间歇性 503 与长轮询耗时较久，但其断言（状态事件 PUBLISHED）已通过 `outbox_event` 直查与 `/api/v1/smoke/rag/ingestion/events` 端点实查确认；独立验收 session 建议在 registry 恢复后重跑该脚本。
+- `rag_smoke_doc_uploaded_idempotency_test.sh` 当前以 chunk 计数不变为断言通过；脚本内对 Redis Stream 历史事件的字段解析较脆（未命中目标事件），双层幂等（processed_event + ingestion_job）的正确性由 `IngestionJobServiceTest`、`RagEventConsumerComponentTest` 单测/组件覆盖，后续可加固脚本重投递逻辑。
+- Docker 回归期间发现并修复两个实现缺陷（RagServiceApplication 组件扫描过早加载 EventAutoConfiguration、IngestionJob.createPending 未设置 NOT NULL 时间戳），已包含在 19.7 提交 `4078f16c`。
+- 交接收尾 session（2026-06-27）重跑全量非 Docker 验证：`./gradlew :crag-rag-service:test`（412 测试，0 skipped/failures/errors）、`./gradlew check`（BUILD SUCCESSFUL）、`python3 scripts/validate_plans.py --strict --verify-git`（0 error、24 历史 v2 WARNING，`--verify-git` 确认 plan 引用的 9 个实现短 hash 全部存在）、`python3 scripts/validate_module_dependencies.py`（0 error）、约束/依赖校验单测（37 项 OK）。过程中发现并修正 handoff 文档两处进度显示错误：`plan_19.md` 整体进度 `8 / 8（100%）` 与 `plan/index/README.md` 的 `(8/8)` 均误将待验收计入完成数，已按 `plan-workflow.md §7`（待验收计入分母、不计入完成数）改为 `0 / 8（0%）` 与 `(0/8)`。
+- Docker HTTP 回归未在本交接 session 重跑：实现代码自 19.7/19.8 提交（`4078f16c` / `9867f8f2`）后未变更，本 session 仅修改 plan/index 文档，既有 Docker 结果仍适用；建议独立验收 session 在 registry 恢复后重跑 `rag_smoke_*` 脚本。
+- 独立验收必须由未参与实现的新 agent session 执行；本记录为执行 session 自测，不构成最终完成。
 
 ## 阻塞记录
 
@@ -289,3 +309,5 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-26 | 创建计划 | 根据已确认的 RAG 多知识库化设计制定 router2 执行计划 | plan19 进入 ready，等待执行 session |
+| 2026-06-27 | 实现完成并交接验收 | 19.1–19.8 全部实现、自测通过并回填真实实现短 hash | plan19 状态 ready → verifying，8/8 任务待验收 |
+| 2026-06-27 | 交接收尾 | 重跑全量非 Docker 验证通过；修正 handoff 文档进度显示（待验收不计入完成数，8/8→0/8） | plan19 维持 verifying，提交独立验收 |
