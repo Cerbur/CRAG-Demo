@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package crag.access.v1;
+
+import "crag/access/v1/access_error.proto";
+
+option java_package = "ai.cerbur.crag.contracts.access.v1";
+option java_multiple_files = true;
+
+// API Key 领域 gRPC 契约：KnowledgeBase 授权投影（Scope）、单 Key 生命周期与鉴权。
+// 边界 ID（actor、tenant、knowledge base、api key）统一使用十进制字符串。完整 Key 只在创建/轮换成功时返回一次。
+service ApiKeyService {
+  // 注册 KnowledgeBase 的最小授权投影。
+  rpc RegisterScope(RegisterScopeRequest) returns (ApiKeyScope);
+  // 将 Scope 终态阻塞，同事务禁用其全部有效 Key 并写失效 Outbox。
+  rpc BlockScope(BlockScopeRequest) returns (ApiKeyScope);
+  // 创建 API Key，只返回一次完整 Key。
+  rpc CreateApiKey(CreateApiKeyRequest) returns (CreatedApiKey);
+  // 临时停用 Key。
+  rpc DisableApiKey(ChangeApiKeyStateRequest) returns (ApiKeyView);
+  // 恢复已停用的 Key。
+  rpc EnableApiKey(ChangeApiKeyStateRequest) returns (ApiKeyView);
+  // 轮换 Key：同事务创建新 Key、吊销旧 Key，只返回一次新秘密。
+  rpc RotateApiKey(RotateApiKeyRequest) returns (CreatedApiKey);
+  // 终态吊销 Key，不可恢复。
+  rpc RevokeApiKey(ChangeApiKeyStateRequest) returns (ApiKeyView);
+  // 校验完整 Key，成功只返回定位与过期信息。
+  rpc AuthenticateApiKey(AuthenticateApiKeyRequest) returns (AuthenticatedApiKey);
+}
+
+enum ApiKeyScopeStatus {
+  API_KEY_SCOPE_STATUS_UNSPECIFIED = 0;
+  SCOPE_STATUS_ACTIVE = 1;
+  SCOPE_STATUS_BLOCKED = 2;
+}
+
+enum ApiKeyStatus {
+  API_KEY_STATUS_UNSPECIFIED = 0;
+  KEY_ACTIVE = 1;
+  KEY_DISABLED = 2;
+  KEY_REVOKED = 3;
+  KEY_EXPIRED = 4;
+}
+
+message RegisterScopeRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+}
+
+message BlockScopeRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+}
+
+// Scope 视图。不保存 KnowledgeBase 业务字段。
+message ApiKeyScope {
+  string knowledge_base_id = 1;
+  string tenant_id = 2;
+  ApiKeyScopeStatus status = 3;
+  int64 version = 4;
+}
+
+message CreateApiKeyRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+  // Key 名称，长度 1–64。
+  string name = 4;
+  // 有效期秒数；默认 90 天，最长 365 天，禁止永不过期。
+  int64 ttl_seconds = 5;
+}
+
+// 新建/轮换后的 Key 视图，携带完整 Key。完整 Key 此后不再可读。
+message CreatedApiKey {
+  string api_key_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+  string name = 4;
+  // 完整 Key，格式 crag_<前缀>_<秘密>。
+  string complete_key = 5;
+  string expires_at_epoch_millis = 6;
+}
+
+message ChangeApiKeyStateRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string api_key_id = 3;
+}
+
+// Key 视图，不包含完整 Key 或秘密；只暴露可检索前缀。
+message ApiKeyView {
+  string api_key_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+  string name = 4;
+  ApiKeyStatus status = 5;
+  string key_prefix = 6;
+  string created_at_epoch_millis = 7;
+  string expires_at_epoch_millis = 8;
+  int64 version = 9;
+}
+
+message RotateApiKeyRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string api_key_id = 3;
+  int64 ttl_seconds = 4;
+}
+
+message AuthenticateApiKeyRequest {
+  // 完整 Key，格式 crag_<前缀>_<秘密>。
+  string api_key = 1;
+}
+
+// 鉴权成功返回的定位信息；不包含完整 Key。
+message AuthenticatedApiKey {
+  string api_key_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+  string expires_at_epoch_millis = 4;
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package crag.access.v1;
+
+import "crag/access/v1/access_error.proto";
+
+option java_package = "ai.cerbur.crag.contracts.access.v1";
+option java_multiple_files = true;
+
+// Identity 领域 gRPC 契约：注册、登录、刷新、退出与 JWT 公钥读取。
+// 边界 ID（user、session family）统一使用十进制字符串。响应禁止返回密码哈希、私钥或完整 Refresh Token 之外的凭据。
+service IdentityService {
+  // 注册 User、USERNAME Account、默认 Tenant、OWNER Membership 和首个 Refresh Session，返回身份摘要与 Token 材料。
+  rpc Register(RegisterRequest) returns (AuthenticationResponse);
+  // 校验 Username/密码并创建新的 Session Family。
+  rpc Login(LoginRequest) returns (AuthenticationResponse);
+  // 轮换 Refresh Token 并签发新的 Access JWT。
+  rpc Refresh(RefreshRequest) returns (AuthenticationResponse);
+  // 撤销当前 Session Family。
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // 返回当前可用于本地验签的公钥集，不返回私钥。
+  rpc GetJwtVerificationKeys(GetJwtVerificationKeysRequest) returns (JwtVerificationKeySet);
+}
+
+message RegisterRequest {
+  // 展示名，去除首尾空白后 1–64 个 Unicode 字符。
+  string nickname = 1;
+  // 登录 Username，规范化后 3–32 个 ASCII 字符。
+  string username = 2;
+  // 密码明文，长度 12–128；服务端按 Argon2id 哈希后丢弃。
+  string password = 3;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RefreshRequest {
+  // 完整 Refresh Token；服务端按 HMAC 定位并轮换。
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  // 用户 ID，十进制字符串。
+  string user_id = 1;
+  // Session Family ID，十进制字符串。
+  string session_family_id = 2;
+}
+
+message LogoutResponse {}
+
+message GetJwtVerificationKeysRequest {}
+
+// Access JWT 验签公钥集。router4 本地缓存后自行验签 Access JWT；不包含任何私钥。
+message JwtVerificationKeySet {
+  repeated JwtVerificationKey keys = 1;
+}
+
+message JwtVerificationKey {
+  // Key ID，与 JWT kid 声明对应。
+  string kid = 1;
+  // 算法，首版固定 "RS256"。
+  string algorithm = 2;
+  // RSA 公钥 PEM。
+  string public_key_pem = 3;
+}
+
+// 注册、登录、刷新成功后的身份与 Token 材料。完整 Refresh Token 只在此返回。
+message AuthenticationResponse {
+  // 用户 ID，十进制字符串。
+  string user_id = 1;
+  // 展示名。
+  string nickname = 2;
+  // Access JWT。
+  string access_token = 3;
+  string access_expires_at_epoch_millis = 4;
+  // 完整 Refresh Token，调用方须自行保存。
+  string refresh_token = 5;
+  string refresh_expires_at_epoch_millis = 6;
+  // Session Family ID，十进制字符串；JWT 的 sid 指向它。
+  string session_family_id = 7;
+}

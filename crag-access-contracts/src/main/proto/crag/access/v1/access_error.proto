@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package crag.access.v1;
+
+option java_package = "ai.cerbur.crag.contracts.access.v1";
+option java_multiple_files = true;
+
+// Access 领域稳定业务错误详情枚举。
+// gRPC 错误状态码（UNAUTHENTICATED / ALREADY_EXISTS / FAILED_PRECONDITION 等）与这里的业务码配合使用，
+// 提供不泄漏内部细节的稳定诊断。禁止把堆栈、SQL、哈希、密码或完整 Token 放入 message。
+enum AccessErrorCode {
+  ACCESS_ERROR_CODE_UNSPECIFIED = 0;
+  // 登录、刷新或 API Key 鉴权失败；统一为凭据无效，不区分具体原因。
+  INVALID_CREDENTIALS = 1;
+  // Refresh Token 无效、过期、已撤销或被复用检测命中。
+  INVALID_REFRESH_TOKEN = 2;
+  // Username 已被占用。
+  USERNAME_CONFLICT = 3;
+  // 指定 Tenant 下未找到成员关系；跨租户查询也使用本码，不泄漏存在性。
+  MEMBERSHIP_NOT_FOUND = 4;
+  // 移除/降级会令 Tenant 失去最后一名有效 OWNER。
+  LAST_OWNER = 5;
+  // 操作的 Scope 已被终态阻塞。
+  SCOPE_BLOCKED = 6;
+  // API Key 无效、不存在或鉴权失败。
+  API_KEY_INVALID = 7;
+  // 非法状态迁移或版本冲突。
+  STATE_CONFLICT = 8;
+}

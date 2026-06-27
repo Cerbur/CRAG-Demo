@@ -227,25 +227,23 @@ def check_autoconfig_and_dummy_keys() -> list[str]:
 
 
 def check_contracts_runtime_boundary() -> list[str]:
-    """Verify crag-platform-contracts has no Spring/Runtime deps,
+    """Verify crag-platform-contracts and crag-access-contracts have no Spring/Runtime deps,
     and crag-grpc-runtime has no Contracts or business deps."""
     errors = []
 
-    contracts_path = REPO_ROOT / "crag-platform-contracts" / "build.gradle.kts"
-    if contracts_path.exists():
+    # Pure Protobuf/gRPC contracts modules must stay free of Spring, runtime and project deps.
+    contracts_modules = ("crag-platform-contracts", "crag-access-contracts")
+    for module in contracts_modules:
+        contracts_path = REPO_ROOT / module / "build.gradle.kts"
+        if not contracts_path.exists():
+            continue
         content = read_file(contracts_path)
         if re.search(r"alias\(libs\.plugins\.spring\.boot\)", content):
-            errors.append(
-                "crag-platform-contracts/build.gradle.kts: Spring Boot plugin forbidden"
-            )
+            errors.append(f"{module}/build.gradle.kts: Spring Boot plugin forbidden")
         if re.search(r'spring-boot-starter', content):
-            errors.append(
-                "crag-platform-contracts/build.gradle.kts: Spring Boot starter forbidden"
-            )
+            errors.append(f"{module}/build.gradle.kts: Spring Boot starter forbidden")
         if re.search(r'project\(":crag-grpc-runtime"\)', content):
-            errors.append(
-                "crag-platform-contracts/build.gradle.kts: must not depend on crag-grpc-runtime"
-            )
+            errors.append(f"{module}/build.gradle.kts: must not depend on crag-grpc-runtime")
 
     runtime_path = REPO_ROOT / "crag-grpc-runtime" / "build.gradle.kts"
     if runtime_path.exists():

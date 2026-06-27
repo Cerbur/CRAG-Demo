@@ -355,5 +355,72 @@ dependencies {
                         f"Should detect business module dep, got: {errors}")
 
 
+class TestCheckAccessContractsBoundary(unittest.TestCase):
+    """Verify crag-access-contracts has no Spring/Runtime/business deps (plan_20)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.orig_root = vld.REPO_ROOT
+        vld.REPO_ROOT = Path(self.tmp.name)
+
+    def tearDown(self):
+        vld.REPO_ROOT = self.orig_root
+        self.tmp.cleanup()
+
+    def write_file(self, relpath: str, content: str):
+        p = Path(self.tmp.name) / relpath
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+
+    def test_passes_with_protobuf_only(self):
+        self.write_file("crag-access-contracts/build.gradle.kts", """
+plugins {
+    `java-library`
+    alias(libs.plugins.protobuf)
+}
+dependencies {
+    api(libs.grpc.stub)
+    api(libs.grpc.protobuf)
+    api(libs.protobuf.java)
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertEqual(errors, [],
+                         f"protobuf-only access contracts should pass, got: {errors}")
+
+    def test_rejects_spring_boot_plugin(self):
+        self.write_file("crag-access-contracts/build.gradle.kts", """
+plugins {
+    `java-library`
+    alias(libs.plugins.spring.boot)
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("crag-access-contracts" in e and "Spring Boot plugin" in e for e in errors),
+                        f"Should detect Spring Boot plugin, got: {errors}")
+
+    def test_rejects_spring_boot_starter(self):
+        self.write_file("crag-access-contracts/build.gradle.kts", """
+plugins { `java-library` }
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter")
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("crag-access-contracts" in e and "Spring Boot starter" in e for e in errors),
+                        f"Should detect Spring Boot starter, got: {errors}")
+
+    def test_rejects_grpc_runtime_dep(self):
+        self.write_file("crag-access-contracts/build.gradle.kts", """
+plugins { `java-library` }
+dependencies {
+    implementation(project(":crag-grpc-runtime"))
+}
+""")
+        errors = vld.check_contracts_runtime_boundary()
+        self.assertTrue(any("crag-access-contracts" in e and "crag-grpc-runtime" in e for e in errors),
+                        f"Should detect runtime dep, got: {errors}")
+
+
 if __name__ == "__main__":
     unittest.main()

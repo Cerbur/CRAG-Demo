@@ -12,6 +12,7 @@ include(
     "crag-common",
     "crag-platform-contracts",
     "crag-knowledge-contracts",
+    "crag-access-contracts",
     "crag-grpc-runtime",
     "crag-event",
     "crag-access-service",

@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package crag.access.v1;
+
+import "crag/access/v1/access_error.proto";
+
+option java_package = "ai.cerbur.crag.contracts.access.v1";
+option java_multiple_files = true;
+
+// Membership 领域 gRPC 契约：实时权限判断与成员生命周期管理。
+// 边界 ID（actor、tenant、member、resource owner）统一使用十进制字符串。
+service MembershipService {
+  // 按固定 TenantAction、实时用户/成员状态与角色做权限判断。
+  rpc AuthorizeTenantAction(AuthorizeTenantActionRequest) returns (AuthorizationDecision);
+  // OWNER 将已注册用户按 Username 直接加入 Tenant。
+  rpc AddMemberByUsername(AddMemberByUsernameRequest) returns (Membership);
+  // 在 OWNER/MEMBER 间调整角色。
+  rpc ChangeMemberRole(ChangeMemberRoleRequest) returns (Membership);
+  // 移除成员，同时保护最后一名有效 OWNER。
+  rpc RemoveMember(RemoveMemberRequest) returns (Membership);
+  // 查询单条成员关系的安全投影。
+  rpc GetMembership(GetMembershipRequest) returns (Membership);
+  // 列出 Tenant 成员关系的安全投影。
+  rpc ListMemberships(ListMembershipsRequest) returns (ListMembershipsResponse);
+}
+
+// Tenant 固定权限动作。受信任 Console 可通过 resource_owner_user_id 区分删除自有/他人资源。
+enum TenantAction {
+  TENANT_ACTION_UNSPECIFIED = 0;
+  TENANT_MANAGE_MEMBERS = 1;
+  TENANT_CREATE_KNOWLEDGE_BASE = 2;
+  TENANT_VIEW_KNOWLEDGE_BASE = 3;
+  TENANT_UPLOAD_DOCUMENT = 4;
+  TENANT_DELETE_OWN_DOCUMENT = 5;
+  TENANT_DELETE_ANY_DOCUMENT = 6;
+  TENANT_DELETE_KNOWLEDGE_BASE = 7;
+  TENANT_MANAGE_API_KEY = 8;
+}
+
+enum MembershipRole {
+  MEMBERSHIP_ROLE_UNSPECIFIED = 0;
+  MEMBERSHIP_ROLE_OWNER = 1;
+  MEMBERSHIP_ROLE_MEMBER = 2;
+}
+
+enum MembershipStatus {
+  MEMBERSHIP_STATUS_UNSPECIFIED = 0;
+  MEMBERSHIP_STATUS_ACTIVE = 1;
+  MEMBERSHIP_STATUS_REMOVED = 2;
+}
+
+message AuthorizeTenantActionRequest {
+  // 操作者用户 ID，十进制字符串。
+  string actor_user_id = 1;
+  // 租户 ID，十进制字符串。
+  string tenant_id = 2;
+  TenantAction action = 3;
+  // 资源上传者用户 ID，十进制字符串；为空表示不区分自有/他人资源。
+  string resource_owner_user_id = 4;
+}
+
+message AuthorizationDecision {
+  bool allowed = 1;
+  TenantAction action = 2;
+  // 拒绝原因展示值，不泄漏成员关系细节。
+  string reason = 3;
+}
+
+message AddMemberByUsernameRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  // 被添加用户的登录 Username。
+  string username = 3;
+}
+
+message ChangeMemberRoleRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  // 被调整成员的用户 ID，十进制字符串。
+  string member_user_id = 3;
+  MembershipRole role = 4;
+}
+
+message RemoveMemberRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string member_user_id = 3;
+}
+
+message GetMembershipRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string member_user_id = 3;
+}
+
+message ListMembershipsRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListMembershipsResponse {
+  repeated Membership memberships = 1;
+  string next_page_token = 2;
+}
+
+// Membership 安全投影。不包含密码、账号状态或登录标识。
+message Membership {
+  string membership_id = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  MembershipRole role = 4;
+  MembershipStatus status = 5;
+  int64 created_at_epoch_millis = 6;
+  int64 updated_at_epoch_millis = 7;
+  int64 version = 8;
+}

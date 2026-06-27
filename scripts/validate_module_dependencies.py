@@ -24,6 +24,7 @@ MODULE_WHITELIST: dict[str, set[str]] = {
     "crag-common": set(),
     "crag-platform-contracts": set(),
     "crag-knowledge-contracts": set(),
+    "crag-access-contracts": set(),
     "crag-grpc-runtime": set(),
     "crag-event": set(),
 }

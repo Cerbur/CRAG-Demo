@@ -27,6 +27,7 @@ include(
     "crag-common",
     "crag-platform-contracts",
     "crag-knowledge-contracts",
+    "crag-access-contracts",
     "crag-grpc-runtime",
     "crag-event",
     "crag-rag-service",
@@ -90,6 +91,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
             "crag-common": BUILD_NO_DEPS,
             "crag-platform-contracts": BUILD_CONTRACTS,
             "crag-knowledge-contracts": BUILD_CONTRACTS,
+            "crag-access-contracts": BUILD_CONTRACTS,
             "crag-grpc-runtime": BUILD_GRPC_RUNTIME,
             "crag-event": BUILD_NO_DEPS,
             "crag-rag-service": BUILD_RAG_SERVICE,
@@ -115,6 +117,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
                     "crag-common",
                     "crag-platform-contracts",
                     "crag-knowledge-contracts",
+                    "crag-access-contracts",
                     "crag-grpc-runtime",
                     "crag-event",
                     "crag-rag-service",
@@ -265,6 +268,37 @@ dependencies {
         self.assertTrue(
             any("crag-platform-contracts" in err.message for err in errors),
             f"Expected error about crag-platform-contracts, got: {errors}",
+        )
+
+    def test_access_contracts_module_rejects_shared_dep(self):
+        """crag-access-contracts must not depend on any other project module (plan_20)."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = """\
+rootProject.name = "test"
+include("crag-access-contracts", "crag-common")
+"""
+            (root / "settings.gradle.kts").write_text(settings, encoding="utf-8")
+            (root / ".git").mkdir(exist_ok=True)
+            mod_dir = root / "crag-access-contracts"
+            mod_dir.mkdir(parents=True)
+            (mod_dir / "build.gradle.kts").write_text(
+                """\
+plugins { `java-library` }
+dependencies {
+    implementation(project(":crag-common"))
+}
+""",
+                encoding="utf-8",
+            )
+            common_dir = root / "crag-common"
+            common_dir.mkdir(parents=True)
+            (common_dir / "build.gradle.kts").write_text(BUILD_NO_DEPS, encoding="utf-8")
+            diagnostics = self.validator.validate(root)
+        errors = [item for item in diagnostics if item.level == "ERROR"]
+        self.assertTrue(
+            any("crag-access-contracts" in err.message for err in errors),
+            f"Expected error about crag-access-contracts, got: {errors}",
         )
 
     def test_runtime_module_passes_with_no_deps(self):
