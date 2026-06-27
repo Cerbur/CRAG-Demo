@@ -8,12 +8,16 @@ import ai.cerbur.crag.access.dao.ApiKeyDao;
 import ai.cerbur.crag.access.dao.ApiKeyScopeDao;
 import ai.cerbur.crag.access.dao.entity.ApiKeyEntity;
 import ai.cerbur.crag.access.dao.entity.ApiKeyScopeEntity;
+import ai.cerbur.crag.access.producer.AccessEventTypes;
+import ai.cerbur.crag.access.producer.ApiKeyInvalidatedPayload;
+import ai.cerbur.crag.access.producer.ApiKeyInvalidationOutboxWriter;
 import ai.cerbur.crag.access.security.AccessSecurityConfiguration;
 import ai.cerbur.crag.access.security.SecretGenerator;
 import ai.cerbur.crag.access.security.SecretHmac;
 import ai.cerbur.crag.id.api.CragIdGenerator;
 import ai.cerbur.crag.id.api.IdEntityType;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +46,8 @@ public class ApiKeyService {
   @Qualifier(AccessSecurityConfiguration.API_KEY_HMAC)
   private SecretHmac apiKeyHmac;
 
+  @Autowired private ApiKeyInvalidationOutboxWriter invalidationWriter;
+
   /** 注册 KnowledgeBase 授权投影。调用方须有创建 KnowledgeBase 权限。 */
   @Transactional
   public ApiKeyScopeResult registerScope(long actorUserId, long tenantId, long knowledgeBaseId) {
@@ -61,7 +67,18 @@ public class ApiKeyService {
     }
     scopeDao.block(knowledgeBaseId, scope.getVersion());
     apiKeyDao.disableActiveByKnowledgeBase(knowledgeBaseId);
-    return scopeDao.findByKnowledgeBase(knowledgeBaseId).map(ApiKeyScopeResult::from).orElseThrow();
+    ApiKeyScopeEntity blocked = scopeDao.findByKnowledgeBase(knowledgeBaseId).orElseThrow();
+    invalidationWriter.write(
+        new ApiKeyInvalidatedPayload(
+            AccessEventTypes.RESOURCE_API_KEY_SCOPE,
+            knowledgeBaseId,
+            scope.getTenantId(),
+            knowledgeBaseId,
+            "SCOPE_BLOCKED",
+            blocked.getVersion()),
+        "scope-" + knowledgeBaseId,
+        Instant.now());
+    return ApiKeyScopeResult.from(blocked);
   }
 
   /** 创建 API Key，只返回一次完整 Key。 */
@@ -75,7 +92,7 @@ public class ApiKeyService {
     return persistNewKey(tenantId, knowledgeBaseId, validatedName, resolvedTtl, null);
   }
 
-  /** 停用 Key：ACTIVE→DISABLED。 */
+  /** 停用 Key：ACTIVE→DISABLED，同事务写失效事件。 */
   @Transactional
   public ApiKeyResult disable(long actorUserId, long tenantId, long apiKeyId) {
     requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
@@ -83,12 +100,14 @@ public class ApiKeyService {
     if (!ApiKeyEntity.STATUS_ACTIVE.equals(key.getStatus())) {
       throw new ApiKeyStateException("api key is not active");
     }
-    return ApiKeyResult.from(
+    ApiKeyEntity updated =
         apiKeyDao.updateStatus(
-            apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_DISABLED, LocalDateTime.now(), null));
+            apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_DISABLED, LocalDateTime.now(), null);
+    writeKeyEvent(key, "DISABLED", updated.getVersion());
+    return ApiKeyResult.from(updated);
   }
 
-  /** 启用 Key：DISABLED→ACTIVE。 */
+  /** 启用 Key：DISABLED→ACTIVE，同事务写失效事件。 */
   @Transactional
   public ApiKeyResult enable(long actorUserId, long tenantId, long apiKeyId) {
     requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
@@ -96,11 +115,13 @@ public class ApiKeyService {
     if (!ApiKeyEntity.STATUS_DISABLED.equals(key.getStatus())) {
       throw new ApiKeyStateException("api key is not disabled");
     }
-    return ApiKeyResult.from(
-        apiKeyDao.updateStatus(apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_ACTIVE, null, null));
+    ApiKeyEntity updated =
+        apiKeyDao.updateStatus(apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_ACTIVE, null, null);
+    writeKeyEvent(key, "ENABLED", updated.getVersion());
+    return ApiKeyResult.from(updated);
   }
 
-  /** 吊销 Key：ACTIVE/DISABLED→REVOKED，终态。 */
+  /** 吊销 Key：ACTIVE/DISABLED→REVOKED，终态，同事务写失效事件。 */
   @Transactional
   public ApiKeyResult revoke(long actorUserId, long tenantId, long apiKeyId) {
     requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
@@ -108,12 +129,14 @@ public class ApiKeyService {
     if (ApiKeyEntity.STATUS_REVOKED.equals(key.getStatus())) {
       throw new ApiKeyStateException("api key already revoked");
     }
-    return ApiKeyResult.from(
+    ApiKeyEntity updated =
         apiKeyDao.updateStatus(
-            apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_REVOKED, null, LocalDateTime.now()));
+            apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_REVOKED, null, LocalDateTime.now());
+    writeKeyEvent(key, "REVOKED", updated.getVersion());
+    return ApiKeyResult.from(updated);
   }
 
-  /** 轮换 Key：同事务创建新 ACTIVE Key 并吊销旧 Key，只返回一次新秘密。 */
+  /** 轮换 Key：同事务创建新 ACTIVE Key 并吊销旧 Key，只返回一次新秘密；为旧 Key 写失效事件。 */
   @Transactional
   public CreatedApiKey rotate(long actorUserId, long tenantId, long apiKeyId, Duration ttl) {
     requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
@@ -124,8 +147,10 @@ public class ApiKeyService {
     Duration resolvedTtl = ApiKeyPolicy.resolveTtl(ttl);
     CreatedApiKey created =
         persistNewKey(tenantId, key.getKnowledgeBaseId(), key.getName(), resolvedTtl, apiKeyId);
-    apiKeyDao.updateStatus(
-        apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_REVOKED, null, LocalDateTime.now());
+    ApiKeyEntity revoked =
+        apiKeyDao.updateStatus(
+            apiKeyId, key.getVersion(), ApiKeyEntity.STATUS_REVOKED, null, LocalDateTime.now());
+    writeKeyEvent(key, "ROTATED", revoked.getVersion());
     return created;
   }
 
@@ -214,5 +239,19 @@ public class ApiKeyService {
         .findById(apiKeyId)
         .filter(k -> k.getTenantId() == tenantId)
         .orElseThrow(ApiKeyNotFoundException::new);
+  }
+
+  /** 写入单 Key 失效事件；payload 只含定位与版本，不含完整 Key 或 HMAC。 */
+  private void writeKeyEvent(ApiKeyEntity key, String action, long version) {
+    invalidationWriter.write(
+        new ApiKeyInvalidatedPayload(
+            AccessEventTypes.RESOURCE_API_KEY,
+            key.getApiKeyId(),
+            key.getTenantId(),
+            key.getKnowledgeBaseId(),
+            action,
+            version),
+        "apikey-" + key.getApiKeyId(),
+        Instant.now());
   }
 }

@@ -26,6 +26,11 @@ crag:
   id:
     service-domain: access
     required-entities: USER,LOGIN_ACCOUNT,TENANT,TENANT_MEMBERSHIP,REFRESH_SESSION,API_KEY,ACCESS_EVENT
+  event:
+    publisher:
+      enabled: true
+    stream-key: crag:event:access
+    dlq-stream-key: crag:event:access:dlq
   grpc:
     server:
       bind-port: 9091
