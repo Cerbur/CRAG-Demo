@@ -92,7 +92,8 @@ public class RedisStreamEventConsumer implements MessageProcessor {
             entry.recordId(),
             Instant.now(clock));
     if (!fresh) {
-      ProcessedEventRecord existing = processedDao.findByEventId(consumerName, envelope.eventId());
+      ProcessedEventRecord existing =
+          processedDao.findByIdempotencyKey(consumerName, idempotencyKey);
       if (existing != null && existing.status() != ProcessedEventStatus.FAILED) {
         ops.acknowledge(streamKey, groupName, entry.recordId());
         return;
@@ -103,21 +104,17 @@ public class RedisStreamEventConsumer implements MessageProcessor {
     Instant now = Instant.now(clock);
     switch (result.outcome()) {
       case COMPLETE -> {
-        processedDao.markProcessed(consumerName, envelope.eventId(), entry.recordId(), now);
+        processedDao.markProcessed(consumerName, idempotencyKey, entry.recordId(), now);
         ops.acknowledge(streamKey, groupName, entry.recordId());
       }
       case RETRY ->
           processedDao.markFailed(
-              consumerName,
-              envelope.eventId(),
-              EventErrorCode.HANDLER_FAILED,
-              result.message(),
-              now);
+              consumerName, idempotencyKey, EventErrorCode.HANDLER_FAILED, result.message(), now);
       case DEAD_LETTER -> {
         dlqPublisher.publish(envelope, EventErrorCode.HANDLER_NON_RETRYABLE, result.message());
         processedDao.markDeadLettered(
             consumerName,
-            envelope.eventId(),
+            idempotencyKey,
             EventErrorCode.HANDLER_NON_RETRYABLE,
             result.message(),
             now);

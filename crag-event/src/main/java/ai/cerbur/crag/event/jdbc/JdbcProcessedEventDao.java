@@ -17,11 +17,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 /**
  * JDBC access to the local {@code processed_event} table, backing consumer idempotency.
  *
- * <p>The unique keys {@code (consumer_name, event_id)} and {@code (consumer_name, idempotency_key)}
- * make {@link #insertPlaceholder} the idempotency gate: a duplicate returns {@code false} so the
- * caller can re-check the existing status. State transitions are status-guarded rather than
- * version-CAS, so {@code PROCESSED} and {@code DEAD_LETTERED} rows are never overwritten by the
- * ordinary success path.
+ * <p>The primary key {@code (consumer_name, idempotency_key)} makes {@link #insertPlaceholder} the
+ * idempotency gate: a true duplicate of the same logical event returns {@code false} so the caller
+ * can re-check the existing status. Idempotency is by the event's logical identity, never by {@code
+ * event_id}, which several producers can independently re-use on one shared Redis stream. State
+ * transitions are status-guarded rather than version-CAS, so {@code PROCESSED} and {@code
+ * DEAD_LETTERED} rows are never overwritten by the ordinary success path.
  */
 public class JdbcProcessedEventDao {
 
@@ -33,8 +34,10 @@ public class JdbcProcessedEventDao {
 
   /**
    * Inserts a {@code FAILED} placeholder for an unseen event. Returns {@code false} when a row with
-   * the same {@code (consumer_name, event_id)} or {@code (consumer_name, idempotency_key)} already
-   * exists — the caller then reads the existing status to decide whether to skip or re-process.
+   * the same {@code (consumer_name, idempotency_key)} already exists — a true duplicate of the same
+   * logical event — so the caller can re-read the existing status to decide whether to skip or
+   * re-process. Two different events sharing an {@code event_id} (different producers on one
+   * stream) have different idempotency keys and are both accepted.
    */
   public boolean insertPlaceholder(
       String consumerName,
@@ -69,14 +72,19 @@ public class JdbcProcessedEventDao {
     }
   }
 
-  /** Returns the row for {@code (consumerName, eventId)}, or {@code null} when absent. */
-  public ProcessedEventRecord findByEventId(String consumerName, long eventId) {
+  /**
+   * Returns the row for {@code (consumerName, idempotencyKey)}, or {@code null} when absent.
+   * Lookups are by idempotency key (the event's logical identity and the table's de-dup key), never
+   * by {@code event_id}, which is not unique across producers sharing a stream.
+   */
+  public ProcessedEventRecord findByIdempotencyKey(String consumerName, String idempotencyKey) {
     List<ProcessedEventRecord> rows =
         jdbc.query(
-            "SELECT * FROM processed_event WHERE consumer_name = :consumerName AND event_id = :eventId",
+            "SELECT * FROM processed_event "
+                + "WHERE consumer_name = :consumerName AND idempotency_key = :idempotencyKey",
             new MapSqlParameterSource()
                 .addValue("consumerName", consumerName)
-                .addValue("eventId", eventId),
+                .addValue("idempotencyKey", idempotencyKey),
             ProcessedEventRowMapper.INSTANCE);
     return rows.isEmpty() ? null : rows.get(0);
   }
@@ -86,18 +94,19 @@ public class JdbcProcessedEventDao {
    * terminal or absent, so re-delivery of a processed or dead-lettered event does not clobber it.
    */
   public boolean markProcessed(
-      String consumerName, long eventId, String streamRecordId, Instant now) {
+      String consumerName, String idempotencyKey, String streamRecordId, Instant now) {
     int affected =
         jdbc.update(
             "UPDATE processed_event "
                 + "SET status = 'PROCESSED', processed_at = :now, stream_record_id = :streamRecordId, "
                 + "last_error_code = NULL, last_error_message = NULL "
-                + "WHERE consumer_name = :consumerName AND event_id = :eventId AND status = 'FAILED'",
+                + "WHERE consumer_name = :consumerName AND idempotency_key = :idempotencyKey "
+                + "AND status = 'FAILED'",
             new MapSqlParameterSource()
                 .addValue("now", Timestamp.from(now))
                 .addValue("streamRecordId", streamRecordId)
                 .addValue("consumerName", consumerName)
-                .addValue("eventId", eventId));
+                .addValue("idempotencyKey", idempotencyKey));
     return affected > 0;
   }
 
@@ -107,7 +116,7 @@ public class JdbcProcessedEventDao {
    */
   public boolean markFailed(
       String consumerName,
-      long eventId,
+      String idempotencyKey,
       EventErrorCode errorCode,
       String errorMessage,
       Instant now) {
@@ -116,13 +125,13 @@ public class JdbcProcessedEventDao {
             "UPDATE processed_event "
                 + "SET status = 'FAILED', handler_attempt_count = handler_attempt_count + 1, "
                 + "last_error_code = :errorCode, last_error_message = :errorMessage "
-                + "WHERE consumer_name = :consumerName AND event_id = :eventId "
+                + "WHERE consumer_name = :consumerName AND idempotency_key = :idempotencyKey "
                 + "AND status NOT IN ('PROCESSED', 'DEAD_LETTERED')",
             new MapSqlParameterSource()
                 .addValue("errorCode", errorCode.name())
                 .addValue("errorMessage", errorMessage)
                 .addValue("consumerName", consumerName)
-                .addValue("eventId", eventId));
+                .addValue("idempotencyKey", idempotencyKey));
     return affected > 0;
   }
 
@@ -132,7 +141,7 @@ public class JdbcProcessedEventDao {
    */
   public boolean markDeadLettered(
       String consumerName,
-      long eventId,
+      String idempotencyKey,
       EventErrorCode errorCode,
       String errorMessage,
       Instant now) {
@@ -141,13 +150,13 @@ public class JdbcProcessedEventDao {
             "UPDATE processed_event "
                 + "SET status = 'DEAD_LETTERED', last_error_code = :errorCode, "
                 + "last_error_message = :errorMessage "
-                + "WHERE consumer_name = :consumerName AND event_id = :eventId "
+                + "WHERE consumer_name = :consumerName AND idempotency_key = :idempotencyKey "
                 + "AND status <> 'PROCESSED'",
             new MapSqlParameterSource()
                 .addValue("errorCode", errorCode.name())
                 .addValue("errorMessage", errorMessage)
                 .addValue("consumerName", consumerName)
-                .addValue("eventId", eventId));
+                .addValue("idempotencyKey", idempotencyKey));
     return affected > 0;
   }
 

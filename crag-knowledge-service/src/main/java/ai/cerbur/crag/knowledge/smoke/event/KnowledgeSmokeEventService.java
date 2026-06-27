@@ -2,6 +2,7 @@ package ai.cerbur.crag.knowledge.smoke.event;
 
 import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.OutboxEventStatus;
+import ai.cerbur.crag.event.api.ProcessedEventIdempotencyKey;
 import ai.cerbur.crag.event.api.ProcessedEventStatus;
 import ai.cerbur.crag.event.jdbc.JdbcOutboxEventDao;
 import ai.cerbur.crag.event.jdbc.JdbcProcessedEventDao;
@@ -104,7 +105,17 @@ public class KnowledgeSmokeEventService {
   }
 
   private KnowledgeSmokeEventStatusResponse toStatus(OutboxEventRecord outbox) {
-    ProcessedEventRecord processed = processedDao.findByEventId(consumerName, outbox.eventId());
+    // processed_event de-dupes by idempotency key (the event's logical identity), so look up the
+    // consumption record by that key derived from the outbox identity fields, not by event id.
+    String idempotencyKey =
+        new ProcessedEventIdempotencyKey(
+                outbox.eventType(),
+                outbox.resourceType(),
+                outbox.resourceId(),
+                outbox.operationVersion())
+            .format();
+    ProcessedEventRecord processed =
+        processedDao.findByIdempotencyKey(consumerName, idempotencyKey);
     return new KnowledgeSmokeEventStatusResponse(
         Long.toString(outbox.eventId()),
         outbox.traceId(),

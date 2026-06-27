@@ -52,20 +52,26 @@ class JdbcProcessedEventDaoComponentTest {
           placeholder("knowledge-smoke-1", 101L, "EVENT_SMOKE_CREATED:SMOKE_EVENT:1:1");
 
       assertThat(inserted).isTrue();
-      ProcessedEventRecord record = dao.findByEventId("knowledge-smoke-1", 101L);
+      ProcessedEventRecord record =
+          dao.findByIdempotencyKey("knowledge-smoke-1", "EVENT_SMOKE_CREATED:SMOKE_EVENT:1:1");
       assertThat(record).isNotNull();
       assertThat(record.status()).isEqualTo(ProcessedEventStatus.FAILED);
       assertThat(record.handlerAttemptCount()).isZero();
     }
 
     @Test
-    @DisplayName("duplicate consumer + eventId is rejected")
-    void duplicateConsumerEventIdRejected() {
-      placeholder("knowledge-smoke-1", 201L, "K:1");
+    @DisplayName(
+        "same eventId with different idempotencyKey (two producers on one stream) is accepted")
+    void sameEventIdDifferentIdempotencyKeyAccepted() {
+      // Two producers (Knowledge DOC_UPLOADED, RAG INGESTION_*) each use their own outbox event_id
+      // sequence, so they can publish events sharing an event id on one Redis stream. The consumer
+      // must de-dupe by idempotency key (the event's logical identity), never by event id, or the
+      // second event is silently dropped and its handler never runs.
+      boolean first = placeholder("rag-ingestion-1", 201L, "DOC_UPLOADED:DOCUMENT:10:1");
+      boolean second = placeholder("rag-ingestion-1", 201L, "INGESTION_READY:DOCUMENT:9:1");
 
-      boolean again = placeholder("knowledge-smoke-1", 201L, "K:other");
-
-      assertThat(again).isFalse();
+      assertThat(first).isTrue();
+      assertThat(second).as("different idempotency key must not be de-duped by event id").isTrue();
     }
 
     @Test
@@ -97,10 +103,10 @@ class JdbcProcessedEventDaoComponentTest {
     void failedToProcessed() {
       placeholder("knowledge-smoke-1", 501L, "K:1");
 
-      boolean processed = dao.markProcessed("knowledge-smoke-1", 501L, "1-0", Instant.now(clock));
+      boolean processed = dao.markProcessed("knowledge-smoke-1", "K:1", "1-0", Instant.now(clock));
 
       assertThat(processed).isTrue();
-      ProcessedEventRecord record = dao.findByEventId("knowledge-smoke-1", 501L);
+      ProcessedEventRecord record = dao.findByIdempotencyKey("knowledge-smoke-1", "K:1");
       assertThat(record.status()).isEqualTo(ProcessedEventStatus.PROCESSED);
       assertThat(record.processedAt()).isNotNull();
     }
@@ -109,9 +115,9 @@ class JdbcProcessedEventDaoComponentTest {
     @DisplayName("markProcessed on an already PROCESSED row is a no-op")
     void processedNotReprocessed() {
       placeholder("knowledge-smoke-1", 601L, "K:1");
-      dao.markProcessed("knowledge-smoke-1", 601L, "1-0", Instant.now(clock));
+      dao.markProcessed("knowledge-smoke-1", "K:1", "1-0", Instant.now(clock));
 
-      boolean again = dao.markProcessed("knowledge-smoke-1", 601L, "1-0", Instant.now(clock));
+      boolean again = dao.markProcessed("knowledge-smoke-1", "K:1", "1-0", Instant.now(clock));
 
       assertThat(again).isFalse();
     }
@@ -122,11 +128,11 @@ class JdbcProcessedEventDaoComponentTest {
       placeholder("knowledge-smoke-1", 701L, "K:1");
 
       dao.markFailed(
-          "knowledge-smoke-1", 701L, EventErrorCode.HANDLER_FAILED, "boom", Instant.now(clock));
+          "knowledge-smoke-1", "K:1", EventErrorCode.HANDLER_FAILED, "boom", Instant.now(clock));
       dao.markFailed(
-          "knowledge-smoke-1", 701L, EventErrorCode.HANDLER_FAILED, "boom", Instant.now(clock));
+          "knowledge-smoke-1", "K:1", EventErrorCode.HANDLER_FAILED, "boom", Instant.now(clock));
 
-      ProcessedEventRecord record = dao.findByEventId("knowledge-smoke-1", 701L);
+      ProcessedEventRecord record = dao.findByIdempotencyKey("knowledge-smoke-1", "K:1");
       assertThat(record.status()).isEqualTo(ProcessedEventStatus.FAILED);
       assertThat(record.handlerAttemptCount()).isEqualTo(2);
       assertThat(record.lastErrorCode()).isEqualTo("HANDLER_FAILED");
@@ -138,15 +144,15 @@ class JdbcProcessedEventDaoComponentTest {
       placeholder("knowledge-smoke-1", 801L, "K:1");
       dao.markDeadLettered(
           "knowledge-smoke-1",
-          801L,
+          "K:1",
           EventErrorCode.HANDLER_NON_RETRYABLE,
           "fatal",
           Instant.now(clock));
 
-      boolean processed = dao.markProcessed("knowledge-smoke-1", 801L, "1-0", Instant.now(clock));
+      boolean processed = dao.markProcessed("knowledge-smoke-1", "K:1", "1-0", Instant.now(clock));
 
       assertThat(processed).isFalse();
-      assertThat(dao.findByEventId("knowledge-smoke-1", 801L).status())
+      assertThat(dao.findByIdempotencyKey("knowledge-smoke-1", "K:1").status())
           .isEqualTo(ProcessedEventStatus.DEAD_LETTERED);
     }
 
@@ -154,18 +160,18 @@ class JdbcProcessedEventDaoComponentTest {
     @DisplayName("markDeadLettered on an already PROCESSED row is ignored")
     void deadLetterIgnoredWhenProcessed() {
       placeholder("knowledge-smoke-1", 901L, "K:1");
-      dao.markProcessed("knowledge-smoke-1", 901L, "1-0", Instant.now(clock));
+      dao.markProcessed("knowledge-smoke-1", "K:1", "1-0", Instant.now(clock));
 
       boolean dead =
           dao.markDeadLettered(
               "knowledge-smoke-1",
-              901L,
+              "K:1",
               EventErrorCode.HANDLER_NON_RETRYABLE,
               "fatal",
               Instant.now(clock));
 
       assertThat(dead).isFalse();
-      assertThat(dao.findByEventId("knowledge-smoke-1", 901L).status())
+      assertThat(dao.findByIdempotencyKey("knowledge-smoke-1", "K:1").status())
           .isEqualTo(ProcessedEventStatus.PROCESSED);
     }
   }

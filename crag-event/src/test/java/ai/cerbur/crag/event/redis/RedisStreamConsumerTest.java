@@ -34,6 +34,7 @@ class RedisStreamConsumerTest {
   private static final String DLQ_KEY = "crag:event:knowledge:dlq";
   private static final String GROUP = "knowledge-smoke";
   private static final String CONSUMER = "knowledge-smoke-1";
+  private static final String IDEMPOTENCY_KEY = "EVENT_SMOKE_CREATED:SMOKE_EVENT:1:1";
 
   private FakeRedisStreamOps ops;
   private JdbcProcessedEventDao dao;
@@ -89,7 +90,7 @@ class RedisStreamConsumerTest {
 
     consumer.processNextBatch();
 
-    verify(dao).markProcessed(eq(CONSUMER), eq(1L), anyString(), any());
+    verify(dao).markProcessed(eq(CONSUMER), eq(IDEMPOTENCY_KEY), anyString(), any());
     assertThat(ops.acknowledgements()).hasSize(1);
     assertThat(handler.invocations.get()).isEqualTo(1);
   }
@@ -122,7 +123,12 @@ class RedisStreamConsumerTest {
     consumer.processNextBatch();
 
     verify(dao)
-        .markFailed(eq(CONSUMER), eq(1L), eq(EventErrorCode.HANDLER_FAILED), anyString(), any());
+        .markFailed(
+            eq(CONSUMER),
+            eq(IDEMPOTENCY_KEY),
+            eq(EventErrorCode.HANDLER_FAILED),
+            anyString(),
+            any());
     assertThat(ops.acknowledgements()).isEmpty();
   }
 
@@ -139,7 +145,11 @@ class RedisStreamConsumerTest {
     assertThat(ops.stream(DLQ_KEY)).hasSize(1);
     verify(dao)
         .markDeadLettered(
-            eq(CONSUMER), eq(1L), eq(EventErrorCode.HANDLER_NON_RETRYABLE), anyString(), any());
+            eq(CONSUMER),
+            eq(IDEMPOTENCY_KEY),
+            eq(EventErrorCode.HANDLER_NON_RETRYABLE),
+            anyString(),
+            any());
     assertThat(ops.acknowledgements()).hasSize(1);
   }
 
@@ -148,7 +158,7 @@ class RedisStreamConsumerTest {
   void alreadyProcessedDuplicateIsAcked() {
     when(dao.insertPlaceholder(anyString(), any(), anyString(), anyString(), anyString(), any()))
         .thenReturn(false);
-    when(dao.findByEventId(CONSUMER, 1L))
+    when(dao.findByIdempotencyKey(CONSUMER, IDEMPOTENCY_KEY))
         .thenReturn(
             new ProcessedEventRecord(
                 CONSUMER,
@@ -173,7 +183,7 @@ class RedisStreamConsumerTest {
 
     assertThat(ops.acknowledgements()).hasSize(1);
     assertThat(handler.invocations.get()).isZero();
-    verify(dao, never()).markProcessed(anyString(), eq(1L), anyString(), any());
+    verify(dao, never()).markProcessed(anyString(), eq(IDEMPOTENCY_KEY), anyString(), any());
   }
 
   private static final class RecordingHandler implements EventHandler {

@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS processed_event (
   handler_attempt_count INT NOT NULL DEFAULT 0,
   last_error_code VARCHAR(48),
   last_error_message VARCHAR(512),
-  CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, event_id),
-  CONSTRAINT uq_processed_idempotency UNIQUE (consumer_name, idempotency_key)
+  -- De-dupe by idempotency key (the event's logical identity), not by event id: multiple producers
+  -- share one Redis stream and each owns an independent outbox event_id sequence, so two different
+  -- events can carry the same event id. event_id remains a tracked (non-unique) column.
+  CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, idempotency_key)
 );

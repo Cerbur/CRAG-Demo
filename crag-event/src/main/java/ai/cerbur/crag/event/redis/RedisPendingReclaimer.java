@@ -2,6 +2,7 @@ package ai.cerbur.crag.event.redis;
 
 import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.EventErrorCode;
+import ai.cerbur.crag.event.api.ProcessedEventIdempotencyKey;
 import ai.cerbur.crag.event.jdbc.JdbcProcessedEventDao;
 import java.time.Clock;
 import java.time.Duration;
@@ -87,10 +88,11 @@ public class RedisPendingReclaimer {
   private void deadLetter(StreamEntry message, String recordId) {
     try {
       EventEnvelope envelope = mapper.fromFields(message.fields());
+      String idempotencyKey = ProcessedEventIdempotencyKey.from(envelope).format();
       dlqPublisher.publish(envelope, EventErrorCode.HANDLER_FAILED, "delivery exhausted");
       processedDao.markDeadLettered(
           consumerName,
-          envelope.eventId(),
+          idempotencyKey,
           EventErrorCode.HANDLER_FAILED,
           "delivery exhausted",
           Instant.now(clock));

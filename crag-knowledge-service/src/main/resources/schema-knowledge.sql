@@ -99,6 +99,15 @@ CREATE TABLE IF NOT EXISTS processed_event (
   handler_attempt_count INT NOT NULL DEFAULT 0,
   last_error_code VARCHAR(48),
   last_error_message VARCHAR(512),
-  CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, event_id),
-  CONSTRAINT uq_processed_idempotency UNIQUE (consumer_name, idempotency_key)
+  -- De-dupe by idempotency key (event logical identity), not event id: multiple producers share one
+  -- Redis stream and each owns an independent outbox event_id sequence, so two different events can
+  -- carry the same event id. event_id is a tracked (non-unique) column. (plan_19.7 repair)
+  CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, idempotency_key)
 );
+
+-- Idempotent migration (H2- and PostgreSQL-portable): ensure the processed_event primary key is on
+-- (consumer_name, idempotency_key) and the redundant unique constraint is gone. Re-applied each
+-- startup; on already-current tables this just drops and re-adds the same key.
+ALTER TABLE processed_event DROP CONSTRAINT IF EXISTS pk_processed_event;
+ALTER TABLE processed_event DROP CONSTRAINT IF EXISTS uq_processed_idempotency;
+ALTER TABLE processed_event ADD CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, idempotency_key);

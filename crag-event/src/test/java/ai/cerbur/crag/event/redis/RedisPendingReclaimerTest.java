@@ -28,6 +28,7 @@ class RedisPendingReclaimerTest {
   private static final String DLQ_KEY = "crag:event:knowledge:dlq";
   private static final String GROUP = "knowledge-smoke";
   private static final String CONSUMER = "knowledge-smoke-1";
+  private static final String IDEMPOTENCY_KEY = "EVENT_SMOKE_CREATED:SMOKE_EVENT:1:1";
 
   private FakeRedisStreamOps ops;
   private JdbcProcessedEventDao dao;
@@ -106,7 +107,8 @@ class RedisPendingReclaimerTest {
   @DisplayName("idle entries at the delivery limit are dead-lettered and ACKed")
   void idleAtLimitIsDeadLettered() {
     seedEnvelope("1-0");
-    when(dao.markDeadLettered(anyString(), eq(1L), any(), anyString(), any())).thenReturn(true);
+    when(dao.markDeadLettered(anyString(), eq(IDEMPOTENCY_KEY), any(), anyString(), any()))
+        .thenReturn(true);
     ops.setPending(List.of(new PendingEntry("1-0", CONSUMER, 60_000L, 3L)));
     RedisPendingReclaimer reclaimer = reclaimer(Duration.ofSeconds(30), 3);
 
@@ -116,7 +118,11 @@ class RedisPendingReclaimerTest {
     assertThat(ops.acknowledgements()).hasSize(1);
     verify(dao)
         .markDeadLettered(
-            eq(CONSUMER), eq(1L), eq(EventErrorCode.HANDLER_FAILED), anyString(), any());
+            eq(CONSUMER),
+            eq(IDEMPOTENCY_KEY),
+            eq(EventErrorCode.HANDLER_FAILED),
+            anyString(),
+            any());
     assertThat(processor.processed).isEmpty();
   }
 
