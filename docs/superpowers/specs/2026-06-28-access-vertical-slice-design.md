@@ -2,7 +2,7 @@
 
 日期：2026-06-28
 
-状态：设计已确认，待书面规格复核
+状态：已确认并完成书面规格复核
 
 范围：router3 / plan20 的 Access Provider；不包含正式 Console/Open HTTP 入口与生命周期补偿
 
@@ -236,7 +236,7 @@ Console 在 KnowledgeBase 创建成功后调用 Access 注册 Scope。只有 Sco
 - 轮换：同一事务创建新 Key、吊销旧 Key，并只返回一次新秘密。
 - Scope Block：同一事务终态阻塞 Scope、禁用其全部有效 Key并写失效 Outbox。
 
-停用、启用、轮换、吊销或 Scope Block 都必须在状态事务中写入 `API_KEY_INVALIDATED` Outbox。router3 只负责生产事件，Open API 消费和短 TTL 鉴权缓存归 router4。
+停用、启用、轮换、吊销或 Scope Block 都必须在状态事务中写入 `API_KEY_INVALIDATED` Outbox。单 Key 变化以 `resourceType=API_KEY` 携带 Key ID；Scope Block 以 `resourceType=API_KEY_SCOPE` 携带 KnowledgeBase ID，使 router4 能按 Key 或 Scope 批量失效。事件不得包含完整 Key 或 HMAC。router3 只负责生产事件，Open API 消费和短 TTL 鉴权缓存归 router4。
 
 ## 9. 安全、错误与并发
 

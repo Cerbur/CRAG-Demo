@@ -109,7 +109,7 @@ Console API 只处理 JWT 的 Web 传输和本地验签。认证安全规则与�
 
 - 同步命令和查询使用 gRPC。
 - 生命周期通知、状态回传和缓存失效使用 Redis Streams。
-- PostgreSQL 实例可以共享，但 Access、Knowledge、RAG 使用独立 schema、数据库账号和迁移所有权。`plan_14` 只建立数据库、角色、schema 与权限基线；版本化迁移机制在首次引入业务表时分别由 `plan_17`（Knowledge）、`plan_18`（RAG）和 `plan_19`（Access）落地。
+- PostgreSQL 实例可以共享，但 Access、Knowledge、RAG 使用独立 schema、数据库账号和 Schema 初始化所有权。当前三个业务服务统一沿用各自拥有的幂等 Schema SQL；若未来引入 Flyway/Liquibase，必须通过独立工程治理 Plan 同时设计三个 Schema 的迁移、基线和回滚。
 - 禁止服务跨 schema 查询、写入或建立外键。
 - 跨服务只保存对方资源的 ID。
 - Console API 可以编排多个服务；业务服务不得形成同步循环调用。
@@ -560,7 +560,7 @@ HTTP、gRPC 和消息统一传播 `traceId`。
 
 ## 15. 分阶段演进顺序
 
-本节描述方向性阶段和预留 Plan 编号。除已经创建的 `plan_14` 外，编号不表示 Plan 文件已经创建或进入执行状态；后续阶段在准备执行前继续以设计稿收敛决策，再创建对应 Plan。
+本节描述方向性阶段。已创建阶段使用真实 Plan 编号；尚未创建的阶段继续使用 router 占位，不表示 Plan 文件已经创建或进入执行状态。
 
 ### `plan_14`：多服务基础骨架
 
@@ -574,39 +574,44 @@ HTTP、gRPC 和消息统一传播 `traceId`。
 - Redis Worker 租约。
 - 时钟回拨、序列耗尽与发号健康状态。
 
-### `plan_16`：可靠事件基础设施
+### `plan_16`：RAG Service Module 收口
+
+- 合并 RAG 内部 subproject，保留清晰包边界。
+- 将 legacy AdminRag/UserQuery HTTP 迁入 smoke namespace。
+
+### `plan_17`：可靠事件基础设施
 
 - Outbox、Redis Streams 与稳定事件信封。
 - Consumer Group、ACK、Pending Reclaim、死信与消费幂等。
 
-### `plan_17`：Knowledge 垂直链路
+### `plan_18`：Knowledge 垂直链路
 
 - KnowledgeBase、Document 与 File Object。
 - `.txt / .md` 文件上传、存储和流式读取。
-- 建立 Knowledge Schema 的版本化迁移机制。
+- 建立 Knowledge Schema 的幂等初始化与本地数据访问边界。
 
-### `plan_18`：RAG 多知识库化
+### `plan_19`：RAG 多知识库化
 
 - Ingestion Job 与异步索引。
 - Chunk、Dense、Sparse、Retrieval 和 Query 强制按 `knowledgeBaseId` 隔离。
 - 消费上传事件并向 Knowledge 回传处理状态。
-- 建立 RAG Schema 的版本化迁移机制。
+- 建立 RAG Schema 的幂等初始化与多知识库数据访问边界。
 
-### `plan_19`：Access 与权限
+### `plan_20`：Access 与权限
 
 - User、默认 Tenant 与 Membership。
 - JWT、Refresh Session 与 API Key。
 - 权限矩阵和 API Key 缓存失效。
-- 建立 Access Schema 的版本化迁移机制。
+- 建立 Access Schema 的幂等初始化、gRPC Provider 与 smoke 验收。
 
-### `plan_20`：双 API 入口
+### `router4`：双 API 入口
 
 - Console API 管理用例编排。
 - Open API 的 API Key 鉴权和完整 RAG 查询。
 - 移除现有混合职责的 `crag-api`。
 - 移除 `rag-service:8082` 兼容映射，并重新评估 Smoke 诊断映射。
 
-### `plan_21`：生命周期可靠性
+### `router5`：生命周期可靠性
 
 - Document 和 KnowledgeBase 删除状态机。
 - 下游清理、回执、补偿扫描和死信。

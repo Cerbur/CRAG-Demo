@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-28（plan_19 独立重新验收通过：19.7 isolation 冷启动连跑 3 次全 PASS、全量 router2 Docker 回归通过，completed，8/8）
+> 最后更新：2026-06-28（创建 plan_20：Access 垂直链路，ready，0/9，进入执行队首）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -73,6 +73,8 @@ plan/
 │   └── plan_18.md
 ├── plan_19/
 │   └── plan_19.md
+├── plan_20/
+│   └── plan_20.md
 └── plan_archive/
     └── README.md
 ```
@@ -103,12 +105,14 @@ plan/
 | plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | ✅ 完成 (6/6) | — | [plan_17.md](../plan_17/plan_17.md) |
 | plan_18 | Knowledge 垂直链路，新增 Knowledge contracts、KnowledgeBase、Document、文件上传、存储、流式读取与 DOC_UPLOADED 事件 | ✅ 完成 (7/7) | — | [plan_18.md](../plan_18/plan_18.md) |
 | plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | ✅ 完成 (8/8) | — | [plan_19.md](../plan_19/plan_19.md) |
+| plan_20 | Access 垂直链路，包含 User/Account、默认 Tenant、Membership、JWT、Refresh Session、API Key、失效事件与 smoke 验收 | 🟡 待开始 (0/9) | — | [plan_20.md](../plan_20/plan_20.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
+plan_20 — Access 垂直链路（下一项）
 plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
 plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径可达（非优先，测试脚本修复）
 ```
@@ -276,6 +280,12 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_19.md](../plan_19/plan_19.md) | RAG 多知识库化，新增 `DOC_UPLOADED` consumer、`ingestion_job`、Knowledge 文件读取、Chunk/Dense/Sparse `knowledgeBaseId` 隔离、Retrieval/Query 隔离、状态事件和 router2 smoke 验收 | ✅ 完成 (8/8) |
+
+## Plan_20 明细
+
+| 文件 | 主要功能 | 状态 |
+| --- | --- | --- |
+| [plan_20.md](../plan_20/plan_20.md) | Access 垂直链路，新增 `crag-access-contracts`、User/Account、默认 Tenant、Membership 权限、JWT、Refresh Session、Scope/API Key、失效 Outbox、gRPC 和 smoke-only Docker 验收 | 🟡 待开始 (0/9) |
 
 ---
 

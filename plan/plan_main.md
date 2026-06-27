@@ -145,7 +145,7 @@ KnowledgeBase 必须归 Tenant 所有。用户通过 Membership 访问 Tenant �
 - `crag-platform-contracts` 保存跨领域通用的 Protobuf 基础契约，例如请求/响应公共元数据、稳定错误信息和平台 Probe；不包含具体领域 RPC 或业务实现。
 - 领域 gRPC 契约按服务提供方归属，分别进入 `crag-access-contracts`、`crag-knowledge-contracts` 和 `crag-rag-contracts`。
 - 稳定事件信封由可靠事件基础设施阶段定义，不与具体领域事件载荷或 gRPC 契约混放。
-- Access、Knowledge、RAG 使用独立 Schema、数据库账号和迁移所有权。`plan_14` 只建立数据库、角色、Schema 与权限基线；版本化迁移机制在各服务首次引入业务表时分别由 `router1`（Knowledge）、`router2`（RAG）和 `router3`（Access）落地；正式创建 Plan 时再分配真实 Plan 编号。
+- Access、Knowledge、RAG 使用独立 Schema、数据库账号和 Schema 初始化所有权。当前三个业务服务统一沿用各自拥有的幂等 Schema SQL；若未来引入 Flyway/Liquibase，必须通过独立工程治理 Plan 同时设计三个 Schema 的迁移、基线和回滚，不允许单个服务独自切换启动机制。
 - 服务间只保存对方资源 ID，不建立跨 Schema 外键。
 - Console API 可以编排多个服务，业务服务不得形成同步循环调用。
 - 所有消息采用至少一次投递，消费者必须幂等。
@@ -227,7 +227,7 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 
 ## 七、阶段路线
 
-以下路线只预留依赖顺序和交付边界。已创建并完成的 `plan_14` 至 `plan_17` 保留真实 Plan 编号；尚未创建的后续阶段使用 `routerN` 作为路线占位，不表示对应 Plan 文件已经创建或进入 `draft`。后续阶段在准备执行前以相关设计稿为事实来源；只有正式创建 Plan 文件后，任务、依赖、状态、进度和验收记录才进入 [`plan/index/README.md`](./index/README.md) 与对应 Plan。
+以下路线只维护依赖顺序和交付边界。已创建阶段使用真实 Plan 编号；尚未创建的后续阶段使用 `routerN` 作为路线占位，不表示对应 Plan 文件已经创建或进入 `draft`。任务、依赖、状态、进度和验收记录只进入 [`plan/index/README.md`](./index/README.md) 与对应 Plan。
 
 | 路线编号 | 阶段 | 交付边界 |
 | --- | --- | --- |
@@ -235,9 +235,9 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 | `plan_15` | 分布式 ID | Snowflake ID、Redis Worker 租约、时钟回拨与发号健康状态 |
 | `plan_16` | RAG Service Module 收口 | RAG 内部 subproject 合并、legacy HTTP 迁入 smoke namespace |
 | `plan_17` | 可靠事件基础设施 | Outbox、Redis Streams、事件信封、消费组、ACK、Reclaim 与消费幂等 |
-| `router1` | Knowledge 垂直链路 | KnowledgeBase、Document、文件上传、存储与流式读取 |
-| `router2` | RAG 多知识库化 | RAG 多知识库隔离、异步索引、Ingestion Job 与状态回传 |
-| `router3` | Access 与权限 | User、Tenant、Membership、JWT、Refresh Session 与 API Key |
+| `plan_18` | Knowledge 垂直链路 | KnowledgeBase、Document、文件上传、存储与流式读取 |
+| `plan_19` | RAG 多知识库化 | RAG 多知识库隔离、异步索引、Ingestion Job 与状态回传 |
+| `plan_20` | Access 与权限 | User、Account、Tenant、Membership、JWT、Refresh Session 与 API Key |
 | `router4` | 双 API 入口 | Console API、Open API、完整用例编排与旧混合入口退出 |
 | `router5` | 生命周期可靠性 | 删除状态机、补偿、死信、监控、告警与故障恢复 |
 
