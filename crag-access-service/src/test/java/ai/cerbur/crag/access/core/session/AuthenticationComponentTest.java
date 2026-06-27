@@ -2,35 +2,40 @@ package ai.cerbur.crag.access.core.session;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import ai.cerbur.crag.access.core.identity.InvalidCredentialsException;
 import ai.cerbur.crag.access.core.identity.RegisterIdentityCommand;
-import jakarta.persistence.EntityManager;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 认证 Facade 轻量组件测试（H2 + 真实 RSA 密钥）。
  *
- * <p>验证注册/登录签发 Token、Refresh 轮换、旧 Token 复用撤销 Family 与 Logout。真实 PostgreSQL 并发由 Docker 回归证明。
+ * <p>非事务：每个用例独立提交，使 Refresh 复用检测的 REQUIRES_NEW 撤销能读到已提交的 Session 行。用唯一 Username 隔离数据。 真实 PostgreSQL
+ * 并发由 Docker 回归证明。
  */
 @SpringBootTest
-@Transactional
 class AuthenticationComponentTest {
 
   private static final String PASSWORD = "correct-horse-battery-12";
 
   @Autowired private AuthenticationService authenticationService;
-  @Autowired private EntityManager entityManager;
+
+  private String uniqueUsername() {
+    return "u" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+  }
+
+  private AuthenticationResult registerUnique() {
+    return authenticationService.register(
+        new RegisterIdentityCommand("Nick", uniqueUsername(), PASSWORD.toCharArray()));
+  }
 
   @Test
   @DisplayName("注册签发 Access JWT 与 Refresh Token")
   void registerIssuesTokens() {
-    AuthenticationResult result =
-        authenticationService.register(
-            new RegisterIdentityCommand("Alice", "alice", PASSWORD.toCharArray()));
-    entityManager.flush();
+    AuthenticationResult result = registerUnique();
     assertEquals(3, result.tokens().accessToken().split("\\.").length);
     assertFalse(result.tokens().refreshToken().isBlank());
     assertTrue(result.tokens().sessionFamilyId() > 0);
@@ -40,10 +45,10 @@ class AuthenticationComponentTest {
   @Test
   @DisplayName("登录签发新 Session Family 的 Token")
   void loginIssuesTokens() {
+    String username = uniqueUsername();
     authenticationService.register(
-        new RegisterIdentityCommand("Alice", "alice", PASSWORD.toCharArray()));
-    entityManager.flush();
-    AuthenticationResult login = authenticationService.login("alice", PASSWORD.toCharArray());
+        new RegisterIdentityCommand("Nick", username, PASSWORD.toCharArray()));
+    AuthenticationResult login = authenticationService.login(username, PASSWORD.toCharArray());
     assertEquals(3, login.tokens().accessToken().split("\\.").length);
     assertFalse(login.tokens().refreshToken().isBlank());
   }
@@ -51,20 +56,14 @@ class AuthenticationComponentTest {
   @Test
   @DisplayName("刷新轮换 Token；旧 Token 复用撤销 Family，新 Token 随后失效")
   void refreshRotatesAndReuseRevokesFamily() {
-    AuthenticationResult registered =
-        authenticationService.register(
-            new RegisterIdentityCommand("Alice", "alice", PASSWORD.toCharArray()));
-    entityManager.flush();
+    AuthenticationResult registered = registerUnique();
     String firstRefresh = registered.tokens().refreshToken();
 
     AuthenticationResult rotated = authenticationService.refresh(firstRefresh);
-    entityManager.flush();
     assertNotEquals(firstRefresh, rotated.tokens().refreshToken());
 
-    // 旧 Token 复用 → 撤销整个 Family
     assertThrows(
         InvalidRefreshTokenException.class, () -> authenticationService.refresh(firstRefresh));
-    // Family 已撤销，新 Token 也失效
     assertThrows(
         InvalidRefreshTokenException.class,
         () -> authenticationService.refresh(rotated.tokens().refreshToken()));
@@ -73,12 +72,8 @@ class AuthenticationComponentTest {
   @Test
   @DisplayName("Logout 撤销当前 Family，后续刷新失败")
   void logoutRevokesFamily() {
-    AuthenticationResult registered =
-        authenticationService.register(
-            new RegisterIdentityCommand("Bob", "bob", PASSWORD.toCharArray()));
-    entityManager.flush();
+    AuthenticationResult registered = registerUnique();
     authenticationService.logout(registered.userId(), registered.tokens().sessionFamilyId());
-    entityManager.flush();
     assertThrows(
         InvalidRefreshTokenException.class,
         () -> authenticationService.refresh(registered.tokens().refreshToken()));
@@ -87,11 +82,11 @@ class AuthenticationComponentTest {
   @Test
   @DisplayName("错误密码登录抛 InvalidCredentialsException")
   void loginWrongPassword() {
+    String username = uniqueUsername();
     authenticationService.register(
-        new RegisterIdentityCommand("Alice", "alice", PASSWORD.toCharArray()));
-    entityManager.flush();
+        new RegisterIdentityCommand("Nick", username, PASSWORD.toCharArray()));
     assertThrows(
-        ai.cerbur.crag.access.core.identity.InvalidCredentialsException.class,
-        () -> authenticationService.login("alice", "wrong-password-12345".toCharArray()));
+        InvalidCredentialsException.class,
+        () -> authenticationService.login(username, "wrong-password-12345".toCharArray()));
   }
 }

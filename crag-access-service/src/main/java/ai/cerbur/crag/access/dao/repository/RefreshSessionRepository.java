@@ -21,6 +21,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface RefreshSessionRepository extends JpaRepository<RefreshSessionEntity, Long> {
 
+  /** 按 token_hmac 定位会话（非锁）。 */
+  @Query("SELECT s FROM RefreshSessionEntity s WHERE s.tokenHmac = :tokenHmac")
+  Optional<RefreshSessionEntity> findByTokenHmac(@Param("tokenHmac") String tokenHmac);
+
   /** 悲观锁按 token_hmac 定位会话。 */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT s FROM RefreshSessionEntity s WHERE s.tokenHmac = :tokenHmac")

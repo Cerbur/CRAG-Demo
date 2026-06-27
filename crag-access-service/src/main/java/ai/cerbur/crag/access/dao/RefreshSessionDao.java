@@ -25,6 +25,11 @@ public class RefreshSessionDao {
     return refreshSessionRepository.save(entity);
   }
 
+  /** 按 token_hmac 定位会话（非锁，用于轮换编排读取状态）。 */
+  public Optional<RefreshSessionEntity> findByTokenHmac(String tokenHmac) {
+    return refreshSessionRepository.findByTokenHmac(tokenHmac);
+  }
+
   /** 悲观锁按 token_hmac 定位会话。 */
   public Optional<RefreshSessionEntity> findByTokenHmacForUpdate(String tokenHmac) {
     return refreshSessionRepository.findByTokenHmacForUpdate(tokenHmac);

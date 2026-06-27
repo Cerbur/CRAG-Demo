@@ -23,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 /** RefreshSessionService 纯单元测试：用 mock DAO 验证轮换状态机与复用检测。 */
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +36,7 @@ class RefreshSessionServiceTest {
   @Mock private CragIdGenerator idGenerator;
   @Mock private SecretGenerator secretGenerator;
   @Mock private SecretHmac refreshHmac;
+  @Mock private PlatformTransactionManager transactionManager;
 
   @InjectMocks private RefreshSessionService service;
 
@@ -43,6 +46,10 @@ class RefreshSessionServiceTest {
     lenient().when(idGenerator.nextId(any())).thenReturn(counter.getAndIncrement());
     lenient().when(secretGenerator.randomBase64Url(anyInt())).thenReturn("secret");
     lenient().when(refreshHmac.digest(anyString())).thenReturn("hmac");
+    // 复用撤销走 REQUIRES_NEW 事务模板：让事务管理器直接执行回调。
+    lenient()
+        .when(transactionManager.getTransaction(any()))
+        .thenReturn(mock(TransactionStatus.class));
   }
 
   @Test
@@ -58,7 +65,7 @@ class RefreshSessionServiceTest {
     RefreshSessionEntity active =
         RefreshSessionEntity.create(
             1L, 10L, 7L, "hmac", LocalDateTime.now(), LocalDateTime.now().plusDays(30));
-    when(sessionDao.findByTokenHmacForUpdate("hmac")).thenReturn(Optional.of(active));
+    when(sessionDao.findByTokenHmac("hmac")).thenReturn(Optional.of(active));
     when(userDao.findById(7L)).thenReturn(Optional.of(activeUser()));
     when(accountDao.findByUserId(7L)).thenReturn(Optional.of(activeAccount()));
 
@@ -71,13 +78,13 @@ class RefreshSessionServiceTest {
   }
 
   @Test
-  @DisplayName("ROTATED Token 再次出现：撤销整个 Family 并拒绝")
+  @DisplayName("ROTATED Token 再次出现：在独立事务撤销整个 Family 并拒绝")
   void rotateReusedRevokesFamily() {
     RefreshSessionEntity rotated =
         RefreshSessionEntity.create(
             1L, 10L, 7L, "hmac", LocalDateTime.now(), LocalDateTime.now().plusDays(30));
-    when(sessionDao.findByTokenHmacForUpdate("hmac")).thenReturn(Optional.of(rotated));
     org.springframework.test.util.ReflectionTestUtils.setField(rotated, "status", "ROTATED");
+    when(sessionDao.findByTokenHmac("hmac")).thenReturn(Optional.of(rotated));
 
     assertThrows(InvalidRefreshTokenException.class, () -> service.rotate("token"));
     verify(sessionDao).revokeFamily(10L);
@@ -90,7 +97,7 @@ class RefreshSessionServiceTest {
         RefreshSessionEntity.create(
             1L, 10L, 7L, "hmac", LocalDateTime.now(), LocalDateTime.now().plusDays(30));
     org.springframework.test.util.ReflectionTestUtils.setField(revoked, "status", "REVOKED");
-    when(sessionDao.findByTokenHmacForUpdate("hmac")).thenReturn(Optional.of(revoked));
+    when(sessionDao.findByTokenHmac("hmac")).thenReturn(Optional.of(revoked));
 
     assertThrows(InvalidRefreshTokenException.class, () -> service.rotate("token"));
     verify(sessionDao, never()).revokeFamily(anyLong());
@@ -107,7 +114,7 @@ class RefreshSessionServiceTest {
             "hmac",
             LocalDateTime.now().minusDays(40),
             LocalDateTime.now().minusDays(10));
-    when(sessionDao.findByTokenHmacForUpdate("hmac")).thenReturn(Optional.of(expired));
+    when(sessionDao.findByTokenHmac("hmac")).thenReturn(Optional.of(expired));
 
     assertThrows(InvalidRefreshTokenException.class, () -> service.rotate("token"));
   }
@@ -118,7 +125,7 @@ class RefreshSessionServiceTest {
     RefreshSessionEntity active =
         RefreshSessionEntity.create(
             1L, 10L, 7L, "hmac", LocalDateTime.now(), LocalDateTime.now().plusDays(30));
-    when(sessionDao.findByTokenHmacForUpdate("hmac")).thenReturn(Optional.of(active));
+    when(sessionDao.findByTokenHmac("hmac")).thenReturn(Optional.of(active));
     PlatformUserEntity disabled = activeUser();
     disabled.setStatus(PlatformUserEntity.STATUS_DISABLED);
     when(userDao.findById(7L)).thenReturn(Optional.of(disabled));
