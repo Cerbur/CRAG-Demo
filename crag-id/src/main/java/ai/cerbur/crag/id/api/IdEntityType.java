@@ -12,7 +12,28 @@ public enum IdEntityType {
   LEGACY_DOCUMENT(1),
 
   /** Chunk — parent and child alike. */
-  CHUNK(2);
+  CHUNK(2),
+
+  /** Access permanent user identity (plan_20). */
+  USER(3),
+
+  /** Access login account credential row (plan_20). */
+  LOGIN_ACCOUNT(4),
+
+  /** Access tenant (plan_20). */
+  TENANT(5),
+
+  /** Access tenant membership (plan_20). */
+  TENANT_MEMBERSHIP(6),
+
+  /** Access refresh session / token family (plan_20). */
+  REFRESH_SESSION(7),
+
+  /** Access API key (plan_20). */
+  API_KEY(8),
+
+  /** Access local event (outbox event id, plan_20). */
+  ACCESS_EVENT(9);
 
   private final int code;
 

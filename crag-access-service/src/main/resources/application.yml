@@ -9,15 +9,23 @@ spring:
     username: crag_access
     password: ${CARG_ACCESS_PASSWORD:access_demo}
     driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: ${CARG_REDIS_HOST:redis}
+      port: ${CARG_REDIS_PORT:6379}
   jpa:
     hibernate:
       ddl-auto: none
     show-sql: false
   sql:
     init:
-      mode: never
+      mode: always
+      schema-locations: classpath:schema-access.sql
 
 crag:
+  id:
+    service-domain: access
+    required-entities: USER,LOGIN_ACCOUNT,TENANT,TENANT_MEMBERSHIP,REFRESH_SESSION,API_KEY,ACCESS_EVENT
   grpc:
     server:
       bind-port: 9091
@@ -25,6 +33,18 @@ crag:
       allowed-callers:
         console-api: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
         open-api: ${OPEN_API_SERVICE_TOKEN:open-token-demo}
+  access:
+    jwt:
+      # 正式 Profile 无默认值，缺失时 accessSecrets 就绪检查报 DOWN。
+      private-key-pem: ${CARG_ACCESS_JWT_PRIVATE_KEY:}
+      public-key-pem: ${CARG_ACCESS_JWT_PUBLIC_KEY:}
+      kid: ${CARG_ACCESS_JWT_KID:access-key-1}
+      issuer: ${CARG_ACCESS_JWT_ISSUER:crag-access}
+      audience: ${CARG_ACCESS_JWT_AUDIENCE:crag-services}
+      access-ttl-seconds: 900
+    pepper:
+      refresh-token: ${CARG_ACCESS_REFRESH_PEPPER:}
+      api-key: ${CARG_ACCESS_API_KEY_PEPPER:}
 
 management:
   endpoints:
@@ -40,4 +60,4 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState,db,expectedSchema
+          include: readinessState,db,expectedSchema,accessSecrets,cragId

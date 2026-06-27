@@ -8,10 +8,11 @@ spring:
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
   sql:
     init:
-      mode: never
+      mode: always
+      schema-locations: classpath:schema-access.sql
 
 crag:
   grpc:
@@ -20,3 +21,13 @@ crag:
       shutdown-timeout: 1s
       allowed-callers:
         test-caller: test-token
+  access:
+    jwt:
+      private-key-pem: test-private
+      public-key-pem: test-public
+      kid: test-kid
+      issuer: test-issuer
+      audience: test-audience
+    pepper:
+      refresh-token: test-refresh-pepper
+      api-key: test-api-key-pepper
