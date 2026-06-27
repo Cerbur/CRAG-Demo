@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_19
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-26
 updated: 2026-06-27
 ---
@@ -186,7 +186,7 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 19.4 | 改造 Chunk / Dense / Sparse 写入为多 KB 模型 | ✅ 完成 | b945228d | 2026-06-27 |
 | 19.5 | 改造 Retrieval / Query 为强制 KB 隔离 | ✅ 完成 | 45b1802c | 2026-06-27 |
 | 19.6 | 发布 RAG ingestion 状态事件 | ✅ 完成 | 44e4b819 | 2026-06-27 |
-| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | 🔄 进行中 | 5bae5915, 4078f16c | — |
+| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | ⏳ 待验收 | 5bae5915, 4078f16c, 24012322 | — |
 | 19.8 | 同步约束文档、README 与全量验证 | ✅ 完成 | 9867f8f2 | 2026-06-27 |
 
 整体进度：7 / 8（88%）
@@ -307,6 +307,17 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 - **状态处置**（按 `constraints/plan-workflow.md §5.1/§9.2`）：19.7 由「待验收」退回「进行中」，其余 7 项验收通过保留「完成」；plan19 `verifying → in_progress`，移出验收队列、回到执行队列。验收 session 不修代码。
 - **交执行 session 的修复方向**（不改已验证正确的隔离/索引/状态事件业务逻辑）：稳定 `DOC_UPLOADED` 发布/消费在 rag-service-smoke 冷启动后的可靠性——核查 crag-event 的 publisher/consumer 调度（`TaskScheduler` 歧义、启动顺序与单例锁竞争），确保 `DOC_UPLOADED` 稳定发布并被 RAG consumer 消费；或调整回归脚本在断言前确保发布/消费链路就绪；使 `rag_smoke_multi_kb_isolation_test.sh` 与 `rag_smoke_ingestion_status_event_test.sh`（registry 恢复后）稳定通过，再重新独立验收。
 
+### 修复记录（2026-06-27 修复 session，实现提交 `24012322`）
+
+按 repair-crag-plan skill 修复独立验收退回的 19.7。先以失败证据定位根因（非猜测）：
+
+- **真实根因**（用失败 run 数据证实，与验收 session 的"疑似调度非确定性"猜测不同）：crag-event 消费者按 `(consumer_name, event_id)` 主键去重，假设 event_id 在一条 stream 上唯一。plan_19.6 让 RAG 向自己消费的同一 stream `crag:event:knowledge` 发布 `INGESTION_*` 状态事件后，Knowledge 与 RAG 各自的 `outbox_event` event_id 序列（都 `START WITH 1`）在共享 stream 上碰撞。失败 run 实测：knowledge outbox event 30（`DOC_UPLOADED` doc30）与 rag outbox event 30（`INGESTION_READY` doc29）同号，rag `processed_event` 主键 `(rag-ingestion-1, 30)` 先被 rag 事件占用，knowledge 的 `DOC_UPLOADED` doc30 被 `insertPlaceholder` 判为重复、ACK 跳过、不建 job → `wait_ready_job` 超时。幂等键 `eventType:resourceType:resourceId:operationVersion` 不会碰撞（不同 resourceId），仅 event_id 碰撞；`processed_event` 跨 run 累积使问题随历史漂移而 flaky。验收观察到的 `More than one TaskScheduler bean` / 单例锁竞争为冷启动伴随现象，非根因（测试证明 crag-event 调度器对 tick 异常是 log-and-suppress 健壮的）。
+- **修复**：消费者改按 `(consumer_name, idempotency_key)` 去重——事件的逻辑身份，跨生产者唯一。`processed_event` 主键改为 `(consumer_name, idempotency_key)`（新表直接建，旧表用 H2/PostgreSQL 通用幂等 `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` 迁移，每次启动重应用）；`JdbcProcessedEventDao` `findByEventId`→`findByIdempotencyKey`，`markProcessed/markFailed/markDeadLettered` 改用 `idempotency_key` 定位行（避免同 event_id 不同事件的 FAILED 行被误改）；`RedisStreamEventConsumer`、`RedisPendingReclaimer` 同步改用 `idempotency_key`；`KnowledgeSmokeEventService` 的 processed_event 诊断查询改用 `idempotency_key`。新增"同 event_id 不同 idempotency_key 均被接受"回归用例（原 `duplicateConsumerEventIdRejected` 固化了错误行为，已替换）。
+- **影响面**（透明披露）：修复触及 plan_17 交付的 crag-event 去重逻辑与 schema、plan_18 的 knowledge schema-knowledge.sql 与 `KnowledgeSmokeEventService`、plan_19 的 rag schema.sql；均属 19.7 退回问题的根因链，验收记录亦明确授权"核查 crag-event 的 publisher/consumer 调度，确保 DOC_UPLOADED 稳定消费"。
+- **执行 session 自测**（非最终验收）：`./gradlew check`（全量测试/格式/架构/Plan 校验 BUILD SUCCESSFUL）、`python3 scripts/validate_plans.py`（0 error、24 历史 v2 WARNING）、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints`（37 项 OK）。
+- **Docker HTTP 回归**（执行 session 自测）：`rag_smoke_multi_kb_isolation_test.sh` 冷启动连跑 3 次（1 次 `--build` 重建 + 2 次 `--force-recreate`）全 PASS（KB-A 仅召回 A、KB-B 仅召回 B，修复前 4 次 3 失败）；`rag_smoke_ingestion_status_event_test.sh` PASS（registry 已恢复）；`rag_smoke_multi_kb_ingestion_test.sh`、`rag_smoke_doc_uploaded_idempotency_test.sh`、`rag_smoke_doc_uploaded_dlq_test.sh` 均 PASS（dlq 首跑遇 Docker Hub registry 503，重试后 PASS，非代码问题）。
+- **残余风险**：`processed_event` schema 迁移为每次启动 `DROP+ADD` 主键（H2/PostgreSQL 通用、幂等），对小表开销可忽略；若未来在同一 stream 上新增第三个 event_id 序列与本方案冲突的生产者，idempotency_key 去重仍正确（按事件逻辑身份），但建议长期考虑 event_id 全局唯一化。独立验收须由未参与本次修复的新 agent session 在 registry 稳定时重跑全量 router2 Docker 回归。
+
 ### 未执行项与风险
 
 - `rag_smoke_ingestion_status_event_test.sh` 脚本在执行 session 间或因 Docker 基础镜像 registry 间歇性 503 与长轮询耗时较久，但其断言（状态事件 PUBLISHED）已通过 `outbox_event` 直查与 `/api/v1/smoke/rag/ingestion/events` 端点实查确认；独立验收 session 建议在 registry 恢复后重跑该脚本。
@@ -332,3 +343,4 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 2026-06-27 | 实现完成并交接验收 | 19.1–19.8 全部实现、自测通过并回填真实实现短 hash | plan19 状态 ready → verifying，8/8 任务待验收 |
 | 2026-06-27 | 交接收尾 | 重跑全量非 Docker 验证通过；修正 handoff 文档进度显示（待验收不计入完成数，8/8→0/8） | plan19 维持 verifying，提交独立验收 |
 | 2026-06-27 | 独立验收失败 | 独立验收 session 重跑执行 session 未重跑的 Docker HTTP 回归：19.1-19.6/19.8 通过；19.7 `rag_smoke_multi_kb_isolation_test.sh` flaky（rag-service-smoke 冷启动后 DOC_UPLOADED 发布/消费可靠性缺陷）+ `rag_smoke_ingestion_status_event_test.sh` 受 Docker Hub registry 503 阻塞 | plan19 verifying → in_progress；19.7 待验收 → 进行中（整体 7/8）；交执行 session 稳定 ingestion 事件链路可靠性后重新独立验收 |
+| 2026-06-27 | 修复验收退回项（实现提交 `24012322`） | 定位真实根因：crag-event 消费者按 `(consumer, event_id)` 去重，plan_19.6 让 RAG 向同一 stream 共发布 `INGESTION_*` 后，Knowledge/RAG 各自 event_id 序列碰撞致 `DOC_UPLOADED` 被误判重复丢弃。改按 `(consumer, idempotency_key)` 去重（crag-event 逻辑+schema、rag/knowledge schema 迁移、`KnowledgeSmokeEventService` 适配、回归用例） | plan19 in_progress → verifying；19.7 进行中 → 待验收（追加 `24012322`，整体 7/8）；router2 Docker 回归冷启动连跑稳定通过；交独立验收 session 重新验收 |
