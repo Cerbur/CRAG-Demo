@@ -24,6 +24,8 @@ class TestCragIdConfig {
         switch (entityType) {
           case LEGACY_DOCUMENT -> nextDocId.getAndIncrement();
           case CHUNK -> nextChunkId.getAndIncrement();
+          // Access entity types are not used by RAG tests; fall through to a shared counter.
+          default -> nextDocId.getAndIncrement();
         };
   }
 }

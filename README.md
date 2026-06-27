@@ -69,6 +69,10 @@ docker compose --profile smoke up -d --build rag-service-smoke
 
 # 验证全链路
 curl http://localhost:8083/api/v1/smoke/test/smoke
+
+# Access smoke（端口 8095）：身份/会话/Membership/API Key
+docker compose --profile smoke up -d --build db redis access-service-smoke
+curl http://localhost:8095/api/v1/smoke/access/jwt-keys
 ```
 
 ## 🗺️ 平台架构
@@ -85,6 +89,16 @@ RAG 已从单知识空间升级为多知识库隔离模型（见 `plan/plan_19`�
 - **按 KB 强隔离**：`chunk` / `chunk_embedding` / `chunk_fts` 三表显式落 `knowledge_base_id`，Sparse / Dense 查询、Rerank 相邻扩展、Parent Evidence 回表与 Query 入口均以 `knowledgeBaseId` 为必填强隔离键（`retrieve` / `retrieveEvidence` / `answer` 均接收 `knowledgeBaseId`）。
 - **状态事件**：RAG 发布 `INGESTION_PROCESSING / INGESTION_READY / INGESTION_FAILED` 状态事件（payload 仅含安全字段）。
 - **诊断**：router2 全链路在 smoke profile 下通过 `rag-service-smoke` + `knowledge-service-smoke` 的 `/api/v1/smoke/**` HTTP 入口验证（见 `scripts/tests/http/rag_smoke_*.sh`）。
+
+### router3：Access 垂直链路（plan_20）
+
+Access 已落地为完整的身份与授权 Provider（见 `plan/plan_20`）：
+
+- **身份与会话**：User / Login Account 分离，Username/密码注册（Argon2id）与默认 Tenant + OWNER Membership；身份型 RS256 JWT（仅 `sub/sid/jti/iss/aud/iat/nbf/exp`，不含 Tenant/角色）与单次轮换、复用检测撤销整个 Family 的 Refresh Session。
+- **Membership**：OWNER/MEMBER 固定权限矩阵、按 Username 添加成员、最后 OWNER 并发保护、跨租户不泄漏。
+- **API Key**：KnowledgeBase 授权投影（Scope）+ 单 Key 完整生命周期（创建/鉴权/停用/启用/轮换/吊销/过期），完整 Key 只返回一次。
+- **失效事件**：Key/Scope 状态变化在同事务写 `API_KEY_INVALIDATED` Outbox，经 Redis Streams 发布（router4 消费）。
+- **诊断**：router3 全链路在 smoke profile 下通过 `access-service-smoke` 的 `/api/v1/smoke/access/**` HTTP 入口验证（见 `scripts/tests/http/access_smoke_*.sh`）；默认 profile 只暴露 gRPC。
 
 ## 🔢 RAG 管道：7 步走通检索增强生成
 
@@ -150,10 +164,11 @@ Reciprocal Rank Fusion 合并双路结果，去重后重排。
 ├── crag-id/                  # 分布式 Snowflake ID 基础设施：发号、Redis Worker 租约、时钟回拨处理
 ├── crag-platform-contracts/  # 跨领域通用 Protobuf 基础契约（Platform Probe）
 ├── crag-knowledge-contracts/ # Knowledge 领域 Protobuf/gRPC 契约（KnowledgeBase、Document）
+├── crag-access-contracts/    # Access 领域 Protobuf/gRPC 契约（Identity、Membership、ApiKey）
 ├── crag-grpc-runtime/        # 协议无关 gRPC Server/Client 生命周期、认证、Health
 ├── crag-event/               # 领域无关可靠事件基础设施：Outbox、processed_event、Redis Streams、ACK/Reclaim/DLQ
 ├── crag-rag-service/         # RAG 业务组合根：storage/retrieval/query/ingestion 内部包 + smoke 验证 HTTP + gRPC Server
-├── crag-access-service/      # Access 组合根、gRPC Server、Schema readiness
+├── crag-access-service/      # Access 组合根：身份/会话/Membership/API Key + JWT + 安全适配器 + gRPC Server + smoke 验证 HTTP
 ├── crag-knowledge-service/   # Knowledge 组合根：KnowledgeBase/Document/文件上传/DOC_UPLOADED + gRPC Server + smoke 验证 HTTP
 ├── crag-console-api/         # Console HTTP 入口、下游 Probe readiness
 ├── crag-open-api/            # Open HTTP 入口、下游 Probe readiness

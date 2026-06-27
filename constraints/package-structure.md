@@ -33,10 +33,11 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-common` | 真正跨多个模块、无明确业务归属的稳定基础类型 | 禁止收纳业务 DTO、Entity、Service、Client、单模块工具或为绕开依赖环而搬入的类型 |
 | `crag-platform-contracts` | 跨领域通用 Protobuf 基础契约（Platform Probe） | 禁止 Spring、Runtime 或业务依赖 |
 | `crag-knowledge-contracts` | Knowledge 领域 Protobuf 与 gRPC 生成代码（KnowledgeBase、Document） | 禁止 Spring、Runtime、业务依赖或依赖 platform/其他 contracts |
+| `crag-access-contracts` | Access 领域 Protobuf 与 gRPC 生成代码（Identity、Membership、ApiKey） | 禁止 Spring、Runtime、业务依赖或依赖 platform/其他 contracts |
 | `crag-grpc-runtime` | 协议无关 gRPC Server/Client 生命周期、认证、Health、deadline | 禁止依赖 Contracts 或任何 Application 组合根 |
 | `crag-event` | 领域无关可靠事件基础设施：事件信封、Outbox/processed_event DAO、Redis Streams publisher/consumer、Reclaim/DLQ 与 Spring auto-configuration | 禁止依赖任何业务 application module；禁止承载 HTTP Controller 或业务事件类型 |
 | `crag-rag-service` | RAG 业务组合根，唯一承载 storage/retrieval/query/ingestion 内部业务包、smoke 验证 HTTP、gRPC Server 与 Platform Probe | 禁止被 Access/Knowledge 依赖；legacy HTTP 仅限 smoke Profile |
-| `crag-access-service` | Access 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务依赖 |
+| `crag-access-service` | Access 组合根：身份/会话/Membership/API Key Core、DAO、安全适配器、gRPC Provider、失效事件生产端、smoke 验证 HTTP、Schema readiness | 禁止依赖 Knowledge/RAG/Console/Open Service module |
 | `crag-knowledge-service` | Knowledge 组合根、gRPC Server、Platform Probe、Schema readiness | 禁止 RAG 业务依赖 |
 | `crag-console-api` | 正式 Console HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `crag-open-api` | 正式 Open HTTP 入口、下游 Probe readiness | 禁止 DataSource、业务 Controller |
@@ -65,10 +66,11 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-common` | 无 |
 | `crag-platform-contracts` | 无 |
 | `crag-knowledge-contracts` | 无 |
+| `crag-access-contracts` | 无 |
 | `crag-grpc-runtime` | 无 |
 | `crag-event` | 无 |
 | `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event`、`crag-knowledge-contracts` |
-| `crag-access-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-access-service` | `crag-access-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event` |
 | `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-open-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
@@ -173,7 +175,7 @@ ai.cerbur.crag.id
 ├── api/
 │   ├── CragIdGenerator        — 公开发号入口
 │   ├── CragIdParser           — 公开解析入口与 CragIdParts
-│   ├── IdEntityType           — 实体类型注册（LEGACY_DOCUMENT、CHUNK）
+│   ├── IdEntityType           — 实体类型注册（LEGACY_DOCUMENT、CHUNK、USER、LOGIN_ACCOUNT、TENANT、TENANT_MEMBERSHIP、REFRESH_SESSION、API_KEY、ACCESS_EVENT）
 │   └── InvalidCragIdException — 请求解析与实体校验失败异常
 └── internal/
     ├── SnowflakeLayout        — bit shift/mask/epoch 编解码
@@ -264,6 +266,16 @@ ai.cerbur.crag.contracts.knowledge.v1
 └── KnowledgeBase / Document 等消息     — 生成的 Protobuf 请求与响应消息
 ```
 
+### `crag-access-contracts`
+
+```text
+ai.cerbur.crag.contracts.access.v1
+├── IdentityServiceGrpc                 — 生成的 Identity gRPC Stub（Register/Login/Refresh/Logout/GetJwtVerificationKeys）
+├── MembershipServiceGrpc               — 生成的 Membership gRPC Stub（Authorize/Add/ChangeRole/Remove/Get/List）
+├── ApiKeyServiceGrpc                   — 生成的 ApiKey gRPC Stub（Scope/Key 生命周期与 Authenticate）
+└── AccessErrorCode 等消息与枚举        — 生成的 Protobuf 稳定业务错误码、TenantAction、角色/状态枚举
+```
+
 ### `crag-grpc-runtime`
 
 ```text
@@ -308,8 +320,26 @@ ai.cerbur.crag.event
 
 ```text
 ai.cerbur.crag.access
-├── app/                                — AccessServiceApplication
-└── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+├── AccessServiceApplication            — 组合根主类（根包，JPA + gRPC + crag-id + crag-event）
+├── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+├── core/                               — 业务用例与核心规则（plan_20）
+│   ├── identity/                       — IdentityPolicy、IdentityService、注册/认证、统一凭据异常
+│   ├── membership/                     — MembershipService、TenantAction、TenantPermissionPolicy、MembershipRole/Result、最后 OWNER 保护
+│   ├── session/                        — AuthenticationService、RefreshSessionService、JwtIssuer 契约、TokenPair
+│   └── apikey/                         — ApiKeyService、ApiKeyPolicy、Scope/Key 生命周期与鉴权
+├── dao/                                — User/Account/Tenant/Membership/RefreshSession/ApiKeyScope/ApiKey DAO
+│   ├── entity/                         — 七张 Access 业务表 Entity
+│   └── repository/                     — Spring Data Repository（仅 DAO 调用，含版本 CAS 与悲观锁）
+├── security/                           — PasswordHasher/SecretHmac/SecretGenerator、Argon2/HMAC/SecureRandom 实现、accessSecrets 就绪检查
+│   └── jwt/                            — AccessJwtKeyMaterial、JwtIssuerImpl（RS256 签发）
+├── grpc/                               — gRPC 协议暴露
+│   ├── provider/                       — IdentityGrpcProvider、MembershipGrpcProvider、ApiKeyGrpcProvider、DecimalId
+│   ├── mapper/                         — IdentityMapper、MembershipMapper、ApiKeyMapper
+│   ├── error/                          — AccessErrorMapper（稳定 gRPC Status）
+│   └── security/                       — AccessRpcAuthorizer（Console/Open API 调用方收紧）
+├── producer/                           — ApiKeyInvalidationOutboxWriter、ApiKeyInvalidatedPayload、AccessEventTypes
+├── metrics/                            — AccessMetrics（认证/复用/权限/鉴权/失效事件计数）
+└── controller/smoke/                   — AccessSmokeController、AccessSmokeExceptionHandler、dto（@Profile("smoke")，/api/v1/smoke/access）
 ```
 
 ### `crag-knowledge-service`

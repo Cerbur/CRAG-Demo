@@ -54,6 +54,8 @@ Knowledge 垂直链路（KnowledgeBase、Document 单次流式上传、文件存
 
 router2 RAG 多知识库链路（消费 `DOC_UPLOADED`、Knowledge gRPC 读取、切分、Dense/Sparse 索引、按 `knowledgeBaseId` 查询隔离、状态事件发布）由 `scripts/tests/http/rag_smoke_multi_kb_{ingestion,isolation}_test.sh`、`rag_smoke_doc_uploaded_{idempotency,dlq}_test.sh` 与 `rag_smoke_ingestion_status_event_test.sh` 通过 `knowledge-service-smoke`（上传入口）与 `rag-service-smoke`（`/api/v1/smoke/rag/ingestion/**`、`/api/v1/smoke/query`、`/api/v1/smoke/test/retrieval/**` HTTP 入口）证明真实 PostgreSQL + pgvector + Redis Streams + Knowledge gRPC 全链路；默认 profile 不暴露 router2 smoke 入口。
 
+router3 Access 垂直链路（注册/登录/刷新、Refresh 复用撤销 Family、Membership 角色与最后 OWNER 保护、Scope/API Key 生命周期与鉴权、`API_KEY_INVALIDATED` 失效事件、并发刷新仅一次成功）由 `scripts/tests/http/access_smoke_{default_disabled,identity,membership,session_reuse,api_key,event,concurrent_refresh}_test.sh` 通过 `access-service-smoke`（smoke profile）的 `/api/v1/smoke/access/**` HTTP 入口证明真实 PostgreSQL + Redis（Snowflake Worker lease + Redis Streams）+ RS256 JWT + Argon2id 全链路；默认 profile 不暴露 Access smoke 入口。
+
 ## 二、Gradle 与 Docker 执行入口
 
 ### 2.1 Gradle 任务

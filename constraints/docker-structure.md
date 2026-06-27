@@ -177,8 +177,11 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 端口 | 不暴露 |
 | 运行身份 | `appuser`（非 root） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=access`，账号 `crag_access` |
+| Redis | `redis:6379`（Snowflake Worker lease） |
 | gRPC | 9091（内部） |
-| 就绪条件 | `db` 健康 |
+| ID 配置 | `crag.id.service-domain=access`、required-entities `USER,LOGIN_ACCOUNT,TENANT,TENANT_MEMBERSHIP,REFRESH_SESSION,API_KEY,ACCESS_EVENT` |
+| 安全秘密 | JWT 私钥/公钥、Refresh/API Key Pepper 由环境注入；正式 Profile 缺失时 accessSecrets 就绪检查 DOWN |
+| 就绪条件 | `db` 健康 且 `redis` 健康 |
 | 健康检查 | `curl http://localhost:8091/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
@@ -276,7 +279,27 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | Compose Profile | `smoke` |
 | 网络 | `crag-net` |
 
-### 5.12 网络
+### 5.12 `access-service-smoke` — Access Smoke 验证
+
+> plan_20 引入 Access 垂直链路的 smoke-only HTTP 验收实例，使用独立测试 RSA Key/Pepper（来自 `application-smoke.yml`）。
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-access-service` |
+| 容器名 | `crag-access-service-smoke` |
+| 端口 | `8095:8091`（Host 8095，容器内 8091） |
+| Profile | `smoke`（`SPRING_PROFILES_ACTIVE=smoke`） |
+| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=access`，账号 `crag_access` |
+| Redis | `redis:6379`（Snowflake Worker lease + Redis Streams 事件传输） |
+| 安全秘密 | 独立测试 RSA Key/Pepper（`application-smoke.yml`），不复用正式密钥 |
+| 事件（Plan 20） | `crag.event.publisher.enabled=true`，发布 `API_KEY_INVALIDATED` 到 `crag:event:access` |
+| 验证入口 | `/api/v1/smoke/access/**`（身份/会话/Membership/Scope/API Key） |
+| 就绪条件 | `db` 健康 且 `redis` 健康 |
+| 健康检查 | `curl http://localhost:8091/actuator/health/readiness` |
+| Compose Profile | `smoke` |
+| 网络 | `crag-net` |
+
+### 5.13 网络
 
 | 属性 | 当前值 |
 | --- | --- |
