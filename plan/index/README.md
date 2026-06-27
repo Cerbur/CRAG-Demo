@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-27（plan_19 修复验收退回项 19.7：crag-event 消费改按 idempotency_key 去重，Docker 回归冷启动稳定通过，verifying，7/8）
+> 最后更新：2026-06-28（plan_19 独立重新验收通过：19.7 isolation 冷启动连跑 3 次全 PASS、全量 router2 Docker 回归通过，completed，8/8）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -102,7 +102,7 @@ plan/
 | plan_16 | RAG Service Module 收口与 Smoke HTTP 入口重整，合并 RAG 内部 subproject 并将 legacy HTTP 迁入 smoke namespace | ✅ 完成 (5/5) | — | [plan_16.md](../plan_16/plan_16.md) |
 | plan_17 | 可靠事件基础设施，新增 `crag-event`、本地 Outbox/processed_event、Redis Streams、ACK/Reclaim/DLQ 与 Knowledge smoke 闭环 | ✅ 完成 (6/6) | — | [plan_17.md](../plan_17/plan_17.md) |
 | plan_18 | Knowledge 垂直链路，新增 Knowledge contracts、KnowledgeBase、Document、文件上传、存储、流式读取与 DOC_UPLOADED 事件 | ✅ 完成 (7/7) | — | [plan_18.md](../plan_18/plan_18.md) |
-| plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | ⏳ 待验收 (7/8) | — | [plan_19.md](../plan_19/plan_19.md) |
+| plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | ✅ 完成 (8/8) | — | [plan_19.md](../plan_19/plan_19.md) |
 
 ---
 
@@ -120,7 +120,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 ## 当前验收队列
 
 ```text
-plan_19 — RAG 多知识库化（19.7 修复 crag-event 消费去重，router2 Docker 回归冷启动稳定通过，7/8）
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -275,7 +275,7 @@ plan_19 — RAG 多知识库化（19.7 修复 crag-event 消费去重，router2 
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_19.md](../plan_19/plan_19.md) | RAG 多知识库化，新增 `DOC_UPLOADED` consumer、`ingestion_job`、Knowledge 文件读取、Chunk/Dense/Sparse `knowledgeBaseId` 隔离、Retrieval/Query 隔离、状态事件和 router2 smoke 验收 | ⏳ 待验收 (7/8) |
+| [plan_19.md](../plan_19/plan_19.md) | RAG 多知识库化，新增 `DOC_UPLOADED` consumer、`ingestion_job`、Knowledge 文件读取、Chunk/Dense/Sparse `knowledgeBaseId` 隔离、Retrieval/Query 隔离、状态事件和 router2 smoke 验收 | ✅ 完成 (8/8) |
 
 ---
 

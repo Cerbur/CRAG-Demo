@@ -2,9 +2,9 @@
 workflow_version: 3
 plan_id: plan_19
 type: main
-status: verifying
+status: completed
 created: 2026-06-26
-updated: 2026-06-27
+updated: 2026-06-28
 ---
 
 # plan_19 — RAG 多知识库化
@@ -186,10 +186,10 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 19.4 | 改造 Chunk / Dense / Sparse 写入为多 KB 模型 | ✅ 完成 | b945228d | 2026-06-27 |
 | 19.5 | 改造 Retrieval / Query 为强制 KB 隔离 | ✅ 完成 | 45b1802c | 2026-06-27 |
 | 19.6 | 发布 RAG ingestion 状态事件 | ✅ 完成 | 44e4b819 | 2026-06-27 |
-| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | ⏳ 待验收 | 5bae5915, 4078f16c, 24012322 | — |
+| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | ✅ 完成 | 5bae5915, 4078f16c, 24012322 | 2026-06-28 |
 | 19.8 | 同步约束文档、README 与全量验证 | ✅ 完成 | 9867f8f2 | 2026-06-27 |
 
-整体进度：7 / 8（88%）
+整体进度：8 / 8（100%）
 
 ## 19.1 建立 RAG 多 KB schema 与 Ingestion Job 基础模型
 
@@ -295,6 +295,13 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 2026-06-27 | 独立验收 Docker | `rag_smoke_multi_kb_isolation_test.sh` | **失败（flaky）** | 4 次运行 3 失败 1 通过（其中 2 次失败为无并发干净重跑）；失败模式为 rag-service-smoke（重）启动后 `DOC_UPLOADED` 事件间歇性未发布/未消费→ingestion job 未在等待窗口（180×3s）内创建/READY，脚本停在 `wait_ready_job` 失败 `FAIL: job 未 READY`，**未触达隔离断言**；通过的一次 KB-A 仅召回 A、KB-B 仅召回 B，隔离逻辑本身正确 |
 | 2026-06-27 | 独立验收 Docker | `rag_smoke_ingestion_status_event_test.sh` | **失败（外部阻塞）** | Docker Hub registry `Service Unavailable`（`python:3.12-slim` 元数据 resolve 失败），非代码缺陷；其断言（状态事件 PUBLISHED）已由 `rag.outbox_event` 直查独立验证：14 条 INGESTION_PROCESSING + 14 条 INGESTION_READY，全部 `status=PUBLISHED` |
 | 2026-06-27 | 独立验收 运行时直查 | `rag.outbox_event` / `rag.ingestion_job` | 通过 | 19.6 状态事件发布链路在真实运行系统中确认（PROCESSING/READY 均 PUBLISHED）|
+| 2026-06-28 | 独立重新验收 JDK 21 + Gradle | `./gradlew :crag-event:cleanTest :crag-knowledge-service:cleanTest :crag-rag-service:cleanTest …:test` | 通过 | 强制重跑受 24012322 影响的三模块：crag-event 31 类/86 测试、crag-knowledge-service 14 类/50 测试、crag-rag-service 118 类/412 测试，均 0 failures/errors/skipped |
+| 2026-06-28 | 独立重新验收 Python | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error、24 历史 v2 WARNING；plan_19 引用 9 个实现短 hash 全部存在 |
+| 2026-06-28 | 独立重新验收 Python | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints -v` | 通过 | 37 项约束/依赖校验通过 |
+| 2026-06-28 | 独立重新验收 代码审查 | `24012322` 去重逻辑 diff | 通过 | consumer 按 `(consumer_name, idempotency_key)` 去重，`idempotencyKey` 提前计算且 mark/findBy 一致使用；`event_id` 保留为可追溯非唯一列；schema 幂等 DROP+ADD 迁移；跨 plan_17/18/19 触及已在修复记录透明披露 |
+| 2026-06-28 | 独立重新验收 Docker | `rag_smoke_multi_kb_isolation_test.sh`（冷启动连跑 3 次，每次 `compose down` 后冷起） | 通过 | 3 次冷启动全 PASS：KB-A 召回 A=1 B=0、KB-B 召回 A=0 B=1；修复前 4 次 3 失败的 flaky 已消除 |
+| 2026-06-28 | 独立重新验收 Docker | `rag_smoke_ingestion_status_event_test.sh` | 通过 | registry 恢复后脚本本 session 首次通过：INGESTION_PROCESSING 与 INGESTION_READY 均发布 |
+| 2026-06-28 | 独立重新验收 Docker | `rag_smoke_multi_kb_ingestion_test.sh`、`rag_smoke_doc_uploaded_idempotency_test.sh`、`rag_smoke_doc_uploaded_dlq_test.sh` | 通过 | 两 KB 均 READY；重复 DOC_UPLOADED chunk 计数不变（before=2 after=2）；非法 DOC_UPLOADED 进 DLQ（length=1）未建 Job |
 
 ### 独立验收结论（2026-06-27）
 
@@ -317,6 +324,15 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 - **执行 session 自测**（非最终验收）：`./gradlew check`（全量测试/格式/架构/Plan 校验 BUILD SUCCESSFUL）、`python3 scripts/validate_plans.py`（0 error、24 历史 v2 WARNING）、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints`（37 项 OK）。
 - **Docker HTTP 回归**（执行 session 自测）：`rag_smoke_multi_kb_isolation_test.sh` 冷启动连跑 3 次（1 次 `--build` 重建 + 2 次 `--force-recreate`）全 PASS（KB-A 仅召回 A、KB-B 仅召回 B，修复前 4 次 3 失败）；`rag_smoke_ingestion_status_event_test.sh` PASS（registry 已恢复）；`rag_smoke_multi_kb_ingestion_test.sh`、`rag_smoke_doc_uploaded_idempotency_test.sh`、`rag_smoke_doc_uploaded_dlq_test.sh` 均 PASS（dlq 首跑遇 Docker Hub registry 503，重试后 PASS，非代码问题）。
 - **残余风险**：`processed_event` schema 迁移为每次启动 `DROP+ADD` 主键（H2/PostgreSQL 通用、幂等），对小表开销可忽略；若未来在同一 stream 上新增第三个 event_id 序列与本方案冲突的生产者，idempotency_key 去重仍正确（按事件逻辑身份），但建议长期考虑 event_id 全局唯一化。独立验收须由未参与本次修复的新 agent session 在 registry 稳定时重跑全量 router2 Docker 回归。
+
+### 独立重新验收结论（2026-06-28）
+
+独立重新验收 session（未参与实现与本次修复）重跑全量 router2 Docker 回归并复核受影响模块，结论为**验收通过，plan_19 完成**：
+
+- **19.7 通过**：修复 `24012322` 的根因正确（`DOC_UPLOADED` 不再因 event_id 跨生产者碰撞被误判重复丢弃）。`rag_smoke_multi_kb_isolation_test.sh` 冷启动连跑 3 次（每次 `compose down` 后冷起）全 PASS（KB-A 仅召回 A、KB-B 仅召回 B），修复前 4 次 3 失败的 flaky 已消除；`rag_smoke_ingestion_status_event_test.sh` 在 registry 恢复后本 session 首次脚本通过；`multi_kb_ingestion`、`doc_uploaded_idempotency`（chunk before=2 after=2）、`doc_uploaded_dlq`（DLQ length=1 未建 Job）均 PASS。脚本不清表、不删 volume、不执行 `docker compose down -v`。
+- **回归无影响**：强制重跑受修复触及的 crag-event（86）、crag-knowledge-service（50）、crag-rag-service（412）三模块，0 failures/errors/skipped；19.1–19.6、19.8 业务逻辑无回归。
+- **静态校验**：`validate_plans.py --strict --verify-git` 0 error、约束/依赖校验 37 项通过、`./gradlew check` BUILD SUCCESSFUL。
+- **状态处置**（按 `constraints/plan-workflow.md §5.1/§9.2`）：19.7 完成（2026-06-28），plan_19 `verifying → completed`，整体 8/8，移出验收队列。
 
 ### 未执行项与风险
 
@@ -344,3 +360,4 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 2026-06-27 | 交接收尾 | 重跑全量非 Docker 验证通过；修正 handoff 文档进度显示（待验收不计入完成数，8/8→0/8） | plan19 维持 verifying，提交独立验收 |
 | 2026-06-27 | 独立验收失败 | 独立验收 session 重跑执行 session 未重跑的 Docker HTTP 回归：19.1-19.6/19.8 通过；19.7 `rag_smoke_multi_kb_isolation_test.sh` flaky（rag-service-smoke 冷启动后 DOC_UPLOADED 发布/消费可靠性缺陷）+ `rag_smoke_ingestion_status_event_test.sh` 受 Docker Hub registry 503 阻塞 | plan19 verifying → in_progress；19.7 待验收 → 进行中（整体 7/8）；交执行 session 稳定 ingestion 事件链路可靠性后重新独立验收 |
 | 2026-06-27 | 修复验收退回项（实现提交 `24012322`） | 定位真实根因：crag-event 消费者按 `(consumer, event_id)` 去重，plan_19.6 让 RAG 向同一 stream 共发布 `INGESTION_*` 后，Knowledge/RAG 各自 event_id 序列碰撞致 `DOC_UPLOADED` 被误判重复丢弃。改按 `(consumer, idempotency_key)` 去重（crag-event 逻辑+schema、rag/knowledge schema 迁移、`KnowledgeSmokeEventService` 适配、回归用例） | plan19 in_progress → verifying；19.7 进行中 → 待验收（追加 `24012322`，整体 7/8）；router2 Docker 回归冷启动连跑稳定通过；交独立验收 session 重新验收 |
+| 2026-06-28 | 独立重新验收通过 | 独立验收 session（未参与实现/修复）重跑全量 router2 Docker 回归：19.7 `isolation` 冷启动连跑 3 次全 PASS（flaky 已消除）、`status_event`/`ingestion`/`idempotency`/`dlq` 均 PASS；强制重跑受影响三模块 548 测试 0 失败；静态校验 0 error | plan19 verifying → completed；19.7 待验收 → 完成（整体 8/8）；移出验收队列 |
