@@ -5,7 +5,9 @@ import ai.cerbur.crag.access.core.identity.IdentityService;
 import ai.cerbur.crag.access.core.identity.RegisterIdentityCommand;
 import ai.cerbur.crag.access.core.identity.RegisteredIdentity;
 import ai.cerbur.crag.access.dao.PlatformUserDao;
+import ai.cerbur.crag.access.dao.TenantMembershipDao;
 import ai.cerbur.crag.access.dao.entity.PlatformUserEntity;
+import ai.cerbur.crag.access.metrics.AccessMetrics;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,30 +27,43 @@ public class AuthenticationService {
   @Autowired private RefreshSessionService refreshService;
   @Autowired private JwtIssuer jwtIssuer;
   @Autowired private PlatformUserDao userDao;
+  @Autowired private TenantMembershipDao membershipDao;
+  @Autowired private AccessMetrics metrics;
 
-  /** 注册身份并签发首个 Token。 */
+  /** 注册身份并签发首个 Token；Tenant 为新创建的默认 Tenant。 */
   @Transactional
   public AuthenticationResult register(RegisterIdentityCommand command) {
     RegisteredIdentity registered = identityService.register(command);
+    metrics.authentication("register", true);
     return buildResult(
         registered.userId(),
         nicknameOf(registered.userId()),
+        registered.tenantId(),
         refreshService.createNewFamily(registered.userId()));
   }
 
-  /** 登录并签发新 Session Family 的 Token。 */
+  /** 登录并签发新 Session Family 的 Token；回填调用方首个有效 Tenant。 */
   @Transactional
   public AuthenticationResult login(String username, char[] password) {
     AuthenticatedIdentity identity = identityService.authenticate(username, password);
+    metrics.authentication("login", true);
     return buildResult(
-        identity.userId(), identity.nickname(), refreshService.createNewFamily(identity.userId()));
+        identity.userId(),
+        identity.nickname(),
+        membershipDao.findTenantIdForUser(identity.userId()).orElse(0L),
+        refreshService.createNewFamily(identity.userId()));
   }
 
   /** 轮换 Refresh Token 并签发新 Access JWT。 */
   @Transactional
   public AuthenticationResult refresh(String refreshToken) {
     RefreshSessionService.IssuedRefresh rotated = refreshService.rotate(refreshToken);
-    return buildResult(rotated.userId(), nicknameOf(rotated.userId()), rotated);
+    metrics.authentication("refresh", true);
+    return buildResult(
+        rotated.userId(),
+        nicknameOf(rotated.userId()),
+        membershipDao.findTenantIdForUser(rotated.userId()).orElse(0L),
+        rotated);
   }
 
   /** 撤销当前 Session Family。 */
@@ -58,11 +73,12 @@ public class AuthenticationService {
   }
 
   private AuthenticationResult buildResult(
-      long userId, String nickname, RefreshSessionService.IssuedRefresh refresh) {
+      long userId, String nickname, long tenantId, RefreshSessionService.IssuedRefresh refresh) {
     IssuedJwt jwt = jwtIssuer.issue(userId, refresh.familyId(), Instant.now());
     return new AuthenticationResult(
         userId,
         nickname,
+        tenantId,
         new TokenPair(
             jwt.token(),
             jwt.expiresAt(),

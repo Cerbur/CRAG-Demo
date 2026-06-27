@@ -24,6 +24,9 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
 
   List<TenantMembershipEntity> findByTenantIdOrderByUserIdAsc(long tenantId);
 
+  Optional<TenantMembershipEntity> findFirstByUserIdAndStatusOrderByTenantIdAsc(
+      long userId, String status);
+
   /** 悲观锁读取 Tenant 内指定状态的成员，用于锁定有效 OWNER 集合。 */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(

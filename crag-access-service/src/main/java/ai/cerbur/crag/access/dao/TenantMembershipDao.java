@@ -63,4 +63,11 @@ public class TenantMembershipDao {
   public List<TenantMembershipEntity> listByTenant(long tenantId) {
     return tenantMembershipRepository.findByTenantIdOrderByUserIdAsc(tenantId);
   }
+
+  /** 返回用户首个有效成员关系所在 Tenant（用于登录/刷新回填 Tenant 上下文）。 */
+  public Optional<Long> findTenantIdForUser(long userId) {
+    return tenantMembershipRepository
+        .findFirstByUserIdAndStatusOrderByTenantIdAsc(userId, TenantMembershipEntity.STATUS_ACTIVE)
+        .map(TenantMembershipEntity::getTenantId);
+  }
 }

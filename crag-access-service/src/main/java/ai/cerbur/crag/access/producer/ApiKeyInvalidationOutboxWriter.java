@@ -1,5 +1,6 @@
 package ai.cerbur.crag.access.producer;
 
+import ai.cerbur.crag.access.metrics.AccessMetrics;
 import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.jdbc.JdbcOutboxEventDao;
 import ai.cerbur.crag.id.api.CragIdGenerator;
@@ -22,6 +23,7 @@ public class ApiKeyInvalidationOutboxWriter {
   @Autowired private JdbcOutboxEventDao outboxDao;
   @Autowired private CragIdGenerator idGenerator;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private AccessMetrics metrics;
 
   /**
    * 写入一条 PENDING Outbox 事件。
@@ -45,6 +47,7 @@ public class ApiKeyInvalidationOutboxWriter {
             traceId,
             payloadJson);
     outboxDao.insert(envelope, occurredAt);
+    metrics.apiKeyInvalidationPublished();
     return eventId;
   }
 }
