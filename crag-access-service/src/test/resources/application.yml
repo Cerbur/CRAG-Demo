@@ -23,8 +23,46 @@ crag:
         test-caller: test-token
   access:
     jwt:
-      private-key-pem: test-private
-      public-key-pem: test-public
+      # 测试用 2048 位 RSA 密钥对，使 AuthenticationComponentTest 能真实签发 JWT。
+      private-key-pem: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCy1qxsaaP4oi+h
+        90nNf/SQmKYIY3a6uASx3w66ysycNd29yK88NkM0bAzmoku2SZZS9NMQrbynGk3d
+        qtO0kQZGcGDRVAbC805OmOjf4EA9KvZUJDPFc+6VSnh1NDqQjGpmSWvWMWXegVE4
+        Sm5GGQV5WKYR3zLriqw4GwC9sx0kWcffkSlwn/Ajow5WCnHWdvKOccY66Tif3vfn
+        bZdpY5rRgR4vFoH2B2C+NfJ4NzyolusXDO+nk60+QSNL3LWilrYqBYGdamsF2p7G
+        BtVO3njaVlsZ3teF3i2+gIMhgzAVhsEYevMp1IZbaoxa3yJwW9SZhakvKxy2UmwR
+        LkYeFWtbAgMBAAECggEAPQG/cwI8leIZ1qopiolGUBdKuFzZ0UtaCqV5fF4XG4jC
+        mm293Y/zMAxWAE1H/6itt6Hd6Hgj/WsbOe1+5797QQcv9+iun81pHqXJ9ykkMNmZ
+        i02IPajVMCdl3TGScuH7n+YW+8wBILzDjKzTXmVFuUX07O7Ti4dURZVslMnnvJCz
+        /4+zGkdy104BcIXZ134i4Kp6eB7eAiHfwxnk8br6RM/mOvvNuz0TEVPqZjl4BLvV
+        lSyHscXeTWKPg0kfYRbG5mk9OxUmv6DTfyjanuZBJI6BOvcTRK1wLkkdsVJ95PEd
+        qUQRRVzRf/Ql7gkFvz52z2bqI6CEf19iIZyeESg9kQKBgQDY2qh4O4XjDLK8kIPb
+        Wx/vEM0nPzI+C1CcHHyapd/oh7B+ZOsvSscV3HP9bXWNkY30ybn2XLsyFGafIFCv
+        U1dRwc0HzmKWg0mo+VHMkGw+hrMlhPHlimDzq+ftTpTr3zTxGY0gc1woGCFztmR0
+        vgUDKWHoSyulxpE9XdS+v/6Q0QKBgQDTHznzdNG3CiN0uBipXydrelRmnZLlVswo
+        59dmZtgMgA40xZUx09oqOyMabtr27J92Um4M/XFzm9kTHMA/+TFpMP9biOm0eSK6
+        PoBUHyfKl4Wfc1Y7ldUOYSgZNhNQJQpKIDJbE1XRJUtOvtbq0WiSbP/jmm+lkMQL
+        inqbrZmkawKBgQC/1RaJXeZ/x0DqTFFIoCDsxAkn+eDBQBMsNosH50rfEgHQngfr
+        CxR4w08cVlNSS/uvGzDVvoyeratmgxi9MFWjbnSovis6iKOFxiBVfUE0QsaBn0y5
+        ySMhC+acaBKXYhocWoUcutBAa7BUA3p0R5B5jocdDjpraPAcwD+uCnvwsQKBgQC3
+        iKTrZXnOwsyR8lzWGPd+8siesIt8Phmb0fiqd+uH6mbvL3kE6SP2pJRerVJDaO8z
+        gHNVbZqMI0bx24Ox2aM/zC2h2IM6tjgfaqhK+Q6xi0nJlQ25HQcrygB+8kiV2q14
+        RUchb8yh1ecC3NqfJk7fREysA5zddN1JHyh5X9B6YwKBgE7FzN7OAdfmEF8B+qFr
+        NgMsWMi4tbF7LgAapSFfqn+h+5pXSQRM8LQiZmRnYBRqMdkN5vfF3TH/7zmlHL/9
+        jv1CmaTkk0rljDNZb0fYkL6cdOTk9ePeFg5RHevs7h9Fe6AiWqsQQvsFA4PsI0TW
+        tOtYCtoGlviUPEZ7kjLSs1eV
+        -----END PRIVATE KEY-----
+      public-key-pem: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAstasbGmj+KIvofdJzX/0
+        kJimCGN2urgEsd8OusrMnDXdvcivPDZDNGwM5qJLtkmWUvTTEK28pxpN3arTtJEG
+        RnBg0VQGwvNOTpjo3+BAPSr2VCQzxXPulUp4dTQ6kIxqZklr1jFl3oFROEpuRhkF
+        eVimEd8y64qsOBsAvbMdJFnH35EpcJ/wI6MOVgpx1nbyjnHGOuk4n973522XaWOa
+        0YEeLxaB9gdgvjXyeDc8qJbrFwzvp5OtPkEjS9y1opa2KgWBnWprBdqexgbVTt54
+        2lZbGd7Xhd4tvoCDIYMwFYbBGHrzKdSGW2qMWt8icFvUmYWpLysctlJsES5GHhVr
+        WwIDAQAB
+        -----END PUBLIC KEY-----
       kid: test-kid
       issuer: test-issuer
       audience: test-audience

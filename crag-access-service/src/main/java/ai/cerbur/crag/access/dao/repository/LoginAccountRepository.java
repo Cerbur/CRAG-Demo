@@ -15,4 +15,6 @@ public interface LoginAccountRepository extends JpaRepository<LoginAccountEntity
 
   Optional<LoginAccountEntity> findByAccountTypeAndNormalizedIdentifier(
       String accountType, String normalizedIdentifier);
+
+  Optional<LoginAccountEntity> findByUserId(long userId);
 }

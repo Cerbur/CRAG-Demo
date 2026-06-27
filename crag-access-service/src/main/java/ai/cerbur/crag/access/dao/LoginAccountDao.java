@@ -22,4 +22,9 @@ public class LoginAccountDao {
     return loginAccountRepository.findByAccountTypeAndNormalizedIdentifier(
         LoginAccountEntity.ACCOUNT_TYPE_USERNAME, normalizedUsername);
   }
+
+  /** 按用户 ID 查询账号；不存在返回空。 */
+  public Optional<LoginAccountEntity> findByUserId(long userId) {
+    return loginAccountRepository.findByUserId(userId);
+  }
 }
