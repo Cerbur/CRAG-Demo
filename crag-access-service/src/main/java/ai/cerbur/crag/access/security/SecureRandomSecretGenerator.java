@@ -10,6 +10,9 @@ import java.util.Base64;
  */
 public class SecureRandomSecretGenerator implements SecretGenerator {
 
+  private static final char[] ALPHANUMERIC =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+
   private final SecureRandom random = new SecureRandom();
 
   @Override
@@ -17,5 +20,14 @@ public class SecureRandomSecretGenerator implements SecretGenerator {
     byte[] bytes = new byte[byteCount];
     random.nextBytes(bytes);
     return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+  }
+
+  @Override
+  public String randomAlphanumeric(int count) {
+    char[] chars = new char[count];
+    for (int i = 0; i < count; i++) {
+      chars[i] = ALPHANUMERIC[random.nextInt(ALPHANUMERIC.length)];
+    }
+    return new String(chars);
   }
 }

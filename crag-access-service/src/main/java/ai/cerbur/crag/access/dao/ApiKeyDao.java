@@ -28,6 +28,10 @@ public class ApiKeyDao {
     return apiKeyRepository.findByKeyPrefix(keyPrefix);
   }
 
+  public Optional<ApiKeyEntity> findById(long apiKeyId) {
+    return apiKeyRepository.findById(apiKeyId);
+  }
+
   public List<ApiKeyEntity> findByKnowledgeBase(long knowledgeBaseId) {
     return apiKeyRepository.findByKnowledgeBaseId(knowledgeBaseId);
   }
