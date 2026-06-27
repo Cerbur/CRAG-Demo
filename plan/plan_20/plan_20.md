@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_20
 type: main
-status: ready
+status: verifying
 created: 2026-06-28
 updated: 2026-06-28
 ---
@@ -181,15 +181,15 @@ plan20 将 router3 收敛为完整但边界清楚的 Access Provider：注册和
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 20.1 | 建立 Access contracts 与模块边界 | ⏳ 待开始 | — | — |
-| 20.2 | 建立 Access Schema、DAO、ID 与安全基线 | ⏳ 待开始 | — | — |
-| 20.3 | 实现 User/Account 注册、密码认证与默认 Tenant | ⏳ 待开始 | — | — |
-| 20.4 | 实现 Membership 生命周期与权限矩阵 | ⏳ 待开始 | — | — |
-| 20.5 | 实现 JWT 与 Refresh Session | ⏳ 待开始 | — | — |
-| 20.6 | 实现 Scope 与 API Key 生命周期 | ⏳ 待开始 | — | — |
-| 20.7 | 接入 API Key 失效 Outbox Producer | ⏳ 待开始 | — | — |
-| 20.8 | 完成 gRPC、Metrics、smoke HTTP 与 Docker 回归 | ⏳ 待开始 | — | — |
-| 20.9 | 同步约束、README 与全量验证 | ⏳ 待开始 | — | — |
+| 20.1 | 建立 Access contracts 与模块边界 | ⏳ 待验收 | 421531b0 | — |
+| 20.2 | 建立 Access Schema、DAO、ID 与安全基线 | ⏳ 待验收 | 042aef76 | — |
+| 20.3 | 实现 User/Account 注册、密码认证与默认 Tenant | ⏳ 待验收 | fe39b8da | — |
+| 20.4 | 实现 Membership 生命周期与权限矩阵 | ⏳ 待验收 | 966d3590 | — |
+| 20.5 | 实现 JWT 与 Refresh Session | ⏳ 待验收 | 7192fd97 | — |
+| 20.6 | 实现 Scope 与 API Key 生命周期 | ⏳ 待验收 | 21ad2ffc | — |
+| 20.7 | 接入 API Key 失效 Outbox Producer | ⏳ 待验收 | a9dbb90c | — |
+| 20.8 | 完成 gRPC、Metrics、smoke HTTP 与 Docker 回归 | ⏳ 待验收 | 94113073, 0d3ebcfa | — |
+| 20.9 | 同步约束、README 与全量验证 | ⏳ 待验收 | 1340bc4b | — |
 
 整体进度：0 / 9（0%）
 
@@ -495,8 +495,28 @@ Smoke HTTP 根路径固定为 `/api/v1/smoke/access`；Host 端口固定为 `809
 
 ## 验收记录
 
+> 以下为执行 session 自测证据；最终独立验收由未参与实现的新 session 复核。
+
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-28 | macOS / JDK 21 / Gradle 9.4.1 | `./gradlew :crag-id:test` | 通过 | IdEntityType code 1–9 锁定测试 |
+| 2026-06-28 | macOS / H2 | `./gradlew :crag-access-service:test`（纯单元 + 轻量组件 + 架构） | 通过 | Policy、注册/认证、Membership 矩阵与最后 OWNER、JWT claims、Refresh 状态机与复用、API Key 生命周期、失效 Outbox、gRPC 错误映射与调用方矩阵、smoke Controller 与默认禁用 |
+| 2026-06-28 | macOS / 全模块 | `./gradlew spotlessCheck test check` | 通过 | 全模块编译、Spotless、Plan strict 校验 |
+| 2026-06-28 | macOS / Python 3 | `validate_module_dependencies.py`、`validate_framework_dependencies.py`、`validate_constraints.py`、`validate_plans.py --strict` | 通过 | 0 error；24 warning 均为历史 Plan 的 workflow v3 提示（非 plan_20） |
+| 2026-06-28 | Docker / PostgreSQL 17 + Redis 7.4 | `access_smoke_default_disabled_test.sh` | 通过 | 默认 profile 不暴露 smoke 入口（404）；prod access-service 就绪 UP |
+| 2026-06-28 | Docker / PostgreSQL + Redis | `access_smoke_identity_test.sh` | 通过 | 注册→登录→刷新→旧 Token 复用拒绝 |
+| 2026-06-28 | Docker / PostgreSQL + Redis | `access_smoke_membership_test.sh` | 通过 | 成员添加/角色/最后 OWNER 保护 |
+| 2026-06-28 | Docker / PostgreSQL + Redis | `access_smoke_session_reuse_test.sh` | 通过 | 轮换成功，旧 Token 复用撤销整个 Family |
+| 2026-06-28 | Docker / PostgreSQL + Redis | `access_smoke_api_key_test.sh` | 通过 | Key 创建/鉴权/轮换/Scope 阻塞 |
+| 2026-06-28 | Docker / PostgreSQL + Redis | `access_smoke_event_test.sh` | 通过 | API_KEY_INVALIDATED 发布到 Redis Stream crag:event:access |
+| 2026-06-28 | Docker / PostgreSQL + Redis | `access_smoke_concurrent_refresh_test.sh` | 通过 | 并发刷新仅一次成功（1/8），其余拒绝，Family 最终撤销 |
+| 2026-06-28 | macOS | `git diff --check` | 通过 | 无空白错误 |
+
+### 未执行项与风险
+
+- 并发刷新的最后 OWNER 与 Refresh 锁语义以真实 PostgreSQL（Docker）证明；H2 组件测试不表述锁语义。
+- 真实外部 LLM/供应商边界不属于 plan_20 范围，无相关条件验收。
+- Argon2id 基线参数在正式与 smoke 配置生效；测试环境沿用基线（单次哈希约 100ms，可接受）。
 
 ## 阻塞记录
 
@@ -511,3 +531,4 @@ Smoke HTTP 根路径固定为 `/api/v1/smoke/access`；Host 端口固定为 `809
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-28 | 创建 plan20 并设为待开始 | router1/plan18 与 router2/plan19 已完成；router3 设计已确认并通过书面规格复核 | Access Provider 进入执行队首，9 个任务待执行 |
+| 2026-06-28 | 20.1–20.9 全部实现、自测并回填实现 hash；Plan 转为 verifying | 9 个任务均完成实现提交、Gradle/Spotless/Plan strict/4 个 Python 校验器与 7 组 Access Docker HTTP 回归通过 | 全部 9 项进入待验收，交接独立验收 session |
