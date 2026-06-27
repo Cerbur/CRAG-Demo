@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_19
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-26
 updated: 2026-06-27
 ---
@@ -180,16 +180,16 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 19.1 | 建立 RAG 多 KB schema 与 Ingestion Job 基础模型 | ⏳ 待验收 | 0a06458d | — |
-| 19.2 | 接入 `DOC_UPLOADED` consumer 与消费可靠性 | ⏳ 待验收 | 0b22afcc | — |
-| 19.3 | 实现 Knowledge 文件读取与 Ingestion 编排 | ⏳ 待验收 | 6ba5b387 | — |
-| 19.4 | 改造 Chunk / Dense / Sparse 写入为多 KB 模型 | ⏳ 待验收 | b945228d | — |
-| 19.5 | 改造 Retrieval / Query 为强制 KB 隔离 | ⏳ 待验收 | 45b1802c | — |
-| 19.6 | 发布 RAG ingestion 状态事件 | ⏳ 待验收 | 44e4b819 | — |
-| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | ⏳ 待验收 | 5bae5915, 4078f16c | — |
-| 19.8 | 同步约束文档、README 与全量验证 | ⏳ 待验收 | 9867f8f2 | — |
+| 19.1 | 建立 RAG 多 KB schema 与 Ingestion Job 基础模型 | ✅ 完成 | 0a06458d | 2026-06-27 |
+| 19.2 | 接入 `DOC_UPLOADED` consumer 与消费可靠性 | ✅ 完成 | 0b22afcc | 2026-06-27 |
+| 19.3 | 实现 Knowledge 文件读取与 Ingestion 编排 | ✅ 完成 | 6ba5b387 | 2026-06-27 |
+| 19.4 | 改造 Chunk / Dense / Sparse 写入为多 KB 模型 | ✅ 完成 | b945228d | 2026-06-27 |
+| 19.5 | 改造 Retrieval / Query 为强制 KB 隔离 | ✅ 完成 | 45b1802c | 2026-06-27 |
+| 19.6 | 发布 RAG ingestion 状态事件 | ✅ 完成 | 44e4b819 | 2026-06-27 |
+| 19.7 | 提供 router2 smoke HTTP 入口与 Docker 回归 | 🔄 进行中 | 5bae5915, 4078f16c | — |
+| 19.8 | 同步约束文档、README 与全量验证 | ✅ 完成 | 9867f8f2 | 2026-06-27 |
 
-整体进度：0 / 8（0%）
+整体进度：7 / 8（88%）
 
 ## 19.1 建立 RAG 多 KB schema 与 Ingestion Job 基础模型
 
@@ -286,6 +286,26 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_doc_uploaded_idempotency_test.sh` | 通过 | 重复投递前后 chunk 计数不变（注：脚本内事件重投递解析未命中，机制由 IngestionJobServiceTest 单测覆盖）|
 | 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_doc_uploaded_dlq_test.sh` | 通过 | 非法 DOC_UPLOADED 进入 DLQ 且未创建 Job |
 | 2026-06-27 | Docker Compose（smoke profile） | `scripts/tests/http/rag_smoke_ingestion_status_event_test.sh` | 通过 | outbox_event 出现 INGESTION_PROCESSING 与 INGESTION_READY（PUBLISHED）|
+| 2026-06-27 | 独立验收 JDK 21 + Gradle | `./gradlew :crag-rag-service:cleanTest :crag-rag-service:test` | 通过 | 强制重跑：118 测试类 / 412 测试，0 failures / 0 errors / 0 skipped |
+| 2026-06-27 | 独立验收 Python | `python3 scripts/validate_plans.py --strict --verify-git` | 通过 | 0 error、24 历史 v2 WARNING；9 个实现短 hash 全部存在 |
+| 2026-06-27 | 独立验收 Python | `python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_constraints -v` | 通过 | 37 项约束/依赖校验通过 |
+| 2026-06-27 | 独立验收 代码审查 | schema.sql / 三表 DAO native SQL / producer payload | 通过 | 三表均 `knowledge_base_id BIGINT NOT NULL`、RAG 内部索引表无外键、`ingestion_job` 含 `(doc_id, operation_version)` 唯一键；`ChunkEmbeddingRepository.searchSimilar` / `ChunkFtsRepository.searchFts` / parent 回表 native SQL 均带 `WHERE knowledge_base_id = :knowledgeBaseId`；`RagIngestionStatusPayload` 仅含安全字段（无 storageKey/path/content/prompt/context/embedding）|
+| 2026-06-27 | 独立验收 Docker | `rag_smoke_multi_kb_ingestion_test.sh` | 通过 | 全链路 DOC_UPLOADED→消费→Knowledge gRPC→切分→Dense/Sparse→两 KB READY |
+| 2026-06-27 | 独立验收 Docker | `rag_smoke_doc_uploaded_idempotency_test.sh`、`rag_smoke_doc_uploaded_dlq_test.sh` | 通过 | 幂等 chunk 计数不变；非法 DOC_UPLOADED 进 DLQ 未建 Job |
+| 2026-06-27 | 独立验收 Docker | `rag_smoke_multi_kb_isolation_test.sh` | **失败（flaky）** | 4 次运行 3 失败 1 通过（其中 2 次失败为无并发干净重跑）；失败模式为 rag-service-smoke（重）启动后 `DOC_UPLOADED` 事件间歇性未发布/未消费→ingestion job 未在等待窗口（180×3s）内创建/READY，脚本停在 `wait_ready_job` 失败 `FAIL: job 未 READY`，**未触达隔离断言**；通过的一次 KB-A 仅召回 A、KB-B 仅召回 B，隔离逻辑本身正确 |
+| 2026-06-27 | 独立验收 Docker | `rag_smoke_ingestion_status_event_test.sh` | **失败（外部阻塞）** | Docker Hub registry `Service Unavailable`（`python:3.12-slim` 元数据 resolve 失败），非代码缺陷；其断言（状态事件 PUBLISHED）已由 `rag.outbox_event` 直查独立验证：14 条 INGESTION_PROCESSING + 14 条 INGESTION_READY，全部 `status=PUBLISHED` |
+| 2026-06-27 | 独立验收 运行时直查 | `rag.outbox_event` / `rag.ingestion_job` | 通过 | 19.6 状态事件发布链路在真实运行系统中确认（PROCESSING/READY 均 PUBLISHED）|
+
+### 独立验收结论（2026-06-27）
+
+独立验收 session（未参与实现）重跑了执行 session 未重跑的 Docker HTTP 回归，结论为**验收失败**：
+
+- **验收通过**：19.1、19.2、19.3、19.4、19.5、19.6、19.8。依据：412 测试（0 failures/errors/skipped）、`validate_plans --strict --verify-git` 0 error、约束/依赖校验 37 项、代码审查（schema 无外键 + 三表 KB、native SQL 级 KB 隔离、producer 无敏感字段）、`rag_smoke_multi_kb_ingestion/idempotency/dlz` 通过、`outbox_event` 直查确认状态事件 PUBLISHED。
+- **验收失败**：19.7。强制 Docker HTTP 回归不满足 `constraints/test-workflow.md §4/§7` 的可重复/无 flaky 完成门槛：
+  - `rag_smoke_multi_kb_isolation_test.sh` 为 **flaky**（4 次 3 失败 1 通过）。失败不在隔离逻辑（已验证正确），而在 rag-service-smoke（重）启动后 `DOC_UPLOADED` 事件链路的**可靠性缺陷**：诊断期观察到重启动后 Redis 无 `crag:event:knowledge` stream、Knowledge 无 DOC_UPLOADED 发布日志、RAG 0 ingestion_job，即发布/消费间歇性未发生；rag-service 启动日志存在 `More than one TaskScheduler bean`（eventPublisherScheduler/eventConsumerScheduler 歧义）与 `docUploadedEventHandler` 单例锁竞争告警，疑似 crag-event outbox publisher/consumer 调度在容器冷启动后非确定性，导致多 KB 摄取间歇性不完成。
+  - `rag_smoke_ingestion_status_event_test.sh` 受 **Docker Hub registry 503 外部阻塞**（执行 session 亦记录此风险）；其断言已由 `outbox_event` 直查独立验证，但脚本本身在本 session 未通过，按 `§7` 不作为完成门槛通过项。
+- **状态处置**（按 `constraints/plan-workflow.md §5.1/§9.2`）：19.7 由「待验收」退回「进行中」，其余 7 项验收通过保留「完成」；plan19 `verifying → in_progress`，移出验收队列、回到执行队列。验收 session 不修代码。
+- **交执行 session 的修复方向**（不改已验证正确的隔离/索引/状态事件业务逻辑）：稳定 `DOC_UPLOADED` 发布/消费在 rag-service-smoke 冷启动后的可靠性——核查 crag-event 的 publisher/consumer 调度（`TaskScheduler` 歧义、启动顺序与单例锁竞争），确保 `DOC_UPLOADED` 稳定发布并被 RAG consumer 消费；或调整回归脚本在断言前确保发布/消费链路就绪；使 `rag_smoke_multi_kb_isolation_test.sh` 与 `rag_smoke_ingestion_status_event_test.sh`（registry 恢复后）稳定通过，再重新独立验收。
 
 ### 未执行项与风险
 
@@ -311,3 +331,4 @@ RAG 侧仍是单知识空间模型：Chunk、Dense、Sparse、Retrieval 和 Quer
 | 2026-06-26 | 创建计划 | 根据已确认的 RAG 多知识库化设计制定 router2 执行计划 | plan19 进入 ready，等待执行 session |
 | 2026-06-27 | 实现完成并交接验收 | 19.1–19.8 全部实现、自测通过并回填真实实现短 hash | plan19 状态 ready → verifying，8/8 任务待验收 |
 | 2026-06-27 | 交接收尾 | 重跑全量非 Docker 验证通过；修正 handoff 文档进度显示（待验收不计入完成数，8/8→0/8） | plan19 维持 verifying，提交独立验收 |
+| 2026-06-27 | 独立验收失败 | 独立验收 session 重跑执行 session 未重跑的 Docker HTTP 回归：19.1-19.6/19.8 通过；19.7 `rag_smoke_multi_kb_isolation_test.sh` flaky（rag-service-smoke 冷启动后 DOC_UPLOADED 发布/消费可靠性缺陷）+ `rag_smoke_ingestion_status_event_test.sh` 受 Docker Hub registry 503 阻塞 | plan19 verifying → in_progress；19.7 待验收 → 进行中（整体 7/8）；交执行 session 稳定 ingestion 事件链路可靠性后重新独立验收 |
