@@ -408,6 +408,10 @@ ai.cerbur.crag.console
 │   ├── controller/                     — DocumentController（list/upload/get/retry）
 │   ├── dto/                            — DocumentResponse、DocumentListResponse
 │   └── service/                        — KnowledgeDocumentClient（multipart→gRPC streaming）、UploadValidation（10MiB/类型/UTF-8 校验）
+├── apikey/                             — Console API Key HTTP 切片（plan_21/21.9）
+│   ├── controller/                     — ApiKeyController（list/get/create/disable/enable/rotate/revoke）
+│   ├── dto/                            — ApiKeyResponse、ApiKeyListResponse、CreatedApiKeyResponse（一次性 completeKey，toString 屏蔽）、CreateApiKeyRequest
+│   └── service/                        — ApiKeyOrchestrator（Authorize MANAGE_API_KEY→EnsureScope→Access Key，OWNER-only，状态冲突 409）
 ├── security/                           — Console JWT 本地验签与 Bearer filter（plan_21/21.6）
 │   ├── jwt/                            — JwtVerificationKeyCache、AccessJwtVerifier、AccessJwtKeyRefresher
 │   └── filter/                         — BearerTokenAuthenticationFilter

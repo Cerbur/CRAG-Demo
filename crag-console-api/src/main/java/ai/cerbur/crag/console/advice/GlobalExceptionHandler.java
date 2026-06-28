@@ -4,6 +4,7 @@ import ai.cerbur.crag.common.dto.error.ErrorDetail;
 import ai.cerbur.crag.common.dto.error.FieldErrorDetail;
 import ai.cerbur.crag.common.dto.result.Response;
 import ai.cerbur.crag.common.dto.result.ResponseCode;
+import ai.cerbur.crag.console.apikey.service.ApiKeyOrchestrator;
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.DownstreamTimeoutException;
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.DownstreamUnavailableException;
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.InvalidCredentialsException;
@@ -273,6 +274,50 @@ public class GlobalExceptionHandler {
     return build(
         ResponseCode.INTERNAL_ERROR,
         new ErrorDetail("Internal server error", traceId(request), "INTERNAL_ERROR", false));
+  }
+
+  // ---- plan_21/21.9 API Key 异常映射 ----
+
+  @ExceptionHandler(ApiKeyOrchestrator.ForbiddenException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleApiKeyForbidden(
+      ApiKeyOrchestrator.ForbiddenException ex, HttpServletRequest request) {
+    // MEMBER 越权或 actor 非 OWNER；不泄漏存在性
+    return build(
+        ResponseCode.FORBIDDEN, new ErrorDetail("Forbidden", traceId(request), "FORBIDDEN", false));
+  }
+
+  @ExceptionHandler(ApiKeyOrchestrator.NotFoundException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleApiKeyNotFound(
+      ApiKeyOrchestrator.NotFoundException ex, HttpServletRequest request) {
+    // 跨 KB / Key 不存在统一 not found，不泄漏存在性
+    return build(
+        ResponseCode.NOT_FOUND,
+        new ErrorDetail("Resource not found", traceId(request), "NOT_FOUND", false));
+  }
+
+  @ExceptionHandler(ApiKeyOrchestrator.ConflictException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleApiKeyConflict(
+      ApiKeyOrchestrator.ConflictException ex, HttpServletRequest request) {
+    // 状态冲突（disable 已 DISABLED、revoke 已 REVOKED、rotate 非 ACTIVE）→ 409；message 不含完整 Key
+    return build(
+        ResponseCode.CONFLICT, new ErrorDetail("Conflict", traceId(request), "CONFLICT", false));
+  }
+
+  @ExceptionHandler(ApiKeyOrchestrator.DownstreamUnavailableException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleApiKeyDownstream(
+      ApiKeyOrchestrator.DownstreamUnavailableException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_UNAVAILABLE,
+        new ErrorDetail(
+            "Downstream unavailable", traceId(request), "DOWNSTREAM_UNAVAILABLE", true));
+  }
+
+  @ExceptionHandler(ApiKeyOrchestrator.DownstreamTimeoutException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleApiKeyDownstreamTimeout(
+      ApiKeyOrchestrator.DownstreamTimeoutException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_TIMEOUT,
+        new ErrorDetail("Downstream timeout", traceId(request), "DOWNSTREAM_TIMEOUT", true));
   }
 
   private String traceId(HttpServletRequest request) {
