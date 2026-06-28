@@ -33,6 +33,14 @@ public class ChunkEmbedding {
   private long knowledgeBaseId;
 
   /**
+   * 写入时该 chunk 行的 operationVersion（Plan 21.4）. 必须与 {@code chunk.operation_version} 一致；召回按 {@code
+   * knowledgeBaseId + operationVersion} 并联合 {@code document_ingestion_head} + READY ingestion_job
+   * 限定，旧版本向量不参与 Dense 检索.
+   */
+  @Column(name = "operation_version", nullable = false)
+  private long operationVersion;
+
+  /**
    * Embedding 向量，768 维（text2vec-base-chinese 输出维度）. 一期通过 JdbcTemplate / Native Query 操作，不依赖 JPA
    * 类型映射. pgvector 列类型: vector(768).
    */
@@ -67,6 +75,14 @@ public class ChunkEmbedding {
 
   public void setKnowledgeBaseId(long knowledgeBaseId) {
     this.knowledgeBaseId = knowledgeBaseId;
+  }
+
+  public long getOperationVersion() {
+    return operationVersion;
+  }
+
+  public void setOperationVersion(long operationVersion) {
+    this.operationVersion = operationVersion;
   }
 
   public String getEmbedding() {

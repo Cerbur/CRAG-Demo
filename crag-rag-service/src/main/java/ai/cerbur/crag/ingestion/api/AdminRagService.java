@@ -41,6 +41,14 @@ public class AdminRagService {
    */
   public static final long SMOKE_KNOWLEDGE_BASE_ID = 1_000_000_000_000L;
 
+  /**
+   * 旧 smoke AdminRag 写入固定使用的 operationVersion（Plan 21.4）.
+   *
+   * <p>smoke 诊断路径不参与 router4 的 head/version 防线，固定写入 version 1；召回防御仍要求 head + READY ingestion_job
+   * 同时匹配，smoke 数据不会进入正式 Query 链路.
+   */
+  public static final long SMOKE_OPERATION_VERSION = 1L;
+
   /** 文档分块服务 —— 将纯文本拆分为 parent + child chunks. */
   @Autowired private ChunkSplitService chunkSplitService;
 
@@ -95,6 +103,7 @@ public class AdminRagService {
               parentChunkId,
               knowledgeBaseId,
               docId,
+              SMOKE_OPERATION_VERSION,
               group.parentChunk().content(),
               group.parentChunk().tokenCount(),
               group.parentChunk().chunkIndex(),
@@ -109,6 +118,7 @@ public class AdminRagService {
                 childChunkId,
                 knowledgeBaseId,
                 docId,
+                SMOKE_OPERATION_VERSION,
                 parentChunkId,
                 childData.content(),
                 childData.tokenCount(),

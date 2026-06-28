@@ -144,12 +144,12 @@ public class RetrievalService {
         chunkDao.findParentContentsByIds(knowledgeBaseId, parentIds);
 
     // Build content map (first occurrence wins for duplicate projections)
-    Map<Long, String> contentMap = new LinkedHashMap<>();
+    Map<Long, ParentChunkContent> contentMap = new LinkedHashMap<>();
     for (ParentChunkContent pc : parentContents) {
       if (contentMap.containsKey(pc.chunkId())) {
         log.warn("Duplicate parent projection for chunkId={}, keeping first", pc.chunkId());
       } else {
-        contentMap.put(pc.chunkId(), pc.content());
+        contentMap.put(pc.chunkId(), pc);
       }
     }
 
@@ -158,17 +158,17 @@ public class RetrievalService {
     int invalidCount = 0;
 
     for (EvidenceCandidate candidate : candidates) {
-      String content = contentMap.get(candidate.parentChunkId());
+      ParentChunkContent pc = contentMap.get(candidate.parentChunkId());
 
-      if (content == null || content.isBlank()) {
+      if (pc == null || pc.content() == null || pc.content().isBlank()) {
         invalidCount++;
-        logWarnInvalidParent(candidate, content == null ? "null" : "blank");
+        logWarnInvalidParent(candidate, pc == null ? "null" : "blank");
         continue;
       }
 
       results.add(
           new ParentEvidenceResult(
-              candidate.parentChunkId(), content, candidate.matchedChildIds()));
+              candidate.parentChunkId(), pc.docId(), pc.content(), candidate.matchedChildIds()));
     }
 
     if (invalidCount > 0) {

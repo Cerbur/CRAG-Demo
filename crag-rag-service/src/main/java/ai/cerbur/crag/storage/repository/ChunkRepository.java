@@ -206,31 +206,57 @@ public interface ChunkRepository extends JpaRepository<Chunk, Long> {
   List<Chunk> findByParentChunkId(long parentChunkId);
 
   /**
-   * 按 parent chunk ID 与 child index 批量查询候选 child chunk（Plan 19 起限定 knowledge_base_id）.
+   * 按 parent chunk ID 与 child index 批量查询候选 child chunk（Plan 19 起限定 knowledge_base_id；Plan 21.4
+   * 起限定当前 head 版本与 READY ingestion_job，使旧版本或未 READY 的 child 不进入 Rerank 相邻扩展窗口）.
    *
    * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param parentChunkIds parent chunk ID 列表
    * @param chunkIndexes child chunk index 列表
-   * @return 命中 KB + parent/index 集合的 child chunk 列表
+   * @return 命中 KB + parent/index 集合、当前 head 版本且 Job READY 的 child chunk 列表
    */
+  @Query(
+      "SELECT c FROM Chunk c WHERE c.knowledgeBaseId = :knowledgeBaseId"
+          + " AND c.parentChunkId IN :parentChunkIds AND c.chunkIndex IN :chunkIndexes"
+          + " AND EXISTS (SELECT 1 FROM DocumentIngestionHead h WHERE h.docId = c.docId"
+          + " AND h.operationVersion = c.operationVersion)"
+          + " AND EXISTS (SELECT 1 FROM IngestionJob j WHERE j.docId = c.docId"
+          + " AND j.operationVersion = c.operationVersion"
+          + " AND j.status = ai.cerbur.crag.storage.entity.IngestionJobStatus.READY)")
   List<Chunk> findByKnowledgeBaseIdAndParentChunkIdInAndChunkIndexIn(
-      long knowledgeBaseId, List<Long> parentChunkIds, List<Integer> chunkIndexes);
+      @Param("knowledgeBaseId") long knowledgeBaseId,
+      @Param("parentChunkIds") List<Long> parentChunkIds,
+      @Param("chunkIndexes") List<Integer> chunkIndexes);
 
   /**
-   * 按 chunk ID 列表批量查询 parent chunk 内容投影（Plan 19 起限定 knowledge_base_id）.
+   * 按 chunk ID 列表批量查询 parent chunk 内容投影（Plan 19 起限定 knowledge_base_id；Plan 21.4 起限定当前 head 版本与
+   * READY ingestion_job）.
    *
-   * <p>仅返回 {@code chunkId} 和 {@code content}，且限定 parent 行（parent_chunk_id = 0）， 用于 Evidence 回表组装.
-   * 不返回完整 Entity 以避免跨模块传播. Parent 回表必须带 {@code knowledgeBaseId}，避免跨库召回.
+   * <p>仅返回 {@code chunkId}、{@code docId} 和 {@code content}，且限定 parent 行（parent_chunk_id = 0）， 用于
+   * Evidence 回表组装. 不返回完整 Entity 以避免跨模块传播. Parent 回表必须带 {@code knowledgeBaseId}，避免跨库召回. Plan 21.4
+   * 起额外 JOIN {@code document_ingestion_head} 与 READY {@code ingestion_job}（status=2），只回表当前 head 版本且
+   * Job 已 READY 的 parent；旧版本或未 READY 的 parent 内容不进入 Query Context.
+   *
+   * <p>返回列顺序：[chunk_id, doc_id, content]，由 {@link ParentChunkContent} 构造函数按位置映射.
    *
    * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param chunkIds chunk ID 列表
    * @return parent chunk 内容投影列表
    */
   @Query(
-      "SELECT new ai.cerbur.crag.storage.result.ParentChunkContent(c.chunkId, c.content)"
-          + " FROM Chunk c"
-          + " WHERE c.knowledgeBaseId = :knowledgeBaseId AND c.chunkId IN :chunkIds"
-          + " AND c.parentChunkId = 0L")
+      value =
+          """
+        SELECT c.chunk_id, c.doc_id, c.content
+          FROM chunk c
+          JOIN document_ingestion_head h ON h.doc_id = c.doc_id
+          JOIN ingestion_job j ON j.doc_id = c.doc_id
+              AND j.operation_version = c.operation_version
+              AND j.status = 2
+         WHERE c.knowledge_base_id = :knowledgeBaseId
+           AND c.chunk_id IN :chunkIds
+           AND c.parent_chunk_id = 0
+           AND c.operation_version = h.operation_version
+        """,
+      nativeQuery = true)
   List<ParentChunkContent> findParentContentsByIds(
       @Param("knowledgeBaseId") long knowledgeBaseId, @Param("chunkIds") List<Long> chunkIds);
 

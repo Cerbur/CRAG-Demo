@@ -172,7 +172,7 @@ class RetrievalServiceTest {
     when(rerankService.rerank(any(), any()))
         .thenReturn(List.of(evidenceChild(1001L, 100L, "child 1", 0.9)));
     when(chunkDao.findParentContentsByIds(KB, List.of(100L)))
-        .thenReturn(List.of(new ParentChunkContent(100L, "full parent content")));
+        .thenReturn(List.of(new ParentChunkContent(100L, 7000L, "full parent content")));
 
     List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(KB, "问题", 3);
 
@@ -213,7 +213,7 @@ class RetrievalServiceTest {
                 evidenceChild(1002L, 200L, "child 2", 0.8)));
     // p1 content is absent → skipped; p2 content is valid → fills position
     when(chunkDao.findParentContentsByIds(KB, List.of(100L, 200L)))
-        .thenReturn(List.of(new ParentChunkContent(200L, "parent 2 content")));
+        .thenReturn(List.of(new ParentChunkContent(200L, 7000L, "parent 2 content")));
 
     List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(KB, "问题", 3);
 
@@ -241,7 +241,7 @@ class RetrievalServiceTest {
         .thenReturn(List.of(evidenceChild(1001L, 100L, "child 1", 0.9)));
     // All parent content is blank → all skipped
     when(chunkDao.findParentContentsByIds(KB, List.of(100L)))
-        .thenReturn(List.of(new ParentChunkContent(100L, "  ")));
+        .thenReturn(List.of(new ParentChunkContent(100L, 7000L, "  ")));
 
     List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(KB, "问题", 3);
 
@@ -279,9 +279,9 @@ class RetrievalServiceTest {
     when(chunkDao.findParentContentsByIds(KB, List.of(100L, 200L, 300L)))
         .thenReturn(
             List.of(
-                new ParentChunkContent(100L, "content 1"),
-                new ParentChunkContent(200L, "content 2"),
-                new ParentChunkContent(300L, "content 3")));
+                new ParentChunkContent(100L, 7000L, "content 1"),
+                new ParentChunkContent(200L, 7000L, "content 2"),
+                new ParentChunkContent(300L, 7000L, "content 3")));
 
     List<ParentEvidenceResult> results = retrievalService.retrieveEvidence(KB, "问题", 2);
 

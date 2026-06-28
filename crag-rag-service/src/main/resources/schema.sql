@@ -14,13 +14,29 @@ DROP TABLE IF EXISTS chunk_embedding CASCADE;
 DROP TABLE IF EXISTS ingestion_job CASCADE;
 DROP TABLE IF EXISTS chunk CASCADE;
 
+-- Plan 21.4：RAG ingestion head + operation_version 版本防线。
+-- 在写入路径给 Chunk/索引表追加 operation_version（保留旧列与默认 1，兼容历史写入路径，
+-- 但新写入路径必须显式传入正确的 operationVersion）。document_ingestion_head 按 docId 保存当前
+-- operationVersion 与乐观锁版本，单调推进；迟到 Worker 在 READY 前先校验 head，旧版本不能 READY。
+CREATE TABLE IF NOT EXISTS document_ingestion_head (
+    knowledge_base_id BIGINT NOT NULL,
+    doc_id            BIGINT NOT NULL,
+    operation_version BIGINT NOT NULL,
+    version           INTEGER NOT NULL DEFAULT 0,
+    updated_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_document_ingestion_head PRIMARY KEY (doc_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingestion_head_kb_doc ON document_ingestion_head(knowledge_base_id, doc_id);
+
 -- Chunk 表：文档分块存储（child + parent 两种粒度）
 -- Plan 15 起所有 ID 切换为 BIGINT，由应用层 CragIdGenerator 预生成 Snowflake ID
 -- Plan 19 起显式落 knowledge_base_id，parent 与同组 child 必须携带同一 KB
+-- Plan 21.4 起 chunk 记录 operation_version，与 document_ingestion_head + READY ingestion_job 联合限定召回
 CREATE TABLE chunk (
     chunk_id          BIGINT PRIMARY KEY,
     knowledge_base_id BIGINT NOT NULL,              -- 所属知识库（Knowledge Snowflake/IDENTITY ID）
     doc_id            BIGINT NOT NULL,              -- 关联文档 ID（Snowflake LEGACY_DOCUMENT）
+    operation_version BIGINT NOT NULL DEFAULT 1,    -- 写入时该文档的 operationVersion（与 head 对齐限定召回）
     parent_chunk_id   BIGINT NOT NULL DEFAULT 0,    -- 0=parent chunk，其他=child 指向 parent
     chunk_index       INTEGER,                      -- child 在 parent 中的序号（从 0 开始；parent 为 NULL）
     content           TEXT NOT NULL,                -- chunk 文本内容
@@ -41,16 +57,20 @@ CREATE INDEX IF NOT EXISTS idx_chunk_parent ON chunk(parent_chunk_id);
 -- Plan 19：按 KB 隔离的文档/parent 定位
 CREATE INDEX IF NOT EXISTS idx_chunk_kb_doc ON chunk(knowledge_base_id, doc_id);
 CREATE INDEX IF NOT EXISTS idx_chunk_kb_parent ON chunk(knowledge_base_id, parent_chunk_id);
+-- Plan 21.4：版本化召回按 KB + 版本限定 chunk
+CREATE INDEX IF NOT EXISTS idx_chunk_kb_version_doc ON chunk(knowledge_base_id, operation_version, doc_id);
 
 -- ============================================================
 -- Chunk Embedding 表（Dense 向量存储，与 chunk 主表解耦）
 -- 职责：存储 child chunk 的 embedding 向量，独立生命周期（换模型可 truncate + 重算）
 -- Plan 19：显式落 knowledge_base_id，不再建立指向 chunk 的数据库外键；
 -- 应用层一致性由 DAO 写入路径与测试护栏保证（孤儿/跨表 KB 不一致不被召回）。
+-- Plan 21.4：记录 operation_version，与 head + READY job 联合限定召回。
 -- ============================================================
 CREATE TABLE chunk_embedding (
     chunk_id         BIGINT PRIMARY KEY,
     knowledge_base_id BIGINT NOT NULL,
+    operation_version BIGINT NOT NULL DEFAULT 1,   -- 写入时 chunk 行的 operationVersion（与 head 对齐限定召回）
     embedding        vector(768) NOT NULL,
     version          INTEGER DEFAULT 0 NOT NULL,          -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
     created_at       TIMESTAMP DEFAULT NOW(),
@@ -66,15 +86,19 @@ CREATE INDEX IF NOT EXISTS idx_chunk_embedding_vector
     ON chunk_embedding USING hnsw (embedding vector_cosine_ops);
 -- Plan 19：按 KB 隔离定位向量行
 CREATE INDEX IF NOT EXISTS idx_chunk_embedding_kb_chunk ON chunk_embedding(knowledge_base_id, chunk_id);
+-- Plan 21.4：版本化召回按 KB + 版本定位向量行
+CREATE INDEX IF NOT EXISTS idx_chunk_embedding_kb_version ON chunk_embedding(knowledge_base_id, operation_version);
 
 -- ============================================================
 -- Chunk FTS 表（Sparse 全文检索，与 chunk 主表解耦）
 -- 职责：存储 child chunk 的 tsvector 分词结果，独立生命周期（换分词策略可重建）
 -- Plan 19：显式落 knowledge_base_id，不再建立指向 chunk 的数据库外键。
+-- Plan 21.4：记录 operation_version，与 head + READY job 联合限定召回。
 -- ============================================================
 CREATE TABLE chunk_fts (
     chunk_id          BIGINT PRIMARY KEY,
     knowledge_base_id BIGINT NOT NULL,
+    operation_version BIGINT NOT NULL DEFAULT 1,   -- 写入时 chunk 行的 operationVersion（与 head 对齐限定召回）
     fts_content       tsvector NOT NULL,
     version           INTEGER DEFAULT 0 NOT NULL,          -- 乐观锁版本号，每次 UPDATE 自动 +1（JPA @Version）
     created_at        TIMESTAMP DEFAULT NOW(),
@@ -85,6 +109,8 @@ CREATE INDEX IF NOT EXISTS idx_chunk_fts_content
     ON chunk_fts USING GIN (fts_content);
 -- Plan 19：按 KB 隔离定位 FTS 行
 CREATE INDEX IF NOT EXISTS idx_chunk_fts_kb_chunk ON chunk_fts(knowledge_base_id, chunk_id);
+-- Plan 21.4：版本化召回按 KB + 版本定位 FTS 行
+CREATE INDEX IF NOT EXISTS idx_chunk_fts_kb_version ON chunk_fts(knowledge_base_id, operation_version);
 
 -- ============================================================
 -- Ingestion Job 表（Plan 19）
@@ -98,7 +124,7 @@ CREATE TABLE ingestion_job (
     knowledge_base_id BIGINT NOT NULL,
     doc_id            BIGINT NOT NULL,
     operation_version BIGINT NOT NULL,
-    status            SMALLINT NOT NULL,                   -- 0=PENDING 1=PROCESSING 2=READY 3=FAILED
+    status            SMALLINT NOT NULL,                   -- 0=PENDING 1=PROCESSING 2=READY 3=FAILED 4=SUPERSEDED
     file_type         VARCHAR(32),
     size_bytes        BIGINT,
     sha256            VARCHAR(64),

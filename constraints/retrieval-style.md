@@ -11,6 +11,8 @@
 - 外部模块只通过 `RetrievalService.retrieve(long knowledgeBaseId, ...)` 或 `RetrievalService.retrieveEvidence(long knowledgeBaseId, ...)` 使用检索能力，不依赖 Sparse、Dense、RRF 或 Rerank 内部组件。`knowledgeBaseId` 为强隔离必填参数，先按 KB 限定候选再召回（Plan 19）。
 - `UserQueryService.answer(long knowledgeBaseId, String question)` 必须显式接收 `knowledgeBaseId`，不得调用无 KB 的检索入口（Plan 19；旧无 KB 入口已移除）。
 - Sparse / Dense 查询 SQL、Rerank 相邻 child 扩展与 Parent Evidence 回表 DAO 都必须以 `knowledge_base_id` 先行限定候选，禁止只在业务层过滤 KB。
+- **当前 READY 版本防线（Plan 21.4）**：Sparse / Dense / Parent Evidence native SQL、Rerank 相邻 child 扩展必须先 JOIN `document_ingestion_head` 与 `ingestion_job`（status=READY），只召回当前 head `operationVersion` 且对应 Job 已 READY 的索引行；旧版本、FAILED、PROCESSING 或部分索引不参与召回。迟到 Worker 无法 READY 一个已被取代的版本（`tryMarkReady` 在 SQL 层校验 head）。每条 native SQL 的列顺序、别名与版本过滤条件必须有列映射测试覆盖。
+- Chunk / Dense / Sparse 索引写入必须同时携带 `knowledgeBaseId` 与 `operationVersion`，且 `operationVersion` 必须从可信 chunk 投影派生，禁止调用方自行拼装不一致数据。
 - Retrieval 内部实现不得向 Query 或 Admin 泄漏 storage Repository、Entity 或外部 Sidecar 协议类型。
 - `retrieve()` 返回 child 维度的 `ChunkSearchResult`，服务 Retrieval 内部测试和 Smoke 分阶段诊断。
 - `retrieveEvidence()` 返回 parent 维度的 `ParentEvidenceResult`（parentChunkId、完整 content、matchedChildIds），不携带检索分数；供 Query 链路构建 LLM Context。

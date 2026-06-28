@@ -38,8 +38,8 @@ class RagIngestionSmokeComponentTest {
     long doc = 7007L;
     chunkDao.saveAll(
         List.of(
-            Chunk.createParent(61L, kb, doc, "p", 10, 0, "{}"),
-            Chunk.createChild(62L, kb, doc, 61L, "c", 5, 0, "{}")));
+            Chunk.createParent(61L, kb, doc, 1L, "p", 10, 0, "{}"),
+            Chunk.createChild(62L, kb, doc, 1L, 61L, "c", 5, 0, "{}")));
 
     assertThat(service.countChunksByDocId(doc)).isEqualTo(2);
     assertThat(service.findJob(kb, doc)).isEmpty();

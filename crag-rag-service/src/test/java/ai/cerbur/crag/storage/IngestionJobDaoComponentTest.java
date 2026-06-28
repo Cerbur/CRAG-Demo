@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 class IngestionJobDaoComponentTest {
 
   @Autowired private IngestionJobDao ingestionJobDao;
+  @Autowired private ai.cerbur.crag.storage.IngestionHeadDao ingestionHeadDao;
 
   private static final LocalDateTime T0 = LocalDateTime.of(2026, 6, 27, 10, 0, 0);
   private static final LocalDateTime T1 = LocalDateTime.of(2026, 6, 27, 10, 0, 1);
@@ -91,6 +92,8 @@ class IngestionJobDaoComponentTest {
     @DisplayName("PENDING → PROCESSING → READY，版本与时间戳推进")
     void pendingToProcessingToReady() {
       IngestionJob job = ingestionJobDao.findOrCreate(101L, 200L, 2001L, 1L, "TXT", 1L, "x");
+      // Plan 21.4：markReady 的 SQL 校验 head 存在且等于 operationVersion
+      ingestionHeadDao.findOrCreate(200L, 2001L, 1L);
 
       ingestionJobDao.markProcessing(job, T0);
       assertThat(job.getStatus()).isEqualTo(IngestionJobStatus.PROCESSING);

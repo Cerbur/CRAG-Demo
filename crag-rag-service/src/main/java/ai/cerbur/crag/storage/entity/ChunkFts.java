@@ -33,6 +33,14 @@ public class ChunkFts {
   private long knowledgeBaseId;
 
   /**
+   * 写入时该 chunk 行的 operationVersion（Plan 21.4）. 必须与 {@code chunk.operation_version} 一致；召回按 {@code
+   * knowledgeBaseId + operationVersion} 并联合 {@code document_ingestion_head} + READY ingestion_job
+   * 限定，旧版本 FTS 行不参与 Sparse 检索.
+   */
+  @Column(name = "operation_version", nullable = false)
+  private long operationVersion;
+
+  /**
    * 全文检索分词内容，tsvector 类型. 通过 to_tsvector('chinese', chunk.content) 生成. 一期通过 JdbcTemplate / Native
    * Query 操作.
    */
@@ -67,6 +75,14 @@ public class ChunkFts {
 
   public void setKnowledgeBaseId(long knowledgeBaseId) {
     this.knowledgeBaseId = knowledgeBaseId;
+  }
+
+  public long getOperationVersion() {
+    return operationVersion;
+  }
+
+  public void setOperationVersion(long operationVersion) {
+    this.operationVersion = operationVersion;
   }
 
   public String getFtsContent() {

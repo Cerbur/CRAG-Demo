@@ -13,18 +13,23 @@ import java.util.List;
  *
  * @since 2026-06-20
  */
-public record ParentEvidenceResult(long parentChunkId, String content, List<Long> matchedChildIds) {
+public record ParentEvidenceResult(
+    long parentChunkId, long docId, String content, List<Long> matchedChildIds) {
 
   /**
    * 紧凑构造器 —— 防御性复制 matchedChildIds 并拒绝非法状态.
    *
    * @throws IllegalArgumentException parentChunkId 为 0
+   * @throws IllegalArgumentException docId 为 0
    * @throws IllegalArgumentException content 为 null 或 blank
    * @throws IllegalArgumentException matchedChildIds 为 null 或空集合
    */
   public ParentEvidenceResult {
     if (parentChunkId == 0L) {
       throw new IllegalArgumentException("parentChunkId must not be 0");
+    }
+    if (docId == 0L) {
+      throw new IllegalArgumentException("docId must not be 0");
     }
     if (content == null || content.isBlank()) {
       throw new IllegalArgumentException("content must not be null or blank");

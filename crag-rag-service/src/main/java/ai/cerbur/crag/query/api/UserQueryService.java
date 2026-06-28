@@ -17,8 +17,11 @@ import ai.cerbur.crag.retrieval.api.RetrievalService;
 import ai.cerbur.crag.retrieval.api.result.ParentEvidenceResult;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -71,6 +74,25 @@ public class UserQueryService {
    * @throws RuntimeException 检索内部错误
    */
   public UserQueryResult answer(long knowledgeBaseId, String question) {
+    return answerWithEvidence(knowledgeBaseId, question).result();
+  }
+
+  /**
+   * 执行用户查询全链路并返回完整产出（Plan 21.4）—— gRPC Provider 据此映射 Citation（reference/documentId/excerpt）
+   * 而无需重复检索.
+   *
+   * @param knowledgeBaseId 知识库 ID（强隔离键）
+   * @param question 用户问题
+   * @return 完整产出，含查询结果与对应 parent evidence
+   * @throws InvalidQueryException 查询为空或超长
+   * @throws LlmUnavailableException LLM 调用失败
+   * @throws RuntimeException 检索内部错误
+   */
+  public UserQueryOutcome answerWithEvidence(long knowledgeBaseId, String question) {
+    return runQuery(knowledgeBaseId, question);
+  }
+
+  private UserQueryOutcome runQuery(long knowledgeBaseId, String question) {
     Instant start = Instant.now();
 
     // MDC requestId — reuse existing or generate
@@ -173,7 +195,8 @@ public class UserQueryService {
             elapsed,
             evidenceWasEmpty ? "retrieval_empty" : "context_budget_empty");
 
-        return new UserQueryResult(INSUFFICIENT_EVIDENCE_ANSWER, List.of());
+        return new UserQueryOutcome(
+            new UserQueryResult(INSUFFICIENT_EVIDENCE_ANSWER, List.of()), List.of());
       }
 
       // 7. Build prompt
@@ -316,7 +339,10 @@ public class UserQueryService {
             buildSkippedParents(safeEvidence, context.sources()));
       }
 
-      return result;
+      // 13. Build evidence slice aligned with sources (only parents that made it into Context)
+      List<ParentEvidenceResult> includedEvidence = selectIncludedEvidence(safeEvidence, result);
+
+      return new UserQueryOutcome(result, includedEvidence);
 
     } finally {
       // Restore MDC requestId
@@ -326,6 +352,26 @@ public class UserQueryService {
         MDC.put("requestId", originalRequestId);
       }
     }
+  }
+
+  /**
+   * 按 {@code result.sources()} 的 parentChunkId 顺序从 evidence 中选出实际进入 Context 的 parent（Plan 21.4）.
+   *
+   * <p>用于 gRPC Provider 映射 Citation（reference/documentId/excerpt）.
+   */
+  private static List<ParentEvidenceResult> selectIncludedEvidence(
+      List<ParentEvidenceResult> evidence, UserQueryResult result) {
+    Set<Long> includedParentIds = new HashSet<>();
+    for (QuerySource s : result.sources()) {
+      includedParentIds.add(s.parentChunkId());
+    }
+    List<ParentEvidenceResult> included = new ArrayList<>();
+    for (ParentEvidenceResult pe : evidence) {
+      if (includedParentIds.contains(pe.parentChunkId())) {
+        included.add(pe);
+      }
+    }
+    return included;
   }
 
   // ============================================================

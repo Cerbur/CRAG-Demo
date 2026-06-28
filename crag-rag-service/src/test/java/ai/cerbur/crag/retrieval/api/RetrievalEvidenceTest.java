@@ -39,7 +39,7 @@ class RetrievalEvidenceTest {
     @DisplayName("合法参数创建成功")
     void validConstruction() {
       ParentEvidenceResult result =
-          new ParentEvidenceResult(100L, "parent content", List.of(1001L, 1002L));
+          new ParentEvidenceResult(100L, 7000L, "parent content", List.of(1001L, 1002L));
 
       assertThat(result.parentChunkId()).isEqualTo(100L);
       assertThat(result.content()).isEqualTo("parent content");
@@ -50,7 +50,7 @@ class RetrievalEvidenceTest {
     @DisplayName("matchedChildIds 防御性复制")
     void defensiveCopyOfMatchedChildIds() {
       List<Long> mutable = new java.util.ArrayList<>(List.of(1001L));
-      ParentEvidenceResult result = new ParentEvidenceResult(100L, "content", mutable);
+      ParentEvidenceResult result = new ParentEvidenceResult(100L, 7000L, "content", mutable);
 
       // Modify the original list — should not affect the record
       mutable.add(1002L);
@@ -61,7 +61,8 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("matchedChildIds 不可修改")
     void matchedChildIdsUnmodifiable() {
-      ParentEvidenceResult result = new ParentEvidenceResult(100L, "content", List.of(1001L));
+      ParentEvidenceResult result =
+          new ParentEvidenceResult(100L, 7000L, "content", List.of(1001L));
 
       assertThatThrownBy(() -> result.matchedChildIds().add(1002L))
           .isInstanceOf(UnsupportedOperationException.class);
@@ -70,7 +71,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("parentChunkId 为 0 抛出异常")
     void nullParentChunkIdThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(0L, "content", List.of(1001L)))
+      assertThatThrownBy(() -> new ParentEvidenceResult(0L, 7000L, "content", List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("parentChunkId");
     }
@@ -78,7 +79,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("parentChunkId 为 0 抛出异常（原 blank 等价场景）")
     void blankParentChunkIdThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(0L, "content", List.of(1001L)))
+      assertThatThrownBy(() -> new ParentEvidenceResult(0L, 7000L, "content", List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("parentChunkId");
     }
@@ -86,7 +87,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("content 为 null 抛出异常")
     void nullContentThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(100L, null, List.of(1001L)))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, 7000L, null, List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("content");
     }
@@ -94,7 +95,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("content 为 blank 抛出异常")
     void blankContentThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(100L, "  ", List.of(1001L)))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, 7000L, "  ", List.of(1001L)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("content");
     }
@@ -102,7 +103,7 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("matchedChildIds 为 null 抛出异常")
     void nullMatchedChildIdsThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(100L, "content", null))
+      assertThatThrownBy(() -> new ParentEvidenceResult(100L, 7000L, "content", null))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("matchedChildIds");
     }
@@ -110,7 +111,8 @@ class RetrievalEvidenceTest {
     @Test
     @DisplayName("matchedChildIds 为空抛出异常")
     void emptyMatchedChildIdsThrows() {
-      assertThatThrownBy(() -> new ParentEvidenceResult(100L, "content", Collections.emptyList()))
+      assertThatThrownBy(
+              () -> new ParentEvidenceResult(100L, 7000L, "content", Collections.emptyList()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("matchedChildIds");
     }

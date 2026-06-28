@@ -127,7 +127,9 @@ public class DenseEmbeddingCron {
 
         // Step 4b: 写入 chunk_embedding（纯 INSERT，先查后插保证幂等）。
         // knowledge_base_id 从可信 chunk 投影派生，保证三表 KB 一致。
-        chunkEmbeddingDao.insert(chunk.getChunkId(), chunk.getKnowledgeBaseId(), vector);
+        // operation_version 同样从 chunk 行派生，保证召回按当前 head 版本限定（Plan 21.4）。
+        chunkEmbeddingDao.insert(
+            chunk.getChunkId(), chunk.getKnowledgeBaseId(), chunk.getOperationVersion(), vector);
         chunkDao.updateDenseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
         indexedDocIds.add(chunk.getDocId());
         successCount++;

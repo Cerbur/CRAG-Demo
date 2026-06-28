@@ -123,7 +123,12 @@ public class SparseEmbeddingCron {
 
         // Step 4b: 写入 chunk_fts（纯 INSERT，CJK 分词在 DB 侧完成）。
         // knowledge_base_id 从可信 chunk 投影派生，保证三表 KB 一致。
-        chunkFtsDao.insert(chunk.getChunkId(), chunk.getKnowledgeBaseId(), chunk.getContent());
+        // operation_version 同样从 chunk 行派生，保证召回按当前 head 版本限定（Plan 21.4）。
+        chunkFtsDao.insert(
+            chunk.getChunkId(),
+            chunk.getKnowledgeBaseId(),
+            chunk.getOperationVersion(),
+            chunk.getContent());
         chunkDao.updateSparseStatus(chunk.getChunkId(), ChunkStatus.SUCCESS, chunk.getVersion());
         indexedDocIds.add(chunk.getDocId());
         successCount++;

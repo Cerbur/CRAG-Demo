@@ -46,6 +46,14 @@ public class Chunk {
   @Column(name = "doc_id", nullable = false)
   private long docId;
 
+  /**
+   * 写入时该文档的 operationVersion（Plan 21.4）. 与同组 parent/child 必须一致；召回路径按 {@code knowledgeBaseId +
+   * operationVersion} 并联合 {@code document_ingestion_head} 与 READY {@code ingestion_job} 限定，旧版本或未
+   * READY 的 chunk 不参与检索.
+   */
+  @Column(name = "operation_version", nullable = false)
+  private long operationVersion;
+
   /** 父 chunk ID. {@link #NO_PARENT} = parent chunk（无父节点），其他值 = child chunk 指向其 parent. */
   @Column(name = "parent_chunk_id", nullable = false)
   private long parentChunkId;
@@ -105,6 +113,7 @@ public class Chunk {
    * @param chunkId 预分配的唯一 chunk ID（Snowflake CHUNK 类型）
    * @param knowledgeBaseId 所属知识库 ID
    * @param docId 文档 ID（Snowflake LEGACY_DOCUMENT 类型）
+   * @param operationVersion 文档操作版本（须与同组 chunk 一致，且对齐当前 head）
    * @param content 父级 chunk 文本（~1024 token 大窗口）
    * @param tokenCount token 数
    * @param chunkIndex 在文档中的序号（0-based）
@@ -115,6 +124,7 @@ public class Chunk {
       long chunkId,
       long knowledgeBaseId,
       long docId,
+      long operationVersion,
       String content,
       int tokenCount,
       Integer chunkIndex,
@@ -123,6 +133,7 @@ public class Chunk {
     chunk.setChunkId(chunkId);
     chunk.setKnowledgeBaseId(knowledgeBaseId);
     chunk.setDocId(docId);
+    chunk.setOperationVersion(operationVersion);
     chunk.setParentChunkId(NO_PARENT);
     chunk.setChunkIndex(chunkIndex);
     chunk.setContent(content);
@@ -140,6 +151,7 @@ public class Chunk {
    * @param chunkId 预分配的唯一 chunk ID（Snowflake CHUNK 类型）
    * @param knowledgeBaseId 所属知识库 ID（须与同组 parent 一致）
    * @param docId 文档 ID（Snowflake LEGACY_DOCUMENT 类型）
+   * @param operationVersion 文档操作版本（须与同组 chunk 一致，且对齐当前 head）
    * @param parentChunkId 父 chunk ID
    * @param content 子级 chunk 文本（~256 token 细粒度）
    * @param tokenCount token 数
@@ -151,6 +163,7 @@ public class Chunk {
       long chunkId,
       long knowledgeBaseId,
       long docId,
+      long operationVersion,
       long parentChunkId,
       String content,
       int tokenCount,
@@ -160,6 +173,7 @@ public class Chunk {
     chunk.setChunkId(chunkId);
     chunk.setKnowledgeBaseId(knowledgeBaseId);
     chunk.setDocId(docId);
+    chunk.setOperationVersion(operationVersion);
     chunk.setParentChunkId(parentChunkId);
     chunk.setChunkIndex(chunkIndex);
     chunk.setContent(content);
@@ -195,6 +209,14 @@ public class Chunk {
 
   public void setDocId(long docId) {
     this.docId = docId;
+  }
+
+  public long getOperationVersion() {
+    return operationVersion;
+  }
+
+  public void setOperationVersion(long operationVersion) {
+    this.operationVersion = operationVersion;
   }
 
   public long getParentChunkId() {

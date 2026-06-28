@@ -45,7 +45,7 @@ class DenseEmbeddingCronTest {
   @Test
   @DisplayName("成功索引 → embedding 写入携带 chunk 的 knowledgeBaseId，并尝试推进 READY")
   void successPropagatesKbAndAdvancesReady() {
-    Chunk child = Chunk.createChild(10L, KB, DOC, 1L, "content", 5, 0, "{}");
+    Chunk child = Chunk.createChild(10L, KB, DOC, 1L, 1L, "content", 5, 0, "{}");
     child.setVersion(0);
     lenient()
         .when(chunkDao.findDenseCandidates(any(), any(LocalDateTime.class), any(Pageable.class)))
@@ -56,7 +56,7 @@ class DenseEmbeddingCronTest {
 
     cron.processDenseEmbedding();
 
-    verify(chunkEmbeddingDao).insert(eq(10L), eq(KB), any(float[].class));
+    verify(chunkEmbeddingDao).insert(eq(10L), eq(KB), eq(1L), any(float[].class));
     verify(chunkDao).updateDenseStatus(eq(10L), eq(ChunkStatus.SUCCESS), anyInt());
     verify(ingestionJobService).tryAdvanceReadyIfComplete(DOC);
   }

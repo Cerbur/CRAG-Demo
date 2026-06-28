@@ -41,7 +41,7 @@ class SparseEmbeddingCronTest {
   @Test
   @DisplayName("成功索引 → fts 写入携带 chunk 的 knowledgeBaseId，并尝试推进 READY")
   void successPropagatesKbAndAdvancesReady() {
-    Chunk child = Chunk.createChild(20L, KB, DOC, 1L, "内容", 5, 0, "{}");
+    Chunk child = Chunk.createChild(20L, KB, DOC, 1L, 1L, "内容", 5, 0, "{}");
     child.setVersion(0);
     lenient()
         .when(chunkDao.findSparseCandidates(any(), any(LocalDateTime.class), any(Pageable.class)))
@@ -51,7 +51,7 @@ class SparseEmbeddingCronTest {
 
     cron.processSparseEmbedding();
 
-    verify(chunkFtsDao).insert(eq(20L), eq(KB), eq("内容"));
+    verify(chunkFtsDao).insert(eq(20L), eq(KB), eq(1L), eq("内容"));
     verify(chunkDao)
         .updateSparseStatus(
             eq(20L), eq(ChunkStatus.SUCCESS), org.mockito.ArgumentMatchers.anyInt());

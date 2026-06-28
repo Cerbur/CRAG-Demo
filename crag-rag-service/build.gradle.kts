@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":crag-id"))
     implementation(project(":crag-event"))
     implementation(project(":crag-knowledge-contracts"))
+    implementation(project(":crag-rag-contracts"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")

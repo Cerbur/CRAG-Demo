@@ -26,15 +26,16 @@ class ChunkMultiKbComponentTest {
   @Autowired private ChunkDao chunkDao;
 
   @Test
-  @DisplayName("写入的 chunk 持久化 knowledgeBaseId")
+  @DisplayName("写入的 chunk 持久化 knowledgeBaseId 与 operationVersion")
   void chunkPersistsKnowledgeBaseId() {
-    Chunk child = Chunk.createChild(11L, 555L, 700L, 1L, "content", 5, 0, "{}");
+    Chunk child = Chunk.createChild(11L, 555L, 700L, 1L, 1L, "content", 5, 0, "{}");
     chunkDao.saveAll(List.of(child));
 
     Chunk stored = chunkDao.findByChunkId(11L);
 
     assertThat(stored).isNotNull();
     assertThat(stored.getKnowledgeBaseId()).isEqualTo(555L);
+    assertThat(stored.getOperationVersion()).isEqualTo(1L);
   }
 
   @Test
@@ -43,9 +44,9 @@ class ChunkMultiKbComponentTest {
     long docA = 701L;
     long kbA = 601L;
     // parent（SKIPPED）+ 2 个 INIT child
-    Chunk parentA = Chunk.createParent(21L, kbA, docA, "p", 10, 0, "{}");
-    Chunk childA1 = Chunk.createChild(22L, kbA, docA, 21L, "c1", 5, 0, "{}");
-    Chunk childA2 = Chunk.createChild(23L, kbA, docA, 21L, "c2", 5, 1, "{}");
+    Chunk parentA = Chunk.createParent(21L, kbA, docA, 1L, "p", 10, 0, "{}");
+    Chunk childA1 = Chunk.createChild(22L, kbA, docA, 1L, 21L, "c1", 5, 0, "{}");
+    Chunk childA2 = Chunk.createChild(23L, kbA, docA, 1L, 21L, "c2", 5, 1, "{}");
     chunkDao.saveAll(List.of(parentA, childA1, childA2));
 
     assertThat(chunkDao.countByDocIdNotFullyIndexed(docA)).isEqualTo(2);
@@ -56,8 +57,8 @@ class ChunkMultiKbComponentTest {
   void fullyIndexedChildCountsZero() {
     long docB = 702L;
     long kbB = 602L;
-    Chunk parentB = Chunk.createParent(31L, kbB, docB, "p", 10, 0, "{}");
-    Chunk childB = Chunk.createChild(32L, kbB, docB, 31L, "c", 5, 0, "{}");
+    Chunk parentB = Chunk.createParent(31L, kbB, docB, 1L, "p", 10, 0, "{}");
+    Chunk childB = Chunk.createChild(32L, kbB, docB, 1L, 31L, "c", 5, 0, "{}");
     childB.setDenseStatus(ChunkStatus.SUCCESS);
     childB.setSparseStatus(ChunkStatus.SUCCESS);
     chunkDao.saveAll(List.of(parentB, childB));
@@ -70,7 +71,7 @@ class ChunkMultiKbComponentTest {
   void partiallyIndexedChildStillCounts() {
     long docC = 703L;
     long kbC = 603L;
-    Chunk childC = Chunk.createChild(42L, kbC, docC, 41L, "c", 5, 0, "{}");
+    Chunk childC = Chunk.createChild(42L, kbC, docC, 1L, 41L, "c", 5, 0, "{}");
     childC.setDenseStatus(ChunkStatus.SUCCESS);
     // sparse 仍 INIT
     chunkDao.saveAll(List.of(childC));

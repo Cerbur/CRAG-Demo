@@ -177,4 +177,63 @@ public class IngestionJobDao {
   public long countByKnowledgeBaseIdAndStatus(long knowledgeBaseId, IngestionJobStatus status) {
     return ingestionJobRepository.countByKnowledgeBaseIdAndStatus(knowledgeBaseId, status);
   }
+
+  /**
+   * CAS 推进同 doc 旧活动 Job（PENDING / PROCESSING）为 SUPERSEDED（Plan 21.4）.
+   *
+   * <p>由 {@code IngestionHeadService.advance} 在 head 接管更高 operationVersion 后调用，使迟到 Worker 无法 READY
+   * 一个 已被取代的版本。affected 返回被取代的 Job 数（0 表示无可取代的旧活动 Job，正常）.
+   *
+   * @param docId 文档 ID
+   * @param newOperationVersion head 已推进到的更高 operationVersion
+   * @return 被标记 SUPERSEDED 的 Job 数（0 表示无旧活动 Job 需取代）
+   */
+  public int markSuperseded(long docId, long newOperationVersion) {
+    int affected = ingestionJobRepository.tryMarkSuperseded(docId, newOperationVersion);
+    if (affected > 0) {
+      log.warn(
+          "Ingestion jobs superseded by higher operationVersion — docId={} newOperationVersion={} count={}",
+          docId,
+          newOperationVersion,
+          affected);
+    }
+    return affected;
+  }
+
+  /**
+   * CAS 推进滞留 PROCESSING Job 为 FAILED 超时终态（Plan 21.4，供 21.5 Reconciler 消费）.
+   *
+   * @param docId 文档 ID
+   * @param operationVersion 文档操作版本
+   * @param version 当前读取版本
+   * @param staleBefore 滞留时间上界
+   * @param completedAt 进入 FAILED 的时间
+   * @param failureCategory 失败分类（安全枚举名）
+   * @param failureMessage 失败安全短摘要
+   * @throws IngestionJobConflictException affected == 0（状态/版本/超时条件不满足）
+   */
+  public void markTimedOut(
+      long docId,
+      long operationVersion,
+      Integer version,
+      LocalDateTime staleBefore,
+      LocalDateTime completedAt,
+      String failureCategory,
+      String failureMessage) {
+    int affected =
+        ingestionJobRepository.tryMarkTimedOut(
+            docId,
+            operationVersion,
+            version,
+            staleBefore,
+            completedAt,
+            failureCategory,
+            failureMessage);
+    if (affected == 0) {
+      throw new IngestionJobConflictException(
+          docId,
+          operationVersion,
+          "markTimedOut CAS failed: job not stale, advanced, or version changed");
+    }
+  }
 }

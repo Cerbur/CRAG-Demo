@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.EventHandlerResult;
 import ai.cerbur.crag.event.api.EventHandlerResult.Status;
+import ai.cerbur.crag.ingestion.head.IngestionHeadService;
 import ai.cerbur.crag.ingestion.job.IngestionJobService;
 import ai.cerbur.crag.ingestion.job.IngestionOrchestrator;
 import ai.cerbur.crag.storage.IngestionJobDao;
@@ -36,6 +37,7 @@ import tools.jackson.databind.node.ObjectNode;
 class RagEventConsumerComponentTest {
 
   @Autowired private IngestionJobService ingestionJobService;
+  @Autowired private IngestionHeadService ingestionHeadService;
   @Autowired private IngestionJobDao ingestionJobDao;
   @Autowired private ObjectMapper objectMapper;
 
@@ -45,6 +47,7 @@ class RagEventConsumerComponentTest {
         objectMapper,
         ingestionJobService,
         mock(IngestionOrchestrator.class),
+        ingestionHeadService,
         "crag:event:knowledge",
         "rag-ingestion",
         "rag-ingestion-1");
@@ -159,7 +162,13 @@ class RagEventConsumerComponentTest {
         .thenThrow(new RuntimeException("db unavailable"));
     DocUploadedEventHandler h =
         new DocUploadedEventHandler(
-            objectMapper, failingService, mock(IngestionOrchestrator.class), "s", "g", "c");
+            objectMapper,
+            failingService,
+            mock(IngestionOrchestrator.class),
+            ingestionHeadService,
+            "s",
+            "g",
+            "c");
 
     EventHandlerResult result = h.handle(docUploaded(5004L, 1L, validPayload(202L, 5004L, 1L)));
 

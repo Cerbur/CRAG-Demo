@@ -69,7 +69,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-access-contracts` | 无 |
 | `crag-grpc-runtime` | 无 |
 | `crag-event` | 无 |
-| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event`、`crag-knowledge-contracts` |
+| `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event`、`crag-knowledge-contracts`、`crag-rag-contracts` |
 | `crag-access-service` | `crag-access-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event` |
 | `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
@@ -202,13 +202,18 @@ ai.cerbur.crag.common.dto.result
 ai.cerbur.crag.rag
 ├── app/                                — RagServiceApplication（组合根）
 ├── probe/                              — PlatformProbeGrpcService、ExpectedSchemaHealthIndicator
+├── grpc/                               — 正式 RAG gRPC Provider（plan_21/21.4）
+│   ├── provider/                       — RagQueryGrpcProvider、IngestionStatusGrpcProvider、DecimalId
+│   ├── mapper/                         — RagQueryMapper（UserQueryResult → QueryResponse、ParentEvidence → Citation）
+│   ├── error/                          — RagErrorMapper（稳定 gRPC Status）
+│   └── security/                       — RagRpcAuthorizer（Open 可 Query，Knowledge 可 Status，其他拒绝）
 └── app.arch/                           — ModuleBoundaryArchitectureTest（包边界与依赖校验）
 
 ai.cerbur.crag.storage                  — 原 crag-storage
-├── ChunkDao / ChunkEmbeddingDao / ChunkFtsDao
-├── entity/                            — Chunk、索引实体、状态与 Converter
+├── ChunkDao / ChunkEmbeddingDao / ChunkFtsDao / IngestionHeadDao / IngestionJobDao / IngestionJobConflictException
+├── entity/                            — Chunk、ChunkEmbedding、ChunkFts、状态与 Converter、IngestionJob、DocumentIngestionHead（plan_21/21.4）
 ├── repository/                        — Spring Data Repository（仅包内访问）
-└── result/                            — Dense / Sparse DAO 投影
+└── result/                            — Dense / Sparse / Parent 投影；IngestionHead（plan_21/21.4）
 
 ai.cerbur.crag.retrieval                — 原 crag-retrieval
 ├── api/                               — RetrievalService / result.ChunkSearchResult / result.ParentEvidenceResult / embedding.EmbeddingClient / embedding.EmbeddingException（跨包公开入口）
@@ -235,6 +240,7 @@ ai.cerbur.crag.ingestion                — 原 crag-ingestion
 ├── chunk.split/                       — ChunkSplit 能力与数据类型
 ├── consumer/                          — DOC_UPLOADED EventHandler / payload 解析（Plan 19）
 ├── job/                               — IngestionJobService / Orchestrator / Resolution / FailureCategory
+├── head/                              — IngestionHeadService / HeadAdvanceResult / HeadAdvanceOutcome / IngestionStatusResult（plan_21/21.4 head 单调推进与超时终态化支撑）
 ├── knowledge/                         — Knowledge gRPC ReadDocumentFile client（只依赖 contracts）
 ├── producer/                          — INGESTION_PROCESSING/READY/FAILED 状态事件 Outbox 写入（Plan 19）
 ├── dense/                             — DenseEmbeddingService

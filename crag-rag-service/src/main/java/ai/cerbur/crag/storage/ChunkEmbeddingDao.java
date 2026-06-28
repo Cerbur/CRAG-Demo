@@ -42,16 +42,23 @@ public class ChunkEmbeddingDao {
    *
    * <p>调用方应先通过 {@link #existsByChunkId(long)} 做幂等检查. 极端并发下可能抛出 DuplicateKeyException，由调用方决定重试策略.
    * Plan 19 起 {@code knowledgeBaseId} 必填，且必须从可信 chunk 投影派生，保证 {@code chunk}、{@code chunk_embedding}
-   * 与 {@code chunk_fts} 三表 KB 一致.
+   * 与 {@code chunk_fts} 三表 KB 一致. Plan 21.4 起 {@code operationVersion} 必填，须与对应 chunk 行一致，召回路径据此 联合
+   * head + READY ingestion_job 限定版本，旧版本向量不参与 Dense 检索.
    *
    * @param chunkId chunk ID
    * @param knowledgeBaseId 所属知识库 ID（须与对应 chunk 行一致）
+   * @param operationVersion 写入时该 chunk 行的 operationVersion（须与 chunk 行一致）
    * @param vector 768 维稠密向量
    * @throws DuplicateKeyException 同一 chunkId 已被其他实例写入
    */
-  public void insert(long chunkId, long knowledgeBaseId, float[] vector) {
-    chunkEmbeddingRepository.insert(chunkId, knowledgeBaseId, toPgVectorString(vector));
-    log.debug("Embedding inserted — chunkId={} knowledgeBaseId={}", chunkId, knowledgeBaseId);
+  public void insert(long chunkId, long knowledgeBaseId, long operationVersion, float[] vector) {
+    chunkEmbeddingRepository.insert(
+        chunkId, knowledgeBaseId, operationVersion, toPgVectorString(vector));
+    log.debug(
+        "Embedding inserted — chunkId={} knowledgeBaseId={} operationVersion={}",
+        chunkId,
+        knowledgeBaseId,
+        operationVersion);
   }
 
   /**
@@ -66,10 +73,15 @@ public class ChunkEmbeddingDao {
   /**
    * 向量相似度检索 —— 基于 pgvector 余弦距离查询 top-k 相似 child chunk，映射为 {@link DenseSearchResult}.
    *
+   * <p>Plan 21.4 起召回 SQL 先 join {@code document_ingestion_head} 与 {@code
+   * ingestion_job}（status=READY）， 限定只 召回当前 head.operationVersion 且对应 Job 已 READY 的
+   * chunk；旧版本、FAILED、PROCESSING 或部分索引的向量不参与 Dense 召回.
+   *
    * <p>流程： 1. 空向量保护：vector 为 null 或长度为 0 时返回空列表 2. float[] → pgvector 数组字面量转换（复用 {@link
    * #toPgVectorString}） 3. 委托 ChunkEmbeddingRepository 执行 native SQL 查询 4. Object[] 列映射为
    * DenseSearchResult（列索引：0=chunkId, 1=parentChunkId, 2=chunkIndex, 3=score, 4=content）
    *
+   * @param knowledgeBaseId 知识库 ID（候选限定）
    * @param vector query embedding 向量（768 维）
    * @param limit 返回数量上限
    * @return 按相似度降序排列的 DenseSearchResult 列表

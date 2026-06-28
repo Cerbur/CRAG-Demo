@@ -3,6 +3,8 @@ package ai.cerbur.crag.ingestion.consumer;
 import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.EventHandler;
 import ai.cerbur.crag.event.api.EventHandlerResult;
+import ai.cerbur.crag.ingestion.head.HeadAdvanceResult;
+import ai.cerbur.crag.ingestion.head.IngestionHeadService;
 import ai.cerbur.crag.ingestion.job.IngestionJobResolution;
 import ai.cerbur.crag.ingestion.job.IngestionJobService;
 import ai.cerbur.crag.ingestion.job.IngestionOrchestrator;
@@ -44,6 +46,7 @@ public class DocUploadedEventHandler implements EventHandler {
   private final ObjectMapper objectMapper;
   private final IngestionJobService ingestionJobService;
   private final IngestionOrchestrator ingestionOrchestrator;
+  private final IngestionHeadService ingestionHeadService;
   private final String streamKey;
   private final String groupName;
   private final String consumerName;
@@ -52,12 +55,14 @@ public class DocUploadedEventHandler implements EventHandler {
       ObjectMapper objectMapper,
       IngestionJobService ingestionJobService,
       IngestionOrchestrator ingestionOrchestrator,
+      IngestionHeadService ingestionHeadService,
       @Value("${crag.event.stream-key:crag:event:knowledge}") String streamKey,
       @Value("${crag.event.group-name:rag-ingestion}") String groupName,
       @Value("${crag.event.consumer.consumer-name:rag-ingestion-1}") String consumerName) {
     this.objectMapper = objectMapper;
     this.ingestionJobService = ingestionJobService;
     this.ingestionOrchestrator = ingestionOrchestrator;
+    this.ingestionHeadService = ingestionHeadService;
     this.streamKey = streamKey;
     this.groupName = groupName;
     this.consumerName = consumerName;
@@ -102,6 +107,22 @@ public class DocUploadedEventHandler implements EventHandler {
     }
 
     try {
+      // Plan 21.4：先单调推进 head；低版本/重复事件视为已处理（幂等 ACK），不重复建 Job 或写 Chunk。
+      HeadAdvanceResult headAdvance =
+          ingestionHeadService.advance(
+              payload.tenantId(),
+              payload.knowledgeBaseId(),
+              payload.docId(),
+              payload.operationVersion());
+      if (!headAdvance.shouldProcess()) {
+        log.info(
+            "DOC_UPLOADED ACK superseded/low-version head — docId={} event={} head={} outcome={}",
+            payload.docId(),
+            payload.operationVersion(),
+            headAdvance.head().operationVersion(),
+            headAdvance.outcome());
+        return EventHandlerResult.success();
+      }
       IngestionJobResolution resolution =
           ingestionJobService.resolve(
               payload.tenantId(),

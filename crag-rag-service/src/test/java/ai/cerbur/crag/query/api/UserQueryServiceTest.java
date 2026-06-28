@@ -77,7 +77,7 @@ class UserQueryServiceTest {
   }
 
   private ParentEvidenceResult makeEvidence() {
-    return new ParentEvidenceResult(PARENT_CHUNK_ID, PARENT_CONTENT, MATCHED_CHILD_IDS);
+    return new ParentEvidenceResult(PARENT_CHUNK_ID, 7000L, PARENT_CONTENT, MATCHED_CHILD_IDS);
   }
 
   private QuerySource makeSource() {
