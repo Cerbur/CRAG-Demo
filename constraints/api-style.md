@@ -42,6 +42,15 @@
 | `VALIDATION_ERROR` | `40001` | Validation failed | 400 |
 | `INVALID_ARGUMENT` | `40002` | Invalid argument | 400 |
 | `NOT_FOUND` | `40401` | Resource not found | 404 |
+| `UNAUTHENTICATED` | `40101` | Unauthenticated | 401 |
+| `INVALID_CREDENTIALS` | `40102` | Invalid credentials | 401 |
+| `FORBIDDEN` | `40301` | Forbidden | 403 |
+| `CONFLICT` | `40901` | Conflict | 409 |
+| `INGESTION_RETRY_NOT_ALLOWED` | `40902` | Ingestion retry not allowed | 409 |
+| `UPLOAD_TOO_LARGE` | `41301` | Upload too large | 413 |
+| `UNSUPPORTED_MEDIA_TYPE` | `41501` | Unsupported media type | 415 |
+| `DOWNSTREAM_UNAVAILABLE` | `50301` | Downstream unavailable | 503 |
+| `DOWNSTREAM_TIMEOUT` | `50401` | Downstream timeout | 504 |
 | `LLM_UNAVAILABLE` | `50201` | LLM unavailable | 502 |
 | `INTERNAL_ERROR` | `50001` | Internal server error | 500 |
 

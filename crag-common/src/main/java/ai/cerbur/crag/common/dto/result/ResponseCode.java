@@ -23,6 +23,33 @@ public enum ResponseCode {
   /** 请求资源不存在. */
   NOT_FOUND(40401, "Resource not found", HttpStatus.NOT_FOUND),
 
+  /** 未认证：缺少或无效凭证（plan_21/21.6 正式 HTTP 入口新增）. */
+  UNAUTHENTICATED(40101, "Unauthenticated", HttpStatus.UNAUTHORIZED),
+
+  /** 凭据无效：登录、Refresh 或 API Key 校验失败（plan_21/21.6 正式 HTTP 入口新增）. */
+  INVALID_CREDENTIALS(40102, "Invalid credentials", HttpStatus.UNAUTHORIZED),
+
+  /** 已认证但无权执行当前操作（plan_21/21.6 正式 HTTP 入口新增）. */
+  FORBIDDEN(40301, "Forbidden", HttpStatus.FORBIDDEN),
+
+  /** 资源冲突：版本冲突、状态冲突或最后 OWNER 保护（plan_21/21.6 正式 HTTP 入口新增）. */
+  CONFLICT(40901, "Conflict", HttpStatus.CONFLICT),
+
+  /** 摄取不可重试：失败分类不可重试或达到次数上限（plan_21/21.6 正式 HTTP 入口新增）. */
+  INGESTION_RETRY_NOT_ALLOWED(40902, "Ingestion retry not allowed", HttpStatus.CONFLICT),
+
+  /** 上传超过大小上限（plan_21/21.6 正式 HTTP 入口新增）. */
+  UPLOAD_TOO_LARGE(41301, "Upload too large", HttpStatus.PAYLOAD_TOO_LARGE),
+
+  /** 不支持的媒体类型（plan_21/21.6 正式 HTTP 入口新增）. */
+  UNSUPPORTED_MEDIA_TYPE(41501, "Unsupported media type", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+
+  /** 下游依赖不可用（plan_21/21.6 正式 HTTP 入口新增）. */
+  DOWNSTREAM_UNAVAILABLE(50301, "Downstream unavailable", HttpStatus.SERVICE_UNAVAILABLE),
+
+  /** 下游依赖超时（plan_21/21.6 正式 HTTP 入口新增）. */
+  DOWNSTREAM_TIMEOUT(50401, "Downstream timeout", HttpStatus.GATEWAY_TIMEOUT),
+
   /** LLM 供应商不可用. */
   LLM_UNAVAILABLE(50201, "LLM unavailable", HttpStatus.valueOf(502)),
 

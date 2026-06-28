@@ -13,3 +13,15 @@ crag:
         access-service: localhost:9991
         knowledge-service: localhost:9992
         rag-service: localhost:9993
+  console:
+    allowed-origins:
+      - http://localhost:8080
+    cookie:
+      secure: false
+      refresh-ttl: 3600s
+    access:
+      target: localhost:9991
+    knowledge:
+      target: localhost:9992
+    rag:
+      target: localhost:9993

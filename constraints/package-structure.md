@@ -72,8 +72,8 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event`、`crag-knowledge-contracts`、`crag-rag-contracts` |
 | `crag-access-service` | `crag-access-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event` |
 | `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-rag-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
-| `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
-| `crag-open-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-console-api` | `crag-platform-contracts`、`crag-access-contracts`、`crag-knowledge-contracts`、`crag-rag-contracts`、`crag-grpc-runtime`、`crag-common` |
+| `crag-open-api` | `crag-platform-contracts`、`crag-access-contracts`、`crag-rag-contracts`、`crag-grpc-runtime`、`crag-common` |
 
 附加硬约束：
 
@@ -191,7 +191,10 @@ ai.cerbur.crag.id
 ai.cerbur.crag.common.dto.result
 ├── Response
 ├── ResponseCode
-│   └── 含 LLM_UNAVAILABLE = 50201
+│   └── 含 LLM_UNAVAILABLE = 50201；plan_21/21.6 追加正式 HTTP 入口业务码（40101/40102/40301/40901/40902/41301/41501/50301/50401）
+ai.cerbur.crag.common.dto.error
+├── ErrorDetail                       — plan_21/21.6 统一错误详情（message/traceId/reason/retryable/fieldErrors）
+└── FieldErrorDetail                  — plan_21/21.6 字段级校验错误（不含敏感原值）
 ```
 
 ### `crag-rag-service`
@@ -385,7 +388,17 @@ ai.cerbur.crag.knowledge
 ai.cerbur.crag.console
 ├── app/                                — ConsoleApiApplication
 ├── probe/                              — DownstreamConnectivityHealthIndicator
-└── config/                             — ProbeExecutorConfiguration
+├── config/                             — ProbeExecutorConfiguration
+├── auth/                               — Console Auth HTTP 切片（plan_21/21.6）
+│   ├── controller/                     — AuthController（register/login/refresh/logout/me）
+│   ├── dto/                            — AuthResponse、UserResponse、TenantSummaryResponse、RegisterRequest、LoginRequest
+│   └── service/                        — AccessIdentityClient（gRPC adapter）、RefreshCookieService、OriginGuard
+├── security/                           — Console JWT 本地验签与 Bearer filter（plan_21/21.6）
+│   ├── jwt/                            — JwtVerificationKeyCache、AccessJwtVerifier、AccessJwtKeyRefresher
+│   └── filter/                         — BearerTokenAuthenticationFilter
+├── advice/                             — GlobalExceptionHandler（Console 专属，共享 crag-common 的 ErrorDetail/ResponseCode）
+└── grpc/                               — Console 下游 gRPC client 配置（plan_21/21.6）
+    └── config/                         — ConsoleGrpcClientConfiguration（Access/Knowledge/RAG channel + stub Bean + per-use-case deadline）
 ```
 
 ### `crag-open-api`
