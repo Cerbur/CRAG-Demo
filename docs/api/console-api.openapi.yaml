@@ -1,0 +1,1747 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CRAG-Demo Console API",
+    "version": "1.0.0",
+    "description": "Console 管理面正式 HTTP API（plan_21/21.6–21.9）。前端通过 Access JWT 完成认证，管理 Tenant、Membership、KnowledgeBase、Document 摄取生命周期与 API Key。所有响应包装为统一 Response<T>。详细中文指南见 docs/api/README.md。"
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "本地 console-api 入口" }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "认证、Refresh Cookie、当前用户" },
+    { "name": "Tenant", "description": "当前用户的有效 Tenant 列表" },
+    { "name": "Membership", "description": "Tenant 成员管理" },
+    { "name": "KnowledgeBase", "description": "KnowledgeBase 与建库 Scope" },
+    { "name": "Document", "description": "Document 上传、摄取状态与重试" },
+    { "name": "ApiKey", "description": "单 KnowledgeBase 的 API Key 生命周期" }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "operationId": "register",
+        "summary": "注册 User/Account/默认 Tenant，返回 Access JWT 并设置 Refresh Cookie",
+        "description": "创建用户、登录账号、默认 Tenant 与 OWNER Membership。响应体只含 Access JWT；完整 Refresh Token 通过 HttpOnly Cookie 下发。register 额外返回默认 Tenant；login 后客户端通过 Tenant 列表恢复上下文。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" },
+              "example": {
+                "nickname": "alice",
+                "username": "alice",
+                "password": "<PLACEHOLDER_PASSWORD>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "注册成功；响应体含 Access JWT，Set-Cookie 含 HttpOnly Refresh Token",
+            "headers": {
+              "Set-Cookie": { "$ref": "#/components/headers/RefreshCookie" }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "accessToken": "<PLACEHOLDER_ACCESS_JWT>",
+                    "accessExpiresAt": "2026-06-29T12:00:00Z",
+                    "user": { "userId": "1001", "nickname": "alice" },
+                    "defaultTenant": {
+                      "tenantId": "2001",
+                      "name": "alice 的默认租户",
+                      "role": "OWNER"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/InvalidCredentials" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "operationId": "login",
+        "summary": "登录并创建 Session Family",
+        "description": "验证凭据并签发新 Access JWT；完整 Refresh Token 通过 HttpOnly Cookie 下发。响应体不含 Refresh Token；defaultTenant 为 null，客户端通过 GET /api/v1/tenants 恢复工作上下文。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" },
+              "example": {
+                "username": "alice",
+                "password": "<PLACEHOLDER_PASSWORD>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "headers": {
+              "Set-Cookie": { "$ref": "#/components/headers/RefreshCookie" }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "accessToken": "<PLACEHOLDER_ACCESS_JWT>",
+                    "accessExpiresAt": "2026-06-29T12:00:00Z",
+                    "user": { "userId": "1001", "nickname": "alice" },
+                    "defaultTenant": null
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/InvalidCredentials" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "operationId": "refresh",
+        "summary": "从 Cookie 轮换 Refresh Token，返回新 Access JWT",
+        "description": "校验同站 Origin/Referer；从 refresh_token Cookie 读取并轮换 Refresh Token（旧 Token 撤销，下发新 Cookie）。不读取请求体。缺 Cookie 返回 401，缺/跨站 Origin 返回 403。",
+        "parameters": [
+          { "$ref": "#/components/parameters/OriginHeader" },
+          { "$ref": "#/components/parameters/RefererHeader" },
+          { "$ref": "#/components/parameters/RefreshCookieParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "刷新成功；Set-Cookie 下发轮换后的 Refresh Token",
+            "headers": {
+              "Set-Cookie": { "$ref": "#/components/headers/RefreshCookie" }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "accessToken": "<PLACEHOLDER_ACCESS_JWT>",
+                    "accessExpiresAt": "2026-06-29T12:15:00Z",
+                    "user": { "userId": "1001", "nickname": "alice" },
+                    "defaultTenant": null
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "operationId": "logout",
+        "summary": "通过 Cookie 撤销 Session Family 并清除 Cookie",
+        "description": "校验同站 Origin/Referer。无论 Access 结果如何都在 finally 中清除本地 Cookie。不强制 Bearer（依赖 Cookie）；若请求携带有效 Principal 则一并撤销 Session Family。",
+        "parameters": [
+          { "$ref": "#/components/parameters/OriginHeader" },
+          { "$ref": "#/components/parameters/RefererHeader" },
+          { "$ref": "#/components/parameters/RefreshCookieParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "登出成功；Set-Cookie 以 Max-Age=0 清除 refresh_token",
+            "headers": {
+              "Set-Cookie": { "$ref": "#/components/headers/RefreshCookieCleared" }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyResponseEnvelope" },
+                "example": { "success": true, "code": 0, "result": null }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "operationId": "getCurrentUser",
+        "summary": "返回当前用户安全投影",
+        "description": "通过 Bearer filter 注入的 ConsolePrincipal 解析当前用户；缺 Principal 返回 401。",
+        "parameters": [{ "$ref": "#/components/parameters/AuthorizationHeader" }],
+        "responses": {
+          "200": {
+            "description": "当前用户安全投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": { "userId": "1001", "nickname": "alice" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/api/v1/tenants": {
+      "get": {
+        "tags": ["Tenant"],
+        "operationId": "listTenants",
+        "summary": "当前用户的有效 Tenant 与角色列表",
+        "description": "actor userId 只来自 Bearer filter 注入的 ConsolePrincipal，不读取请求体或查询参数中的 actor。分页使用 tenantId 游标。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "$ref": "#/components/parameters/PageToken" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant 列表分页",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TenantListResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "items": [
+                      {
+                        "tenantId": "2001",
+                        "name": "alice 的默认租户",
+                        "role": "OWNER"
+                      }
+                    ],
+                    "nextPageToken": ""
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidArgument" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/members": {
+      "get": {
+        "tags": ["Membership"],
+        "operationId": "listMembers",
+        "summary": "成员列表",
+        "description": "actor userId 只来自 ConsolePrincipal。nickname 受 Membership proto 缺口限制：list 操作暂返回 nickname=null，单成员命令（add/change-role/remove）通过单用户 GetUserProfile 解析 nickname。MEMBER 不能管理（Access PERMISSION_DENIED → 403）；跨租户不可见（NOT_FOUND → 404，不泄漏）。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "$ref": "#/components/parameters/PageToken" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成员列表分页（list 的 nickname 暂为 null）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MembersListResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "items": [
+                      {
+                        "userId": "1001",
+                        "nickname": null,
+                        "role": "OWNER",
+                        "status": "ACTIVE",
+                        "createdAt": "2026-06-29T10:00:00Z",
+                        "updatedAt": "2026-06-29T10:00:00Z"
+                      }
+                    ],
+                    "nextPageToken": ""
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidArgument" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      },
+      "post": {
+        "tags": ["Membership"],
+        "operationId": "addMember",
+        "summary": "按 Username 添加已注册用户",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AddMemberRequest" },
+              "example": { "username": "bob" }
+            }
+          }
+        },
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "添加成功（nickname 由单用户 GetUserProfile 解析）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemberResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "userId": "1002",
+                    "nickname": "bob",
+                    "role": "MEMBER",
+                    "status": "ACTIVE",
+                    "createdAt": "2026-06-29T11:00:00Z",
+                    "updatedAt": "2026-06-29T11:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/members/{userId}": {
+      "patch": {
+        "tags": ["Membership"],
+        "operationId": "changeMemberRole",
+        "summary": "调整 OWNER/MEMBER 角色",
+        "description": "最后 OWNER 降级由 Access FAILED_PRECONDITION 保护，返回 409。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChangeMemberRoleRequest" },
+              "example": { "role": "MEMBER" }
+            }
+          }
+        },
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/UserIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "角色调整成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemberResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "userId": "1002",
+                    "nickname": "bob",
+                    "role": "OWNER",
+                    "status": "ACTIVE",
+                    "createdAt": "2026-06-29T11:00:00Z",
+                    "updatedAt": "2026-06-29T11:30:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      },
+      "delete": {
+        "tags": ["Membership"],
+        "operationId": "removeMember",
+        "summary": "移除成员并保护最后 OWNER",
+        "description": "返回 HTTP 200 与已变更 REMOVED 投影的 Response（计划约定）。最后 OWNER 移除返回 409。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/UserIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "移除成功；返回 status=REMOVED 的成员投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemberResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "userId": "1002",
+                    "nickname": "bob",
+                    "role": "MEMBER",
+                    "status": "REMOVED",
+                    "createdAt": "2026-06-29T11:00:00Z",
+                    "updatedAt": "2026-06-29T12:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases": {
+      "get": {
+        "tags": ["KnowledgeBase"],
+        "operationId": "listKnowledgeBases",
+        "summary": "列出 Tenant 的 KnowledgeBase",
+        "description": "list 先 Authorize VIEW；跨租户/不存在统一 404，不泄漏存在性。列表项的 apiKeyReady 由 Access Scope 查询补齐（GetScope ACTIVE 视为就绪）；查询失败时为 false。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "$ref": "#/components/parameters/PageToken" }
+        ],
+        "responses": {
+          "200": {
+            "description": "KnowledgeBase 列表分页",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/KnowledgeBaseListResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "items": [
+                      {
+                        "knowledgeBaseId": "3001",
+                        "tenantId": "2001",
+                        "name": "产品文档",
+                        "apiKeyReady": true,
+                        "createdAt": "2026-06-29T09:00:00Z",
+                        "updatedAt": "2026-06-29T09:00:00Z"
+                      }
+                    ],
+                    "nextPageToken": ""
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidArgument" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      },
+      "post": {
+        "tags": ["KnowledgeBase"],
+        "operationId": "createKnowledgeBase",
+        "summary": "创建 KnowledgeBase 并确保 Access Scope",
+        "description": "编排顺序：Authorize → Knowledge Create → Access EnsureScope。建库返回 HTTP 201；Scope 暂时失败仍返回 201 与 apiKeyReady=false（不二次 create），由 Access KB_CREATED consumer + 后续 EnsureScope 兜底修复。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateKnowledgeBaseRequest" },
+              "example": { "name": "产品文档" }
+            }
+          }
+        },
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" }
+        ],
+        "responses": {
+          "201": {
+            "description": "建库成功（含 Scope 部分成功 apiKeyReady=false）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/KnowledgeBaseResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "knowledgeBaseId": "3001",
+                    "tenantId": "2001",
+                    "name": "产品文档",
+                    "apiKeyReady": true,
+                    "createdAt": "2026-06-29T09:00:00Z",
+                    "updatedAt": "2026-06-29T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}": {
+      "get": {
+        "tags": ["KnowledgeBase"],
+        "operationId": "getKnowledgeBase",
+        "summary": "KnowledgeBase 详情",
+        "description": "先 Authorize VIEW；跨租户/不存在统一 404。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "KnowledgeBase 详情",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/KnowledgeBaseResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "knowledgeBaseId": "3001",
+                    "tenantId": "2001",
+                    "name": "产品文档",
+                    "apiKeyReady": true,
+                    "createdAt": "2026-06-29T09:00:00Z",
+                    "updatedAt": "2026-06-29T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents": {
+      "get": {
+        "tags": ["Document"],
+        "operationId": "listDocuments",
+        "summary": "Document 列表与摄取状态",
+        "description": "先 KB 归属 Authorize VIEW（跨租户/不存在统一 404）。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "$ref": "#/components/parameters/PageToken" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document 列表分页",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentListResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "items": [
+                      {
+                        "docId": "4001",
+                        "knowledgeBaseId": "3001",
+                        "originalFilename": "intro.txt",
+                        "fileType": "TXT",
+                        "sizeBytes": 128,
+                        "ingestionStatus": "READY",
+                        "operationVersion": "1",
+                        "attempt": 1,
+                        "failureCategory": "",
+                        "failureMessage": "",
+                        "retryable": false,
+                        "startedAt": "2026-06-29T09:01:00Z",
+                        "completedAt": "2026-06-29T09:01:30Z"
+                      }
+                    ],
+                    "nextPageToken": ""
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidArgument" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      },
+      "post": {
+        "tags": ["Document"],
+        "operationId": "uploadDocument",
+        "summary": "单文件 multipart 上传",
+        "description": "先 KB 归属 Authorize VIEW（跨租户/不存在统一 404）。只接受单 .txt 或 .md 文件、10 MiB 上限、UTF-8；Console 计算 size/SHA-256 后 metadata-first 分片发送 Knowledge。成功返回 HTTP 202 与 PENDING；底层 Document 在 Knowledge 内 201。不下载或删除文件。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "单个 .txt 或 .md 文件，≤ 10 MiB，UTF-8"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "上传受理；返回 PENDING 摄取投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "docId": "4001",
+                    "knowledgeBaseId": "3001",
+                    "originalFilename": "intro.txt",
+                    "fileType": "TXT",
+                    "sizeBytes": 128,
+                    "ingestionStatus": "PENDING",
+                    "operationVersion": "1",
+                    "attempt": 1,
+                    "failureCategory": "",
+                    "failureMessage": "",
+                    "retryable": false,
+                    "startedAt": null,
+                    "completedAt": null
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "413": { "$ref": "#/components/responses/UploadTooLarge" },
+          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents/{docId}": {
+      "get": {
+        "tags": ["Document"],
+        "operationId": "getDocument",
+        "summary": "Document 与摄取详情",
+        "description": "先 KB 归属 Authorize VIEW。响应含完整摄取投影：operationVersion、attempt、failureCategory、安全 failureMessage、retryable 标志和时间。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/DocIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document 详情",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "docId": "4001",
+                    "knowledgeBaseId": "3001",
+                    "originalFilename": "intro.txt",
+                    "fileType": "TXT",
+                    "sizeBytes": 128,
+                    "ingestionStatus": "FAILED",
+                    "operationVersion": "2",
+                    "attempt": 1,
+                    "failureCategory": "DISPATCH_MISSING",
+                    "failureMessage": "ingestion dispatch missing",
+                    "retryable": true,
+                    "startedAt": "2026-06-29T09:05:00Z",
+                    "completedAt": "2026-06-29T09:06:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents/{docId}/ingestion/retry": {
+      "post": {
+        "tags": ["Document"],
+        "operationId": "retryIngestion",
+        "summary": "对允许重试的 FAILED 摄取创建新版本",
+        "description": "retry 与自动重试共用 attempt 上限、分类策略与 CAS；只有可重试分类（DISPATCH_MISSING/FILE_READ_FAILED/PROCESSING_TIMEOUT/INDEX_TRANSIENT_FAILURE）且未达次数上限允许。不可重试返回 40902 / 409。成功返回新 operationVersion 的 PENDING 投影。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/DocIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "重试已受理；返回新版本 PENDING 投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "docId": "4001",
+                    "knowledgeBaseId": "3001",
+                    "originalFilename": "intro.txt",
+                    "fileType": "TXT",
+                    "sizeBytes": 128,
+                    "ingestionStatus": "PENDING",
+                    "operationVersion": "3",
+                    "attempt": 2,
+                    "failureCategory": "",
+                    "failureMessage": "",
+                    "retryable": false,
+                    "startedAt": null,
+                    "completedAt": null
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/IngestionRetryNotAllowed" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys": {
+      "get": {
+        "tags": ["ApiKey"],
+        "operationId": "listApiKeys",
+        "summary": "API Key 安全投影列表",
+        "description": "只有 OWNER 可管理（Access PERMISSION_DENIED → 403）。列表项只含 keyPrefix，绝不包含完整 Key。跨 KB 不存在统一 404。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "$ref": "#/components/parameters/PageToken" }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key 列表分页（仅前缀）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiKeyListResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "items": [
+                      {
+                        "apiKeyId": "5001",
+                        "knowledgeBaseId": "3001",
+                        "name": "web",
+                        "status": "ACTIVE",
+                        "keyPrefix": "crag_web1234",
+                        "createdAt": "2026-06-29T09:00:00Z",
+                        "expiresAt": "2026-09-27T09:00:00Z"
+                      }
+                    ],
+                    "nextPageToken": null
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidArgument" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      },
+      "post": {
+        "tags": ["ApiKey"],
+        "operationId": "createApiKey",
+        "summary": "创建 Key，完整秘密仅返回一次",
+        "description": "返回 HTTP 201。完整 completeKey 只在 create/rotate 响应中返回一次，此后不可再读；列表/详情只返回 keyPrefix。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateApiKeyRequest" },
+              "example": { "name": "web", "ttlSeconds": 0 }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Key 创建成功；completeKey 仅此一次返回",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreatedApiKeyResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "apiKeyId": "5001",
+                    "knowledgeBaseId": "3001",
+                    "name": "web",
+                    "completeKey": "<PLACEHOLDER_COMPLETE_KEY>",
+                    "expiresAt": "2026-09-27T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}": {
+      "get": {
+        "tags": ["ApiKey"],
+        "operationId": "getApiKey",
+        "summary": "Key 详情（前缀投影）",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/ApiKeyIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key 详情（仅前缀）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiKeyResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "apiKeyId": "5001",
+                    "knowledgeBaseId": "3001",
+                    "name": "web",
+                    "status": "ACTIVE",
+                    "keyPrefix": "crag_web1234",
+                    "createdAt": "2026-06-29T09:00:00Z",
+                    "expiresAt": "2026-09-27T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/disable": {
+      "post": {
+        "tags": ["ApiKey"],
+        "operationId": "disableApiKey",
+        "summary": "暂停 Key（ACTIVE → DISABLED）",
+        "description": "状态冲突（disable 已 DISABLED）→ 409。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/ApiKeyIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "暂停成功；返回 DISABLED 状态投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiKeyResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "apiKeyId": "5001",
+                    "knowledgeBaseId": "3001",
+                    "name": "web",
+                    "status": "DISABLED",
+                    "keyPrefix": "crag_web1234",
+                    "createdAt": "2026-06-29T09:00:00Z",
+                    "expiresAt": "2026-09-27T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/enable": {
+      "post": {
+        "tags": ["ApiKey"],
+        "operationId": "enableApiKey",
+        "summary": "恢复 Key（DISABLED → ACTIVE）",
+        "description": "状态冲突（enable 非 DISABLED）→ 409。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/ApiKeyIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "恢复成功；返回 ACTIVE 状态投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiKeyResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "apiKeyId": "5001",
+                    "knowledgeBaseId": "3001",
+                    "name": "web",
+                    "status": "ACTIVE",
+                    "keyPrefix": "crag_web1234",
+                    "createdAt": "2026-06-29T09:00:00Z",
+                    "expiresAt": "2026-09-27T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/rotate": {
+      "post": {
+        "tags": ["ApiKey"],
+        "operationId": "rotateApiKey",
+        "summary": "原子轮换，完整新秘密仅返回一次",
+        "description": "返回 200 与新 CreatedApiKeyResponse（completeKey 仅此一次）。状态冲突（rotate DISABLED/REVOKED）→ 409。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/ApiKeyIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "轮换成功；completeKey 仅此一次返回",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreatedApiKeyResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "apiKeyId": "5001",
+                    "knowledgeBaseId": "3001",
+                    "name": "web",
+                    "completeKey": "<PLACEHOLDER_NEW_COMPLETE_KEY>",
+                    "expiresAt": "2026-09-27T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/revoke": {
+      "post": {
+        "tags": ["ApiKey"],
+        "operationId": "revokeApiKey",
+        "summary": "终态吊销",
+        "description": "返回 200 与 REVOKED 投影。状态冲突（revoke 已 REVOKED）→ 409。吊销后同事务写 API_KEY_INVALIDATED 失效事件，Open 缓存主动 evict。",
+        "parameters": [
+          { "$ref": "#/components/parameters/AuthorizationHeader" },
+          { "$ref": "#/components/parameters/TenantIdPath" },
+          { "$ref": "#/components/parameters/KnowledgeBaseIdPath" },
+          { "$ref": "#/components/parameters/ApiKeyIdPath" }
+        ],
+        "responses": {
+          "200": {
+            "description": "吊销成功；返回 REVOKED 状态投影",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiKeyResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "apiKeyId": "5001",
+                    "knowledgeBaseId": "3001",
+                    "name": "web",
+                    "status": "REVOKED",
+                    "keyPrefix": "crag_web1234",
+                    "createdAt": "2026-06-29T09:00:00Z",
+                    "expiresAt": "2026-09-27T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "AuthorizationHeader": {
+        "name": "Authorization",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "Access JWT，格式 `Bearer <jwt>`。Access JWT 只进响应体，由客户端后续作为 Bearer 使用。"
+      },
+      "OriginHeader": {
+        "name": "Origin",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" },
+        "description": "refresh/logout 校验同站 Origin/Referer，不开放通配 CORS。"
+      },
+      "RefererHeader": {
+        "name": "Referer",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" },
+        "description": "Origin 缺失时回退到 Referer 同站校验。"
+      },
+      "RefreshCookieParam": {
+        "name": "refresh_token",
+        "in": "cookie",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "HttpOnly Cookie 携带的 Refresh Token；由服务端在 register/login/refresh 时通过 Set-Cookie 下发。"
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+        "description": "每页大小，1–100，默认 20。"
+      },
+      "PageToken": {
+        "name": "pageToken",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "default": "" },
+        "description": "分页游标（上一页 nextPageToken）；首次为空。"
+      },
+      "TenantIdPath": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[0-9]+$" },
+        "description": "Tenant ID，十进制字符串。"
+      },
+      "KnowledgeBaseIdPath": {
+        "name": "knowledgeBaseId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[0-9]+$" },
+        "description": "KnowledgeBase ID，十进制字符串。"
+      },
+      "DocIdPath": {
+        "name": "docId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[0-9]+$" },
+        "description": "Document ID，十进制字符串。"
+      },
+      "UserIdPath": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[0-9]+$" },
+        "description": "User ID，十进制字符串。"
+      },
+      "ApiKeyIdPath": {
+        "name": "apiKeyId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[0-9]+$" },
+        "description": "API Key ID，十进制字符串。"
+      }
+    },
+    "headers": {
+      "RefreshCookie": {
+        "description": "HttpOnly + Secure + SameSite=Lax + Path=/api/v1/auth 的 Refresh Token Cookie。本地 HTTP 通过 crag.console.cookie.secure=false 显式关闭 Secure。Max-Age 由 crag.console.cookie.refresh-ttl 决定。",
+        "schema": {
+          "type": "string",
+          "example": "refresh_token=<PLACEHOLDER_REFRESH_TOKEN>; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000"
+        }
+      },
+      "RefreshCookieCleared": {
+        "description": "logout/失败时以 Max-Age=0、value 空清除 refresh_token Cookie，其余属性保持一致。",
+        "schema": {
+          "type": "string",
+          "example": "refresh_token=; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "400 — Bean Validation 校验失败（40001 VALIDATION_ERROR）。敏感字段（密码/Token/Key）不回显 rejectedValue。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40001,
+              "result": {
+                "message": "Validation failed",
+                "traceId": "9c1f...",
+                "reason": "VALIDATION_ERROR",
+                "retryable": false,
+                "fieldErrors": [
+                  { "field": "name", "message": "name must be 1-128 chars", "rejectedValue": null }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "InvalidArgument": {
+        "description": "400 — 程序化非法参数（40002 INVALID_ARGUMENT），例如 pageSize 越界。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40002,
+              "result": {
+                "message": "Invalid argument",
+                "traceId": "9c1f...",
+                "reason": "INVALID_ARGUMENT",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "401 — 缺少或无效凭证（40101 UNAUTHENTICATED）。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40101,
+              "result": {
+                "message": "Unauthenticated",
+                "traceId": "9c1f...",
+                "reason": "UNAUTHENTICATED",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "InvalidCredentials": {
+        "description": "401 — 登录/Refresh 失败（40102 INVALID_CREDENTIALS）。具体原因不通过 message/reason 泄漏。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40102,
+              "result": {
+                "message": "Authentication failed",
+                "traceId": "9c1f...",
+                "reason": "INVALID_CREDENTIALS",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "403 — 已认证但无权（40301 FORBIDDEN）或跨站 Origin（reason=CROSS_SITE_ORIGIN）。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40301,
+              "result": {
+                "message": "Forbidden",
+                "traceId": "9c1f...",
+                "reason": "FORBIDDEN",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "404 — 资源不存在（40401 NOT_FOUND）。跨租户/跨 KB 统一 404，不泄漏存在性。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40401,
+              "result": {
+                "message": "Resource not found",
+                "traceId": "9c1f...",
+                "reason": "NOT_FOUND",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "409 — 资源冲突（40901 CONFLICT）：状态冲突、版本冲突或最后 OWNER 保护。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40901,
+              "result": {
+                "message": "Conflict",
+                "traceId": "9c1f...",
+                "reason": "CONFLICT",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "IngestionRetryNotAllowed": {
+        "description": "409 — 摄取不可重试（40902 INGESTION_RETRY_NOT_ALLOWED）：失败分类不可重试或达到次数上限。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40902,
+              "result": {
+                "message": "Ingestion retry not allowed",
+                "traceId": "9c1f...",
+                "reason": "INGESTION_RETRY_NOT_ALLOWED",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "UploadTooLarge": {
+        "description": "413 — 上传超过 10 MiB 上限（41301 UPLOAD_TOO_LARGE）。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 41301,
+              "result": {
+                "message": "Upload too large",
+                "traceId": "9c1f...",
+                "reason": "UPLOAD_TOO_LARGE",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "415 — 不支持的文件扩展名或 MIME（41501 UNSUPPORTED_MEDIA_TYPE）。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 41501,
+              "result": {
+                "message": "Upload rejected",
+                "traceId": "9c1f...",
+                "reason": "UNSUPPORTED_EXTENSION",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "DownstreamUnavailable": {
+        "description": "503 — 下游 Access/Knowledge 不可用（50301 DOWNSTREAM_UNAVAILABLE），可安全重试。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 50301,
+              "result": {
+                "message": "Downstream unavailable",
+                "traceId": "9c1f...",
+                "reason": "DOWNSTREAM_UNAVAILABLE",
+                "retryable": true,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["nickname", "username", "password"],
+        "properties": {
+          "nickname": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "username": { "type": "string", "minLength": 3, "maxLength": 32 },
+          "password": { "type": "string", "minLength": 12, "maxLength": 128, "format": "password" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string", "format": "password" }
+        }
+      },
+      "AddMemberRequest": {
+        "type": "object",
+        "required": ["username"],
+        "properties": {
+          "username": { "type": "string", "minLength": 3, "maxLength": 32 }
+        }
+      },
+      "ChangeMemberRoleRequest": {
+        "type": "object",
+        "required": ["role"],
+        "properties": {
+          "role": { "type": "string", "enum": ["OWNER", "MEMBER"] }
+        }
+      },
+      "CreateKnowledgeBaseRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "ttlSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31536000,
+            "description": "有效期秒数；0/省略使用 Access 默认（90 天），上限 365 天，禁止永不过期。"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "required": ["accessToken", "accessExpiresAt", "user"],
+        "properties": {
+          "accessToken": { "type": "string", "description": "Access JWT（不含 Refresh Token）" },
+          "accessExpiresAt": { "type": "string", "format": "date-time", "description": "Access JWT 过期时间，RFC 3339 UTC" },
+          "user": { "$ref": "#/components/schemas/UserResponse" },
+          "defaultTenant": { "oneOf": [{ "$ref": "#/components/schemas/TenantSummaryResponse" }, { "type": "null" }], "description": "默认 Tenant；仅 register 非空，login/refresh 为 null" }
+        }
+      },
+      "AuthResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/AuthResponse" } } }
+        ]
+      },
+      "UserResponse": {
+        "type": "object",
+        "required": ["userId", "nickname"],
+        "properties": {
+          "userId": { "type": "string", "pattern": "^[0-9]+$" },
+          "nickname": { "type": "string" }
+        }
+      },
+      "UserResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/UserResponse" } } }
+        ]
+      },
+      "TenantSummaryResponse": {
+        "type": "object",
+        "required": ["tenantId", "name", "role"],
+        "properties": {
+          "tenantId": { "type": "string", "pattern": "^[0-9]+$" },
+          "name": { "type": "string" },
+          "role": { "type": "string", "enum": ["OWNER", "MEMBER"] }
+        }
+      },
+      "TenantListResponse": {
+        "type": "object",
+        "required": ["items", "nextPageToken"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/TenantSummaryResponse" } },
+          "nextPageToken": { "type": "string" }
+        }
+      },
+      "TenantListResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/TenantListResponse" } } }
+        ]
+      },
+      "MemberResponse": {
+        "type": "object",
+        "required": ["userId", "nickname", "role", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "userId": { "type": "string", "pattern": "^[0-9]+$" },
+          "nickname": { "type": ["string", "null"], "description": "list 操作可能为 null（Membership proto 缺口）；add/change-role/remove 由单用户 GetUserProfile 解析" },
+          "role": { "type": "string", "enum": ["OWNER", "MEMBER"] },
+          "status": { "type": "string", "enum": ["ACTIVE", "REMOVED"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "MemberResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/MemberResponse" } } }
+        ]
+      },
+      "MembersListResponse": {
+        "type": "object",
+        "required": ["items", "nextPageToken"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/MemberResponse" } },
+          "nextPageToken": { "type": "string" }
+        }
+      },
+      "MembersListResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/MembersListResponse" } } }
+        ]
+      },
+      "KnowledgeBaseResponse": {
+        "type": "object",
+        "required": ["knowledgeBaseId", "tenantId", "name", "apiKeyReady", "createdAt", "updatedAt"],
+        "properties": {
+          "knowledgeBaseId": { "type": "string", "pattern": "^[0-9]+$" },
+          "tenantId": { "type": "string", "pattern": "^[0-9]+$" },
+          "name": { "type": "string" },
+          "apiKeyReady": { "type": "boolean", "description": "Access Scope 是否就绪；建库部分成功为 false" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "KnowledgeBaseResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/KnowledgeBaseResponse" } } }
+        ]
+      },
+      "KnowledgeBaseListResponse": {
+        "type": "object",
+        "required": ["items", "nextPageToken"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/KnowledgeBaseResponse" } },
+          "nextPageToken": { "type": "string" }
+        }
+      },
+      "KnowledgeBaseListResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/KnowledgeBaseListResponse" } } }
+        ]
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "required": ["docId", "knowledgeBaseId", "originalFilename", "fileType", "sizeBytes", "ingestionStatus", "operationVersion", "attempt", "failureCategory", "failureMessage", "retryable", "startedAt", "completedAt"],
+        "properties": {
+          "docId": { "type": "string", "pattern": "^[0-9]+$" },
+          "knowledgeBaseId": { "type": "string", "pattern": "^[0-9]+$" },
+          "originalFilename": { "type": "string" },
+          "fileType": { "type": "string", "enum": ["TXT", "MARKDOWN"] },
+          "sizeBytes": { "type": "integer", "format": "int64" },
+          "ingestionStatus": { "type": "string", "enum": ["PENDING", "PROCESSING", "READY", "FAILED"] },
+          "operationVersion": { "type": "string", "pattern": "^[0-9]+$" },
+          "attempt": { "type": "integer" },
+          "failureCategory": { "type": ["string", "null"] },
+          "failureMessage": { "type": ["string", "null"] },
+          "retryable": { "type": "boolean" },
+          "startedAt": { "type": ["string", "null"], "format": "date-time" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "DocumentResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/DocumentResponse" } } }
+        ]
+      },
+      "DocumentListResponse": {
+        "type": "object",
+        "required": ["items", "nextPageToken"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/DocumentResponse" } },
+          "nextPageToken": { "type": "string" }
+        }
+      },
+      "DocumentListResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/DocumentListResponse" } } }
+        ]
+      },
+      "ApiKeyResponse": {
+        "type": "object",
+        "required": ["apiKeyId", "knowledgeBaseId", "name", "status", "keyPrefix", "createdAt", "expiresAt"],
+        "properties": {
+          "apiKeyId": { "type": "string", "pattern": "^[0-9]+$" },
+          "knowledgeBaseId": { "type": "string", "pattern": "^[0-9]+$" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["ACTIVE", "DISABLED", "REVOKED", "EXPIRED"] },
+          "keyPrefix": { "type": "string", "description": "可检索前缀，不含完整秘密" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "ApiKeyResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/ApiKeyResponse" } } }
+        ]
+      },
+      "ApiKeyListResponse": {
+        "type": "object",
+        "required": ["items", "nextPageToken"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKeyResponse" } },
+          "nextPageToken": { "type": ["string", "null"] }
+        }
+      },
+      "ApiKeyListResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/ApiKeyListResponse" } } }
+        ]
+      },
+      "CreatedApiKeyResponse": {
+        "type": "object",
+        "required": ["apiKeyId", "knowledgeBaseId", "name", "completeKey", "expiresAt"],
+        "properties": {
+          "apiKeyId": { "type": "string", "pattern": "^[0-9]+$" },
+          "knowledgeBaseId": { "type": "string", "pattern": "^[0-9]+$" },
+          "name": { "type": "string" },
+          "completeKey": { "type": "string", "description": "完整 Key，仅 create/rotate 一次返回；此后不可再读" },
+          "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "CreatedApiKeyResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/CreatedApiKeyResponse" } } }
+        ]
+      },
+      "EnvelopeBase": {
+        "type": "object",
+        "required": ["success", "code"],
+        "properties": {
+          "success": { "type": "boolean" },
+          "code": { "type": "integer", "description": "0 表示成功；错误码见 docs/api/README.md 业务码表" },
+          "result": { "description": "成功时的业务负载；失败时为 ErrorDetail 或 null" }
+        }
+      },
+      "EmptyResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "type": "null" } } }
+        ]
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "required": ["message", "traceId", "reason", "retryable", "fieldErrors"],
+        "properties": {
+          "message": { "type": "string", "description": "面向客户端的安全稳定说明" },
+          "traceId": { "type": "string" },
+          "reason": { "type": "string", "description": "稳定机器可读原因标签" },
+          "retryable": { "type": "boolean" },
+          "fieldErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["field", "message", "rejectedValue"],
+              "properties": {
+                "field": { "type": "string" },
+                "message": { "type": "string" },
+                "rejectedValue": { "description": "非敏感诊断回显；敏感字段为 null" }
+              }
+            }
+          }
+        }
+      },
+      "ErrorDetailEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/ErrorDetail" } } }
+        ]
+      }
+    }
+  },
+  "x-crag-implementation": {
+    "description": "Controller→路由清单，由 scripts/validate_openapi.py 校验与实现一致。新增/删除路由必须同步这里与 OpenAPI paths。",
+    "controller-routes": [
+      {
+        "controller": "ai.cerbur.crag.console.auth.controller.AuthController",
+        "routes": [
+          { "method": "POST", "path": "/api/v1/auth/register" },
+          { "method": "POST", "path": "/api/v1/auth/login" },
+          { "method": "POST", "path": "/api/v1/auth/refresh" },
+          { "method": "POST", "path": "/api/v1/auth/logout" },
+          { "method": "GET", "path": "/api/v1/auth/me" }
+        ]
+      },
+      {
+        "controller": "ai.cerbur.crag.console.tenant.controller.TenantController",
+        "routes": [
+          { "method": "GET", "path": "/api/v1/tenants" }
+        ]
+      },
+      {
+        "controller": "ai.cerbur.crag.console.membership.controller.MembershipController",
+        "routes": [
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/members" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/members" },
+          { "method": "PATCH", "path": "/api/v1/tenants/{tenantId}/members/{userId}" },
+          { "method": "DELETE", "path": "/api/v1/tenants/{tenantId}/members/{userId}" }
+        ]
+      },
+      {
+        "controller": "ai.cerbur.crag.console.knowledge.controller.KnowledgeBaseController",
+        "routes": [
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/knowledge-bases" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases" },
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}" }
+        ]
+      },
+      {
+        "controller": "ai.cerbur.crag.console.document.controller.DocumentController",
+        "routes": [
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents" },
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents/{docId}" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/documents/{docId}/ingestion/retry" }
+        ]
+      },
+      {
+        "controller": "ai.cerbur.crag.console.apikey.controller.ApiKeyController",
+        "routes": [
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys" },
+          { "method": "GET", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/disable" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/enable" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/rotate" },
+          { "method": "POST", "path": "/api/v1/tenants/{tenantId}/knowledge-bases/{knowledgeBaseId}/api-keys/{apiKeyId}/revoke" }
+        ]
+      }
+    ]
+  }
+}

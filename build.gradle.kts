@@ -36,10 +36,16 @@ val validateFrameworkDependencies by tasks.registering(Exec::class) {
     commandLine("python3", "scripts/validate_framework_dependencies.py")
 }
 
+val validateOpenApi by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Validates docs/api OpenAPI 3.1 documents: parse, version, operationId uniqueness, \$ref, examples, route-list drift, and Markdown links."
+    commandLine("python3", "scripts/validate_openapi.py")
+}
+
 tasks.named("check") {
     group = "verification"
     description = "Runs root project verification."
-    dependsOn(validatePlans, validateModuleDependencies, validateConstraints, validateFrameworkDependencies, subprojects.map { "${it.path}:check" })
+    dependsOn(validatePlans, validateModuleDependencies, validateConstraints, validateFrameworkDependencies, validateOpenApi, subprojects.map { "${it.path}:check" })
 }
 
 allprojects {

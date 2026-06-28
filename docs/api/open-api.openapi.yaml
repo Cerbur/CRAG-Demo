@@ -1,0 +1,264 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CRAG-Demo Open API",
+    "version": "1.0.0",
+    "description": "外部调用方通过单 KnowledgeBase API Key 发起查询的正式 HTTP API（plan_21/21.10）。请求体只含 question；Authorization 只接受 Bearer API Key；不接受 tenantId/knowledgeBaseId（由 Key 决定）。所有响应包装为统一 Response<T>。详细中文指南见 docs/api/README.md。"
+  },
+  "servers": [
+    { "url": "http://localhost:8081", "description": "本地 open-api 入口" }
+  ],
+  "tags": [
+    { "name": "Query", "description": "单 KB API Key 鉴权下的 RAG 问答" }
+  ],
+  "paths": {
+    "/api/v1/query": {
+      "post": {
+        "tags": ["Query"],
+        "operationId": "query",
+        "summary": "用单 KB API Key 发起问答",
+        "description": "只从 Authorization: Bearer crag_... 读取 Key；请求体只有 question（去除首尾空白后 1–2000 Unicode 字符）。Open 用完整 Key 的 SHA-256 指纹做短 TTL（30s）缓存鉴权；Key/Scope 失效事件主动 evict。响应只含 answer 与 sources；source 只暴露 reference/documentId/excerpt（excerpt ≤ 500 Unicode 字符），不暴露 chunk id、分数、Prompt 或 Context。",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Bearer API Key，格式 `Bearer crag_<前缀>_<秘密>`。请求体不接受 tenantId/knowledgeBaseId。"
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "可选请求标识；缺失时 Open 生成 UUID。贯穿 HTTP/gRPC/事件 traceId 并写回响应。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/QueryRequest" },
+              "example": { "question": "什么是 RAG？" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "查询成功；answer 为 LLM 生成答案，sources 为引用列表（可为空）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QueryResponseEnvelope" },
+                "example": {
+                  "success": true,
+                  "code": 0,
+                  "result": {
+                    "answer": "RAG（检索增强生成）是一种结合信息检索与文本生成的技术架构……",
+                    "sources": [
+                      {
+                        "reference": "S1",
+                        "documentId": "4001",
+                        "excerpt": "RAG（检索增强生成）是一种结合信息检索与文本生成的技术架构。"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidQuery" },
+          "401": { "$ref": "#/components/responses/InvalidApiKey" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "502": { "$ref": "#/components/responses/LlmUnavailable" },
+          "503": { "$ref": "#/components/responses/DownstreamUnavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "InvalidQuery": {
+        "description": "400 — 40002 INVALID_ARGUMENT（reason=INVALID_QUERY）：question 缺失/空白/超过 2000 字符。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40002,
+              "result": {
+                "message": "Invalid argument",
+                "traceId": "9c1f...",
+                "reason": "INVALID_QUERY",
+                "retryable": false,
+                "fieldErrors": [
+                  { "field": "question", "message": "size must be between 1 and 2000", "rejectedValue": null }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "InvalidApiKey": {
+        "description": "401 — 缺失/格式错误 Bearer（40101 UNAUTHENTICATED，reason=MISSING_API_KEY）或 API Key 无效/已吊销（40102 INVALID_CREDENTIALS，reason=INVALID_API_KEY）。具体原因不通过 message/reason 泄漏。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40102,
+              "result": {
+                "message": "Authentication failed",
+                "traceId": "9c1f...",
+                "reason": "INVALID_API_KEY",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "404 — 40401 NOT_FOUND（reason=NOT_FOUND）：API Key 对应 KnowledgeBase 不存在。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 40401,
+              "result": {
+                "message": "Resource not found",
+                "traceId": "9c1f...",
+                "reason": "NOT_FOUND",
+                "retryable": false,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "LlmUnavailable": {
+        "description": "502 — 50201 LLM_UNAVAILABLE（reason=LLM_UNAVAILABLE，retryable=true）：LLM 供应商不可用。Open 不对 LLM Query 自动重试。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 50201,
+              "result": {
+                "message": "LLM unavailable",
+                "traceId": "9c1f...",
+                "reason": "LLM_UNAVAILABLE",
+                "retryable": true,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      },
+      "DownstreamUnavailable": {
+        "description": "503 — 50301 DOWNSTREAM_UNAVAILABLE（retryable=true）：Access/RAG 不可用。Redis 不可用不阻止 Open 直连 Access 鉴权。",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorDetailEnvelope" },
+            "example": {
+              "success": false,
+              "code": 50301,
+              "result": {
+                "message": "Downstream unavailable",
+                "traceId": "9c1f...",
+                "reason": "DOWNSTREAM_UNAVAILABLE",
+                "retryable": true,
+                "fieldErrors": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "QueryRequest": {
+        "type": "object",
+        "required": ["question"],
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "去除首尾空白后 1–2000 Unicode 字符。不接受 tenantId/knowledgeBaseId。"
+          }
+        }
+      },
+      "CitationResponse": {
+        "type": "object",
+        "required": ["reference", "documentId", "excerpt"],
+        "properties": {
+          "reference": { "type": "string", "description": "引用标识，与 answer 中的 [S1] 连续对应" },
+          "documentId": { "type": "string", "pattern": "^[0-9]+$" },
+          "excerpt": { "type": "string", "description": "≤ 500 Unicode 字符的防御截断片段" }
+        }
+      },
+      "QueryResponse": {
+        "type": "object",
+        "required": ["answer", "sources"],
+        "properties": {
+          "answer": { "type": "string" },
+          "sources": { "type": "array", "items": { "$ref": "#/components/schemas/CitationResponse" } }
+        }
+      },
+      "QueryResponseEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/QueryResponse" } } }
+        ]
+      },
+      "EnvelopeBase": {
+        "type": "object",
+        "required": ["success", "code"],
+        "properties": {
+          "success": { "type": "boolean" },
+          "code": { "type": "integer", "description": "0 表示成功；错误码见 docs/api/README.md 业务码表" },
+          "result": { "description": "成功时的业务负载；失败时为 ErrorDetail" }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "required": ["message", "traceId", "reason", "retryable", "fieldErrors"],
+        "properties": {
+          "message": { "type": "string", "description": "面向客户端的安全稳定说明" },
+          "traceId": { "type": "string" },
+          "reason": { "type": "string", "description": "稳定机器可读原因标签" },
+          "retryable": { "type": "boolean" },
+          "fieldErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["field", "message", "rejectedValue"],
+              "properties": {
+                "field": { "type": "string" },
+                "message": { "type": "string" },
+                "rejectedValue": { "description": "Open 端 question 等字段一律为 null（不回显）" }
+              }
+            }
+          }
+        }
+      },
+      "ErrorDetailEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EnvelopeBase" },
+          { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/ErrorDetail" } } }
+        ]
+      }
+    }
+  },
+  "x-crag-implementation": {
+    "description": "Controller→路由清单，由 scripts/validate_openapi.py 校验与实现一致。",
+    "controller-routes": [
+      {
+        "controller": "ai.cerbur.crag.open.query.controller.QueryController",
+        "routes": [
+          { "method": "POST", "path": "/api/v1/query" }
+        ]
+      }
+    ]
+  }
+}

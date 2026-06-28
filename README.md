@@ -74,6 +74,16 @@ CRAG_SERVICE_PROFILES=smoke docker compose up -d --build db redis access-service
 curl http://localhost:8091/api/v1/smoke/access/jwt-keys
 ```
 
+## 📑 正式 API 契约（Console / Open）
+
+router4 / plan_21 已交付两份 OpenAPI 3.1 文档与中文前端交接指南，同仓库前端可直接生成客户端并完成联调：
+
+- [API 前端交接指南](./docs/api/README.md) — 登录态、Cookie、Tenant 上下文、分页、上传/轮询/重试、Scope 部分成功、一次性 API Key、Open Query、统一错误处理。
+- [Console API](./docs/api/console-api.openapi.yaml)（`console-api:8080`，auth/tenant/membership/knowledge/document/apikey）
+- [Open API](./docs/api/open-api.openapi.yaml)（`open-api:8081`，单 KB API Key 问答 `POST /api/v1/query`）
+
+生成客户端：`openapi-generator-cli generate -i docs/api/console-api.openapi.yaml -g typescript-fetch -o ./frontend/console-client`。契约校验已纳入 `./gradlew check`（`python3 scripts/validate_openapi.py`，覆盖解析、openapi=3.1、operationId 唯一、`$ref`、示例匹配、路由清单漂移、Markdown 链接）。
+
 ## 🗺️ 平台架构
 
 ![CRAG-Demo 多租户知识平台架构](./docs/assets/crag-demo-architecture.svg)
