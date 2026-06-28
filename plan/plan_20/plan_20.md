@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_20
 type: main
-status: verifying
+status: completed
 created: 2026-06-28
 updated: 2026-06-28
 ---
@@ -181,17 +181,17 @@ plan20 将 router3 收敛为完整但边界清楚的 Access Provider：注册和
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 20.1 | 建立 Access contracts 与模块边界 | ⏳ 待验收 | 421531b0 | — |
-| 20.2 | 建立 Access Schema、DAO、ID 与安全基线 | ⏳ 待验收 | 042aef76 | — |
-| 20.3 | 实现 User/Account 注册、密码认证与默认 Tenant | ⏳ 待验收 | fe39b8da | — |
-| 20.4 | 实现 Membership 生命周期与权限矩阵 | ⏳ 待验收 | 966d3590 | — |
-| 20.5 | 实现 JWT 与 Refresh Session | ⏳ 待验收 | 7192fd97 | — |
-| 20.6 | 实现 Scope 与 API Key 生命周期 | ⏳ 待验收 | 21ad2ffc | — |
-| 20.7 | 接入 API Key 失效 Outbox Producer | ⏳ 待验收 | a9dbb90c | — |
-| 20.8 | 完成 gRPC、Metrics、smoke HTTP 与 Docker 回归 | ⏳ 待验收 | 94113073, 0d3ebcfa | — |
-| 20.9 | 同步约束、README 与全量验证 | ⏳ 待验收 | 1340bc4b | — |
+| 20.1 | 建立 Access contracts 与模块边界 | ✅ 完成 | 421531b0 | 2026-06-28 |
+| 20.2 | 建立 Access Schema、DAO、ID 与安全基线 | ✅ 完成 | 042aef76 | 2026-06-28 |
+| 20.3 | 实现 User/Account 注册、密码认证与默认 Tenant | ✅ 完成 | fe39b8da | 2026-06-28 |
+| 20.4 | 实现 Membership 生命周期与权限矩阵 | ✅ 完成 | 966d3590 | 2026-06-28 |
+| 20.5 | 实现 JWT 与 Refresh Session | ✅ 完成 | 7192fd97 | 2026-06-28 |
+| 20.6 | 实现 Scope 与 API Key 生命周期 | ✅ 完成 | 21ad2ffc | 2026-06-28 |
+| 20.7 | 接入 API Key 失效 Outbox Producer | ✅ 完成 | a9dbb90c | 2026-06-28 |
+| 20.8 | 完成 gRPC、Metrics、smoke HTTP 与 Docker 回归 | ✅ 完成 | 94113073, 0d3ebcfa | 2026-06-28 |
+| 20.9 | 同步约束、README 与全量验证 | ✅ 完成 | 1340bc4b | 2026-06-28 |
 
-整体进度：0 / 9（0%）
+整体进度：9 / 9（100%）
 
 ## 20.1 建立 Access contracts 与模块边界
 
@@ -518,6 +518,23 @@ Smoke HTTP 根路径固定为 `/api/v1/smoke/access`；Host 端口固定为 `809
 - 真实外部 LLM/供应商边界不属于 plan_20 范围，无相关条件验收。
 - Argon2id 基线参数在正式与 smoke 配置生效；测试环境沿用基线（单次哈希约 100ms，可接受）。
 
+### 独立验收（2026-06-28，未参与实现的新 session）
+
+复核结论：**通过**。全部 9 个有效任务满足验收标准，必需验证在本 session 内独立重跑拿到新鲜证据，无阻塞项。
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+| 2026-06-28 | macOS/git | `git show --stat` 核对 20.1–20.9 实现 hash | 通过 | 9 个 hash 均服务对应任务，无无关范围；20.8 为 `94113073`+`0d3ebcfa`；交接 `69d0d85d` 仅改 plan/index，未写入任务提交栏 |
+| 2026-06-28 | macOS/JDK 21/Gradle 9.4.1 | `./gradlew clean spotlessCheck check` | 通过 | 114 任务全部执行；access-service 18 suite/98 用例、crag-id 46 用例，0 失败/0 错误/0 跳过；validatePlans strict 0 error（24 warning 均历史 v2 Plan） |
+| 2026-06-28 | macOS/Python 3 | `validate_plans.py --strict --verify-git`、`validate_module_dependencies.py`、`validate_framework_dependencies.py`、`validate_constraints.py` | 通过 | 4 校验器 0 error；`--verify-git` 确认 plan_20 全部实现 hash 真实存在 |
+| 2026-06-28 | Docker/PostgreSQL 17 + Redis 7.4 | 7 组 `access_smoke_*.sh`（默认关闭、identity、membership、session_reuse、api_key、event、concurrent_refresh） | 通过 | 7/7 通过；整组重复运行两次结果一致，无 flaky；`concurrent_refresh` 断言恰好 1 次成功 + 7 次拒绝 + Family 最终撤销 |
+
+复核要点与说明：
+
+- **范围内涟漪**：`1340bc4b`（20.9）触及 `crag-rag-service` 测试 `TestCragIdConfig.java`，是 20.2 给共享枚举 `IdEntityType` 新增 code 3–9 后、下游 exhaustive switch 失去 `default` 编译失败的必然涟漪；改动仅 2 行 + 注释，提交说明已记录，不属于无关范围混入。
+- **预存 flaky 观察（范围外，非阻塞）**：`clean` 首跑时 `crag-open-api.DownstreamConnectivityHealthIndicatorTest.singleTargetException_cancelsOtherFutures` 一次抛 `UnnecessaryStubbingException`。该测试由已完成的 plan_14（`b11a615a`）引入，plan_20 未触及 crag-open-api（Console/Open API 为 plan_20 非目标）。根因为测试内 Future 取消竞态：rag Future 在调用其 stub 之前被取消时，两个 `when(ragStub...)` 从未触发，触发 Mockito strict-stubbing。5/5 隔离重跑通过、全量重跑通过，属时序性 flaky，与 plan_20 无因果关系。建议在 router4/plan_14.hotfix 单独追踪（本验收按硬边界不创建 hotfix）。
+- **并发与锁语义**：最后 OWNER 保护、Refresh 单次轮换与复用撤销的真实 PostgreSQL 锁语义由 `concurrent_refresh`、`session_reuse`、`membership` 三组 Docker 回归证明；H2 组件测试未表述锁语义。
+
 ## 阻塞记录
 
 无。发生阻塞时记录原因、当前进度、解除条件、解除方、下一步与日期。
@@ -532,3 +549,4 @@ Smoke HTTP 根路径固定为 `/api/v1/smoke/access`；Host 端口固定为 `809
 | --- | --- | --- | --- |
 | 2026-06-28 | 创建 plan20 并设为待开始 | router1/plan18 与 router2/plan19 已完成；router3 设计已确认并通过书面规格复核 | Access Provider 进入执行队首，9 个任务待执行 |
 | 2026-06-28 | 20.1–20.9 全部实现、自测并回填实现 hash；Plan 转为 verifying | 9 个任务均完成实现提交、Gradle/Spotless/Plan strict/4 个 Python 校验器与 7 组 Access Docker HTTP 回归通过 | 全部 9 项进入待验收，交接独立验收 session |
+| 2026-06-28 | 独立验收通过，20.1–20.9 标记完成，Plan 转为 completed | 未参与实现的新 session 独立重跑 `clean check`（access 98 / id 46 用例 0 失败/0 跳过）、4 校验器（`--verify-git` 确认 hash）、7 组 Docker 回归双跑 7/7 | router3 Access 垂直链路完成；验收队列释放，后续 router4 可推进 |
