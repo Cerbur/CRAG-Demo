@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_21
 type: main
-status: ready
+status: in_progress
 created: 2026-06-28
 updated: 2026-06-28
 ---
@@ -153,7 +153,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 21.1 | 建立正式 contracts 与模块边界 | ⏳ 待开始 | — | — |
+| 21.1 | 建立正式 contracts 与模块边界 | ⏳ 待验收 | 9af60a5 | — |
 | 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待开始 | — | — |
 | 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待开始 | — | — |
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待开始 | — | — |
@@ -167,7 +167,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）
+整体进度：0 / 13（0%）— 21.1 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -199,11 +199,11 @@ message QueryResponse { string answer = 1; repeated Citation sources = 2; }
 
 **Implementation steps**：
 
-- [ ] 先写 `*ContractsArchitectureTest` 与 Python validator fixture，断言新模块白名单和禁止依赖；运行后应因模块不存在失败。
-- [ ] 创建 `crag-rag-contracts/build.gradle.kts` 与三个 proto，并对 Access/Knowledge 只追加字段/RPC；代码生成类型必须与 Interfaces 一致。
-- [ ] 更新 settings、通用 Docker build copy、模块/框架依赖校验器；禁止 contracts 引入 Spring BOM。
-- [ ] 运行三模块 build、`./gradlew test --tests '*ContractsArchitectureTest'` 和两个 Python 校验器，预期全部通过。
-- [ ] 提交：`feat(plan_21/21.1): establish router4 contracts`。
+- [x] 先写 `*ContractsArchitectureTest` 与 Python validator fixture，断言新模块白名单和禁止依赖；运行后应因模块不存在失败。
+- [x] 创建 `crag-rag-contracts/build.gradle.kts` 与三个 proto，并对 Access/Knowledge 只追加字段/RPC；代码生成类型必须与 Interfaces 一致。
+- [x] 更新 settings、通用 Docker build copy、模块/框架依赖校验器；禁止 contracts 引入 Spring BOM。
+- [x] 运行三模块 build、`./gradlew test --tests '*ContractsArchitectureTest'` 和两个 Python 校验器，预期全部通过。
+- [x] 提交：`feat(plan_21/21.1): establish router4 contracts`。
 
 ## 21.2 补齐 Access 管理查询、Scope 一致性与失效版本
 
@@ -570,6 +570,12 @@ router4_smoke_profile_test.sh
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-06-28 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-rag-contracts:build :crag-access-contracts:build :crag-knowledge-contracts:build` | 通过 | 三模块 build 全绿，proto 代码生成与测试通过；Unsafe deprecated 警告为 protobuf 既有项。 |
+| 2026-06-28 | macOS | `./gradlew :crag-rag-contracts:test --tests '*ContractsArchitectureTest' :crag-access-contracts:test --tests '*ContractsCompatibilityTest' :crag-knowledge-contracts:test --tests '*ContractsCompatibilityTest'` | 通过 | 断言 Query/IngestionStatus RPC、Citation/QueryRequest/IngestionStatusView 字段号、Access 新增 RPC 与 ApiKeyScope/AuthenticatedApiKey 版本字段、Knowledge Document 字段 13–19 与 RetryIngestion。 |
+| 2026-06-28 | macOS | `python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py`、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies` | 通过 | 校验器识别 `crag-rag-contracts` 白名单；四个 contracts 模块均不得引入 Spring/runtime/grpc-runtime 依赖；38 个校验器单元测试全通过。 |
+| 2026-06-28 | macOS | `python3 scripts/validate_plans.py` | 通过 | plan_21 状态/进度/索引一致。 |
+
+未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。
 
 ## 阻塞记录
 
@@ -584,3 +590,4 @@ router4_smoke_profile_test.sh
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-06-28 | 创建计划并设为 ready | Router4 设计已确认并完成书面复核 | plan21 进入执行队首；实现前须先提交本 Plan 与索引 |
+| 2026-06-28 | 状态 ready → in_progress，21.1 进行中 → 待验收 | 开始执行 21.1 并完成实现提交（`9af60a5`） | plan21 进入进行中；21.1 进入待验收，交独立验收 session |
