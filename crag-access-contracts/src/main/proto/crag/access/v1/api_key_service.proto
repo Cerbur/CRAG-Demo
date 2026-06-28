@@ -26,6 +26,14 @@ service ApiKeyService {
   rpc RevokeApiKey(ChangeApiKeyStateRequest) returns (ApiKeyView);
   // 校验完整 Key，成功只返回定位与过期信息。
   rpc AuthenticateApiKey(AuthenticateApiKeyRequest) returns (AuthenticatedApiKey);
+  // router4：幂等确保 KnowledgeBase 在指定 Tenant 下存在 Scope；BLOCKED 不复活，不同 Tenant 冲突。
+  rpc EnsureScope(EnsureScopeRequest) returns (ApiKeyScope);
+  // router4：查询单条 Scope 投影。
+  rpc GetScope(GetScopeRequest) returns (ApiKeyScope);
+  // router4：按 ID 查询单条 Key 投影（不含完整秘密）。
+  rpc GetApiKey(GetApiKeyRequest) returns (ApiKeyView);
+  // router4：按 KnowledgeBase 分页列出 Key 投影。
+  rpc ListApiKeys(ListApiKeysRequest) returns (ListApiKeysResponse);
 }
 
 enum ApiKeyScopeStatus {
@@ -60,6 +68,9 @@ message ApiKeyScope {
   string tenant_id = 2;
   ApiKeyScopeStatus status = 3;
   int64 version = 4;
+  // router4：Key 与 Scope 的失效版本水位，Open 缓存据此拒绝旧鉴权结果。
+  int64 key_version = 5;
+  int64 scope_version = 6;
 }
 
 message CreateApiKeyRequest {
@@ -120,4 +131,40 @@ message AuthenticatedApiKey {
   string tenant_id = 2;
   string knowledge_base_id = 3;
   string expires_at_epoch_millis = 4;
+  // router4：失效版本水位，供 Open 缓存校验。
+  int64 key_version = 5;
+  int64 scope_version = 6;
+}
+
+// --- router4 追加请求/响应 ---
+
+message EnsureScopeRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+}
+
+message GetScopeRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+}
+
+message GetApiKeyRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string api_key_id = 3;
+}
+
+message ListApiKeysRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message ListApiKeysResponse {
+  repeated ApiKeyView api_keys = 1;
+  string next_page_token = 2;
 }

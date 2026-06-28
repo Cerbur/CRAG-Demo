@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package crag.rag.v1;
+
+import "crag/rag/v1/rag_error.proto";
+
+option java_package = "ai.cerbur.crag.contracts.rag.v1";
+option java_multiple_files = true;
+
+// 正式 Query gRPC 契约：Open API 持 API Key 鉴权后调用 RAG 获取答案与引用。
+// 边界 ID 统一使用十进制字符串；sources 只暴露 reference/documentId/excerpt，不泄漏 Chunk ID、分数或 Context。
+service QueryService {
+  // 按 knowledgeBaseId 与 question 查询；traceId 贯穿 HTTP/gRPC 链路。LLM 不可用映射为稳定 502 错误。
+  rpc Query(QueryRequest) returns (QueryResponse);
+}
+
+message QueryRequest {
+  // KnowledgeBase ID，十进制字符串。
+  string knowledge_base_id = 1;
+  // 用户问题，去除首尾空白后 1–2000 个 Unicode 字符。
+  string question = 2;
+  // 贯穿 HTTP/gRPC/事件的 traceId，可为空。
+  string trace_id = 3;
+}
+
+// Query 引用。reference 与文档内标记（如 [S1]）对应；excerpt 来自实际进入 Context 的 Parent Evidence。
+message Citation {
+  string reference = 1;
+  string document_id = 2;
+  // 来源摘要，最多 500 个 Unicode 字符，由 RAG/接收端做防御截断。
+  string excerpt = 3;
+}
+
+message QueryResponse {
+  string answer = 1;
+  repeated Citation sources = 2;
+}

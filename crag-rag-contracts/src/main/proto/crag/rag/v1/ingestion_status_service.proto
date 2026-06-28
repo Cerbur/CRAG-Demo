@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package crag.rag.v1;
+
+import "crag/rag/v1/rag_error.proto";
+
+option java_package = "ai.cerbur.crag.contracts.rag.v1";
+option java_multiple_files = true;
+
+// Ingestion Status gRPC 契约：Knowledge Reconciler/Console 通过权威 Job 状态推进或终态化滞留任务。
+// 边界 ID 统一使用十进制字符串。Knowledge 可读不可写；RAG 内部按 operationVersion + version CAS 推进 head。
+service IngestionStatusService {
+  // 查询当前 operationVersion 的权威 Job 状态投影。
+  rpc GetIngestionStatus(GetIngestionStatusRequest) returns (IngestionStatusView);
+  // 对滞留 PROCESSING 任务以 status/version CAS 终态化为安全超时失败。
+  rpc MarkTimedOut(MarkTimedOutRequest) returns (IngestionStatusView);
+}
+
+message GetIngestionStatusRequest {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  string doc_id = 3;
+  string operation_version = 4;
+}
+
+message MarkTimedOutRequest {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  string doc_id = 3;
+  string operation_version = 4;
+  // 视为滞留的 startedAt 上界（epoch millis）；CAS 只终态化早于此时间的 PROCESSING。
+  int64 stale_before_epoch_millis = 5;
+}
+
+// 摄取状态投影。failure 字段经安全限长，不泄漏堆栈/SQL。
+message IngestionStatusView {
+  string tenant_id = 1;
+  string knowledge_base_id = 2;
+  string doc_id = 3;
+  // operationVersion，十进制字符串。
+  string operation_version = 4;
+  // 展示值：PENDING / PROCESSING / READY / FAILED / SUPERSEDED。
+  string status = 5;
+  int32 attempt = 6;
+  string job_id = 7;
+  string failure_category = 8;
+  string failure_message = 9;
+  int64 started_at_epoch_millis = 10;
+  int64 completed_at_epoch_millis = 11;
+}

@@ -227,12 +227,19 @@ def check_autoconfig_and_dummy_keys() -> list[str]:
 
 
 def check_contracts_runtime_boundary() -> list[str]:
-    """Verify crag-platform-contracts and crag-access-contracts have no Spring/Runtime deps,
+    """Verify all crag-*-contracts modules have no Spring/Runtime deps,
     and crag-grpc-runtime has no Contracts or business deps."""
     errors = []
 
     # Pure Protobuf/gRPC contracts modules must stay free of Spring, runtime and project deps.
-    contracts_modules = ("crag-platform-contracts", "crag-access-contracts")
+    # plan_21/21.1 adds crag-rag-contracts; plan_18/plan_20 already shipped
+    # crag-knowledge-contracts and crag-access-contracts with the same constraint.
+    contracts_modules = (
+        "crag-platform-contracts",
+        "crag-access-contracts",
+        "crag-knowledge-contracts",
+        "crag-rag-contracts",
+    )
     for module in contracts_modules:
         contracts_path = REPO_ROOT / module / "build.gradle.kts"
         if not contracts_path.exists():

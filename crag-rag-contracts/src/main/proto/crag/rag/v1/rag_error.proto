@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package crag.rag.v1;
+
+option java_package = "ai.cerbur.crag.contracts.rag.v1";
+option java_multiple_files = true;
+
+// RAG 领域稳定业务错误码。
+// gRPC 错误状态码（UNAVAILABLE / FAILED_PRECONDITION / INVALID_ARGUMENT 等）与这里的业务码配合使用，
+// 提供不泄漏内部细节的稳定诊断。禁止把堆栈、SQL、分数或 Prompt 放入 message。
+enum RagErrorCode {
+  RAG_ERROR_CODE_UNSPECIFIED = 0;
+  // LLM 供应商不可用或超时；HTTP 映射 502。
+  LLM_UNAVAILABLE = 1;
+  // 查询参数非法（question 为空、超长或格式错误）。
+  INVALID_QUERY = 2;
+  // 指定的 KnowledgeBase 不存在或不属于当前调用方；统一为未找到，不泄漏存在性。
+  KNOWLEDGE_BASE_NOT_FOUND = 3;
+  // operationVersion/head CAS 冲突或迟到 Worker 写入拒绝。
+  INGESTION_VERSION_CONFLICT = 4;
+}

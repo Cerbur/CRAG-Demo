@@ -13,6 +13,7 @@ include(
     "crag-platform-contracts",
     "crag-knowledge-contracts",
     "crag-access-contracts",
+    "crag-rag-contracts",
     "crag-grpc-runtime",
     "crag-event",
     "crag-access-service",

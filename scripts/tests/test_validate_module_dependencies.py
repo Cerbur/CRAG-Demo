@@ -18,7 +18,7 @@ def load_validator():
 
 # Current module set after plan_16: the six RAG subprojects were consolidated into
 # crag-rag-service, so only shared infrastructure modules + the five Application
-# roots remain.
+# roots remain. plan_21/21.1 adds crag-rag-contracts.
 SETTINGS_COMMON = """\
 rootProject.name = "crag-demo"
 
@@ -28,6 +28,7 @@ include(
     "crag-platform-contracts",
     "crag-knowledge-contracts",
     "crag-access-contracts",
+    "crag-rag-contracts",
     "crag-grpc-runtime",
     "crag-event",
     "crag-rag-service",
@@ -92,6 +93,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
             "crag-platform-contracts": BUILD_CONTRACTS,
             "crag-knowledge-contracts": BUILD_CONTRACTS,
             "crag-access-contracts": BUILD_CONTRACTS,
+            "crag-rag-contracts": BUILD_CONTRACTS,
             "crag-grpc-runtime": BUILD_GRPC_RUNTIME,
             "crag-event": BUILD_NO_DEPS,
             "crag-rag-service": BUILD_RAG_SERVICE,
@@ -118,6 +120,7 @@ class ValidateModuleDependenciesTest(unittest.TestCase):
                     "crag-platform-contracts",
                     "crag-knowledge-contracts",
                     "crag-access-contracts",
+                    "crag-rag-contracts",
                     "crag-grpc-runtime",
                     "crag-event",
                     "crag-rag-service",

@@ -3,6 +3,7 @@ syntax = "proto3";
 package crag.access.v1;
 
 import "crag/access/v1/access_error.proto";
+import "crag/access/v1/membership_service.proto";
 
 option java_package = "ai.cerbur.crag.contracts.access.v1";
 option java_multiple_files = true;
@@ -20,6 +21,10 @@ service IdentityService {
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   // 返回当前可用于本地验签的公钥集，不返回私钥。
   rpc GetJwtVerificationKeys(GetJwtVerificationKeysRequest) returns (JwtVerificationKeySet);
+  // router4：返回当前用户安全投影，供 Console `/api/v1/auth/me`。
+  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile);
+  // router4：列出当前用户有效 Tenant 与角色，供 Console 恢复工作上下文。
+  rpc ListUserTenants(ListUserTenantsRequest) returns (ListUserTenantsResponse);
 }
 
 message RegisterRequest {
@@ -80,4 +85,35 @@ message AuthenticationResponse {
   string refresh_expires_at_epoch_millis = 6;
   // Session Family ID，十进制字符串；JWT 的 sid 指向它。
   string session_family_id = 7;
+}
+
+// --- router4 追加（字段号从 1 起新 message，不与历史 message 冲突） ---
+
+message GetUserProfileRequest {
+  // 调用者用户 ID，十进制字符串。
+  string user_id = 1;
+}
+
+// 用户安全投影。不包含密码、账号状态或登录标识。
+message UserProfile {
+  string user_id = 1;
+  string nickname = 2;
+}
+
+message ListUserTenantsRequest {
+  string user_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListUserTenantsResponse {
+  repeated UserTenant tenants = 1;
+  string next_page_token = 2;
+}
+
+// 用户所属 Tenant 投影，包含该用户在 Tenant 中的角色。
+message UserTenant {
+  string tenant_id = 1;
+  string name = 2;
+  MembershipRole role = 3;
 }

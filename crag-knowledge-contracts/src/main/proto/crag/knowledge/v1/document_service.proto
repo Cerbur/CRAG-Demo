@@ -14,6 +14,8 @@ service DocumentService {
   rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
   // 服务端流式读取文件内容，首条消息携带安全 metadata，后续为 bytes chunk。
   rpc ReadDocumentFile(ReadDocumentFileRequest) returns (stream DocumentFileChunk);
+  // router4：对可重试的 FAILED 摄取创建新 operationVersion 并重发 DOC_UPLOADED。
+  rpc RetryIngestion(RetryIngestionRequest) returns (Document);
 }
 
 // 单次流式上传的请求 envelope。
@@ -53,6 +55,15 @@ message Document {
   int64 operation_version = 10;
   int64 created_at_epoch_millis = 11;
   int64 updated_at_epoch_millis = 12;
+  // router4：摄取投影与失败/重试字段（字段号从 13 起，保持 1–12 稳定）。
+  int32 ingestion_attempt = 13;
+  string ingestion_job_id = 14;
+  string failure_category = 15;
+  // 安全限长的失败描述，不泄漏堆栈/SQL。
+  string failure_message = 16;
+  int64 started_at_epoch_millis = 17;
+  int64 completed_at_epoch_millis = 18;
+  int64 next_retry_at_epoch_millis = 19;
 }
 
 message GetDocumentRequest {
@@ -91,4 +102,13 @@ message DocumentFileMetadata {
   int64 size_bytes = 1;
   string sha256 = 2;
   string file_type = 3;
+}
+
+// --- router4 追加 ---
+
+message RetryIngestionRequest {
+  string actor_user_id = 1;
+  string tenant_id = 2;
+  string knowledge_base_id = 3;
+  string doc_id = 4;
 }
