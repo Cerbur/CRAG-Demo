@@ -246,4 +246,15 @@ public class ChunkDao {
   public long countByDocId(long docId) {
     return chunkRepository.countByDocId(docId);
   }
+
+  /**
+   * 按 docId + operationVersion 删除全部 chunk 行（plan_21/21.5 retry 清理）.
+   *
+   * @param docId 文档 ID
+   * @param operationVersion 旧 operationVersion
+   * @return 被删除的行数
+   */
+  public int deleteByDocIdAndOperationVersion(long docId, long operationVersion) {
+    return chunkRepository.deleteByDocIdAndOperationVersion(docId, operationVersion);
+  }
 }

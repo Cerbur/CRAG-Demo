@@ -3,8 +3,10 @@ package ai.cerbur.crag.ingestion.consumer;
 import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.EventHandler;
 import ai.cerbur.crag.event.api.EventHandlerResult;
+import ai.cerbur.crag.ingestion.head.HeadAdvanceOutcome;
 import ai.cerbur.crag.ingestion.head.HeadAdvanceResult;
 import ai.cerbur.crag.ingestion.head.IngestionHeadService;
+import ai.cerbur.crag.ingestion.head.StaleIndexCleaner;
 import ai.cerbur.crag.ingestion.job.IngestionJobResolution;
 import ai.cerbur.crag.ingestion.job.IngestionJobService;
 import ai.cerbur.crag.ingestion.job.IngestionOrchestrator;
@@ -47,6 +49,7 @@ public class DocUploadedEventHandler implements EventHandler {
   private final IngestionJobService ingestionJobService;
   private final IngestionOrchestrator ingestionOrchestrator;
   private final IngestionHeadService ingestionHeadService;
+  private final StaleIndexCleaner staleIndexCleaner;
   private final String streamKey;
   private final String groupName;
   private final String consumerName;
@@ -56,6 +59,7 @@ public class DocUploadedEventHandler implements EventHandler {
       IngestionJobService ingestionJobService,
       IngestionOrchestrator ingestionOrchestrator,
       IngestionHeadService ingestionHeadService,
+      StaleIndexCleaner staleIndexCleaner,
       @Value("${crag.event.stream-key:crag:event:knowledge}") String streamKey,
       @Value("${crag.event.group-name:rag-ingestion}") String groupName,
       @Value("${crag.event.consumer.consumer-name:rag-ingestion-1}") String consumerName) {
@@ -63,6 +67,7 @@ public class DocUploadedEventHandler implements EventHandler {
     this.ingestionJobService = ingestionJobService;
     this.ingestionOrchestrator = ingestionOrchestrator;
     this.ingestionHeadService = ingestionHeadService;
+    this.staleIndexCleaner = staleIndexCleaner;
     this.streamKey = streamKey;
     this.groupName = groupName;
     this.consumerName = consumerName;
@@ -122,6 +127,11 @@ public class DocUploadedEventHandler implements EventHandler {
             headAdvance.head().operationVersion(),
             headAdvance.outcome());
         return EventHandlerResult.success();
+      }
+      // Plan 21.5：head 推进到新 operationVersion 后，新版本处理开始前清理旧失败残留，
+      // 确保旧版本 FAILED/SUPERSEDED 的部分索引不会进入召回。
+      if (headAdvance.outcome() == HeadAdvanceOutcome.ADVANCED && payload.operationVersion() > 1L) {
+        staleIndexCleaner.cleanBeforeNewVersion(payload.docId(), payload.operationVersion() - 1L);
       }
       IngestionJobResolution resolution =
           ingestionJobService.resolve(

@@ -111,4 +111,29 @@ public interface ChunkFtsRepository extends JpaRepository<ChunkFts, Long> {
       @Param("knowledgeBaseId") long knowledgeBaseId,
       @Param("query") String query,
       @Param("limit") int limit);
+
+  /**
+   * 按 docId + operationVersion 删除 chunk_fts 行（plan_21/21.5 retry 清理旧失败残留）.
+   *
+   * <p>通过 JOIN chunk 表定位属于该 doc + opVersion 的 chunk_id，再删除对应 fts 行。新版本处理前调用， 确保旧版本部分 FTS 索引不参与召回。
+   *
+   * @param docId 文档 ID
+   * @param operationVersion 旧 operationVersion
+   * @return 被删除的行数
+   */
+  @Modifying
+  @Transactional
+  @Query(
+      value =
+          """
+        DELETE FROM chunk_fts cf
+         WHERE cf.operation_version = :operationVersion
+           AND EXISTS (SELECT 1 FROM chunk c
+                        WHERE c.chunk_id = cf.chunk_id
+                          AND c.doc_id = :docId
+                          AND c.operation_version = :operationVersion)
+        """,
+      nativeQuery = true)
+  int deleteByChunkIdsForDocAndVersion(
+      @Param("docId") long docId, @Param("operationVersion") long operationVersion);
 }

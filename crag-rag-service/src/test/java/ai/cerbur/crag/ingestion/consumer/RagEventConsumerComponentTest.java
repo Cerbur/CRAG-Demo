@@ -11,6 +11,7 @@ import ai.cerbur.crag.event.api.EventEnvelope;
 import ai.cerbur.crag.event.api.EventHandlerResult;
 import ai.cerbur.crag.event.api.EventHandlerResult.Status;
 import ai.cerbur.crag.ingestion.head.IngestionHeadService;
+import ai.cerbur.crag.ingestion.head.StaleIndexCleaner;
 import ai.cerbur.crag.ingestion.job.IngestionJobService;
 import ai.cerbur.crag.ingestion.job.IngestionOrchestrator;
 import ai.cerbur.crag.storage.IngestionJobDao;
@@ -48,6 +49,7 @@ class RagEventConsumerComponentTest {
         ingestionJobService,
         mock(IngestionOrchestrator.class),
         ingestionHeadService,
+        mock(StaleIndexCleaner.class),
         "crag:event:knowledge",
         "rag-ingestion",
         "rag-ingestion-1");
@@ -166,6 +168,7 @@ class RagEventConsumerComponentTest {
             failingService,
             mock(IngestionOrchestrator.class),
             ingestionHeadService,
+            mock(StaleIndexCleaner.class),
             "s",
             "g",
             "c");

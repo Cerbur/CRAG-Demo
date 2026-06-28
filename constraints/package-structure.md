@@ -71,7 +71,7 @@ Base package 统一为 `ai.cerbur.crag`。
 | `crag-event` | 无 |
 | `crag-rag-service` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event`、`crag-knowledge-contracts`、`crag-rag-contracts` |
 | `crag-access-service` | `crag-access-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-id`、`crag-event` |
-| `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
+| `crag-knowledge-service` | `crag-knowledge-contracts`、`crag-rag-contracts`、`crag-platform-contracts`、`crag-grpc-runtime`、`crag-common`、`crag-event` |
 | `crag-console-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 | `crag-open-api` | `crag-platform-contracts`、`crag-grpc-runtime`、`crag-common` |
 
@@ -240,7 +240,7 @@ ai.cerbur.crag.ingestion                — 原 crag-ingestion
 ├── chunk.split/                       — ChunkSplit 能力与数据类型
 ├── consumer/                          — DOC_UPLOADED EventHandler / payload 解析（Plan 19）
 ├── job/                               — IngestionJobService / Orchestrator / Resolution / FailureCategory
-├── head/                              — IngestionHeadService / HeadAdvanceResult / HeadAdvanceOutcome / IngestionStatusResult（plan_21/21.4 head 单调推进与超时终态化支撑）
+├── head/                              — IngestionHeadService / HeadAdvanceResult / HeadAdvanceOutcome / IngestionStatusResult（plan_21/21.4 head 单调推进与超时终态化支撑）；StaleIndexCleaner（plan_21/21.5 retry 清理旧失败残留）
 ├── knowledge/                         — Knowledge gRPC ReadDocumentFile client（只依赖 contracts）
 ├── producer/                          — INGESTION_PROCESSING/READY/FAILED 状态事件 Outbox 写入（Plan 19）
 ├── dense/                             — DenseEmbeddingService
@@ -358,7 +358,7 @@ ai.cerbur.crag.knowledge
 │   ├── knowledgebase/                  — KnowledgeBaseService、KnowledgeBaseResult、KnowledgeBaseNotFoundException
 │   ├── document/                       — DocumentUploadService/Command/Policy、DocumentResult、DocumentQueryService、FileType、UploadHandle
 │   ├── file/                           — FileReadService、FileRead
-│   └── ingestion/                      — IngestionStatus、IngestionStateMachine、IngestionApplyService、IngestionProjection、IngestionStatusEvent、IngestionApplyResult、IngestionTransitionDecision/Outcome（plan_21/21.3）
+│   └── ingestion/                      — IngestionStatus、IngestionStateMachine、IngestionApplyService、IngestionProjection、IngestionStatusEvent、IngestionApplyResult、IngestionTransitionDecision/Outcome（plan_21/21.3）；RetryPolicy、RetryDecision、RetryNotAllowedException、IngestionRetryService、IngestionRetryConfiguration（plan_21/21.5）
 ├── dao/                                — KnowledgeBaseDao/DocumentDao/FileObjectDao、VersionConflictException
 │   ├── entity/                         — KnowledgeBase/Document/FileObjectEntity
 │   └── repository/                     — Spring Data Repository（仅 DAO 调用）
@@ -367,6 +367,8 @@ ai.cerbur.crag.knowledge
 │   ├── provider/                       — KnowledgeBaseGrpcProvider、DocumentGrpcProvider、DecimalId
 │   ├── mapper/                         — KnowledgeBaseMapper、DocumentMapper
 │   └── error/                          — GrpcErrorMapper
+├── reconcile/                          — IngestionReconcileService、IngestionReconcilerScheduler、ReconcilerProperties、RagIngestionStatusClient/GrpcRagIngestionStatusClient、ReconcileSummary/ItemResult/Outcome（plan_21/21.5）
+├── metrics/                            — IngestionRecoveryMetrics（plan_21/21.5 retry/timeout/reconcile 计数器）
 ├── consumer/                           — IngestionStatusEventHandler、IngestionStatusPayload、InvalidIngestionStatusPayloadException（plan_21/21.3，@Profile("smoke")）
 ├── producer/                           — DocUploadedOutboxWriter、DocumentUploadedPayload、KnowledgeEventTypes、KnowledgeBaseCreatedOutboxWriter、KnowledgeBaseCreatedPayload
 ├── controller/

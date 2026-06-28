@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
@@ -119,5 +120,71 @@ public class DocumentDao {
               + " already advanced");
     }
     return affected;
+  }
+
+  /**
+   * Retry CAS（plan_21/21.5）：原子递增 operationVersion，重置 status=PENDING、清空失败字段，写入新 attempt。
+   *
+   * <p>WHERE 同时匹配 docId、tenantId、knowledgeBaseId、当前 operationVersion 与 version，0 rows 抛 {@link
+   * VersionConflictException}，确保并发 retry 只允许一个新版本成功。
+   *
+   * @param docId 文档 ID
+   * @param tenantId 租户 ID
+   * @param knowledgeBaseId 知识库 ID
+   * @param currentOperationVersion 当前 operationVersion
+   * @param version 当前读取的行级 version
+   * @param newAttempt 新 attempt 序号
+   * @param newOperationVersion 新 operationVersion
+   * @return affected rows（始终 ≥ 1）
+   * @throws VersionConflictException 当 CAS 失败
+   */
+  public int retryIngestion(
+      long docId,
+      long tenantId,
+      long knowledgeBaseId,
+      long currentOperationVersion,
+      long version,
+      int newAttempt,
+      long newOperationVersion) {
+    int affected =
+        documentRepository.retryIngestion(
+            docId,
+            tenantId,
+            knowledgeBaseId,
+            currentOperationVersion,
+            version,
+            newAttempt,
+            newOperationVersion);
+    if (affected == 0) {
+      throw new VersionConflictException(
+          "retryIngestion CAS failed: doc "
+              + docId
+              + " tenant "
+              + tenantId
+              + " kb "
+              + knowledgeBaseId
+              + " opVersion "
+              + currentOperationVersion
+              + " version "
+              + version
+              + " already advanced");
+    }
+    return affected;
+  }
+
+  /**
+   * 查询 Reconciler 滞留候选（plan_21/21.5）。
+   *
+   * <p>PENDING 滞留以 updatedAt 早于阈值判断；PROCESSING 滞留以 startedAt 早于阈值判断。
+   *
+   * @param pendingThreshold PENDING 滞留上界
+   * @param processingThreshold PROCESSING 滞留上界
+   * @param batchSize 单批上限
+   * @return 滞留候选文档
+   */
+  public Page<DocumentEntity> findStaleIngestionCandidates(
+      LocalDateTime pendingThreshold, LocalDateTime processingThreshold, int batchSize) {
+    return documentRepository.findStaleIngestionCandidates(
+        pendingThreshold, processingThreshold, PageRequest.of(0, batchSize));
   }
 }

@@ -10,6 +10,7 @@ java {
 
 dependencies {
     implementation(project(":crag-knowledge-contracts"))
+    implementation(project(":crag-rag-contracts"))
     implementation(project(":crag-platform-contracts"))
     implementation(project(":crag-grpc-runtime"))
     implementation(project(":crag-common"))

@@ -108,6 +108,17 @@ public class ChunkEmbeddingDao {
   }
 
   /**
+   * 按 docId + operationVersion 删除 chunk_embedding 行（plan_21/21.5 retry 清理）.
+   *
+   * @param docId 文档 ID
+   * @param operationVersion 旧 operationVersion
+   * @return 被删除的行数
+   */
+  public int deleteByChunkIdsForDocAndVersion(long docId, long operationVersion) {
+    return chunkEmbeddingRepository.deleteByChunkIdsForDocAndVersion(docId, operationVersion);
+  }
+
+  /**
    * 将 float[] 转为 pgvector 兼容的数组字面量.
    *
    * <p>格式选择是业务判断（紧凑格式 vs 空格分隔），不在 Repository 层处理.

@@ -103,4 +103,15 @@ public class ChunkFtsDao {
     }
     return results;
   }
+
+  /**
+   * 按 docId + operationVersion 删除 chunk_fts 行（plan_21/21.5 retry 清理）.
+   *
+   * @param docId 文档 ID
+   * @param operationVersion 旧 operationVersion
+   * @return 被删除的行数
+   */
+  public int deleteByChunkIdsForDocAndVersion(long docId, long operationVersion) {
+    return chunkFtsRepository.deleteByChunkIdsForDocAndVersion(docId, operationVersion);
+  }
 }

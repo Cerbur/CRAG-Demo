@@ -25,6 +25,16 @@ crag:
       shutdown-timeout: PT5S
       allowed-callers:
         console-api: ${CONSOLE_API_SERVICE_TOKEN:console-token-demo}
+    client:
+      caller-service: knowledge-service
+      token: ${KNOWLEDGE_API_SERVICE_TOKEN:knowledge-token-demo}
+  knowledge:
+    reconciler:
+      rag-target: ${RAG_SERVICE_TARGET:rag-service:9093}
+      pending-stale-threshold: 2m
+      processing-stale-threshold: 15m
+      batch-size: 50
+      schedule-interval: 60s
 
 management:
   endpoints:

@@ -278,4 +278,20 @@ public interface ChunkRepository extends JpaRepository<Chunk, Long> {
           + " AND (c.denseStatus NOT IN :indexed OR c.sparseStatus NOT IN :indexed)")
   long countByDocIdNotFullyIndexed(
       @Param("docId") long docId, @Param("indexed") List<ChunkStatus> indexed);
+
+  /**
+   * 按文档与 operationVersion 删除全部 chunk 行（plan_21/21.5 retry 清理旧失败残留）.
+   *
+   * <p>由 {@code StaleIndexCleaner} 在 head advance 推进到新 operationVersion 后、新版本处理开始前调用，确保旧版本
+   * FAILED/SUPERSEDED 的部分索引不会进入召回。返回被删除的行数.
+   *
+   * @param docId 文档 ID
+   * @param operationVersion 旧 operationVersion
+   * @return 被删除的 chunk 行数
+   */
+  @Modifying
+  @Transactional
+  @Query("DELETE FROM Chunk c WHERE c.docId = :docId AND c.operationVersion = :operationVersion")
+  int deleteByDocIdAndOperationVersion(
+      @Param("docId") long docId, @Param("operationVersion") long operationVersion);
 }
