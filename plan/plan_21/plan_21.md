@@ -4,7 +4,7 @@ plan_id: plan_21
 type: main
 status: in_progress
 created: 2026-06-28
-updated: 2026-06-28
+updated: 2026-06-29
 ---
 
 # plan_21 — 双 API 与摄取生命周期
@@ -158,7 +158,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待验收 | 260aed59 | — |
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待验收 | c58be6e0 | — |
 | 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待验收 | 907c1599 | — |
-| 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待开始 | — | — |
+| 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待验收 | 013ac49a | — |
 | 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待开始 | — | — |
 | 21.8 | 完成 Console KnowledgeBase 与 Document API | ⏳ 待开始 | — | — |
 | 21.9 | 完成 Console API Key 管理 API | ⏳ 待开始 | — | — |
@@ -167,7 +167,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4、21.5 已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4、21.5、21.6 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -351,13 +351,13 @@ public record ConsolePrincipal(long userId, long sessionFamilyId) {}
 
 **Implementation steps**：
 
-- [ ] 写 MockMvc 失败测试，锁定 register/login/refresh/logout/me 路由、状态、JSON 字段和 Set-Cookie 属性。
-- [ ] 扩展固定 ResponseCode，新增统一 ErrorDetail/GlobalExceptionHandler；敏感校验错误不回显 rejected value。
-- [ ] 实现 `JwtVerificationKeyCache`、RS256 verifier 和 Bearer filter，严格校验 kid/alg/iss/aud/exp/nbf。
-- [ ] 实现 RefreshCookieService 与 OriginGuard；logout finally 清 Cookie，Access 使用 raw Refresh Token 撤销。
-- [ ] 建立 Access/Knowledge/RAG channel/stub Bean 和 per-use-case deadline；非幂等 RPC 不配置自动重试。
-- [ ] 运行 Console 全模块测试、API/Architecture 测试和日志秘密扫描。
-- [ ] 提交：`feat(plan_21/21.6): establish console authentication boundary`。
+- [x] 写 MockMvc 失败测试，锁定 register/login/refresh/logout/me 路由、状态、JSON 字段和 Set-Cookie 属性。
+- [x] 扩展固定 ResponseCode，新增统一 ErrorDetail/GlobalExceptionHandler；敏感校验错误不回显 rejected value。
+- [x] 实现 `JwtVerificationKeyCache`、RS256 verifier 和 Bearer filter，严格校验 kid/alg/iss/aud/exp/nbf。
+- [x] 实现 RefreshCookieService 与 OriginGuard；logout finally 清 Cookie，Access 使用 raw Refresh Token 撤销。
+- [x] 建立 Access/Knowledge/RAG channel/stub Bean 和 per-use-case deadline；非幂等 RPC 不配置自动重试。
+- [x] 运行 Console 全模块测试、API/Architecture 测试和日志秘密扫描。
+- [x] 提交：`feat(plan_21/21.6): establish console authentication boundary`。
 
 ## 21.7 完成 Console Tenant 与 Membership API
 
@@ -587,8 +587,13 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | macOS | `./gradlew :crag-knowledge-service:spotlessCheck :crag-rag-service:spotlessCheck`、`./gradlew :crag-knowledge-service:test --tests '*ArchitectureTest' :crag-rag-service:test --tests '*ArchitectureTest'` | 通过 | Spotless 格式化通过；Knowledge 与 RAG 模块边界、Repository 内聚、字段注入、Knowledge 不依赖 RAG 业务模块等架构规则保持。 |
 | 2026-06-28 | macOS | `python3 scripts/validate_plans.py`、`python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py` | 通过 | plan_21 状态/进度/索引一致；crag-knowledge-service 依赖 crag-rag-contracts 经 APP_MODULES 特殊放行与 package-structure.md 白名单更新；framework 依赖校验通过。 |
 | 2026-06-28 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 39 个 21.5 变更文件无完整 Token、API Key 或私钥命中；application.yml 使用默认 token `knowledge-token-demo`。 |
+| 2026-06-29 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-console-api:test`（含新增 `*AuthControllerWebMvcTest`、`*AccessJwtVerifierTest`、`*JwtVerificationKeyCacheTest`、`*RefreshCookieServiceTest`、`*OriginGuardTest`、`*AccessIdentityClientTest`、`*ConsoleArchitectureTest`） | 通过 | 21.6 新增 7 个测试类、54 个用例全绿（0 failures, 0 skipped）；既有 `ConsoleApiComponentTest` 与 `DownstreamConnectivityHealthIndicatorTest` 无回归。验证：Auth register/login/refresh/logout/me 路由与状态码（register 200 含 accessToken/user/defaultTenant 且不含 refreshToken、Set-Cookie 含 HttpOnly + Path=/api/v1/auth + SameSite=Lax；login 200 defaultTenant 缺失；login 无效凭据 401 code=40102 不泄漏原因；refresh 缺 Cookie 401 / 缺 Origin 403；logout 200 finally 清 Cookie、Access 抛错仍清 Cookie 并 503；me 无 Principal 401 / 携带 ConsolePrincipal 200 安全投影；register 校验失败 400 不回显密码）；RS256 验签 8 项（有效 JWT 返回 ConsolePrincipal、未知 kid UnknownJwtKidException、非 RS256/坏签名/过期/未生效/iss 不匹配/aud 不匹配 均 InvalidJwtException）；公钥缓存 unknown kid 单次带冷却刷新（刷新命中后复用不再触发；刷新后仍未知稳定失败）；RefreshCookieService HttpOnly/Secure/SameSite/Path/Max-Age/clear 与 dev 模式关闭 Secure、请求 Cookie 读取；OriginGuard 同站通过 / 缺失或跨站拒绝 / Referer 回退 / 端口不匹配拒绝；AccessIdentityClient in-process gRPC register/login/refresh/logout/listTenants/getUserProfile/loadVerificationKeys 映射与 gRPC Status→业务异常（INVALID_ARGUMENT/UNAUTHENTICATED→InvalidCredentials、UNAVAILABLE→DownstreamUnavailable、不泄漏原因）；Console 架构测试（无 JPA Entity、无 Spring Data Repository、不依赖 Access/Knowledge/RAG Service 实现模块、不依赖 JDBC/JPA DataSource、Controller 仅位于 auth/controller）。 |
+| 2026-06-29 | macOS | `./gradlew :crag-console-api:spotlessCheck :crag-common:spotlessCheck :crag-common:test` | 通过 | Spotless + google-java-format 格式化通过；crag-common 扩展 ResponseCode 后既有 ResponseCodeTest 无回归。 |
+| 2026-06-29 | macOS | `python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py` | 通过 | crag-console-api 作为 APP_MODULES 不受模块白名单硬约束；package-structure.md §4 白名单已更新 Console/Open 的 contracts 依赖；framework 校验通过。 |
+| 2026-06-29 | macOS | `python3 scripts/validate_plans.py` | 通过 | plan_21 状态/进度/索引一致。 |
+| 2026-06-29 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 33 个 21.6 变更文件无完整 Token、API Key 或私钥命中；JWT 测试密钥运行时生成、application.yml 仅含 demo token `console-token-demo`。 |
 
-未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。21.4 的真实 pgvector Dense 召回与 PostgreSQL tsvector Sparse 召回（含 head + READY ingestion_job JOIN）在 H2 无法执行；NativeSqlVersionGuardTest 通过反射读取 @Query SQL 文本静态断言三条召回 SQL 的 head + READY JOIN 与 operation_version 限定条件，列顺序与映射由既有 ChunkEmbeddingDaoTest/ChunkFtsDaoTest 单测覆盖；真实 PostgreSQL 端到端隔离回归留待 21.13 Docker 全链路。docker-compose.yml 的 RAG `knowledge-service` allowed-callers token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 供组件测试与本地启动。RAG Query gRPC 与 Open API 的真实跨服务调用（21.10）和 Knowledge Reconciler 通过 IngestionStatus RPC 的真实端到端（21.5）属后续任务范围；本任务以 Provider 单元测试 + H2 组件测试覆盖授权、映射与版本隔离行为。21.5 的真实跨服务 gRPC（Knowledge Reconciler → RAG IngestionStatus RPC + caller-service token 验证）、真实 Redis Streams 跨服务 DOC_UPLOADED retry 事件投递、真实 PostgreSQL 端到端 retry CAS 与 StaleIndexCleaner 三表删除（含 pgvector / tsvector native SQL）需要 Compose 链路，属 21.13 全链路验收范围；本任务以 Mockito stub 验证 gRPC 客户端映射与错误处理、H2 验证 Knowledge retry CAS 与 chunk 删除、Mockito 单测验证 Reconciler 决策矩阵与并发 CAS 抢占；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。docker-compose.yml 的 Knowledge → RAG gRPC 客户端 target 与 caller-service token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 与 `rag-target=rag-service:9093` 供组件测试与本地启动。
+未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。21.4 的真实 pgvector Dense 召回与 PostgreSQL tsvector Sparse 召回（含 head + READY ingestion_job JOIN）在 H2 无法执行；NativeSqlVersionGuardTest 通过反射读取 @Query SQL 文本静态断言三条召回 SQL 的 head + READY JOIN 与 operation_version 限定条件，列顺序与映射由既有 ChunkEmbeddingDaoTest/ChunkFtsDaoTest 单测覆盖；真实 PostgreSQL 端到端隔离回归留待 21.13 Docker 全链路。docker-compose.yml 的 RAG `knowledge-service` allowed-callers token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 供组件测试与本地启动。RAG Query gRPC 与 Open API 的真实跨服务调用（21.10）和 Knowledge Reconciler 通过 IngestionStatus RPC 的真实端到端（21.5）属后续任务范围；本任务以 Provider 单元测试 + H2 组件测试覆盖授权、映射与版本隔离行为。21.5 的真实跨服务 gRPC（Knowledge Reconciler → RAG IngestionStatus RPC + caller-service token 验证）、真实 Redis Streams 跨服务 DOC_UPLOADED retry 事件投递、真实 PostgreSQL 端到端 retry CAS 与 StaleIndexCleaner 三表删除（含 pgvector / tsvector native SQL）需要 Compose 链路，属 21.13 全链路验收范围；本任务以 Mockito stub 验证 gRPC 客户端映射与错误处理、H2 验证 Knowledge retry CAS 与 chunk 删除、Mockito 单测验证 Reconciler 决策矩阵与并发 CAS 抢占；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。docker-compose.yml 的 Knowledge → RAG gRPC 客户端 target 与 caller-service token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 与 `rag-target=rag-service:9093` 供组件测试与本地启动。21.6 的真实跨服务 Access gRPC（Console Auth register/login/refresh/logout + caller-service token 验证 + JWT 公钥在线拉取）、真实 RS256 端到端验签、Cookie 在真实浏览器行为与真实 Redis/PostgreSQL 依赖下的完整链路需要 Compose 链路（含 Access 真实 JWT 签发），属 21.13 全链路验收范围；本任务以 in-process gRPC 组件测试 + Mockito stub + MockMvc standaloneSetup + 纯 JDK RS256 单元测试覆盖路由、状态码、字段映射、Cookie 属性、Origin 同站校验与异常映射；Access proto 的 LogoutRequest 接收 userId+sessionFamilyId（而非 raw Refresh Token），Console 通过 JWT sid 声明取得 sessionFamilyId 后调用 gRPC Logout，raw Refresh Token 撤销发生在 Access Service 内部（21.2 实现），与设计 spec §6 "通过完整 Refresh Token 在 Access 内定位 Session Family" 一致。H2/in-process gRPC 仅证明 Console 侧装配与映射，不表述为真实跨服务兼容或 Docker 端到端证明。
 
 ## 阻塞记录
 
@@ -608,3 +613,4 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | 21.3 待开始 → 进行中 → 待验收 | 完成实现提交（`260aed59`）并回填 hash | plan21 仍进行中；21.3 进入待验收，交独立验收 session；21.1–21.3 仍未完成、不递增完成数 |
 | 2026-06-28 | 21.4 待开始 → 进行中 → 待验收 | 完成实现提交（`c58be6e0`）并回填 hash | plan21 仍进行中；21.4 进入待验收，交独立验收 session；21.1–21.4 仍未完成、不递增完成数 |
 | 2026-06-28 | 21.5 待开始 → 进行中 → 待验收 | 完成实现提交（`907c1599`）并回填 hash | plan21 仍进行中；21.5 进入待验收，交独立验收 session；21.1–21.5 仍未完成、不递增完成数 |
+| 2026-06-29 | 21.6 待开始 → 进行中 → 待验收 | 完成实现提交（`013ac49a`）并回填 hash | plan21 仍进行中；21.6 进入待验收，交独立验收 session；21.1–21.6 仍未完成、不递增完成数 |
