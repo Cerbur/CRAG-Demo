@@ -392,7 +392,14 @@ ai.cerbur.crag.console
 ├── auth/                               — Console Auth HTTP 切片（plan_21/21.6）
 │   ├── controller/                     — AuthController（register/login/refresh/logout/me）
 │   ├── dto/                            — AuthResponse、UserResponse、TenantSummaryResponse、RegisterRequest、LoginRequest
-│   └── service/                        — AccessIdentityClient（gRPC adapter）、RefreshCookieService、OriginGuard
+│   └── service/                        — AccessIdentityClient（gRPC adapter，含 listTenantsPage plan_21/21.7）、RefreshCookieService、OriginGuard
+├── tenant/                             — Console Tenant HTTP 切片（plan_21/21.7）
+│   ├── controller/                     — TenantController（GET /api/v1/tenants）
+│   └── dto/                            — TenantListResponse
+├── membership/                         — Console Membership HTTP 切片（plan_21/21.7）
+│   ├── controller/                     — MembershipController（list/add/change-role/remove）
+│   ├── dto/                            — MemberResponse、AddMemberRequest、ChangeMemberRoleRequest、MembersListResponse
+│   └── service/                        — AccessMembershipClient（gRPC adapter，actor 只来自 ConsolePrincipal）
 ├── security/                           — Console JWT 本地验签与 Bearer filter（plan_21/21.6）
 │   ├── jwt/                            — JwtVerificationKeyCache、AccessJwtVerifier、AccessJwtKeyRefresher
 │   └── filter/                         — BearerTokenAuthenticationFilter

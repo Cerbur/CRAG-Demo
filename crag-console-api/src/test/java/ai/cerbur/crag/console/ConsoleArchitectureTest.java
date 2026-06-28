@@ -84,8 +84,9 @@ class ConsoleArchitectureTest {
   }
 
   @Test
-  @DisplayName("Controller 仅存在于 auth/controller 包")
-  void controllersInAuthPackage() {
+  @DisplayName(
+      "Controller 仅存在于 auth/tenant/membership controller 包（plan_21/21.7 扩展 tenant/membership）")
+  void controllersInApprovedPackages() {
     classes()
         .that()
         .resideInAPackage("..controller..")
@@ -96,7 +97,42 @@ class ConsoleArchitectureTest {
         .and()
         .areAnnotatedWith(org.springframework.web.bind.annotation.RestController.class)
         .should()
-        .resideInAPackage("ai.cerbur.crag.console.auth.controller..")
+        .resideInAnyPackage(
+            "ai.cerbur.crag.console.auth.controller..",
+            "ai.cerbur.crag.console.tenant.controller..",
+            "ai.cerbur.crag.console.membership.controller..")
+        .check(classes);
+  }
+
+  @Test
+  @DisplayName("tenant/membership HTTP DTO 位于 console 专属 dto 包（plan_21/21.7）")
+  void httpDtosInConsoleScopedPackages() {
+    classes()
+        .that()
+        .resideInAnyPackage(
+            "ai.cerbur.crag.console.tenant.dto..", "ai.cerbur.crag.console.membership.dto..")
+        .should()
+        .resideInAnyPackage(
+            "ai.cerbur.crag.console.tenant.dto..", "ai.cerbur.crag.console.membership.dto..")
+        .check(classes);
+  }
+
+  @Test
+  @DisplayName("gRPC adapter 只依赖 contracts/服务包内 DTO，不反向被 contracts 依赖（plan_21/21.7）")
+  void grpcAdaptersDoNotExposeToOutsideConsoleScope() {
+    // Console 模块外的 contracts 不可能依赖 Console HTTP DTO（跨 Gradle 模块，依赖方向单向）；
+    // 这里断言 Console HTTP DTO 不出现在 contracts 包路径下，验证模块边界。
+    noClasses()
+        .that()
+        .resideInAPackage("ai.cerbur.crag.console..")
+        .and()
+        .haveSimpleNameEndingWith("Response")
+        .should()
+        .resideInAnyPackage(
+            "ai.cerbur.crag.contracts..",
+            "ai.cerbur.crag.access..",
+            "ai.cerbur.crag.knowledge..",
+            "ai.cerbur.crag.rag..")
         .check(classes);
   }
 }

@@ -120,6 +120,15 @@ public class AccessIdentityClient {
   }
 
   public List<TenantSummaryResponse> listTenants(long userId, int pageSize, String pageToken) {
+    return listTenantsPage(userId, pageSize, pageToken).items();
+  }
+
+  /**
+   * 列出当前用户有效 Tenant 与角色，并保留 nextPageToken（plan_21/21.7）。
+   *
+   * <p>pageToken 为 tenantId 游标（由 Access 返回），保证分页稳定。
+   */
+  public TenantsPage listTenantsPage(long userId, int pageSize, String pageToken) {
     try {
       ListUserTenantsResponse resp =
           stub()
@@ -133,9 +142,17 @@ public class AccessIdentityClient {
       for (UserTenant t : resp.getTenantsList()) {
         out.add(new TenantSummaryResponse(t.getTenantId(), t.getName(), roleToString(t.getRole())));
       }
-      return out;
+      String next = resp.getNextPageToken();
+      return new TenantsPage(out, next == null || next.isEmpty() ? null : next);
     } catch (StatusRuntimeException e) {
       throw mapDownstream(e);
+    }
+  }
+
+  /** Tenant 列表分页结果（plan_21/21.7）。items + nextPageToken（tenantId 游标）。 */
+  public record TenantsPage(List<TenantSummaryResponse> items, String nextPageToken) {
+    public TenantsPage {
+      items = items == null ? java.util.List.of() : java.util.List.copyOf(items);
     }
   }
 

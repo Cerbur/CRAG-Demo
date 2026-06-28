@@ -8,6 +8,7 @@ import ai.cerbur.crag.console.auth.service.AccessIdentityClient.DownstreamTimeou
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.DownstreamUnavailableException;
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.InvalidCredentialsException;
 import ai.cerbur.crag.console.auth.service.InvalidOriginException;
+import ai.cerbur.crag.console.membership.service.AccessMembershipClient;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +74,48 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(DownstreamTimeoutException.class)
   public ResponseEntity<Response<ErrorDetail>> handleDownstreamTimeout(
       DownstreamTimeoutException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_TIMEOUT,
+        new ErrorDetail("Downstream timeout", traceId(request), "DOWNSTREAM_TIMEOUT", true));
+  }
+
+  // ---- plan_21/21.7 Membership 异常映射 ----
+
+  @ExceptionHandler(AccessMembershipClient.ForbiddenException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMembershipForbidden(
+      AccessMembershipClient.ForbiddenException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.FORBIDDEN, new ErrorDetail("Forbidden", traceId(request), "FORBIDDEN", false));
+  }
+
+  @ExceptionHandler(AccessMembershipClient.NotFoundException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMembershipNotFound(
+      AccessMembershipClient.NotFoundException ex, HttpServletRequest request) {
+    // 跨租户/不存在统一 not found，不泄漏成员关系存在性
+    return build(
+        ResponseCode.NOT_FOUND,
+        new ErrorDetail("Resource not found", traceId(request), "NOT_FOUND", false));
+  }
+
+  @ExceptionHandler(AccessMembershipClient.ConflictException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMembershipConflict(
+      AccessMembershipClient.ConflictException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.CONFLICT, new ErrorDetail("Conflict", traceId(request), "CONFLICT", false));
+  }
+
+  @ExceptionHandler(AccessMembershipClient.DownstreamUnavailableException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMembershipDownstream(
+      AccessMembershipClient.DownstreamUnavailableException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_UNAVAILABLE,
+        new ErrorDetail(
+            "Downstream unavailable", traceId(request), "DOWNSTREAM_UNAVAILABLE", true));
+  }
+
+  @ExceptionHandler(AccessMembershipClient.DownstreamTimeoutException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMembershipDownstreamTimeout(
+      AccessMembershipClient.DownstreamTimeoutException ex, HttpServletRequest request) {
     return build(
         ResponseCode.DOWNSTREAM_TIMEOUT,
         new ErrorDetail("Downstream timeout", traceId(request), "DOWNSTREAM_TIMEOUT", true));
