@@ -154,7 +154,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
 | 21.1 | 建立正式 contracts 与模块边界 | ⏳ 待验收 | 9af60a5 | — |
-| 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待开始 | — | — |
+| 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待验收 | 87906344 | — |
 | 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待开始 | — | — |
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待开始 | — | — |
 | 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待开始 | — | — |
@@ -167,7 +167,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）— 21.1 已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 21.1、21.2 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -230,13 +230,13 @@ public record AuthenticatedApiKey(long apiKeyId, long tenantId, long knowledgeBa
 
 **Implementation steps**：
 
-- [ ] 写失败测试：Profile/Tenant/Key 分页、按 Refresh Token 撤销、Ensure 同租户幂等/异租户冲突/BLOCKED 不复活、鉴权版本字段。
-- [ ] 在 DAO 增加批量/分页查询和 token HMAC 定位；Repository 不做权限判断，DAO 处理投影与 CAS 结果。
-- [ ] 按 Interfaces 实现 Core，Membership 列表批量补 nickname，禁止循环查 User。
-- [ ] 新增 `KnowledgeBaseCreatedEventHandler`，仅接受 payload v1，使用 `JdbcProcessedEventDao` 幂等；Access schema 添加 processed_event。
-- [ ] 扩展 Mapper/Provider/ErrorMapper/RpcAuthorizer，Console 可管理，Open 只可 Authenticate/Get keys。
-- [ ] 运行 `./gradlew :crag-access-service:test` 和 `*AccessArchitectureTest`，预期通过且秘密扫描无命中。
-- [ ] 提交：`feat(plan_21/21.2): complete access management contracts`。
+- [x] 写失败测试：Profile/Tenant/Key 分页、按 Refresh Token 撤销、Ensure 同租户幂等/异租户冲突/BLOCKED 不复活、鉴权版本字段。
+- [x] 在 DAO 增加批量/分页查询和 token HMAC 定位；Repository 不做权限判断，DAO 处理投影与 CAS 结果。
+- [x] 按 Interfaces 实现 Core，Membership 列表批量补 nickname，禁止循环查 User。
+- [x] 新增 `KnowledgeBaseCreatedEventHandler`，仅接受 payload v1，使用 `JdbcProcessedEventDao` 幂等；Access schema 添加 processed_event。
+- [x] 扩展 Mapper/Provider/ErrorMapper/RpcAuthorizer，Console 可管理，Open 只可 Authenticate/Get keys。
+- [x] 运行 `./gradlew :crag-access-service:test` 和 `*AccessArchitectureTest`，预期通过且秘密扫描无命中。
+- [x] 提交：`feat(plan_21/21.2): complete access management contracts`。
 
 ## 21.3 建立 Knowledge 摄取投影与状态事件消费
 
@@ -574,8 +574,11 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | macOS | `./gradlew :crag-rag-contracts:test --tests '*ContractsArchitectureTest' :crag-access-contracts:test --tests '*ContractsCompatibilityTest' :crag-knowledge-contracts:test --tests '*ContractsCompatibilityTest'` | 通过 | 断言 Query/IngestionStatus RPC、Citation/QueryRequest/IngestionStatusView 字段号、Access 新增 RPC 与 ApiKeyScope/AuthenticatedApiKey 版本字段、Knowledge Document 字段 13–19 与 RetryIngestion。 |
 | 2026-06-28 | macOS | `python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py`、`python3 -m unittest scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies` | 通过 | 校验器识别 `crag-rag-contracts` 白名单；四个 contracts 模块均不得引入 Spring/runtime/grpc-runtime 依赖；38 个校验器单元测试全通过。 |
 | 2026-06-28 | macOS | `python3 scripts/validate_plans.py` | 通过 | plan_21 状态/进度/索引一致。 |
+| 2026-06-28 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-access-service:test`（含新增 `*UserProfileAndTenantsComponentTest`、`*LogoutByRefreshTokenComponentTest`、`*EnsureScopeComponentTest`、`*KnowledgeBaseCreatedEventHandlerTest`） | 通过 | 21.2 新增 21 个用例全绿；既有 access-service 测试无回归。验证：profile/tenants 安全投影与分页；logout(rawRefreshToken) 按 HMAC 撤销、不需 Access JWT；EnsureScope 同租户幂等/异租户冲突/BLOCKED 不复活；get/list 安全投影与游标分页；authenticate 返回 keyVersion/scopeVersion 水位；KB_CREATED handler 仅接受 payload v1、未知版本/非法 payload 安全 DLQ、瞬时异常 retryable。 |
+| 2026-06-28 | macOS | `./gradlew :crag-access-service:test --tests '*AccessArchitectureTest'`、`./gradlew :crag-access-service:spotlessCheck` | 通过 | 持久化边界（Repository 仅 DAO 访问、Entity 仅 dao.entity、DAO 无协议依赖）与 Security 包规则保持；Spotless 格式化通过。 |
+| 2026-06-28 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 31 个 access-service 文件无完整 Token、API Key 或私钥命中；fixture 使用 placeholder 字符串。 |
 
-未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。
+未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。
 
 ## 阻塞记录
 
@@ -591,3 +594,4 @@ router4_smoke_profile_test.sh
 | --- | --- | --- | --- |
 | 2026-06-28 | 创建计划并设为 ready | Router4 设计已确认并完成书面复核 | plan21 进入执行队首；实现前须先提交本 Plan 与索引 |
 | 2026-06-28 | 状态 ready → in_progress，21.1 进行中 → 待验收 | 开始执行 21.1 并完成实现提交（`9af60a5`） | plan21 进入进行中；21.1 进入待验收，交独立验收 session |
+| 2026-06-28 | 21.2 进行中 → 待验收 | 完成实现提交（`87906344`）并回填 hash | plan21 仍进行中；21.2 进入待验收，交独立验收 session；21.1/21.2 仍未完成、不递增完成数 |

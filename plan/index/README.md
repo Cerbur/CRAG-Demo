@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-28（plan_21 状态 ready → 进行中；21.1 实现完成并待验收）
+> 最后更新：2026-06-28（plan_21 状态进行中；21.2 实现完成并待验收）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -294,7 +294,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_21.md](../plan_21/plan_21.md) | Console/Open 正式 API、Access/Knowledge/RAG contracts、摄取状态/retry/Reconciler、READY 版本隔离、API Key 缓存失效、单服务 Smoke 与前端 OpenAPI | 🟡 待开始 (0/13) |
+| [plan_21.md](../plan_21/plan_21.md) | Console/Open 正式 API、Access/Knowledge/RAG contracts、摄取状态/retry/Reconciler、READY 版本隔离、API Key 缓存失效、单服务 Smoke 与前端 OpenAPI | 🔄 进行中 (0/13) |
 
 ---
 
