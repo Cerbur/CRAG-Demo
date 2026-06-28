@@ -185,13 +185,22 @@ def check_topology_script(root: Path) -> list[Diagnostic]:
 # Check 3c – Internal port exposure
 # ---------------------------------------------------------------------------
 
-INTERNAL_ONLY_SERVICES = {
+# plan_21/21.11: the three business services now expose fixed local diagnostic
+# ports (Access 8091, Knowledge 8092, RAG 8082) per the consolidated smoke
+# topology. The design doc §11 explicitly states "原服务固定映射本地端口".
+# No other Java service may expose host ports except console-api (8080) and
+# open-api (8081) which are the public business entry points.
+ALLOWED_PORT_SERVICES = {
+    "sidecar",
     "access-service",
     "knowledge-service",
+    "rag-service",
+    "console-api",
+    "open-api",
 }
 
 def check_internal_port_exposure(root: Path) -> list[Diagnostic]:
-    """Verify internal-only services don't expose ports to host."""
+    """Verify only services with allowed local diagnostic/business ports expose host ports."""
     compose_path = root / "docker-compose.yml"
     if not compose_path.exists():
         return []
@@ -223,14 +232,102 @@ def check_internal_port_exposure(root: Path) -> list[Diagnostic]:
         if in_ports and re.match(r"^    [a-zA-Z]", line):
             in_ports = False
 
-        # Check for host port mapping under internal-only service
-        if in_ports and current_service in INTERNAL_ONLY_SERVICES:
+        # Check for host port mapping under a service that is not allowed to expose
+        if in_ports and current_service not in ALLOWED_PORT_SERVICES:
             if re.match(r'^\s+-\s+"?\d+:\d+"?', line):
                 diagnostics.append(
-                    Diagnostic("ERROR", "INTERNAL_PORT_EXPOSED",
+                    Diagnostic("ERROR", "UNEXPECTED_PORT_EXPOSED",
                                f"Compose 服务 \"{current_service}\" 不应暴露端口到宿主机。"
-                               "内部服务端口只能在 Compose 私有网络内访问。"))
+                               "仅 access-service(8091)、knowledge-service(8092)、rag-service(8082)、"
+                               "console-api(8080)、open-api(8081) 允许本地端口映射。"))
                 in_ports = False  # Only report once per service
+
+    return diagnostics
+
+
+# ---------------------------------------------------------------------------
+# Check 3d – Consolidated smoke topology (plan_21/21.11)
+# ---------------------------------------------------------------------------
+
+EXPECTED_JAVA_SERVICES = {
+    "access-service",
+    "knowledge-service",
+    "rag-service",
+    "console-api",
+    "open-api",
+}
+
+# Fixed local diagnostic ports mandated by the consolidated smoke topology.
+FIXED_PORT_MAPPINGS = {
+    "access-service": "8091:8091",
+    "knowledge-service": "8092:8092",
+    "rag-service": "8082:8082",
+    "console-api": "8080:8080",
+    "open-api": "8081:8081",
+}
+
+
+def check_smoke_topology(root: Path) -> list[Diagnostic]:
+    """plan_21/21.11: consolidate smoke into the original services' profile.
+
+    Asserts:
+      1. No `*-smoke` Compose service exists.
+      2. All five expected Java services are present.
+      3. The three business services expose their fixed local diagnostic ports.
+    """
+    compose_services = parse_compose_services(root)
+    if compose_services is None:
+        return []
+
+    diagnostics: list[Diagnostic] = []
+
+    smoke_services = {s for s in compose_services if s.endswith("-smoke")}
+    for svc in sorted(smoke_services):
+        diagnostics.append(
+            Diagnostic("ERROR", "SMOKE_SERVICE_FORBIDDEN",
+                       f"Compose 服务 \"{svc}\" 不应存在（plan_21/21.11 收敛单服务 Smoke 拓扑）。"
+                       "Smoke Controller 是原服务在 smoke Profile 下的条件 Bean，"
+                       "不创建重复 Compose 服务。"))
+
+    for svc in sorted(EXPECTED_JAVA_SERVICES):
+        if svc not in compose_services:
+            diagnostics.append(
+                Diagnostic("ERROR", "EXPECTED_SERVICE_MISSING",
+                           f"Compose 缺少必需的 Java 服务 \"{svc}\"。"))
+
+    compose_path = root / "docker-compose.yml"
+    text = compose_path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    current_service: str | None = None
+    in_ports = False
+    service_ports: dict[str, set[str]] = {}
+    for line in lines:
+        svc_match = re.match(r"^  ([a-zA-Z0-9_-]+):\s*$", line)
+        if svc_match:
+            current_service = svc_match.group(1)
+            in_ports = False
+            continue
+        if current_service is None:
+            continue
+        if re.match(r"^    ports:\s*$", line):
+            in_ports = True
+            continue
+        if in_ports and re.match(r"^    [a-zA-Z]", line):
+            in_ports = False
+        if in_ports:
+            m = re.match(r'^\s+-\s+"?(\d+:\d+)"?', line)
+            if m and current_service in FIXED_PORT_MAPPINGS:
+                service_ports.setdefault(current_service, set()).add(m.group(1))
+
+    for svc, expected in FIXED_PORT_MAPPINGS.items():
+        if svc not in compose_services:
+            continue
+        actual_ports = service_ports.get(svc, set())
+        if expected not in actual_ports:
+            diagnostics.append(
+                Diagnostic("ERROR", "FIXED_PORT_MISSING",
+                           f"Compose 服务 \"{svc}\" 必须固定暴露本地诊断端口 "
+                           f"\"{expected}\"（plan_21/21.11）。"))
 
     return diagnostics
 
@@ -456,6 +553,7 @@ def validate(root: Path) -> list[Diagnostic]:
     diagnostics.extend(check_compose_services(root))
     diagnostics.extend(check_topology_script(root))
     diagnostics.extend(check_internal_port_exposure(root))
+    diagnostics.extend(check_smoke_topology(root))
     diagnostics.extend(check_terms(root))
     diagnostics.extend(check_topology_critical_assertions(root))
     diagnostics.extend(check_topology_three_account_coverage(root))

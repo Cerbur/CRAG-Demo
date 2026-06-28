@@ -14,6 +14,7 @@ SERVICE="knowledge-service"
 echo "=== Event Smoke Default Disabled Test ==="
 
 # 默认 knowledge-service 不在 smoke profile；启动它和 db。
+export CRAG_SERVICE_PROFILES=
 docker compose up -d --build db knowledge-service
 
 echo "waiting for knowledge-service readiness..."

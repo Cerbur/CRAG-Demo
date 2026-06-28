@@ -1,14 +1,14 @@
 #!/bin/bash
 # Knowledge smoke HTTP 回归 — 非法上传全部失败
 # 验证 sha256 不匹配、非 UTF-8、非法扩展名、超 10 MiB 上传均返回 4xx 且不创建 Document。
-# 自动启动 db/redis/knowledge-service-smoke，以 runId 隔离数据；不清表、不删 volume。
+# 自动启动 db/redis/knowledge-service（启用 smoke Profile），以 runId 隔离数据；不清表、不删 volume。
 #
 # 用法: bash scripts/tests/http/knowledge_smoke_upload_invalid_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8094
+#       BASE_URL 默认 http://localhost:8092
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8094}"
+BASE_URL="${1:-http://localhost:8092}"
 RUN_ID="k-inv-$(date +%s)-$$"
 TIMEOUT=120
 FAILED=0
@@ -16,15 +16,16 @@ FAILED=0
 echo "=== Knowledge Smoke Upload Invalid Test ==="
 echo "BASE_URL=$BASE_URL  RUN_ID=$RUN_ID"
 
-mkdir -p ./data/knowledge-files-smoke && chmod 777 ./data/knowledge-files-smoke
-docker compose --profile smoke up -d --build db redis knowledge-service-smoke
+mkdir -p ./data/knowledge-files && chmod 777 ./data/knowledge-files
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis knowledge-service
 
 cleanup() {
   rm -f "$TXT_FILE" "$BIN_FILE"
-  docker compose stop knowledge-service-smoke >/dev/null 2>&1 || true
+  docker compose stop knowledge-service >/dev/null 2>&1 || true
 }
 
-echo "waiting for knowledge-service-smoke readiness..."
+echo "waiting for knowledge-service readiness..."
 status="000"
 for _ in $(seq 1 "$TIMEOUT"); do
   status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/actuator/health/readiness" || echo "000")
@@ -32,8 +33,8 @@ for _ in $(seq 1 "$TIMEOUT"); do
   sleep 2
 done
 if [ "$status" != "200" ]; then
-  echo "FAIL: knowledge-service-smoke 未就绪 (status=$status)"
-  docker compose logs --tail=60 knowledge-service-smoke || true
+  echo "FAIL: knowledge-service 未就绪 (status=$status)"
+  docker compose logs --tail=60 knowledge-service || true
   cleanup
   exit 1
 fi

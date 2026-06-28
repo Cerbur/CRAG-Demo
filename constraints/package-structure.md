@@ -159,7 +159,7 @@ ai.cerbur.crag.query.api
 
 - Controller 和 `GlobalExceptionHandler` 必须统一受类级 `@Profile("smoke")` 限制。
 - 默认应用启动不得暴露 `/api/v1/smoke/**`，所有 legacy RAG HTTP 验证 URI 统一使用该前缀。
-- 只允许通过显式 smoke Docker Compose 启动方式激活：`docker compose --profile smoke up -d --build rag-service-smoke`。
+- 只允许通过原服务的 `smoke` Profile 激活：`CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service`（plan_21/21.11 收敛单服务 Smoke 拓扑，原服务固定暴露本地诊断端口 8082）。
 - 允许直接调用 DAO、Sparse/Dense/RRF/Rerank 等内部组件，但每个端点必须明确标注验证阶段。
 - 禁止在冒烟端点中实现正式业务规则，禁止被正式 API 复用。
 - 单元测试仍保留在各业务包；`smoke` 包不替代单元测试或正式 API 的端到端测试。

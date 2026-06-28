@@ -2,13 +2,14 @@
 # Access smoke HTTP 回归 — Refresh 轮换与复用检测
 set -euo pipefail
 TIMEOUT=150
-CONTAINER="crag-access-service-smoke"
-SERVICE="access-service-smoke"
+CONTAINER="crag-access-service"
+SERVICE="access-service"
 RUN_ID="$(date +%s)-$$"
 USERNAME="sr_${RUN_ID}"
 
 echo "=== Access Smoke Session Reuse Test (run=$RUN_ID) ==="
-docker compose up -d --build db redis access-service-smoke
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis access-service
 echo "waiting for readiness..."
 health="starting"
 for _ in $(seq 1 "$TIMEOUT"); do

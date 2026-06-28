@@ -48,13 +48,13 @@ Docker HTTP 回归用于验证真实运行时业务链路：
 - `docker compose ps`、`logs`、`exec` 和数据库查询只可作为健康状态、诊断或结果辅助证据，不得替代 HTTP 业务入口。
 - 可证明容器装配、真实配置、HTTP 契约、PostgreSQL 与 pgvector 行为、Sidecar 协议和跨模块业务链路。
 
-可靠事件基础设施的真实 Redis Streams 行为（`XREADGROUP`/`XPENDING`/`XCLAIM`）由 `scripts/tests/http/event_smoke_{success,dlq,default_disabled}_test.sh` 通过 `knowledge-service-smoke`（smoke profile）HTTP 入口证明；H2/fake 单元与组件测试不得表述为该真实链路的替代证据。
+可靠事件基础设施的真实 Redis Streams 行为（`XREADGROUP`/`XPENDING`/`XCLAIM`）由 `scripts/tests/http/event_smoke_{success,dlq,default_disabled}_test.sh` 通过原 `knowledge-service`（启用 `CRAG_SERVICE_PROFILES=smoke`）的 `/api/v1/smoke/events/**` HTTP 入口证明；H2/fake 单元与组件测试不得表述为该真实链路的替代证据。
 
-Knowledge 垂直链路（KnowledgeBase、Document 单次流式上传、文件存储、读取、`DOC_UPLOADED` 发布）由 `scripts/tests/http/knowledge_smoke_{default_disabled,upload_txt,upload_md,upload_invalid,event_published}_test.sh` 通过 `knowledge-service-smoke`（smoke profile）的 `/api/v1/smoke/knowledge/**` HTTP 入口证明真实 PostgreSQL、文件 volume 与 Redis Streams 发布链路；默认 profile 不暴露该入口。
+Knowledge 垂直链路（KnowledgeBase、Document 单次流式上传、文件存储、读取、`DOC_UPLOADED` 发布）由 `scripts/tests/http/knowledge_smoke_{default_disabled,upload_txt,upload_md,upload_invalid,event_published}_test.sh` 通过原 `knowledge-service`（启用 `CRAG_SERVICE_PROFILES=smoke`）的 `/api/v1/smoke/knowledge/**` HTTP 入口（固定本地诊断端口 8092）证明真实 PostgreSQL、文件 volume 与 Redis Streams 发布链路；默认 profile 不暴露该入口。
 
-router2 RAG 多知识库链路（消费 `DOC_UPLOADED`、Knowledge gRPC 读取、切分、Dense/Sparse 索引、按 `knowledgeBaseId` 查询隔离、状态事件发布）由 `scripts/tests/http/rag_smoke_multi_kb_{ingestion,isolation}_test.sh`、`rag_smoke_doc_uploaded_{idempotency,dlq}_test.sh` 与 `rag_smoke_ingestion_status_event_test.sh` 通过 `knowledge-service-smoke`（上传入口）与 `rag-service-smoke`（`/api/v1/smoke/rag/ingestion/**`、`/api/v1/smoke/query`、`/api/v1/smoke/test/retrieval/**` HTTP 入口）证明真实 PostgreSQL + pgvector + Redis Streams + Knowledge gRPC 全链路；默认 profile 不暴露 router2 smoke 入口。
+router2 RAG 多知识库链路（消费 `DOC_UPLOADED`、Knowledge gRPC 读取、切分、Dense/Sparse 索引、按 `knowledgeBaseId` 查询隔离、状态事件发布）由 `scripts/tests/http/rag_smoke_multi_kb_{ingestion,isolation}_test.sh`、`rag_smoke_doc_uploaded_{idempotency,dlq}_test.sh` 与 `rag_smoke_ingestion_status_event_test.sh` 通过原 `knowledge-service`（启用 `CRAG_SERVICE_PROFILES=smoke`，上传入口 8092）与原 `rag-service`（启用 `CRAG_SERVICE_PROFILES=smoke`，`/api/v1/smoke/rag/ingestion/**`、`/api/v1/smoke/query`、`/api/v1/smoke/test/retrieval/**` HTTP 入口，固定本地诊断端口 8082）证明真实 PostgreSQL + pgvector + Redis Streams + Knowledge gRPC 全链路；默认 profile 不暴露 router2 smoke 入口。
 
-router3 Access 垂直链路（注册/登录/刷新、Refresh 复用撤销 Family、Membership 角色与最后 OWNER 保护、Scope/API Key 生命周期与鉴权、`API_KEY_INVALIDATED` 失效事件、并发刷新仅一次成功）由 `scripts/tests/http/access_smoke_{default_disabled,identity,membership,session_reuse,api_key,event,concurrent_refresh}_test.sh` 通过 `access-service-smoke`（smoke profile）的 `/api/v1/smoke/access/**` HTTP 入口证明真实 PostgreSQL + Redis（Snowflake Worker lease + Redis Streams）+ RS256 JWT + Argon2id 全链路；默认 profile 不暴露 Access smoke 入口。
+router3 Access 垂直链路（注册/登录/刷新、Refresh 复用撤销 Family、Membership 角色与最后 OWNER 保护、Scope/API Key 生命周期与鉴权、`API_KEY_INVALIDATED` 失效事件、并发刷新仅一次成功）由 `scripts/tests/http/access_smoke_{default_disabled,identity,membership,session_reuse,api_key,event,concurrent_refresh}_test.sh` 通过原 `access-service`（启用 `CRAG_SERVICE_PROFILES=smoke`）的 `/api/v1/smoke/access/**` HTTP 入口（固定本地诊断端口 8091）证明真实 PostgreSQL + Redis（Snowflake Worker lease + Redis Streams）+ RS256 JWT + Argon2id 全链路；默认 profile 不暴露 Access smoke 入口。
 
 ## 二、Gradle 与 Docker 执行入口
 

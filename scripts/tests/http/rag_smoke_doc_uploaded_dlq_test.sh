@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-R_URL="${R_URL:-http://localhost:8083}"
+R_URL="${R_URL:-http://localhost:8082}"
 RUN_ID="r-dlq-$(date +%s)-$$"
 TIMEOUT=180
 STREAM="crag:event:knowledge"
@@ -16,8 +16,9 @@ DLQ="$STREAM:dlq"
 BAD_DOC=$(( (RANDOM*RANDOM) % 1000000 + 900000 ))
 
 echo "=== router2 RAG Smoke DOC_UPLOADED DLQ Test ==="
-mkdir -p ./data/knowledge-files-smoke && chmod 777 ./data/knowledge-files-smoke
-docker compose --profile smoke up -d --build db redis sidecar rag-service-smoke
+mkdir -p ./data/knowledge-files && chmod 777 ./data/knowledge-files
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis sidecar rag-service
 
 wait_ready() {
   local url="$1" name="$2" status="000"
@@ -27,7 +28,7 @@ wait_ready() {
   done
   echo "FAIL: $name 未就绪"; return 1
 }
-wait_ready "$R_URL" rag || { docker compose logs --tail=40 rag-service-smoke || true; exit 1; }
+wait_ready "$R_URL" rag || { docker compose logs --tail=40 rag-service || true; exit 1; }
 
 # 注入 envelope 合法、payload 非法的 DOC_UPLOADED（缺字段 + 非法类型）
 docker exec crag-redis redis-cli XADD "$STREAM" '*' \

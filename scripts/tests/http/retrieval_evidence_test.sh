@@ -3,13 +3,13 @@
 # 验证 retrieveEvidence 在真实 PostgreSQL 链路返回完整 parent 内容与真实命中 child.
 #
 # 用法: bash scripts/tests/http/retrieval_evidence_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8083（rag-service-smoke 服务端口）
+#       BASE_URL 默认 http://localhost:8082（rag-service 固定本地诊断端口）
 #
 # 测试数据使用唯一 RUN_ID 隔离，不执行破坏性清理.
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8083}"
+BASE_URL="${1:-http://localhost:8082}"
 RUN_ID="evidence-$(date +%s)-$$"
 FAILED=0
 

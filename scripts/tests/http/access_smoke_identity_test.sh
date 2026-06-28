@@ -2,13 +2,14 @@
 # Access smoke HTTP 回归 — Identity 注册/登录/刷新/复用
 set -euo pipefail
 TIMEOUT=150
-CONTAINER="crag-access-service-smoke"
-SERVICE="access-service-smoke"
+CONTAINER="crag-access-service"
+SERVICE="access-service"
 RUN_ID="$(date +%s)-$$"
 USERNAME="iduser_${RUN_ID}"
 
 echo "=== Access Smoke Identity Test (run=$RUN_ID) ==="
-docker compose up -d --build db redis access-service-smoke
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis access-service
 echo "waiting for readiness..."
 health="starting"
 for _ in $(seq 1 "$TIMEOUT"); do

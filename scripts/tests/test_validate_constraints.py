@@ -211,17 +211,36 @@ class TestCheckInternalPortExposure(unittest.TestCase):
             (root / "docker-compose.yml").write_text(
                 textwrap.dedent("""\
                     services:
-                      access-service:
-                        image: java
-                      knowledge-service:
-                        image: java
+                      db:
+                        image: pg
+                      redis:
+                        image: redis
                 """),
                 encoding="utf-8",
             )
             diags = vc.check_internal_port_exposure(root)
             self.assertEqual([], diags)
 
-    def test_fail_exposed_port(self):
+    def test_fail_exposed_port_on_disallowed_service(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "docker-compose.yml").write_text(
+                textwrap.dedent("""\
+                    services:
+                      db:
+                        image: pg
+                        ports:
+                          - "5432:5432"
+                """),
+                encoding="utf-8",
+            )
+            diags = vc.check_internal_port_exposure(root)
+            self.assertEqual(1, len(diags))
+            self.assertEqual("UNEXPECTED_PORT_EXPOSED", diags[0].code)
+            self.assertIn("db", diags[0].message)
+
+    def test_pass_access_service_fixed_port_allowed(self):
+        """plan_21/21.11: access-service may expose its fixed local diagnostic port 8091."""
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             (root / "docker-compose.yml").write_text(
@@ -230,14 +249,136 @@ class TestCheckInternalPortExposure(unittest.TestCase):
                       access-service:
                         image: java
                         ports:
-                          - "9091:9091"
+                          - "8091:8091"
                 """),
                 encoding="utf-8",
             )
             diags = vc.check_internal_port_exposure(root)
-            self.assertEqual(1, len(diags))
-            self.assertEqual("INTERNAL_PORT_EXPOSED", diags[0].code)
-            self.assertIn("access-service", diags[0].message)
+            self.assertEqual([], diags)
+
+    def test_pass_knowledge_service_fixed_port_allowed(self):
+        """plan_21/21.11: knowledge-service may expose its fixed local diagnostic port 8092."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "docker-compose.yml").write_text(
+                textwrap.dedent("""\
+                    services:
+                      knowledge-service:
+                        image: java
+                        ports:
+                          - "8092:8092"
+                """),
+                encoding="utf-8",
+            )
+            diags = vc.check_internal_port_exposure(root)
+            self.assertEqual([], diags)
+
+
+class TestCheckSmokeTopology(unittest.TestCase):
+    """plan_21/21.11: consolidated single-service smoke topology checks."""
+
+    def _compose(self, root: Path, services_yaml: str) -> Path:
+        (root / "docker-compose.yml").write_text(
+            "services:\n" + services_yaml,
+            encoding="utf-8",
+        )
+        return root / "docker-compose.yml"
+
+    def test_fail_smoke_service_present(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._compose(
+                root,
+                "  access-service-smoke:\n"
+                "    image: java\n"
+                "  access-service:\n"
+                "    image: java\n"
+                "  knowledge-service:\n"
+                "    image: java\n"
+                "  rag-service:\n"
+                "    image: java\n"
+                "  console-api:\n"
+                "    image: java\n"
+                "  open-api:\n"
+                "    image: java\n",
+            )
+            diags = vc.check_smoke_topology(root)
+            smoke_errors = [d for d in diags if d.code == "SMOKE_SERVICE_FORBIDDEN"]
+            self.assertGreaterEqual(len(smoke_errors), 1)
+            self.assertIn("access-service-smoke", smoke_errors[0].message)
+
+    def test_fail_missing_expected_service(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._compose(
+                root,
+                "  access-service:\n"
+                "    image: java\n"
+                "  knowledge-service:\n"
+                "    image: java\n"
+                "  rag-service:\n"
+                "    image: java\n"
+                "  console-api:\n"
+                "    image: java\n",
+            )
+            diags = vc.check_smoke_topology(root)
+            missing_errors = [d for d in diags if d.code == "EXPECTED_SERVICE_MISSING"]
+            self.assertGreaterEqual(len(missing_errors), 1)
+            self.assertIn("open-api", missing_errors[0].message)
+
+    def test_fail_missing_fixed_port(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._compose(
+                root,
+                "  access-service:\n"
+                "    image: java\n"
+                "  knowledge-service:\n"
+                "    image: java\n"
+                "  rag-service:\n"
+                "    image: java\n"
+                "  console-api:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8080:8080"\n'
+                "  open-api:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8081:8081"\n',
+            )
+            diags = vc.check_smoke_topology(root)
+            port_errors = [d for d in diags if d.code == "FIXED_PORT_MISSING"]
+            self.assertGreaterEqual(len(port_errors), 1)
+
+    def test_pass_consolidated_topology(self):
+        """All five Java services present, no smoke services, fixed ports mapped."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._compose(
+                root,
+                "  access-service:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8091:8091"\n'
+                "  knowledge-service:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8092:8092"\n'
+                "  rag-service:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8082:8082"\n'
+                "  console-api:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8080:8080"\n'
+                "  open-api:\n"
+                "    image: java\n"
+                "    ports:\n"
+                '      - "8081:8081"\n',
+            )
+            diags = vc.check_smoke_topology(root)
+            self.assertEqual([], diags)
 
 
 class TestCheckTermsAppSmoke(unittest.TestCase):

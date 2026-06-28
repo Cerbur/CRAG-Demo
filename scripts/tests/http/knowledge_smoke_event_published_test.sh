@@ -2,29 +2,30 @@
 # Knowledge smoke HTTP 回归 — DOC_UPLOADED 发布到 Redis Streams
 # 在 smoke profile 下上传 .txt，轮询事件诊断端点直到 outbox 状态为 PUBLISHED，
 # 证明真实 PostgreSQL + 文件 volume + Redis Streams 发布链路。
-# 自动启动 db/redis/knowledge-service-smoke，以 runId 隔离数据；不清表、不删 volume。
+# 自动启动 db/redis/knowledge-service（启用 smoke Profile），以 runId 隔离数据；不清表、不删 volume。
 #
 # 用法: bash scripts/tests/http/knowledge_smoke_event_published_test.sh [BASE_URL]
-#       BASE_URL 默认 http://localhost:8094
+#       BASE_URL 默认 http://localhost:8092
 
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8094}"
+BASE_URL="${1:-http://localhost:8092}"
 RUN_ID="k-evt-$(date +%s)-$$"
 TIMEOUT=120
 
 echo "=== Knowledge Smoke Event Published Test ==="
 echo "BASE_URL=$BASE_URL  RUN_ID=$RUN_ID"
 
-mkdir -p ./data/knowledge-files-smoke && chmod 777 ./data/knowledge-files-smoke
-docker compose --profile smoke up -d --build db redis knowledge-service-smoke
+mkdir -p ./data/knowledge-files && chmod 777 ./data/knowledge-files
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis knowledge-service
 
 cleanup() {
   rm -f "$CONTENT_FILE"
-  docker compose stop knowledge-service-smoke >/dev/null 2>&1 || true
+  docker compose stop knowledge-service >/dev/null 2>&1 || true
 }
 
-echo "waiting for knowledge-service-smoke readiness..."
+echo "waiting for knowledge-service readiness..."
 status="000"
 for _ in $(seq 1 "$TIMEOUT"); do
   status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/actuator/health/readiness" || echo "000")
@@ -32,8 +33,8 @@ for _ in $(seq 1 "$TIMEOUT"); do
   sleep 2
 done
 if [ "$status" != "200" ]; then
-  echo "FAIL: knowledge-service-smoke 未就绪 (status=$status)"
-  docker compose logs --tail=60 knowledge-service-smoke || true
+  echo "FAIL: knowledge-service 未就绪 (status=$status)"
+  docker compose logs --tail=60 knowledge-service || true
   cleanup
   exit 1
 fi
@@ -80,6 +81,6 @@ done
 
 echo "FAIL: 超时，DOC_UPLOADED 未发布。最后状态: outbox=$outbox"
 echo "--- diagnostics ---"; echo "$resp"
-docker compose logs --tail=40 knowledge-service-smoke || true
+docker compose logs --tail=40 knowledge-service || true
 cleanup
 exit 1

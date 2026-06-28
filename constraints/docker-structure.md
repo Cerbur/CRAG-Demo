@@ -28,13 +28,11 @@
 | `db` | PostgreSQL 17 + pgvector，提供持久化与向量检索能力 | 禁止承载业务逻辑 |
 | `model-init` | 一次性下载 Sidecar 所需模型到共享卷，成功后退出 | 禁止伪装健康检查；禁止作为长期服务运行 |
 | `sidecar` | Python 模型推理服务，提供 `/embed` 与 `/rerank` | 禁止承载业务编排或直接访问数据库 |
-| `rag-service` | RAG 业务组合根，承载检索、入库、查询运行时、gRPC Server 与 Platform Probe | 禁止被其他 Application 模块直接依赖；legacy 写入/查询 HTTP 仅在 smoke Profile 下由 rag-service-smoke 暴露 |
+| `rag-service` | RAG 业务组合根，承载检索、入库、查询运行时、gRPC Server 与 Platform Probe | 禁止被其他 Application 模块直接依赖；legacy 写入/查询 HTTP 仅在 `smoke` Profile 下作为条件 Controller 由本服务暴露 |
 | `access-service` | Access 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖 |
 | `knowledge-service` | Knowledge 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖；正式 API 不暴露 smoke 事件端点 |
 | `console-api` | Console HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `open-api` | Open HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
-| `rag-service-smoke` | 仅在显式激活 Smoke Profile 时存在的 RAG 诊断实例 | 禁止在默认启动中出现；禁止承载正式业务能力 |
-| `knowledge-service-smoke` | 仅在显式激活 Smoke Profile 时存在的 Knowledge 事件诊断实例（`crag-event` 闭环） | 禁止在默认启动中出现；禁止承载正式业务能力 |
 
 ### 3.2 依赖方向与启动顺序
 
@@ -53,8 +51,7 @@ access / knowledge / rag 健康 → console-api / open-api（健康）
 - `db`、`redis` 和 `sidecar` 以健康检查通过作为 `rag-service` 的就绪条件。
 - `db` 以健康检查通过作为 `access-service` 和 `knowledge-service` 的就绪条件。
 - `console-api` 和 `open-api` 以下游 Platform Probe 通过作为就绪条件。
-- `rag-service-smoke` 的依赖链与 `rag-service` 相同。
-- `knowledge-service-smoke` 的就绪条件为 `db` 健康且 `redis` 健康（Redis Streams 传输需要）。
+- Smoke Controller 是原服务在 `smoke` Profile 下的条件 Bean；启用后原服务的依赖链不变（Access/Knowledge 额外依赖 `redis` 健康，RAG 额外依赖 `sidecar` 健康）。
 
 ### 3.3 健康检查
 
@@ -174,13 +171,14 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | --- | --- |
 | 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-access-service` |
 | 容器名 | `crag-access-service` |
-| 端口 | 不暴露 |
+| 端口 | `8091:8091`（本地诊断入口；plan_21/21.11 固定映射） |
 | 运行身份 | `appuser`（非 root） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=access`，账号 `crag_access` |
 | Redis | `redis:6379`（Snowflake Worker lease） |
 | gRPC | 9091（内部） |
 | ID 配置 | `crag.id.service-domain=access`、required-entities `USER,LOGIN_ACCOUNT,TENANT,TENANT_MEMBERSHIP,REFRESH_SESSION,API_KEY,ACCESS_EVENT` |
 | 安全秘密 | JWT 私钥/公钥、Refresh/API Key Pepper 由环境注入；正式 Profile 缺失时 accessSecrets 就绪检查 DOWN |
+| Profile 激活 | `SPRING_PROFILES_ACTIVE=${CRAG_SERVICE_PROFILES:-}`；启用 `smoke` 后同端口注册 `/api/v1/smoke/access/**` 与 `application-smoke.yml` 测试密钥 |
 | 就绪条件 | `db` 健康 且 `redis` 健康 |
 | 健康检查 | `curl http://localhost:8091/actuator/health/readiness` |
 | 网络 | `crag-net` |
@@ -191,11 +189,14 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | --- | --- |
 | 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-knowledge-service` |
 | 容器名 | `crag-knowledge-service` |
-| 端口 | 不暴露 |
+| 端口 | `8092:8092`（本地诊断入口；plan_21/21.11 固定映射） |
 | 运行身份 | `appuser`（非 root） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge`，账号 `crag_knowledge` |
+| Redis | `redis:6379`（Redis Streams 事件传输） |
+| 文件存储 | bind mount `./data/knowledge-files:/app/knowledge-files`（正式上传与 smoke 验证共用；脚本以 runId 隔离，不清表/不删 volume） |
 | gRPC | 9092（内部） |
-| 就绪条件 | `db` 健康 |
+| Profile 激活 | `SPRING_PROFILES_ACTIVE=${CRAG_SERVICE_PROFILES:-}`；启用 `smoke` 后同端口注册 `/api/v1/smoke/knowledge/**` 与 `application-smoke.yml` 事件闭环 |
+| 就绪条件 | `db` 健康 且 `redis` 健康 |
 | 健康检查 | `curl http://localhost:8092/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
@@ -205,14 +206,16 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | --- | --- |
 | 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-rag-service` |
 | 容器名 | `crag-rag-service` |
-| 端口 | `8082:8082`（健康检查 + gRPC；业务 HTTP 验证在 `rag-service-smoke:8083` 的 `/api/v1/smoke/**`） |
+| 端口 | `8082:8082`（本地诊断入口；plan_21/21.11 固定映射） |
 | 运行身份 | `appuser`（非 root） |
 | 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions`，账号 `crag_rag` |
 | Sidecar | `http://sidecar:8001` |
-| Redis | `redis:6379`（Worker lease） |
+| Redis | `redis:6379`（Worker lease + Redis Streams 事件传输） |
 | gRPC | 9093（内部） |
+| gRPC client | `crag.grpc.client.caller-service=rag-service`、`crag.rag.ingestion.knowledge.target=knowledge-service:9092` |
 | 就绪条件 | `db` 健康 且 `redis` 健康 且 `sidecar` 健康 |
 | ID 配置 | `crag.id.service-domain=rag`、required-entities `LEGACY_DOCUMENT,CHUNK` |
+| Profile 激活 | `SPRING_PROFILES_ACTIVE=${CRAG_SERVICE_PROFILES:-}`；启用 `smoke` 后同端口注册 `/api/v1/smoke/rag/**`、`/api/v1/smoke/query/**`、`/api/v1/smoke/test/**` 与 `application-smoke.yml` 事件消费闭环 |
 | 健康检查 | `curl http://localhost:8082/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
@@ -242,64 +245,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `curl http://localhost:8081/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.10 `rag-service-smoke` — RAG Smoke 诊断
-
-| 属性 | 当前值 |
-| --- | --- |
-| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-rag-service` |
-| 容器名 | `crag-rag-service-smoke` |
-| 端口 | `8083:8082` |
-| Profile | `smoke` |
-| Redis | `redis:6379`（Worker lease + Redis Streams 事件传输） |
-| 就绪条件 | `db` 健康 且 `redis` 健康 且 `sidecar` 健康 |
-| ID 配置 | `crag.id.service-domain=rag`、required-entities `LEGACY_DOCUMENT,CHUNK` |
-| 事件（Plan 19） | `crag.event.consumer/publisher.enabled=true`，消费 `crag:event:knowledge`（group `rag-ingestion`），发布 `INGESTION_*` 状态事件 |
-| gRPC client（Plan 19） | `crag.grpc.client.caller-service=rag-service`，`crag.rag.ingestion.knowledge.target=knowledge-service-smoke:9092`（读取 Knowledge 文件） |
-| Compose Profile | `smoke` |
-| 网络 | `crag-net` |
-
-### 5.11 `knowledge-service-smoke` — Knowledge Smoke 验证
-
-> Plan 19 起在 `allowed-callers` 中增加 `rag-service`，允许 RAG 以 service token 调用 `ReadDocumentFile`。
-
-
-| 属性 | 当前值 |
-| --- | --- |
-| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-knowledge-service` |
-| 容器名 | `crag-knowledge-service-smoke` |
-| 端口 | `8094:8092` |
-| Profile | `smoke`（`SPRING_PROFILES_ACTIVE=smoke`） |
-| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge`，账号 `crag_knowledge` |
-| Redis | `redis:6379`（Redis Streams 事件传输） |
-| 文件存储 | bind mount `./data/knowledge-files-smoke:/app/knowledge-files`（上传文件 volume，脚本以 runId 隔离，不清表/不删 volume） |
-| 事件配置 | `crag.event.publisher.enabled=true`、`crag.event.consumer.enabled=true`、`crag.event.claim-idle=5s`、`crag.event.max-deliveries=3` |
-| 验证入口 | `/api/v1/smoke/events`（plan_17 事件诊断）与 `/api/v1/smoke/knowledge/**`（plan_18 KB/Document/文件上传读取） |
-| 就绪条件 | `db` 健康 且 `redis` 健康 |
-| 健康检查 | `curl http://localhost:8092/actuator/health/readiness` |
-| Compose Profile | `smoke` |
-| 网络 | `crag-net` |
-
-### 5.12 `access-service-smoke` — Access Smoke 验证
-
-> plan_20 引入 Access 垂直链路的 smoke-only HTTP 验收实例，使用独立测试 RSA Key/Pepper（来自 `application-smoke.yml`）。
-
-| 属性 | 当前值 |
-| --- | --- |
-| 构建 | `docker/java-service.Dockerfile`，`SERVICE_MODULE=crag-access-service` |
-| 容器名 | `crag-access-service-smoke` |
-| 端口 | `8095:8091`（Host 8095，容器内 8091） |
-| Profile | `smoke`（`SPRING_PROFILES_ACTIVE=smoke`） |
-| 数据库 | `jdbc:postgresql://db:5432/crag_platform?currentSchema=access`，账号 `crag_access` |
-| Redis | `redis:6379`（Snowflake Worker lease + Redis Streams 事件传输） |
-| 安全秘密 | 独立测试 RSA Key/Pepper（`application-smoke.yml`），不复用正式密钥 |
-| 事件（Plan 20） | `crag.event.publisher.enabled=true`，发布 `API_KEY_INVALIDATED` 到 `crag:event:access` |
-| 验证入口 | `/api/v1/smoke/access/**`（身份/会话/Membership/Scope/API Key） |
-| 就绪条件 | `db` 健康 且 `redis` 健康 |
-| 健康检查 | `curl http://localhost:8091/actuator/health/readiness` |
-| Compose Profile | `smoke` |
-| 网络 | `crag-net` |
-
-### 5.13 网络
+### 5.10 网络
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -308,7 +254,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 
 ## 六、已知偏差
 
-无。`plan_14` 已完成五进程拓扑、独立 Schema 和通用 Dockerfile。
+无。`plan_14` 已完成五进程拓扑、独立 Schema 和通用 Dockerfile；`plan_21/21.11` 已收敛 Smoke 拓扑，删除三个 `*-smoke` Compose 服务，原业务服务固定暴露本地诊断端口。
 
 ## 七、维护与自动校验
 

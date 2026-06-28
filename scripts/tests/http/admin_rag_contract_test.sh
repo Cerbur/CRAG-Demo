@@ -3,14 +3,14 @@
 # 验证正式 AdminRag HTTP 入口的成功、Bean Validation 与未知路径响应。
 #
 # 用法: bash scripts/tests/http/admin_rag_contract_test.sh [BASE_URL]
-#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8083
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082（rag-service 固定本地诊断端口）
 #
 # 每次运行生成唯一 runId，写入可追踪测试数据。
 # 当前无安全精确删除入口，测试数据保留在数据库，不执行清理。
 
 set -euo pipefail
 
-BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8083}}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 FAILED=0
 RUN_ID="contract-$(date +%Y%m%d-%H%M%S)-$$"
 

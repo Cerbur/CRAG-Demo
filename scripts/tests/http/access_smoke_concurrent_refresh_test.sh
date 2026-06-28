@@ -2,14 +2,15 @@
 # Access smoke HTTP 回归 — 并发刷新仅一次成功，复用检测撤销 Family
 set -euo pipefail
 TIMEOUT=150
-CONTAINER="crag-access-service-smoke"
-SERVICE="access-service-smoke"
+CONTAINER="crag-access-service"
+SERVICE="access-service"
 RUN_ID="$(date +%s)-$$"
 USERNAME="cc_${RUN_ID}"
 N=8
 
 echo "=== Access Smoke Concurrent Refresh Test (run=$RUN_ID) ==="
-docker compose up -d --build db redis access-service-smoke
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis access-service
 echo "waiting for readiness..."
 health="starting"
 for _ in $(seq 1 "$TIMEOUT"); do

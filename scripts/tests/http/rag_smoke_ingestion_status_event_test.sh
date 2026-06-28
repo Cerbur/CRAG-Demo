@@ -7,14 +7,15 @@
 
 set -euo pipefail
 
-K_URL="${K_URL:-http://localhost:8094}"
-R_URL="${R_URL:-http://localhost:8083}"
+K_URL="${K_URL:-http://localhost:8092}"
+R_URL="${R_URL:-http://localhost:8082}"
 RUN_ID="r-evt-$(date +%s)-$$"
 TIMEOUT=180
 
 echo "=== router2 RAG Smoke Ingestion Status Event Test ==="
-mkdir -p ./data/knowledge-files-smoke && chmod 777 ./data/knowledge-files-smoke
-docker compose --profile smoke up -d --build db redis sidecar knowledge-service-smoke rag-service-smoke
+mkdir -p ./data/knowledge-files && chmod 777 ./data/knowledge-files
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis sidecar knowledge-service rag-service
 
 wait_ready() {
   local url="$1" name="$2" status="000"
@@ -25,7 +26,7 @@ wait_ready() {
   echo "FAIL: $name 未就绪"; return 1
 }
 wait_ready "$K_URL" knowledge || exit 1
-wait_ready "$R_URL" rag || { docker compose logs --tail=40 rag-service-smoke || true; exit 1; }
+wait_ready "$R_URL" rag || { docker compose logs --tail=40 rag-service || true; exit 1; }
 
 TENANT=$(date +%s)
 kbResp=$(curl -s -X POST "$K_URL/api/v1/smoke/knowledge/knowledge-bases" -H "Content-Type: application/json" \

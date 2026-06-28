@@ -7,7 +7,7 @@
 #   - Docker Compose 服务正在运行
 #
 # 用法: DEEPSEEK_API_KEY=<key> bash scripts/tests/http/query_deepseek_acceptance_test.sh [BASE_URL]
-#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8083
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082（rag-service 固定本地诊断端口）
 #
 # 安全约束:
 #   - 凭据只从宿主环境变量 DEEPSEEK_API_KEY 临时注入，禁止写入 .env、脚本、Plan 或验收记录
@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8083}}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 RUN_ID="deepseek-accept-$(date +%s)-$$"
 VERIFICATION_CODE="deepseek-verify-${RUN_ID}-xyz789"
 FAILED=0
@@ -36,7 +36,7 @@ restore_stub_on_exit() {
   DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
   CRAG_QUERY_LLM_PROVIDER=stub \
   CRAG_QUERY_LLM_STUB_MODE=success \
-  docker compose --profile smoke up -d --build rag-service-smoke 2>/dev/null || true
+  CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service 2>/dev/null || true
   wait_for_app "restored stub (trap)" 2>/dev/null || true
 }
 trap restore_stub_on_exit EXIT
@@ -152,7 +152,7 @@ cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
 CRAG_QUERY_LLM_PROVIDER=stub \
 CRAG_QUERY_LLM_STUB_MODE=success \
-docker compose --profile smoke up -d --build rag-service-smoke
+CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
 
 echo "rag-service rebuild initiated with provider=stub (indexing phase)"
 
@@ -253,7 +253,7 @@ echo "=== Phase 2: Rebuild rag-service with DeepSeek provider ==="
 cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
 CRAG_QUERY_LLM_PROVIDER=deepseek \
-docker compose --profile smoke up -d --build rag-service-smoke
+CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
 
 echo "rag-service rebuild initiated with provider=deepseek"
 
@@ -524,7 +524,7 @@ cd "$COMPOSE_DIR"
 DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-}" \
 CRAG_QUERY_LLM_PROVIDER=stub \
 CRAG_QUERY_LLM_STUB_MODE=success \
-docker compose --profile smoke up -d --build rag-service-smoke
+CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
 echo "rag-service rebuild initiated (stub success mode restore)"
 
 # Wait for restored app

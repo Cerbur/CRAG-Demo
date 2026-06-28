@@ -1,6 +1,10 @@
 # ============================================================
 # CRAG-Demo — Docker Compose 编排
 # 五个 Java 服务 + PostgreSQL + Redis + Sidecar
+# plan_21/21.11: 收敛单服务 Smoke 拓扑。原服务固定暴露本地诊断端口
+# （Access 8091、Knowledge 8092、RAG 8082）；Smoke Controller 作为
+# 原服务在 smoke Profile 下的条件 Bean，不再创建 *-smoke 重复服务。
+# 启用 smoke Profile：CRAG_SERVICE_PROFILES=smoke 后 docker compose up -d --build。
 # ============================================================
 
 services:
@@ -82,6 +86,8 @@ services:
       start_period: 120s
 
   # --- Access Service ---
+  # 固定暴露本地诊断端口 8091。启用 CRAG_SERVICE_PROFILES=smoke 后，
+  # 同端口额外注册 /api/v1/smoke/access/** Controller 与 application-smoke.yml 测试密钥。
   access-service:
     build:
       context: .
@@ -89,7 +95,10 @@ services:
       args:
         SERVICE_MODULE: crag-access-service
     container_name: crag-access-service
+    ports:
+      - "8091:8091"
     environment:
+      SPRING_PROFILES_ACTIVE: ${CRAG_SERVICE_PROFILES:-}
       SPRING_APPLICATION_JSON: >
         {
           "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=access",
@@ -99,6 +108,8 @@ services:
           "spring.data.redis.port": 6379,
           "crag.id.service-domain": "access",
           "crag.id.required-entities": "USER,LOGIN_ACCOUNT,TENANT,TENANT_MEMBERSHIP,REFRESH_SESSION,API_KEY,ACCESS_EVENT",
+          "crag.event.claim-idle": "5s",
+          "crag.event.max-deliveries": 3,
           "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
           "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}"
         }
@@ -159,55 +170,9 @@ services:
     networks:
       - crag-net
 
-  # --- Access Service Smoke (Profile) ---
-  # plan_20: smoke-only Access HTTP verification. Runs crag-access-service under the smoke profile
-  # with the crag-event publisher enabled and Redis Streams transport. JWT keys/peppers come from
-  # application-smoke.yml (throwaway test secrets). Default startup does not bring this service up.
-  access-service-smoke:
-    build:
-      context: .
-      dockerfile: docker/java-service.Dockerfile
-      args:
-        SERVICE_MODULE: crag-access-service
-    container_name: crag-access-service-smoke
-    ports:
-      - "8095:8091"
-    environment:
-      SPRING_PROFILES_ACTIVE: smoke
-      SPRING_APPLICATION_JSON: >
-        {
-          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=access",
-          "spring.datasource.username": "crag_access",
-          "spring.datasource.password": "${CARG_ACCESS_PASSWORD:-access_demo}",
-          "spring.data.redis.host": "redis",
-          "spring.data.redis.port": 6379,
-          "crag.id.service-domain": "access",
-          "crag.id.required-entities": "USER,LOGIN_ACCOUNT,TENANT,TENANT_MEMBERSHIP,REFRESH_SESSION,API_KEY,ACCESS_EVENT",
-          "crag.event.publisher.enabled": true,
-          "crag.event.stream-key": "crag:event:access",
-          "crag.event.dlq-stream-key": "crag:event:access:dlq",
-          "crag.event.claim-idle": "5s",
-          "crag.event.max-deliveries": 3,
-          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
-          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}"
-        }
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8091/actuator/health/readiness"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-    networks:
-      - crag-net
-    profiles:
-      - smoke
-
   # --- Knowledge Service ---
+  # 固定暴露本地诊断端口 8092。启用 CRAG_SERVICE_PROFILES=smoke 后，
+  # 同端口额外注册 /api/v1/smoke/knowledge/** Controller 与 application-smoke.yml 事件闭环。
   knowledge-service:
     build:
       context: .
@@ -215,41 +180,10 @@ services:
       args:
         SERVICE_MODULE: crag-knowledge-service
     container_name: crag-knowledge-service
-    environment:
-      SPRING_APPLICATION_JSON: >
-        {
-          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge",
-          "spring.datasource.username": "crag_knowledge",
-          "spring.datasource.password": "${CARG_KNOWLEDGE_PASSWORD:-knowledge_demo}",
-          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}"
-        }
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8092/actuator/health/readiness"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-    networks:
-      - crag-net
-
-  # --- Knowledge Service Smoke (Profile) ---
-  # plan_17: smoke-only event closed loop. Runs crag-knowledge-service under the smoke profile with
-  # the crag-event publisher/consumer enabled and Redis Streams transport. Default startup does not
-  # bring this service up; activate via `docker compose --profile smoke up`.
-  knowledge-service-smoke:
-    build:
-      context: .
-      dockerfile: docker/java-service.Dockerfile
-      args:
-        SERVICE_MODULE: crag-knowledge-service
-    container_name: crag-knowledge-service-smoke
     ports:
-      - "8094:8092"
+      - "8092:8092"
     environment:
-      SPRING_PROFILES_ACTIVE: smoke
+      SPRING_PROFILES_ACTIVE: ${CRAG_SERVICE_PROFILES:-}
       SPRING_APPLICATION_JSON: >
         {
           "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=knowledge",
@@ -257,14 +191,12 @@ services:
           "spring.datasource.password": "${CARG_KNOWLEDGE_PASSWORD:-knowledge_demo}",
           "spring.data.redis.host": "redis",
           "spring.data.redis.port": 6379,
-          "crag.event.claim-idle": "5s",
-          "crag.event.max-deliveries": 3,
           "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
           "crag.grpc.server.allowed-callers.rag-service": "${RAG_API_SERVICE_TOKEN:-rag-token-demo}",
           "crag.knowledge.filestore.root": "/app/knowledge-files"
         }
     volumes:
-      - ./data/knowledge-files-smoke:/app/knowledge-files
+      - ./data/knowledge-files:/app/knowledge-files
     depends_on:
       db:
         condition: service_healthy
@@ -278,10 +210,11 @@ services:
       start_period: 30s
     networks:
       - crag-net
-    profiles:
-      - smoke
 
   # --- RAG Service ---
+  # 固定暴露本地诊断端口 8082。启用 CRAG_SERVICE_PROFILES=smoke 后，
+  # 同端口额外注册 /api/v1/smoke/rag/** 与 /api/v1/smoke/query/** Controller
+  # 与 application-smoke.yml 事件消费闭环（crag-event consumer/publisher）。
   rag-service:
     build:
       context: .
@@ -292,6 +225,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      SPRING_PROFILES_ACTIVE: ${CRAG_SERVICE_PROFILES:-}
       SPRING_APPLICATION_JSON: >
         {
           "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions",
@@ -304,7 +238,10 @@ services:
           "crag.embedding.sidecar-url": "http://sidecar:8001",
           "crag.rerank.sidecar-url": "http://sidecar:8001",
           "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
-          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}"
+          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}",
+          "crag.grpc.client.caller-service": "rag-service",
+          "crag.grpc.client.token": "${RAG_API_SERVICE_TOKEN:-rag-token-demo}",
+          "crag.rag.ingestion.knowledge.target": "knowledge-service:9092"
         }
       CRAG_QUERY_LLM_PROVIDER: ${CRAG_QUERY_LLM_PROVIDER:-stub}
       CRAG_QUERY_LLM_STUB_MODE: ${CRAG_QUERY_LLM_STUB_MODE:-success}
@@ -391,55 +328,6 @@ services:
       start_period: 30s
     networks:
       - crag-net
-
-  # --- RAG Service Smoke (Profile) ---
-  rag-service-smoke:
-    build:
-      context: .
-      dockerfile: docker/java-service.Dockerfile
-      args:
-        SERVICE_MODULE: crag-rag-service
-    container_name: crag-rag-service-smoke
-    ports:
-      - "8083:8082"
-    environment:
-      SPRING_PROFILES_ACTIVE: smoke
-      SPRING_APPLICATION_JSON: >
-        {
-          "spring.datasource.url": "jdbc:postgresql://db:5432/crag_platform?currentSchema=rag,extensions",
-          "spring.datasource.username": "crag_rag",
-          "spring.datasource.password": "${CARG_RAG_PASSWORD:-rag_demo}",
-          "spring.data.redis.host": "redis",
-          "spring.data.redis.port": 6379,
-          "crag.id.service-domain": "rag",
-          "crag.id.required-entities": "LEGACY_DOCUMENT,CHUNK",
-          "crag.embedding.sidecar-url": "http://sidecar:8001",
-          "crag.rerank.sidecar-url": "http://sidecar:8001",
-          "crag.grpc.server.allowed-callers.console-api": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
-          "crag.grpc.server.allowed-callers.open-api": "${OPEN_API_SERVICE_TOKEN:-open-token-demo}",
-          "crag.grpc.client.caller-service": "rag-service",
-          "crag.grpc.client.token": "${RAG_API_SERVICE_TOKEN:-rag-token-demo}",
-          "crag.rag.ingestion.knowledge.target": "knowledge-service-smoke:9092"
-        }
-      CRAG_QUERY_LLM_PROVIDER: ${CRAG_QUERY_LLM_PROVIDER:-stub}
-      CRAG_QUERY_LLM_STUB_MODE: ${CRAG_QUERY_LLM_STUB_MODE:-success}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      sidecar:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8082/actuator/health/readiness"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-    networks:
-      - crag-net
-    profiles:
-      - smoke
 
 networks:
   crag-net:

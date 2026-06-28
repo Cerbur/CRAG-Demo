@@ -2,22 +2,23 @@
 # router2 RAG smoke HTTP 回归 — 多知识库摄取（Plan 19）
 # 在 smoke profile 下通过 Knowledge 上传两份内容不同的 .txt，等待 RAG ingestion_job 进入 READY，
 # 证明 DOC_UPLOADED → 消费 → Knowledge gRPC 读取 → 切分 → 写入 → 索引完成 全链路。
-# 自动启动 db/redis/sidecar/knowledge-service-smoke/rag-service-smoke，以 runId 隔离；不清表、不删 volume。
+# 自动启动 db/redis/sidecar/knowledge-service/rag-service（启用 smoke Profile），以 runId 隔离；不清表、不删 volume。
 #
 # 用法: bash scripts/tests/http/rag_smoke_multi_kb_ingestion_test.sh
 
 set -euo pipefail
 
-K_URL="${K_URL:-http://localhost:8094}"
-R_URL="${R_URL:-http://localhost:8083}"
+K_URL="${K_URL:-http://localhost:8092}"
+R_URL="${R_URL:-http://localhost:8082}"
 RUN_ID="r-ing-$(date +%s)-$$"
 TIMEOUT=180
 
 echo "=== router2 RAG Smoke Multi-KB Ingestion Test ==="
 echo "K_URL=$K_URL  R_URL=$R_URL  RUN_ID=$RUN_ID"
 
-mkdir -p ./data/knowledge-files-smoke && chmod 777 ./data/knowledge-files-smoke
-docker compose --profile smoke up -d --build db redis sidecar knowledge-service-smoke rag-service-smoke
+mkdir -p ./data/knowledge-files && chmod 777 ./data/knowledge-files
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis sidecar knowledge-service rag-service
 
 wait_ready() {
   local url="$1" name="$2" status="000"
@@ -30,8 +31,8 @@ wait_ready() {
 }
 
 echo "waiting for readiness..."
-wait_ready "$K_URL" "knowledge-service-smoke" || { docker compose logs --tail=40 rag-service-smoke knowledge-service-smoke || true; exit 1; }
-wait_ready "$R_URL" "rag-service-smoke" || { docker compose logs --tail=40 rag-service-smoke || true; exit 1; }
+wait_ready "$K_URL" "knowledge-service" || { docker compose logs --tail=40 rag-service knowledge-service || true; exit 1; }
+wait_ready "$R_URL" "rag-service" || { docker compose logs --tail=40 rag-service || true; exit 1; }
 
 TENANT=$(date +%s)
 WORK=$(mktemp -d /tmp/rag-ing-XXXX)

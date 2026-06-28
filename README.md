@@ -24,18 +24,18 @@ docker compose up -d --build
 
 等待健康检查通过（约 90 秒，首次需下载模型约 2 分钟）。
 
-> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL、Redis 和 Sidecar。`rag-service`（8082）承载 RAG 运行时与 gRPC，默认不暴露业务 HTTP；RAG 写入与问答的 HTTP 验证入口统一在 `smoke` Profile 下的 `rag-service-smoke`（8083），使用 `/api/v1/smoke/**` 前缀。
+> 💡 Compose 启动五个 Java 服务（console-api、open-api、access-service、knowledge-service、rag-service）、PostgreSQL、Redis 和 Sidecar。三个业务服务固定暴露本地诊断端口（Access 8091、Knowledge 8092、RAG 8082）；默认只暴露 `/actuator/health/**`。RAG 写入与问答的 HTTP 验证入口在 `smoke` Profile 下由原 `rag-service`（8082）的 `/api/v1/smoke/**` 条件 Controller 提供。
 
 ### 写入知识 + 发起问答
 
-默认 `docker compose up` 的 `rag-service`（8082）只暴露健康检查与 gRPC；RAG 写入与问答的 HTTP 验证入口在 `smoke` Profile 下。先启动 smoke 实例再调用 `/api/v1/smoke/**`：
+默认 `docker compose up` 的 `rag-service`（8082）只暴露健康检查与 gRPC；RAG 写入与问答的 HTTP 验证入口在 `smoke` Profile 下。设置 `CRAG_SERVICE_PROFILES=smoke` 重建 `rag-service` 后从同一端口 8082 调用 `/api/v1/smoke/**`：
 
 ```bash
-# 启动 RAG smoke 验证实例（端口 8083，承载 /api/v1/smoke/** 验证端点）
-docker compose --profile smoke up -d --build rag-service-smoke
+# 启用 smoke Profile 重建 rag-service（同端口 8082，注册 /api/v1/smoke/** 验证端点）
+CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
 
 # 1. 写入一篇中文知识
-curl -X POST http://localhost:8083/api/v1/smoke/admin/rag \
+curl -X POST http://localhost:8082/api/v1/smoke/admin/rag \
   -H "Content-Type: application/json" \
   -d '{"title":"RAG 介绍","content":"RAG（检索增强生成）是一种结合信息检索与文本生成的技术架构。它先从知识库中检索相关文档片段，再将这些片段作为上下文交给大语言模型生成答案，从而有效减少幻觉、提升回答的事实准确性。"}'
 
@@ -43,7 +43,7 @@ curl -X POST http://localhost:8083/api/v1/smoke/admin/rag \
 sleep 10
 
 # 3. 发起问答
-curl -X POST http://localhost:8083/api/v1/smoke/query \
+curl -X POST http://localhost:8082/api/v1/smoke/query \
   -H "Content-Type: application/json" \
   -d '{"question":"什么是 RAG？"}'
 ```
@@ -56,23 +56,22 @@ curl -X POST http://localhost:8083/api/v1/smoke/query \
 | --- | --- | --- |
 | `console-api` | 8080 | Console HTTP 入口 |
 | `open-api` | 8081 | Open HTTP 入口 |
-| `rag-service` | 8082 | RAG 运行时（健康检查 + gRPC；默认不暴露业务 HTTP） |
-| `rag-service-smoke` | 8083 | RAG smoke 验证（`/api/v1/smoke/**`，需 smoke Profile） |
+| `rag-service` | 8082 | RAG 运行时（健康检查 + gRPC；启用 `CRAG_SERVICE_PROFILES=smoke` 后同端口暴露 `/api/v1/smoke/**`） |
+| `knowledge-service` | 8092 | Knowledge 服务（启用 `CRAG_SERVICE_PROFILES=smoke` 后同端口暴露 `/api/v1/smoke/knowledge/**`） |
+| `access-service` | 8091 | Access 服务（启用 `CRAG_SERVICE_PROFILES=smoke` 后同端口暴露 `/api/v1/smoke/access/**`） |
 
 ### Smoke 诊断模式
 
-Smoke 模式提供分阶段诊断端点，需显式 Profile 激活：
+Smoke 模式提供分阶段诊断端点，需显式 `smoke` Profile 激活（plan_21/21.11 收敛单服务 Smoke 拓扑，原服务固定暴露本地诊断端口，不再创建 `*-smoke` 重复容器）：
 
 ```bash
-# 启动 Smoke（端口 8083）
-docker compose --profile smoke up -d --build rag-service-smoke
+# 启用 RAG smoke（同端口 8082）
+CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
+curl http://localhost:8082/api/v1/smoke/test/smoke
 
-# 验证全链路
-curl http://localhost:8083/api/v1/smoke/test/smoke
-
-# Access smoke（端口 8095）：身份/会话/Membership/API Key
-docker compose --profile smoke up -d --build db redis access-service-smoke
-curl http://localhost:8095/api/v1/smoke/access/jwt-keys
+# 启用 Access smoke（同端口 8091）：身份/会话/Membership/API Key
+CRAG_SERVICE_PROFILES=smoke docker compose up -d --build db redis access-service
+curl http://localhost:8091/api/v1/smoke/access/jwt-keys
 ```
 
 ## 🗺️ 平台架构
@@ -88,7 +87,7 @@ RAG 已从单知识空间升级为多知识库隔离模型（见 `plan/plan_19`�
 - **事件驱动摄入**：RAG 订阅 Knowledge 发布的 `DOC_UPLOADED`（Redis Streams，独立消费组 `rag-ingestion`），通过 Knowledge gRPC `ReadDocumentFile` 读取文件，校验 sha256/size/fileType 后切分写入；以 `(docId, operationVersion)` 为业务幂等键建立 `ingestion_job`，状态 `PENDING → PROCESSING → READY / FAILED`。
 - **按 KB 强隔离**：`chunk` / `chunk_embedding` / `chunk_fts` 三表显式落 `knowledge_base_id`，Sparse / Dense 查询、Rerank 相邻扩展、Parent Evidence 回表与 Query 入口均以 `knowledgeBaseId` 为必填强隔离键（`retrieve` / `retrieveEvidence` / `answer` 均接收 `knowledgeBaseId`）。
 - **状态事件**：RAG 发布 `INGESTION_PROCESSING / INGESTION_READY / INGESTION_FAILED` 状态事件（payload 仅含安全字段）。
-- **诊断**：router2 全链路在 smoke profile 下通过 `rag-service-smoke` + `knowledge-service-smoke` 的 `/api/v1/smoke/**` HTTP 入口验证（见 `scripts/tests/http/rag_smoke_*.sh`）。
+- **诊断**：router2 全链路在 smoke profile 下通过原 `rag-service`（8082）+ 原 `knowledge-service`（8092）的 `/api/v1/smoke/**` HTTP 入口验证（见 `scripts/tests/http/rag_smoke_*.sh`）。
 
 ### router3：Access 垂直链路（plan_20）
 
@@ -98,7 +97,7 @@ Access 已落地为完整的身份与授权 Provider（见 `plan/plan_20`）：
 - **Membership**：OWNER/MEMBER 固定权限矩阵、按 Username 添加成员、最后 OWNER 并发保护、跨租户不泄漏。
 - **API Key**：KnowledgeBase 授权投影（Scope）+ 单 Key 完整生命周期（创建/鉴权/停用/启用/轮换/吊销/过期），完整 Key 只返回一次。
 - **失效事件**：Key/Scope 状态变化在同事务写 `API_KEY_INVALIDATED` Outbox，经 Redis Streams 发布（router4 消费）。
-- **诊断**：router3 全链路在 smoke profile 下通过 `access-service-smoke` 的 `/api/v1/smoke/access/**` HTTP 入口验证（见 `scripts/tests/http/access_smoke_*.sh`）；默认 profile 只暴露 gRPC。
+- **诊断**：router3 全链路在 smoke profile 下通过原 `access-service`（8091）的 `/api/v1/smoke/access/**` HTTP 入口验证（见 `scripts/tests/http/access_smoke_*.sh`）；默认 profile 只暴露 gRPC。
 
 ## 🔢 RAG 管道：7 步走通检索增强生成
 

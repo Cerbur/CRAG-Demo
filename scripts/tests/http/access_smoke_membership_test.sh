@@ -2,14 +2,15 @@
 # Access smoke HTTP 回归 — Membership 添加/角色/移除/最后 OWNER
 set -euo pipefail
 TIMEOUT=150
-CONTAINER="crag-access-service-smoke"
-SERVICE="access-service-smoke"
+CONTAINER="crag-access-service"
+SERVICE="access-service"
 RUN_ID="$(date +%s)-$$"
 OWNER="mowner_${RUN_ID}"
 MEMBER="mmember_${RUN_ID}"
 
 echo "=== Access Smoke Membership Test (run=$RUN_ID) ==="
-docker compose up -d --build db redis access-service-smoke
+export CRAG_SERVICE_PROFILES=smoke
+docker compose up -d --build db redis access-service
 echo "waiting for readiness..."
 health="starting"
 for _ in $(seq 1 "$TIMEOUT"); do

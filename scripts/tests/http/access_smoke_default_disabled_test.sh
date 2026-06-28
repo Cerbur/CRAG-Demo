@@ -8,6 +8,7 @@ CONTAINER="crag-access-service"
 SERVICE="access-service"
 
 echo "=== Access Smoke Default Disabled Test ==="
+export CRAG_SERVICE_PROFILES=
 docker compose up -d --build db redis access-service
 
 echo "waiting for access-service readiness..."

@@ -3,7 +3,7 @@
 # 验证 Stub Failure 模式下 Query API 返回 502/50201，并自动恢复 Success 模式。
 #
 # 用法: bash scripts/tests/http/query_stub_failure_test.sh [BASE_URL]
-#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8083
+#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082（rag-service 固定本地诊断端口）
 #
 # 注意事项:
 #   - 本脚本会重建 rag-service 容器，请确保已在目标 Compose 目录中（docker compose 可用）。
@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8083}}"
+BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
 RUN_ID="qf-$(date +%s)-$$"
 FAILED=0
 COMPOSE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -73,7 +73,7 @@ echo "=== Phase 1: Failure mode test ==="
 # 1. Rebuild rag-service with CRAG_QUERY_LLM_STUB_MODE=failure
 echo "--- 1. Rebuilding rag-service in failure mode ---"
 cd "$COMPOSE_DIR"
-CRAG_QUERY_LLM_STUB_MODE=failure docker compose --profile smoke up -d --build rag-service-smoke
+CRAG_QUERY_LLM_STUB_MODE=failure CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
 echo "rag-service rebuild initiated (failure mode)"
 
 # 2. Wait for rag-service to be ready
@@ -119,7 +119,7 @@ echo "=== Phase 2: Restore success mode ==="
 echo "Attempting restore..."
 
 cd "$COMPOSE_DIR"
-CRAG_QUERY_LLM_STUB_MODE=success docker compose --profile smoke up -d --build rag-service-smoke
+CRAG_QUERY_LLM_STUB_MODE=success CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service
 echo "rag-service rebuild initiated (success mode restore)"
 
 # Wait for restored rag-service
