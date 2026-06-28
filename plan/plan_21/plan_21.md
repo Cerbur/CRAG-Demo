@@ -156,7 +156,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.1 | 建立正式 contracts 与模块边界 | ⏳ 待验收 | 9af60a5 | — |
 | 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待验收 | 87906344 | — |
 | 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待验收 | 260aed59 | — |
-| 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待开始 | — | — |
+| 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待验收 | c58be6e0 | — |
 | 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待开始 | — | — |
 | 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待开始 | — | — |
 | 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待开始 | — | — |
@@ -167,7 +167,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）— 21.1、21.2、21.3 已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -290,13 +290,13 @@ public record QuerySource(String reference, long documentId, String excerpt) {}
 
 **Implementation steps**：
 
-- [ ] 写失败测试：v1 READY 后 v2 PENDING 时 v1 不召回；v2 FAILED 不回退 v1；旧 Worker markReady 失败；引用连续且 excerpt 截断 500 字符。
-- [ ] 增加 `document_ingestion_head` 和三类索引 operation_version；更新 Entity/BO/result 与批量写入签名。
-- [ ] 在 DOC_UPLOADED resolve 前单调 advance head；低版本事件直接完成，等版本幂等，高版本将旧活动 Job 标记 SUPERSEDED。
-- [ ] 修改 Sparse/Dense/Parent SQL，先 join head + READY ingestion_job，再按 KB/版本召回；为每条 native SQL 加列映射测试。
-- [ ] 实现 `RagQueryGrpcProvider`、`IngestionStatusGrpcProvider`、mapper/error/authorizer；Open 可 Query，Knowledge 可 Status，其他 caller 拒绝。
-- [ ] 运行 RAG 全模块测试、Retrieval 专项与 contracts 测试，预期通过。
-- [ ] 提交：`feat(plan_21/21.4): isolate retrieval to current ready ingestion`。
+- [x] 写失败测试：v1 READY 后 v2 PENDING 时 v1 不召回；v2 FAILED 不回退 v1；旧 Worker markReady 失败；引用连续且 excerpt 截断 500 字符。
+- [x] 增加 `document_ingestion_head` 和三类索引 operation_version；更新 Entity/BO/result 与批量写入签名。
+- [x] 在 DOC_UPLOADED resolve 前单调 advance head；低版本事件直接完成，等版本幂等，高版本将旧活动 Job 标记 SUPERSEDED。
+- [x] 修改 Sparse/Dense/Parent SQL，先 join head + READY ingestion_job，再按 KB/版本召回；为每条 native SQL 加列映射测试。
+- [x] 实现 `RagQueryGrpcProvider`、`IngestionStatusGrpcProvider`、mapper/error/authorizer；Open 可 Query，Knowledge 可 Status，其他 caller 拒绝。
+- [x] 运行 RAG 全模块测试、Retrieval 专项与 contracts 测试，预期通过。
+- [x] 提交：`feat(plan_21/21.4): isolate retrieval to current ready ingestion`。
 
 ## 21.5 完成摄取 retry、超时终态与 Reconciler
 
@@ -578,8 +578,13 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | macOS | `./gradlew :crag-access-service:test --tests '*AccessArchitectureTest'`、`./gradlew :crag-access-service:spotlessCheck` | 通过 | 持久化边界（Repository 仅 DAO 访问、Entity 仅 dao.entity、DAO 无协议依赖）与 Security 包规则保持；Spotless 格式化通过。 |
 | 2026-06-28 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 31 个 access-service 文件无完整 Token、API Key 或私钥命中；fixture 使用 placeholder 字符串。 |
 | 2026-06-28 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-knowledge-service:test`（含新增 `*IngestionStateMachineTest`、`*IngestionApplyServiceTest`、`*IngestionProjectionDaoComponentTest`、`*IngestionStatusEventHandlerTest`、`*KnowledgeBaseCreatedProducerTest`） | 通过 | 21.3 新增 45 个用例全绿；既有 knowledge-service 测试无回归。验证：单版本状态机 12 项（PENDING→PROCESSING→READY/FAILED 与 PENDING→终态合法、PROCESSING 自环、重复终态 ACK、矛盾终态 REJECTED、终态后不再迁移、禁止回 PENDING）；apply service 11 项（合法 APPLIED、旧版本 ACK、高版本 DLQ、重复/矛盾终态 ACK、Tenant/KB 不一致 DLQ、CAS 与瞬时 RETRYABLE）；DAO CAS 7 项（五字段同时匹配、各字段不符抛 VersionConflictException、FAILED 失败字段写回）；handler 11 项（outcome 映射、未知版本/非法 payload/归属不一致 DLQ、双层 failureMessage 截断到列上限）；KB_CREATED 同事务写 + 回滚同退（KB 行与 Outbox 行）。 |
+| 2026-06-28 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-rag-service:test`（含新增 `*IngestionHeadDaoComponentTest`、`*RetrievalVersionIsolationComponentTest`、`*IngestionHeadServiceTest`、`*NativeSqlVersionGuardTest`、`*RagQueryMapperTest`、`*RagQueryGrpcProviderTest`、`*IngestionStatusGrpcProviderTest`） | 通过 | 21.4 新增 7 个测试类、约 45 个用例全绿；既有 RAG 全模块测试无回归。验证：head CAS 单调推进（高版本成功 + 版本递增、低/等版本幂等 ACK、陈旧 version 抢占失败、旧活动 Job SUPERSEDED、READY 不被取代覆盖）；检索版本隔离（v1 READY 后 head 指向 v2 PENDING/FAILED → v1 parent 零召回、v2 FAILED 不回退 v1、当前 READY 版本正常召回含 docId、PROCESSING 不召回、无 head 零召回）；迟到 Worker markReady 在 head 已推进时 CAS 失败、head 对齐时正常成功；head service 6 项（首次/高版本推进 + SUPERSEDED/低版本 ACK/等版本 ACK/并发抢占等与更高）；native SQL 三条防线静态校验（head + READY ingestion_job JOIN + operation_version 限定 + 列顺序）；Citation 映射（reference 连续 S1..Sn、documentId 十进制、excerpt 来自 parent content、≤500 不截断/>500 截断/CJK 按 code unit 截断/null 空）；两个 Provider 调用方授权（Open 可 Query、Knowledge 可 Status、其他 PERMISSION_DENIED）、非法 ID INVALID_ARGUMENT、InvalidQueryException INVALID_ARGUMENT、head 不存在 NOT_FOUND、超时终态化返回 FAILED 视图。 |
+| 2026-06-28 | macOS | `./gradlew :crag-rag-contracts:test`、`./gradlew :crag-rag-service:test --tests '*ModuleBoundaryArchitectureTest' --tests '*ModuleDependencyArchitectureTest'` | 通过 | contracts 测试无回归；RAG 模块边界与依赖架构测试通过（Repository 内聚、smoke Controller 受 Profile、字段注入规范、Access/Knowledge 不依赖 RAG 业务模块）。 |
+| 2026-06-28 | macOS | `./gradlew :crag-rag-service:spotlessCheck` | 通过 | Spotless + google-java-format 格式化通过。 |
+| 2026-06-28 | macOS | `python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py` | 通过 | crag-rag-service 依赖 crag-rag-contracts 经 APP_MODULES 特殊放行与 package-structure.md 白名单更新；framework 依赖校验通过。 |
+| 2026-06-28 | macOS | `python3 scripts/validate_plans.py` | 通过 | plan_21 状态/进度/索引一致。 |
 
-未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。
+未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。21.4 的真实 pgvector Dense 召回与 PostgreSQL tsvector Sparse 召回（含 head + READY ingestion_job JOIN）在 H2 无法执行；NativeSqlVersionGuardTest 通过反射读取 @Query SQL 文本静态断言三条召回 SQL 的 head + READY JOIN 与 operation_version 限定条件，列顺序与映射由既有 ChunkEmbeddingDaoTest/ChunkFtsDaoTest 单测覆盖；真实 PostgreSQL 端到端隔离回归留待 21.13 Docker 全链路。docker-compose.yml 的 RAG `knowledge-service` allowed-callers token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 供组件测试与本地启动。RAG Query gRPC 与 Open API 的真实跨服务调用（21.10）和 Knowledge Reconciler 通过 IngestionStatus RPC 的真实端到端（21.5）属后续任务范围；本任务以 Provider 单元测试 + H2 组件测试覆盖授权、映射与版本隔离行为。
 
 ## 阻塞记录
 
@@ -597,3 +602,4 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | 状态 ready → in_progress，21.1 进行中 → 待验收 | 开始执行 21.1 并完成实现提交（`9af60a5`） | plan21 进入进行中；21.1 进入待验收，交独立验收 session |
 | 2026-06-28 | 21.2 进行中 → 待验收 | 完成实现提交（`87906344`）并回填 hash | plan21 仍进行中；21.2 进入待验收，交独立验收 session；21.1/21.2 仍未完成、不递增完成数 |
 | 2026-06-28 | 21.3 待开始 → 进行中 → 待验收 | 完成实现提交（`260aed59`）并回填 hash | plan21 仍进行中；21.3 进入待验收，交独立验收 session；21.1–21.3 仍未完成、不递增完成数 |
+| 2026-06-28 | 21.4 待开始 → 进行中 → 待验收 | 完成实现提交（`c58be6e0`）并回填 hash | plan21 仍进行中；21.4 进入待验收，交独立验收 session；21.1–21.4 仍未完成、不递增完成数 |
