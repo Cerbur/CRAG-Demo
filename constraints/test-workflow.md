@@ -56,6 +56,8 @@ router2 RAG 多知识库链路（消费 `DOC_UPLOADED`、Knowledge gRPC 读取�
 
 router3 Access 垂直链路（注册/登录/刷新、Refresh 复用撤销 Family、Membership 角色与最后 OWNER 保护、Scope/API Key 生命周期与鉴权、`API_KEY_INVALIDATED` 失效事件、并发刷新仅一次成功）由 `scripts/tests/http/access_smoke_{default_disabled,identity,membership,session_reuse,api_key,event,concurrent_refresh}_test.sh` 通过原 `access-service`（启用 `CRAG_SERVICE_PROFILES=smoke`）的 `/api/v1/smoke/access/**` HTTP 入口（固定本地诊断端口 8091）证明真实 PostgreSQL + Redis（Snowflake Worker lease + Redis Streams）+ RS256 JWT + Argon2id 全链路；默认 profile 不暴露 Access smoke 入口。
 
+router4 双 API 与摄取生命周期（Console register/login/refresh/logout/me、Tenant/Membership、KB Scope 部分成功补偿、Document 上传/轮询/retry、API Key 生命周期、Open 单 KB Key Query、Key 失效消费、多租户隔离、单服务 Smoke 拓扑）由 `scripts/tests/http/router4_{auth,membership,scope_recovery,upload_query,ingestion_retry,ingestion_reconcile,api_key_invalidation,multi_tenant_isolation,smoke_profile}_test.sh` 通过完整 Compose（`console-api:8080`、`open-api:8081` + Access/Knowledge/RAG + db/redis/sidecar）证明真实跨服务 gRPC + Redis Streams 事件 + RS256 JWT + Cookie + multipart 流式上传 + pgvector 版本隔离全链路；`router4_smoke_profile_test.sh` 验证 plan_21/21.11 收敛后的单服务 Smoke 拓扑（无 `*-smoke` 重复容器、Access 8091/Knowledge 8092/RAG 8082 固定端口、default/smoke profile 切换）。
+
 ## 二、Gradle 与 Docker 执行入口
 
 ### 2.1 Gradle 任务

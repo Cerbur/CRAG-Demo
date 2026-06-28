@@ -109,6 +109,16 @@ Access 已落地为完整的身份与授权 Provider（见 `plan/plan_20`）：
 - **失效事件**：Key/Scope 状态变化在同事务写 `API_KEY_INVALIDATED` Outbox，经 Redis Streams 发布（router4 消费）。
 - **诊断**：router3 全链路在 smoke profile 下通过原 `access-service`（8091）的 `/api/v1/smoke/access/**` HTTP 入口验证（见 `scripts/tests/http/access_smoke_*.sh`）；默认 profile 只暴露 gRPC。
 
+### router4：双 API 与摄取生命周期（plan_21）
+
+Console/Open 正式 HTTP 与 Knowledge 摄取生命周期已落地为完整产品链（见 `plan/plan_21`）：
+
+- **Console API**（`console-api:8080`）：register/login/refresh/logout/me（RS256 JWT 只进响应体，Refresh Token 只进 HttpOnly Cookie，Origin/Referer 同站校验）、Tenant list、Membership list/add/change-role/remove、KnowledgeBase list/create/get（建库 201 + Scope 部分成功 `apiKeyReady=false`，KB_CREATED consumer 补偿）、Document list/upload/get/retry（multipart 10MiB/.txt/.md/UTF-8，upload 202 PENDING）、API Key list/get/create/disable/enable/rotate/revoke（完整 Key 只 create/rotate 一次性返回，OWNER-only）。
+- **Open API**（`open-api:8081`）：`POST /api/v1/query` 通过单 KB API Key 鉴权（SHA-256 指纹缓存 TTL 30s，Key/Scope 版本水位 + Ephemeral Redis consumer 主动 evict），question 1–2000，answer + sources（reference/documentId/excerpt）。
+- **摄取生命周期**：Document `PENDING → PROCESSING → READY/FAILED` 状态机（CAS + operationVersion）、retry（新版本 + attempt 递增 + 退避 30/120s + attempt 3 截止）、Reconciler（Spring TaskScheduler 驱动，滞留 PENDING/PROCESSING 通过 RAG IngestionStatus RPC 收敛或超时终态化）、RAG ingestion head 单调推进 + READY 版本隔离（旧/FAILED/PROCESSING/部分索引零召回）。
+- **全链路回归**：router4 完整产品链由 `scripts/tests/http/router4_*.sh`（9 个脚本）通过完整 Compose（Console + Open + Access + Knowledge + RAG + db + redis + sidecar）验证 Auth、Membership、Scope 恢复、上传 + Query、retry、Reconcile、Key 失效消费、多租户隔离与 Smoke Profile 拓扑（见 `scripts/tests/http/router4_*.sh`）。
+- **已知缺口**（plan_21 待验收判定）：(1) Knowledge `DocumentGrpcProvider.retryIngestion` 尚未重写，真实 retry 链路在 provider 接线前返回 UNIMPLEMENTED；(2) Access Membership proto 无 `nickname` 字段，Console membership list 返回 `nickname=null`。
+
 ## 🔢 RAG 管道：7 步走通检索增强生成
 
 ### 写入链路
