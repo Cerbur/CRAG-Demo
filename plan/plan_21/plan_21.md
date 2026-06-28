@@ -155,7 +155,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | --- | --- | --- | --- | --- |
 | 21.1 | 建立正式 contracts 与模块边界 | ⏳ 待验收 | 9af60a5 | — |
 | 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待验收 | 87906344 | — |
-| 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待开始 | — | — |
+| 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待验收 | 260aed59 | — |
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待开始 | — | — |
 | 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待开始 | — | — |
 | 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待开始 | — | — |
@@ -167,7 +167,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）— 21.1、21.2 已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 21.1、21.2、21.3 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -260,13 +260,13 @@ public IngestionApplyResult applyStatus(IngestionStatusEvent event);
 
 **Implementation steps**：
 
-- [ ] 写状态表驱动测试，逐项断言合法迁移、旧版本、重复终态和矛盾终态。
-- [ ] 用幂等 SQL 增加 Document 投影列和索引；Entity/Result/Mapper 完整映射 nullable 失败字段。
-- [ ] Repository 自定义更新在 WHERE 同时匹配 docId、tenantId、knowledgeBaseId、operationVersion、version；DAO 将 0 rows 转成 `VersionConflictException`。
-- [ ] 实现 `IngestionStatusEventHandler` 与双层安全 message 限长，接入 Knowledge processed_event。
-- [ ] 让 KnowledgeBase create 同事务写 `KNOWLEDGE_BASE_CREATED`，rollback 测试断言业务行与 Outbox 同退。
-- [ ] 运行 Knowledge 全模块测试与 `*KnowledgeArchitectureTest`，预期通过。
-- [ ] 提交：`feat(plan_21/21.3): project ingestion lifecycle in knowledge`。
+- [x] 写状态表驱动测试，逐项断言合法迁移、旧版本、重复终态和矛盾终态。
+- [x] 用幂等 SQL 增加 Document 投影列和索引；Entity/Result/Mapper 完整映射 nullable 失败字段。
+- [x] Repository 自定义更新在 WHERE 同时匹配 docId、tenantId、knowledgeBaseId、operationVersion、version；DAO 将 0 rows 转成 `VersionConflictException`。
+- [x] 实现 `IngestionStatusEventHandler` 与双层安全 message 限长，接入 Knowledge processed_event。
+- [x] 让 KnowledgeBase create 同事务写 `KNOWLEDGE_BASE_CREATED`，rollback 测试断言业务行与 Outbox 同退。
+- [x] 运行 Knowledge 全模块测试与 `*KnowledgeArchitectureTest`，预期通过。
+- [x] 提交：`feat(plan_21/21.3): project ingestion lifecycle in knowledge`。
 
 ## 21.4 建立 RAG ingestion head 与 READY 版本查询防线
 
@@ -577,8 +577,9 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-access-service:test`（含新增 `*UserProfileAndTenantsComponentTest`、`*LogoutByRefreshTokenComponentTest`、`*EnsureScopeComponentTest`、`*KnowledgeBaseCreatedEventHandlerTest`） | 通过 | 21.2 新增 21 个用例全绿；既有 access-service 测试无回归。验证：profile/tenants 安全投影与分页；logout(rawRefreshToken) 按 HMAC 撤销、不需 Access JWT；EnsureScope 同租户幂等/异租户冲突/BLOCKED 不复活；get/list 安全投影与游标分页；authenticate 返回 keyVersion/scopeVersion 水位；KB_CREATED handler 仅接受 payload v1、未知版本/非法 payload 安全 DLQ、瞬时异常 retryable。 |
 | 2026-06-28 | macOS | `./gradlew :crag-access-service:test --tests '*AccessArchitectureTest'`、`./gradlew :crag-access-service:spotlessCheck` | 通过 | 持久化边界（Repository 仅 DAO 访问、Entity 仅 dao.entity、DAO 无协议依赖）与 Security 包规则保持；Spotless 格式化通过。 |
 | 2026-06-28 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 31 个 access-service 文件无完整 Token、API Key 或私钥命中；fixture 使用 placeholder 字符串。 |
+| 2026-06-28 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-knowledge-service:test`（含新增 `*IngestionStateMachineTest`、`*IngestionApplyServiceTest`、`*IngestionProjectionDaoComponentTest`、`*IngestionStatusEventHandlerTest`、`*KnowledgeBaseCreatedProducerTest`） | 通过 | 21.3 新增 45 个用例全绿；既有 knowledge-service 测试无回归。验证：单版本状态机 12 项（PENDING→PROCESSING→READY/FAILED 与 PENDING→终态合法、PROCESSING 自环、重复终态 ACK、矛盾终态 REJECTED、终态后不再迁移、禁止回 PENDING）；apply service 11 项（合法 APPLIED、旧版本 ACK、高版本 DLQ、重复/矛盾终态 ACK、Tenant/KB 不一致 DLQ、CAS 与瞬时 RETRYABLE）；DAO CAS 7 项（五字段同时匹配、各字段不符抛 VersionConflictException、FAILED 失败字段写回）；handler 11 项（outcome 映射、未知版本/非法 payload/归属不一致 DLQ、双层 failureMessage 截断到列上限）；KB_CREATED 同事务写 + 回滚同退（KB 行与 Outbox 行）。 |
 
-未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。
+未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。
 
 ## 阻塞记录
 
@@ -595,3 +596,4 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | 创建计划并设为 ready | Router4 设计已确认并完成书面复核 | plan21 进入执行队首；实现前须先提交本 Plan 与索引 |
 | 2026-06-28 | 状态 ready → in_progress，21.1 进行中 → 待验收 | 开始执行 21.1 并完成实现提交（`9af60a5`） | plan21 进入进行中；21.1 进入待验收，交独立验收 session |
 | 2026-06-28 | 21.2 进行中 → 待验收 | 完成实现提交（`87906344`）并回填 hash | plan21 仍进行中；21.2 进入待验收，交独立验收 session；21.1/21.2 仍未完成、不递增完成数 |
+| 2026-06-28 | 21.3 待开始 → 进行中 → 待验收 | 完成实现提交（`260aed59`）并回填 hash | plan21 仍进行中；21.3 进入待验收，交独立验收 session；21.1–21.3 仍未完成、不递增完成数 |
