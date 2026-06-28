@@ -351,8 +351,9 @@ ai.cerbur.crag.knowledge
 ├── core/                               — 业务用例与核心规则
 │   ├── knowledgebase/                  — KnowledgeBaseService、KnowledgeBaseResult、KnowledgeBaseNotFoundException
 │   ├── document/                       — DocumentUploadService/Command/Policy、DocumentResult、DocumentQueryService、FileType、UploadHandle
-│   └── file/                           — FileReadService、FileRead
-├── dao/                                — KnowledgeBaseDao/DocumentDao/FileObjectDao
+│   ├── file/                           — FileReadService、FileRead
+│   └── ingestion/                      — IngestionStatus、IngestionStateMachine、IngestionApplyService、IngestionProjection、IngestionStatusEvent、IngestionApplyResult、IngestionTransitionDecision/Outcome（plan_21/21.3）
+├── dao/                                — KnowledgeBaseDao/DocumentDao/FileObjectDao、VersionConflictException
 │   ├── entity/                         — KnowledgeBase/Document/FileObjectEntity
 │   └── repository/                     — Spring Data Repository（仅 DAO 调用）
 ├── filestore/                          — FileStore/LocalFileStore、StorageKeyGenerator、TempFileSink、CompletedUpload
@@ -360,7 +361,8 @@ ai.cerbur.crag.knowledge
 │   ├── provider/                       — KnowledgeBaseGrpcProvider、DocumentGrpcProvider、DecimalId
 │   ├── mapper/                         — KnowledgeBaseMapper、DocumentMapper
 │   └── error/                          — GrpcErrorMapper
-├── producer/                           — DocUploadedOutboxWriter、DocumentUploadedPayload、KnowledgeEventTypes
+├── consumer/                           — IngestionStatusEventHandler、IngestionStatusPayload、InvalidIngestionStatusPayloadException（plan_21/21.3，@Profile("smoke")）
+├── producer/                           — DocUploadedOutboxWriter、DocumentUploadedPayload、KnowledgeEventTypes、KnowledgeBaseCreatedOutboxWriter、KnowledgeBaseCreatedPayload
 ├── controller/
 │   └── smoke/                          — KnowledgeSmokeController、KnowledgeSmokeExceptionHandler、dto（@Profile("smoke")，/api/v1/smoke/knowledge）
 └── smoke/                              — 仅 smoke Profile 启用的事件诊断闭环（plan_17）

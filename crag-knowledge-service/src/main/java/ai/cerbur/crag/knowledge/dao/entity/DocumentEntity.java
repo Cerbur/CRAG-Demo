@@ -65,6 +65,36 @@ public class DocumentEntity {
   @Column(name = "version", nullable = false)
   private Long version;
 
+  // --- router4 摄取投影与失败字段（plan_21/21.3）：均 nullable，PENDING 时为 null/0 ---
+
+  /** 本版本内已使用的尝试序号；PENDING 时为 0。 */
+  @Column(name = "ingestion_attempt")
+  private Integer ingestionAttempt;
+
+  /** RAG Ingestion Job 本地 ID；PENDING/PROCESSING 前可空。 */
+  @Column(name = "ingestion_job_id")
+  private Long ingestionJobId;
+
+  /** RAG 给出的失败分类（如 CHECKSUM_MISMATCH）；非 FAILED 为 null。 */
+  @Column(name = "failure_category")
+  private String failureCategory;
+
+  /** 安全限长后的失败描述，不泄漏堆栈/SQL；非 FAILED 为 null。 */
+  @Column(name = "failure_message")
+  private String failureMessage;
+
+  /** 本版本 PROCESSING 起始时间；PENDING 为 null。 */
+  @Column(name = "started_at")
+  private LocalDateTime startedAt;
+
+  /** 本版本进入终态的时间；非 READY/FAILED 为 null。 */
+  @Column(name = "completed_at")
+  private LocalDateTime completedAt;
+
+  /** 计算出的下次重试时间（21.5 填写）；默认 null。 */
+  @Column(name = "next_retry_at")
+  private LocalDateTime nextRetryAt;
+
   protected DocumentEntity() {}
 
   /** 创建 PENDING 文档，operationVersion 为 1，version 为 0。 */
@@ -87,6 +117,7 @@ public class DocumentEntity {
     entity.ingestionStatus = INGESTION_STATUS_PENDING;
     entity.operationVersion = INITIAL_OPERATION_VERSION;
     entity.version = 0L;
+    entity.ingestionAttempt = 0;
     LocalDateTime now = LocalDateTime.now();
     entity.createdAt = now;
     entity.updatedAt = now;
@@ -147,5 +178,33 @@ public class DocumentEntity {
 
   public void setVersion(Long version) {
     this.version = version;
+  }
+
+  public Integer getIngestionAttempt() {
+    return ingestionAttempt;
+  }
+
+  public Long getIngestionJobId() {
+    return ingestionJobId;
+  }
+
+  public String getFailureCategory() {
+    return failureCategory;
+  }
+
+  public String getFailureMessage() {
+    return failureMessage;
+  }
+
+  public LocalDateTime getStartedAt() {
+    return startedAt;
+  }
+
+  public LocalDateTime getCompletedAt() {
+    return completedAt;
+  }
+
+  public LocalDateTime getNextRetryAt() {
+    return nextRetryAt;
   }
 }

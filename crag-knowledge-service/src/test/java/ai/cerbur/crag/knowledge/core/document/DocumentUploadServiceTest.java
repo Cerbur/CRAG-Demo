@@ -70,7 +70,7 @@ class DocumentUploadServiceTest {
   @DisplayName("成功上传创建 Document 与 FileObject，sha256/大小/类型正确")
   void successfulUploadCreatesDocumentAndFileObject() {
     byte[] content = "hello knowledge".getBytes(StandardCharsets.UTF_8);
-    DocumentEntity inserted = insertedDoc(42L);
+    DocumentEntity inserted = insertedDoc(42L, content.length, sha256(content));
     when(knowledgeBaseDao.findByIdAndTenant(anyLong(), anyLong()))
         .thenReturn(Optional.of(mock(KnowledgeBaseEntity.class)));
     when(documentDao.insert(any(DocumentEntity.class))).thenReturn(inserted);
@@ -152,10 +152,23 @@ class DocumentUploadServiceTest {
   }
 
   private static DocumentEntity insertedDoc(long docId) {
+    return insertedDoc(docId, 15L, "deadbeef");
+  }
+
+  private static DocumentEntity insertedDoc(long docId, long sizeBytes, String sha256) {
     DocumentEntity entity = mock(DocumentEntity.class);
     when(entity.getDocId()).thenReturn(docId);
     when(entity.getIngestionStatus()).thenReturn(DocumentEntity.INGESTION_STATUS_PENDING);
     when(entity.getOperationVersion()).thenReturn(DocumentEntity.INITIAL_OPERATION_VERSION);
+    // plan_21/21.3：DocumentResult.from 现在读取完整投影字段，stub 所有 getter 避免空指针。
+    when(entity.getTenantId()).thenReturn(1L);
+    when(entity.getKnowledgeBaseId()).thenReturn(10L);
+    when(entity.getUploadedByUserId()).thenReturn(100L);
+    when(entity.getOriginalFilename()).thenReturn("doc.txt");
+    when(entity.getFileType()).thenReturn("TXT");
+    when(entity.getSizeBytes()).thenReturn(sizeBytes);
+    when(entity.getSha256()).thenReturn(sha256);
+    when(entity.getIngestionAttempt()).thenReturn(0);
     LocalDateTime now = LocalDateTime.now();
     when(entity.getCreatedAt()).thenReturn(now);
     when(entity.getUpdatedAt()).thenReturn(now);

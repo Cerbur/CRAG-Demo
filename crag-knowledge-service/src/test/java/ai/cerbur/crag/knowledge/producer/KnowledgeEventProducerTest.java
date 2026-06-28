@@ -34,7 +34,25 @@ class KnowledgeEventProducerTest {
   void writesDocUploadedOutboxWithSafePayload() {
     DocumentResult doc =
         new DocumentResult(
-            100L, 77L, 10L, 200L, "doc.txt", FileType.TXT, 5L, "abc123", "PENDING", 1L, 0L, 0L);
+            100L,
+            77L,
+            10L,
+            200L,
+            "doc.txt",
+            FileType.TXT,
+            5L,
+            "abc123",
+            "PENDING",
+            1L,
+            0L,
+            0L,
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
 
     long eventId = writer.write(doc);
 

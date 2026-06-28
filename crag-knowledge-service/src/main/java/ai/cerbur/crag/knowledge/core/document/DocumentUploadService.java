@@ -87,20 +87,7 @@ public class DocumentUploadService {
       fileObjectDao.insert(
           FileObjectEntity.create(
               doc.getDocId(), storageKey, completed.sizeBytes(), completed.sha256()));
-      DocumentResult result =
-          new DocumentResult(
-              doc.getDocId(),
-              handle.command().tenantId(),
-              handle.command().knowledgeBaseId(),
-              handle.command().uploadedByUserId(),
-              handle.command().originalFilename(),
-              handle.command().fileType(),
-              completed.sizeBytes(),
-              completed.sha256(),
-              doc.getIngestionStatus(),
-              doc.getOperationVersion(),
-              DocumentResult.epochMillis(doc.getCreatedAt()),
-              DocumentResult.epochMillis(doc.getUpdatedAt()));
+      DocumentResult result = DocumentResult.from(doc);
       outboxWriter.write(result);
       return result;
     } catch (RuntimeException e) {

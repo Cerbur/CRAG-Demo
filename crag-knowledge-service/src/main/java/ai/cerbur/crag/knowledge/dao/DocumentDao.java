@@ -2,6 +2,7 @@ package ai.cerbur.crag.knowledge.dao;
 
 import ai.cerbur.crag.knowledge.dao.entity.DocumentEntity;
 import ai.cerbur.crag.knowledge.dao.repository.DocumentRepository;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -12,8 +13,17 @@ import org.springframework.stereotype.Component;
 /**
  * Document 数据库访问边界，只依赖 {@link DocumentRepository}。
  *
- * <p>查询均携带 {@code tenantId}；{@link #updateIngestionStatus} 是 CAS 状态推进原语，{@code affected == 0}
- * 表示版本已被 其他实例变更，抛出 {@link DuplicateKeyException} 由调用方按版本冲突语义处理。
+ * <p>查询均携带 {@code tenantId}。状态推进有两套 CAS 原语：
+ *
+ * <ul>
+ *   <li>{@link #updateIngestionStatus}（既有）：只按 docId + tenantId + version 推进 status；
+ *   <li>{@link #applyIngestionProjection}（plan_21/21.3）：严格 CAS，WHERE 同时匹配 docId、tenantId、
+ *       knowledgeBaseId、operationVersion 与 version，并写入完整投影字段，0 rows 抛 {@link
+ *       VersionConflictException}。
+ * </ul>
+ *
+ * <p>DAO 只处理原始类型与 {@link DocumentEntity}，不依赖 {@code core.ingestion} 包；状态枚举转换由调用方 （{@code
+ * IngestionApplyService}）完成，保持 DAO 单向依赖。
  */
 @Component
 public class DocumentDao {
@@ -51,6 +61,62 @@ public class DocumentDao {
               + " version "
               + version
               + " already stale");
+    }
+    return affected;
+  }
+
+  /**
+   * 严格 CAS 摄取投影更新（plan_21/21.3）。
+   *
+   * <p>WHERE 同时匹配 docId、tenantId、knowledgeBaseId、operationVersion 与 version，原子递增 version 并写入完整投影。
+   * 所有字段使用原始类型，状态枚举/投影对象由调用方转换，保持 DAO 不依赖 {@code core.ingestion}。
+   *
+   * @return affected rows（始终 ≥ 1）
+   * @throws VersionConflictException 当 {@code affected == 0}（version / operationVersion / tenant /
+   *     knowledgeBase / docId 任一不匹配，或状态已被另一实例推进）
+   */
+  public int applyIngestionProjection(
+      long docId,
+      long tenantId,
+      long knowledgeBaseId,
+      long operationVersion,
+      long expectedVersion,
+      String status,
+      int attempt,
+      Long jobId,
+      String failureCategory,
+      String failureMessage,
+      LocalDateTime startedAt,
+      LocalDateTime completedAt,
+      LocalDateTime nextRetryAt) {
+    int affected =
+        documentRepository.applyIngestionProjection(
+            docId,
+            tenantId,
+            knowledgeBaseId,
+            operationVersion,
+            expectedVersion,
+            status,
+            attempt,
+            jobId,
+            failureCategory,
+            failureMessage,
+            startedAt,
+            completedAt,
+            nextRetryAt);
+    if (affected == 0) {
+      throw new VersionConflictException(
+          "applyIngestionProjection CAS failed: doc "
+              + docId
+              + " tenant "
+              + tenantId
+              + " kb "
+              + knowledgeBaseId
+              + " opVersion "
+              + operationVersion
+              + " version "
+              + expectedVersion
+              + " already advanced");
     }
     return affected;
   }
