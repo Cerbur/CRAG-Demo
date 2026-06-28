@@ -1,7 +1,7 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-26（阶段路线改用 router 占位避免预占 Plan 编号）
+> 最后更新：2026-06-28（确认 router4 同时闭合正式双 API 与摄取生命周期）
 
 ---
 
@@ -219,8 +219,8 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 ### 6.1 暴露边界
 
 - 对外业务流量最终只通过 Console API 与 Open API 进入。
-- `rag-service:8082` 是旧 AdminRag/UserQuery 的迁移期兼容入口，由 `router4` 对应的正式 Plan 移除。
-- `rag-service-smoke:8083` 只在显式 Smoke Profile 下用于测试诊断，由 `router4` 对应的正式 Plan 在旧入口退出时重新评估是否继续保留宿主机映射。
+- Access、Knowledge、RAG 的 HTTP 端口固定映射到宿主机，作为本地开发、Actuator 与诊断入口；不构成正式业务 API。
+- 默认 Profile 不注册 `/api/v1/smoke/**` Controller；显式启用 `smoke` Profile 时，Smoke Controller 在原服务进程和原端口内注册，不创建 `*-smoke` 重复服务。
 - `sidecar:8001` 是本地开发、Demo 与自动化回归的长期诊断例外，不属于公开业务 API；服务间调用仍必须使用 Compose 私有网络。
 
 ---
@@ -238,8 +238,8 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 | `plan_18` | Knowledge 垂直链路 | KnowledgeBase、Document、文件上传、存储与流式读取 |
 | `plan_19` | RAG 多知识库化 | RAG 多知识库隔离、异步索引、Ingestion Job 与状态回传 |
 | `plan_20` | Access 与权限 | User、Account、Tenant、Membership、JWT、Refresh Session 与 API Key |
-| `router4` | 双 API 入口 | Console API、Open API、完整用例编排与旧混合入口退出 |
-| `router5` | 生命周期可靠性 | 删除状态机、补偿、死信、监控、告警与故障恢复 |
+| `router4` | 双 API 与摄取生命周期 | Console API、Open API、完整用例编排、摄取状态/重试/Reconciler 与旧混合入口退出 |
+| `router5` | 删除生命周期可靠性 | 删除状态机、下游物理清理、补偿、死信、监控、告警与故障恢复 |
 
 每个阶段必须在准备执行时创建独立主 Plan，达到 `ready` 并提交后才能开始实现；完成实现后由未参与实现的新 session 独立验收。不得仅凭本路线表更新执行队列或开始编码。
 

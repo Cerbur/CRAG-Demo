@@ -468,7 +468,7 @@ PENDING → PUBLISHING → PUBLISHED
 
 - 对外业务流量最终只暴露 Console API 和 Open API。
 - Access、Knowledge、RAG 不开放公网端口。
-- `plan_14` 迁移期允许将 `rag-service:8082` 暴露到宿主机以兼容 AdminRag/UserQuery，并由 `plan_20` 移除；`rag-service-smoke:8083` 只在显式 Smoke Profile 下用于测试诊断，由 `plan_20` 重新评估。
+- Access、Knowledge、RAG 的 HTTP 端口可以固定映射到宿主机，作为本地开发、Actuator 与诊断入口，但不构成正式业务 API。默认 Profile 不注册 `/api/v1/smoke/**`；显式启用 `smoke` Profile 时，Smoke Controller 在原服务进程和原端口注册，不创建 `*-smoke` 重复服务。
 - `sidecar:8001` 是本地开发、Demo 和自动化回归的长期宿主机诊断例外，不属于公开业务 API；服务间调用仍使用 Compose 私有网络。
 - Demo 部署使用每调用方独立的服务身份凭据，通过 gRPC Metadata 传递，并存放于运行时 Secret/环境配置。
 - 生产部署目标是 gRPC mTLS，每个服务使用独立客户端证书。
@@ -608,14 +608,14 @@ HTTP、gRPC 和消息统一传播 `traceId`。
 
 - Console API 管理用例编排。
 - Open API 的 API Key 鉴权和完整 RAG 查询。
-- 移除现有混合职责的 `crag-api`。
-- 移除 `rag-service:8082` 兼容映射，并重新评估 Smoke 诊断映射。
+- 完成摄取状态投影、重试、Reconciler 和当前 READY 版本查询防线。
+- 移除现有混合职责的旧入口和 `*-smoke` 重复 Compose 服务；Smoke Controller 收归原服务的 `smoke` Profile。
 
-### `router5`：生命周期可靠性
+### `router5`：删除生命周期可靠性
 
 - Document 和 KnowledgeBase 删除状态机。
 - 下游清理、回执、补偿扫描和死信。
-- 指标、监控、告警和故障恢复验收。
+- 删除链路的指标、监控、告警和故障恢复验收。
 
 每个阶段分别经过设计确认、具体 Plan、实现提交和独立验收。不得仅凭本路线编号开始实现，也不得把整套服务化改造放入一个巨型 Plan。
 
