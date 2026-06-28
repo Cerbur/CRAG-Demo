@@ -159,7 +159,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待验收 | c58be6e0 | — |
 | 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待验收 | 907c1599 | — |
 | 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待验收 | 013ac49a | — |
-| 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待开始 | — | — |
+| 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待验收 | 1b089d9c | — |
 | 21.8 | 完成 Console KnowledgeBase 与 Document API | ⏳ 待开始 | — | — |
 | 21.9 | 完成 Console API Key 管理 API | ⏳ 待开始 | — | — |
 | 21.10 | 完成 Open API Key 缓存、失效消费与 Query | ⏳ 待开始 | — | — |
@@ -167,7 +167,7 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4、21.5、21.6 已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4、21.5、21.6、21.7 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -381,11 +381,11 @@ public record ChangeMemberRoleRequest(String role) {}
 
 **Implementation steps**：
 
-- [ ] 写每个 operation 的 MockMvc 正常/校验/401/403/404/409 测试。
-- [ ] 实现 Access client adapter，只传 principal userId，不接受 body actorUserId。
-- [ ] 实现 Controller/DTO mapper；DELETE 返回已变更 REMOVED 投影的 HTTP 200 Response。
-- [ ] 运行切片组件测试和 Console ArchitectureTest，预期 HTTP DTO 不下沉。
-- [ ] 提交：`feat(plan_21/21.7): expose tenant membership console api`。
+- [x] 写每个 operation 的 MockMvc 正常/校验/401/403/404/409 测试。
+- [x] 实现 Access client adapter，只传 principal userId，不接受 body actorUserId。
+- [x] 实现 Controller/DTO mapper；DELETE 返回已变更 REMOVED 投影的 HTTP 200 Response。
+- [x] 运行切片组件测试和 Console ArchitectureTest，预期 HTTP DTO 不下沉。
+- [x] 提交：`feat(plan_21/21.7): expose tenant membership console api`。
 
 ## 21.8 完成 Console KnowledgeBase 与 Document API
 
@@ -592,8 +592,12 @@ router4_smoke_profile_test.sh
 | 2026-06-29 | macOS | `python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py` | 通过 | crag-console-api 作为 APP_MODULES 不受模块白名单硬约束；package-structure.md §4 白名单已更新 Console/Open 的 contracts 依赖；framework 校验通过。 |
 | 2026-06-29 | macOS | `python3 scripts/validate_plans.py` | 通过 | plan_21 状态/进度/索引一致。 |
 | 2026-06-29 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 33 个 21.6 变更文件无完整 Token、API Key 或私钥命中；JWT 测试密钥运行时生成、application.yml 仅含 demo token `console-token-demo`。 |
+| 2026-06-29 | macOS（执行 session 自测，非独立验收） | `./gradlew :crag-console-api:test`（含新增 `*TenantControllerWebMvcTest`、`*MembershipControllerWebMvcTest`、`*AccessMembershipClientTest`、扩展 `*ConsoleArchitectureTest`） | 通过 | 21.7 新增 3 个测试类（TenantControllerWebMvcTest 6 用例、MembershipControllerWebMvcTest 16 用例、AccessMembershipClientTest 12 用例）+ ConsoleArchitectureTest 扩展至 7 用例全绿；既有 ConsoleApiComponentTest（2）与 21.6 全部用例无回归（合计 90 tests, 0 failures, 0 skipped）。验证：GET /api/v1/tenants 200 items+nextPageToken、actor 只来自 ConsolePrincipal 不读 body、缺 Principal 401、非法 pageSize 400 INVALID_ARGUMENT、下游 503；GET members 200 items+nextPageToken + 跨租户 404 不泄漏 + 非 tenant 成员 403；POST members 200 + 校验 400 + MEMBER 403 + 用户不存在 404；PATCH members 200 + 最后 OWNER 降级 409 + 非法 role 400；DELETE members 200 REMOVED 投影 + 最后 OWNER 移除 409 + MEMBER 越权 403 + 跨租户 404；Access UNAVAILABLE → 503。AccessMembershipClient in-process gRPC 12 项（list 透传 actor/tenant/page + 返回 items（list 不解析 nickname，proto 缺口）、list/add/remove PERMISSION_DENIED→Forbidden、NOT_FOUND→NotFound（跨租户不泄漏）、add/change/remove FAILED_PRECONDITION→Conflict（最后 OWNER）、add/change/remove 通过单用户 GetUserProfile 解析 nickname、changeRole 非法 role→IllegalArgumentException、UNAVAILABLE→DownstreamUnavailable）；架构测试（Controller 仅在 auth/tenant/membership controller 包、tenant/membership DTO 在专属 dto 包、Console Response DTO 不出现在 contracts/access/knowledge/rag 包）。 |
+| 2026-06-29 | macOS | `./gradlew :crag-console-api:spotlessCheck` | 通过 | Spotless + google-java-format 格式化通过。 |
+| 2026-06-29 | macOS | `python3 scripts/validate_module_dependencies.py`、`python3 scripts/validate_framework_dependencies.py` | 通过 | crag-console-api 复用 21.6 已放行的 contracts 依赖；membership/tenant 包无新增模块依赖越界；framework 校验通过。 |
+| 2026-06-29 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 14 个 21.7 变更文件无完整 Token、API Key 或私钥命中。 |
 
-未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。21.4 的真实 pgvector Dense 召回与 PostgreSQL tsvector Sparse 召回（含 head + READY ingestion_job JOIN）在 H2 无法执行；NativeSqlVersionGuardTest 通过反射读取 @Query SQL 文本静态断言三条召回 SQL 的 head + READY JOIN 与 operation_version 限定条件，列顺序与映射由既有 ChunkEmbeddingDaoTest/ChunkFtsDaoTest 单测覆盖；真实 PostgreSQL 端到端隔离回归留待 21.13 Docker 全链路。docker-compose.yml 的 RAG `knowledge-service` allowed-callers token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 供组件测试与本地启动。RAG Query gRPC 与 Open API 的真实跨服务调用（21.10）和 Knowledge Reconciler 通过 IngestionStatus RPC 的真实端到端（21.5）属后续任务范围；本任务以 Provider 单元测试 + H2 组件测试覆盖授权、映射与版本隔离行为。21.5 的真实跨服务 gRPC（Knowledge Reconciler → RAG IngestionStatus RPC + caller-service token 验证）、真实 Redis Streams 跨服务 DOC_UPLOADED retry 事件投递、真实 PostgreSQL 端到端 retry CAS 与 StaleIndexCleaner 三表删除（含 pgvector / tsvector native SQL）需要 Compose 链路，属 21.13 全链路验收范围；本任务以 Mockito stub 验证 gRPC 客户端映射与错误处理、H2 验证 Knowledge retry CAS 与 chunk 删除、Mockito 单测验证 Reconciler 决策矩阵与并发 CAS 抢占；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。docker-compose.yml 的 Knowledge → RAG gRPC 客户端 target 与 caller-service token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 与 `rag-target=rag-service:9093` 供组件测试与本地启动。21.6 的真实跨服务 Access gRPC（Console Auth register/login/refresh/logout + caller-service token 验证 + JWT 公钥在线拉取）、真实 RS256 端到端验签、Cookie 在真实浏览器行为与真实 Redis/PostgreSQL 依赖下的完整链路需要 Compose 链路（含 Access 真实 JWT 签发），属 21.13 全链路验收范围；本任务以 in-process gRPC 组件测试 + Mockito stub + MockMvc standaloneSetup + 纯 JDK RS256 单元测试覆盖路由、状态码、字段映射、Cookie 属性、Origin 同站校验与异常映射；Access proto 的 LogoutRequest 接收 userId+sessionFamilyId（而非 raw Refresh Token），Console 通过 JWT sid 声明取得 sessionFamilyId 后调用 gRPC Logout，raw Refresh Token 撤销发生在 Access Service 内部（21.2 实现），与设计 spec §6 "通过完整 Refresh Token 在 Access 内定位 Session Family" 一致。H2/in-process gRPC 仅证明 Console 侧装配与映射，不表述为真实跨服务兼容或 Docker 端到端证明。
+未执行项与原因：Docker 构建回归（`docker/java-service.Dockerfile` COPY 改动）属于 21.11 收敛 Smoke 拓扑时的真实镜像构建范围；21.1 已通过 Gradle build 验证 proto 与依赖，Docker 镜像回归留待 21.13 全链路验收。21.2 的真实 Redis Streams 消费（processed_event 幂等门 + Pending reclaim + DLQ）与跨服务 KNOWLEDGE_BASE_CREATED 端到端回归需要 Knowledge 侧生产者（21.3）与 Compose 链路（21.13），属后续任务范围；本任务以 handler 单元测试 + ensureScope 业务幂等覆盖。21.3 的真实 Redis Streams 消费（INGESTION_* processed_event 幂等门 + Pending reclaim + DLQ）与跨服务端到端回归需要 RAG 侧生产者（21.4）与 Compose 链路（21.13），属后续任务范围；本任务以状态机单测 +apply service/handler 单测 + DAO CAS 组件测试 + KB_CREATED 同事务与回滚组件测试覆盖；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。21.4 的真实 pgvector Dense 召回与 PostgreSQL tsvector Sparse 召回（含 head + READY ingestion_job JOIN）在 H2 无法执行；NativeSqlVersionGuardTest 通过反射读取 @Query SQL 文本静态断言三条召回 SQL 的 head + READY JOIN 与 operation_version 限定条件，列顺序与映射由既有 ChunkEmbeddingDaoTest/ChunkFtsDaoTest 单测覆盖；真实 PostgreSQL 端到端隔离回归留待 21.13 Docker 全链路。docker-compose.yml 的 RAG `knowledge-service` allowed-callers token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 供组件测试与本地启动。RAG Query gRPC 与 Open API 的真实跨服务调用（21.10）和 Knowledge Reconciler 通过 IngestionStatus RPC 的真实端到端（21.5）属后续任务范围；本任务以 Provider 单元测试 + H2 组件测试覆盖授权、映射与版本隔离行为。21.5 的真实跨服务 gRPC（Knowledge Reconciler → RAG IngestionStatus RPC + caller-service token 验证）、真实 Redis Streams 跨服务 DOC_UPLOADED retry 事件投递、真实 PostgreSQL 端到端 retry CAS 与 StaleIndexCleaner 三表删除（含 pgvector / tsvector native SQL）需要 Compose 链路，属 21.13 全链路验收范围；本任务以 Mockito stub 验证 gRPC 客户端映射与错误处理、H2 验证 Knowledge retry CAS 与 chunk 删除、Mockito 单测验证 Reconciler 决策矩阵与并发 CAS 抢占；H2 仅证明 DAO 行为与 Spring 装配，不表述为 PostgreSQL 方言或端到端兼容证明。docker-compose.yml 的 Knowledge → RAG gRPC 客户端 target 与 caller-service token 接线属于 21.13（本任务文件边界不含 docker-compose.yml）；application.yml 已添加默认 token `knowledge-token-demo` 与 `rag-target=rag-service:9093` 供组件测试与本地启动。21.6 的真实跨服务 Access gRPC（Console Auth register/login/refresh/logout + caller-service token 验证 + JWT 公钥在线拉取）、真实 RS256 端到端验签、Cookie 在真实浏览器行为与真实 Redis/PostgreSQL 依赖下的完整链路需要 Compose 链路（含 Access 真实 JWT 签发），属 21.13 全链路验收范围；本任务以 in-process gRPC 组件测试 + Mockito stub + MockMvc standaloneSetup + 纯 JDK RS256 单元测试覆盖路由、状态码、字段映射、Cookie 属性、Origin 同站校验与异常映射；Access proto 的 LogoutRequest 接收 userId+sessionFamilyId（而非 raw Refresh Token），Console 通过 JWT sid 声明取得 sessionFamilyId 后调用 gRPC Logout，raw Refresh Token 撤销发生在 Access Service 内部（21.2 实现），与设计 spec §6 "通过完整 Refresh Token 在 Access 内定位 Session Family" 一致。H2/in-process gRPC 仅证明 Console 侧装配与映射，不表述为真实跨服务兼容或 Docker 端到端证明。21.7 的真实跨服务 Access gRPC（Console Tenant/Membership list/add/change-role/remove + caller-service token 验证）、真实 RS256 JWT 鉴权（Bearer filter → ConsolePrincipal）与 Tenant/Membership 在真实 Access PostgreSQL + Membership 悲观锁 + 最后 OWNER 保护下的完整链路需要 Compose 链路（含 Access 真实 JWT 签发与 Console 真实公钥加载），属 21.13 全链路验收范围（router4_membership_test.sh）；本任务以 in-process gRPC 组件测试 + MockMvc standaloneSetup + Mockito stub 覆盖路由、状态码、字段映射、actor 来源（只来自 ConsolePrincipal）、负向映射（403/404/409/503）与 DTO 结构，不表述为真实跨服务兼容或 Docker 端到端证明。契约缺口：Access Membership proto 的 `Membership` 消息无 `nickname` 字段（21.1 contracts 范围），21.7 单成员命令（add/change-role/remove）通过单用户 GetUserProfile 解析 nickname（每命令 1 次 gRPC，非 N+1），但 list 操作因无批量用户查询 RPC 且 21.2 "Membership 列表批量补 nickname" 仅在 listUserTenants（tenant 名称）实现、Membership list 未补齐 nickname，list 返回的 MemberResponse.nickname 暂为 null；该缺口需要 21.1 契约补齐（Membership proto 加 nickname 字段或新增 BatchGetUserProfiles RPC）并由后续验收 session 判定是否阻塞"nickname 可展示"验收标准，本任务如实记录并不擅自越界修改 contracts。
 
 ## 阻塞记录
 
@@ -614,3 +618,4 @@ router4_smoke_profile_test.sh
 | 2026-06-28 | 21.4 待开始 → 进行中 → 待验收 | 完成实现提交（`c58be6e0`）并回填 hash | plan21 仍进行中；21.4 进入待验收，交独立验收 session；21.1–21.4 仍未完成、不递增完成数 |
 | 2026-06-28 | 21.5 待开始 → 进行中 → 待验收 | 完成实现提交（`907c1599`）并回填 hash | plan21 仍进行中；21.5 进入待验收，交独立验收 session；21.1–21.5 仍未完成、不递增完成数 |
 | 2026-06-29 | 21.6 待开始 → 进行中 → 待验收 | 完成实现提交（`013ac49a`）并回填 hash | plan21 仍进行中；21.6 进入待验收，交独立验收 session；21.1–21.6 仍未完成、不递增完成数 |
+| 2026-06-29 | 21.7 待开始 → 进行中 → 待验收 | 完成实现提交（`1b089d9c`）并回填 hash | plan21 仍进行中；21.7 进入待验收，交独立验收 session；21.1–21.7 仍未完成、不递增完成数 |
