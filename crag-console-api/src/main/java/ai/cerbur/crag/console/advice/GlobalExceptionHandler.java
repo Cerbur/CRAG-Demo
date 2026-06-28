@@ -8,6 +8,10 @@ import ai.cerbur.crag.console.auth.service.AccessIdentityClient.DownstreamTimeou
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.DownstreamUnavailableException;
 import ai.cerbur.crag.console.auth.service.AccessIdentityClient.InvalidCredentialsException;
 import ai.cerbur.crag.console.auth.service.InvalidOriginException;
+import ai.cerbur.crag.console.document.service.KnowledgeDocumentClient;
+import ai.cerbur.crag.console.document.service.UploadValidation.Reason;
+import ai.cerbur.crag.console.document.service.UploadValidation.UploadInvalidException;
+import ai.cerbur.crag.console.knowledge.service.KnowledgeBaseOrchestrator;
 import ai.cerbur.crag.console.membership.service.AccessMembershipClient;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
@@ -127,6 +131,140 @@ public class GlobalExceptionHandler {
     return build(
         ResponseCode.INVALID_ARGUMENT,
         new ErrorDetail("Invalid argument", traceId(request), "INVALID_ARGUMENT", false));
+  }
+
+  // ---- plan_21/21.8 KnowledgeBase / Document 异常映射 ----
+
+  @ExceptionHandler(UploadInvalidException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleUploadInvalid(
+      UploadInvalidException ex, HttpServletRequest request) {
+    // 按 reason 映射稳定错误码；message 不含文件内容
+    ResponseCode code =
+        switch (ex.getReason()) {
+          case TOO_LARGE -> ResponseCode.UPLOAD_TOO_LARGE;
+          case UNSUPPORTED_EXTENSION, UNSUPPORTED_MIME -> ResponseCode.UNSUPPORTED_MEDIA_TYPE;
+          default -> ResponseCode.VALIDATION_ERROR;
+        };
+    String reason =
+        switch (ex.getReason()) {
+          case TOO_LARGE -> "UPLOAD_TOO_LARGE";
+          case UNSUPPORTED_EXTENSION, UNSUPPORTED_MIME -> "UNSUPPORTED_MEDIA_TYPE";
+          case EMPTY_FILE -> "EMPTY_FILE";
+          case NOT_UTF8 -> "NOT_UTF8";
+          case MISSING_FILE -> "MISSING_FILE";
+          case READ_FAILED -> "UPLOAD_READ_FAILED";
+        };
+    return build(code, new ErrorDetail("Upload rejected", traceId(request), reason, false));
+  }
+
+  @ExceptionHandler(KnowledgeBaseOrchestrator.ForbiddenException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleKbForbidden(
+      KnowledgeBaseOrchestrator.ForbiddenException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.FORBIDDEN, new ErrorDetail("Forbidden", traceId(request), "FORBIDDEN", false));
+  }
+
+  @ExceptionHandler(KnowledgeBaseOrchestrator.NotFoundException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleKbNotFound(
+      KnowledgeBaseOrchestrator.NotFoundException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.NOT_FOUND,
+        new ErrorDetail("Resource not found", traceId(request), "NOT_FOUND", false));
+  }
+
+  @ExceptionHandler(KnowledgeBaseOrchestrator.ConflictException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleKbConflict(
+      KnowledgeBaseOrchestrator.ConflictException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.CONFLICT, new ErrorDetail("Conflict", traceId(request), "CONFLICT", false));
+  }
+
+  @ExceptionHandler(
+      KnowledgeBaseOrchestrator.EnsureScopeFailedException.DownstreamUnavailableException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleKbDownstream(
+      KnowledgeBaseOrchestrator.EnsureScopeFailedException.DownstreamUnavailableException ex,
+      HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_UNAVAILABLE,
+        new ErrorDetail(
+            "Downstream unavailable", traceId(request), "DOWNSTREAM_UNAVAILABLE", true));
+  }
+
+  @ExceptionHandler(
+      KnowledgeBaseOrchestrator.EnsureScopeFailedException.DownstreamTimeoutException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleKbDownstreamTimeout(
+      KnowledgeBaseOrchestrator.EnsureScopeFailedException.DownstreamTimeoutException ex,
+      HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_TIMEOUT,
+        new ErrorDetail("Downstream timeout", traceId(request), "DOWNSTREAM_TIMEOUT", true));
+  }
+
+  @ExceptionHandler(KnowledgeDocumentClient.ForbiddenException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleDocForbidden(
+      KnowledgeDocumentClient.ForbiddenException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.FORBIDDEN, new ErrorDetail("Forbidden", traceId(request), "FORBIDDEN", false));
+  }
+
+  @ExceptionHandler(KnowledgeDocumentClient.NotFoundException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleDocNotFound(
+      KnowledgeDocumentClient.NotFoundException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.NOT_FOUND,
+        new ErrorDetail("Resource not found", traceId(request), "NOT_FOUND", false));
+  }
+
+  @ExceptionHandler(KnowledgeDocumentClient.RetryNotAllowedException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleRetryNotAllowed(
+      KnowledgeDocumentClient.RetryNotAllowedException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.INGESTION_RETRY_NOT_ALLOWED,
+        new ErrorDetail(
+            "Ingestion retry not allowed", traceId(request), "INGESTION_RETRY_NOT_ALLOWED", false));
+  }
+
+  @ExceptionHandler(KnowledgeDocumentClient.DownstreamUnavailableException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleDocDownstream(
+      KnowledgeDocumentClient.DownstreamUnavailableException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_UNAVAILABLE,
+        new ErrorDetail(
+            "Downstream unavailable", traceId(request), "DOWNSTREAM_UNAVAILABLE", true));
+  }
+
+  @ExceptionHandler(KnowledgeDocumentClient.DownstreamTimeoutException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleDocDownstreamTimeout(
+      KnowledgeDocumentClient.DownstreamTimeoutException ex, HttpServletRequest request) {
+    return build(
+        ResponseCode.DOWNSTREAM_TIMEOUT,
+        new ErrorDetail("Downstream timeout", traceId(request), "DOWNSTREAM_TIMEOUT", true));
+  }
+
+  /**
+   * Spring multipart resolver 在文件超过配置上限时抛出 MaxUploadSizeExceededException；在 Controller 之前触发。
+   *
+   * <p>映射为 41301 UPLOAD_TOO_LARGE，保持与 {@link UploadInvalidException}({@link Reason#TOO_LARGE})
+   * 一致的错误码。
+   */
+  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMaxUploadSize(
+      org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+      HttpServletRequest request) {
+    return build(
+        ResponseCode.UPLOAD_TOO_LARGE,
+        new ErrorDetail("Upload too large", traceId(request), "UPLOAD_TOO_LARGE", false));
+  }
+
+  @ExceptionHandler(
+      org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+  public ResponseEntity<Response<ErrorDetail>> handleMissingPart(
+      org.springframework.web.multipart.support.MissingServletRequestPartException ex,
+      HttpServletRequest request) {
+    // 缺少 file 参数 → 视为上传校验失败（MISSING_FILE）
+    return build(
+        ResponseCode.VALIDATION_ERROR,
+        new ErrorDetail("Upload rejected", traceId(request), "MISSING_FILE", false));
   }
 
   @ExceptionHandler(Exception.class)

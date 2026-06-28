@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: console-api
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+      file-size-threshold: 1MB
 
 crag:
   grpc:
@@ -16,6 +22,11 @@ crag:
         access-service: access-service:9091
         knowledge-service: knowledge-service:9092
         rag-service: rag-service:9093
+  console:
+    upload:
+      max-file-size-bytes: 10485760
+      max-request-size-bytes: 10496000
+      deadline-millis: 60000
 
 management:
   endpoints:

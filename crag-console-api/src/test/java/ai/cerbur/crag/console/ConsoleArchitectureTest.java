@@ -85,7 +85,7 @@ class ConsoleArchitectureTest {
 
   @Test
   @DisplayName(
-      "Controller 仅存在于 auth/tenant/membership controller 包（plan_21/21.7 扩展 tenant/membership）")
+      "Controller 仅存在于 auth/tenant/membership/knowledge/document controller 包（plan_21/21.8 扩展）")
   void controllersInApprovedPackages() {
     classes()
         .that()
@@ -100,20 +100,28 @@ class ConsoleArchitectureTest {
         .resideInAnyPackage(
             "ai.cerbur.crag.console.auth.controller..",
             "ai.cerbur.crag.console.tenant.controller..",
-            "ai.cerbur.crag.console.membership.controller..")
+            "ai.cerbur.crag.console.membership.controller..",
+            "ai.cerbur.crag.console.knowledge.controller..",
+            "ai.cerbur.crag.console.document.controller..")
         .check(classes);
   }
 
   @Test
-  @DisplayName("tenant/membership HTTP DTO 位于 console 专属 dto 包（plan_21/21.7）")
+  @DisplayName("tenant/membership/knowledge/document HTTP DTO 位于 console 专属 dto 包（plan_21/21.8 扩展）")
   void httpDtosInConsoleScopedPackages() {
     classes()
         .that()
         .resideInAnyPackage(
-            "ai.cerbur.crag.console.tenant.dto..", "ai.cerbur.crag.console.membership.dto..")
+            "ai.cerbur.crag.console.tenant.dto..",
+            "ai.cerbur.crag.console.membership.dto..",
+            "ai.cerbur.crag.console.knowledge.dto..",
+            "ai.cerbur.crag.console.document.dto..")
         .should()
         .resideInAnyPackage(
-            "ai.cerbur.crag.console.tenant.dto..", "ai.cerbur.crag.console.membership.dto..")
+            "ai.cerbur.crag.console.tenant.dto..",
+            "ai.cerbur.crag.console.membership.dto..",
+            "ai.cerbur.crag.console.knowledge.dto..",
+            "ai.cerbur.crag.console.document.dto..")
         .check(classes);
   }
 

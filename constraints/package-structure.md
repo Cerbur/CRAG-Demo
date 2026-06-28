@@ -400,10 +400,19 @@ ai.cerbur.crag.console
 │   ├── controller/                     — MembershipController（list/add/change-role/remove）
 │   ├── dto/                            — MemberResponse、AddMemberRequest、ChangeMemberRoleRequest、MembersListResponse
 │   └── service/                        — AccessMembershipClient（gRPC adapter，actor 只来自 ConsolePrincipal）
+├── knowledge/                          — Console KnowledgeBase HTTP 切片（plan_21/21.8）
+│   ├── controller/                     — KnowledgeBaseController（list/create/get）
+│   ├── dto/                            — KnowledgeBaseResponse、KnowledgeBaseListResponse、CreateKnowledgeBaseRequest
+│   └── service/                        — KnowledgeBaseOrchestrator（Authorize→Create→EnsureScope，部分成功 apiKeyReady=false）
+├── document/                           — Console Document HTTP 切片（plan_21/21.8）
+│   ├── controller/                     — DocumentController（list/upload/get/retry）
+│   ├── dto/                            — DocumentResponse、DocumentListResponse
+│   └── service/                        — KnowledgeDocumentClient（multipart→gRPC streaming）、UploadValidation（10MiB/类型/UTF-8 校验）
 ├── security/                           — Console JWT 本地验签与 Bearer filter（plan_21/21.6）
 │   ├── jwt/                            — JwtVerificationKeyCache、AccessJwtVerifier、AccessJwtKeyRefresher
 │   └── filter/                         — BearerTokenAuthenticationFilter
 ├── advice/                             — GlobalExceptionHandler（Console 专属，共享 crag-common 的 ErrorDetail/ResponseCode）
+├── config/multipart/                   — ConsoleUploadConfiguration、ConsoleUploadProperties（multipart 大小上限，plan_21/21.8）
 └── grpc/                               — Console 下游 gRPC client 配置（plan_21/21.6）
     └── config/                         — ConsoleGrpcClientConfiguration（Access/Knowledge/RAG channel + stub Bean + per-use-case deadline）
 ```
