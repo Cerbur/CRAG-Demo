@@ -319,6 +319,7 @@ ai.cerbur.crag.event
     ├── RedisStreamEventMapper          — 字段化 Stream entry 与 EventEnvelope 互转
     ├── RedisStreamEventPublisher       — 实现 EventPublishAction，写入 Redis Stream
     ├── RedisStreamEventConsumer        — consumer group 读取、幂等、handler 调度与 ACK
+    ├── EphemeralRedisStreamConsumer    — 天然幂等 handler 模式（无 JDBC processed_event，plan_21/21.10）：成功 ACK、retry 留 pending、malformed/nonretry DLQ
     ├── RedisPendingReclaimer           — pending idle 重领与超 delivery 的 DLQ
     └── DeadLetterPublisher             — 写入 DLQ stream
 ```
@@ -425,9 +426,26 @@ ai.cerbur.crag.console
 
 ```text
 ai.cerbur.crag.open
-├── app/                                — OpenApiApplication
+├── app/                                — OpenApiApplication（排除 DataSource/JPA autoconfig，无数据库）
 ├── probe/                              — DownstreamConnectivityHealthIndicator
-└── config/                             — ProbeExecutorConfiguration
+├── config/                             — ProbeExecutorConfiguration、OpenAuthCacheConfiguration（缓存 Bean + Ephemeral 消费调度器 + Micrometer Metrics，plan_21/21.10）
+├── authcache/                          — Open API Key 本地缓存（plan_21/21.10）
+│   ├── ApiKeyAuthCache                 — SHA-256 指纹键、TTL/容量、Key/Scope 定向 eviction、版本水位
+│   ├── CachedApiKey                    — 缓存值（定位 + 版本水位，不含完整 Key）
+│   └── OpenAuthCacheProperties         — ttl/capacity 配置（默认 30s/10000）
+├── auth/                               — Open 鉴权切片（plan_21/21.10）
+│   └── service/                        — AccessApiKeyClient（gRPC AuthenticateApiKey）、OpenApiKeyAuthService（缓存→Access 编排）、BearerApiKeyExtractor
+├── consumer/                           — Open 失效消费切片（plan_21/21.10，天然幂等 + EphemeralRedisStreamConsumer，无 DB）
+│   ├── ApiKeyInvalidationEventHandler  — API_KEY_INVALIDATED handler（定向 evict + 版本水位）
+│   ├── ApiKeyInvalidationPayload       — payload 解析（镜像 Access 生产端）
+│   └── InvalidApiKeyInvalidationPayloadException
+├── query/                              — Open Query HTTP 切片（plan_21/21.10）
+│   ├── controller/                     — QueryController（POST /api/v1/query）
+│   ├── dto/                            — QueryRequest、QueryResponse、CitationResponse
+│   └── service/                        — RagQueryClient（gRPC Query + excerpt 500 截断）、OpenQueryService（auth→query 编排）
+├── grpc/                               — Open 下游 gRPC client 配置（plan_21/21.10）
+│   └── config/                         — OpenGrpcClientConfiguration（Access/RAG channel Bean）
+└── advice/                             — GlobalExceptionHandler（Open 专属，共享 crag-common ErrorDetail/ResponseCode）
 ```
 
 模块与包边界由 `ModuleBoundaryArchitectureTest`、Gradle 模块依赖校验器和框架依赖校验器共同验证。

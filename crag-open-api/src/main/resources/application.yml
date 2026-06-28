@@ -15,6 +15,20 @@ crag:
       targets:
         access-service: access-service:9091
         rag-service: rag-service:9093
+  open:
+    access:
+      target: ${CRAG_OPEN_ACCESS_TARGET:access-service:9091}
+    rag:
+      target: ${CRAG_OPEN_RAG_TARGET:rag-service:9093}
+    auth-cache:
+      ttl: 30s
+      capacity: 10000
+  event:
+    consumer:
+      enabled: false
+    access-stream-key: crag:event:access
+    open-invalidation-group: open-invalidation
+    open-invalidation-consumer: open-invalidation-1
 
 management:
   endpoints:
