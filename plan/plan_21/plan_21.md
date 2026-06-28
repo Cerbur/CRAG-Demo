@@ -1,0 +1,586 @@
+---
+workflow_version: 3
+plan_id: plan_21
+type: main
+status: ready
+created: 2026-06-28
+updated: 2026-06-28
+---
+
+# plan_21 — 双 API 与摄取生命周期
+
+> **For agentic workers:** REQUIRED SUB-SKILL: use `superpowers:subagent-driven-development` or `superpowers:executing-plans` task-by-task. **Project override:** before either, read and follow `skill/execute-crag-plan/SKILL.md`; its task status、实现提交和独立验收交接规则优先。
+
+**Goal**：交付可供前端与外部调用方使用的 Console/Open 正式 HTTP API，并完整闭合 Knowledge 上传、RAG 摄取、状态投影、失败恢复、API Key 缓存失效和 READY 版本查询链路。
+
+**Architecture**：Console/Open 保持无数据库的薄入口，只通过领域 contracts 调用 Access、Knowledge、RAG。Provider 侧使用兼容性 Protobuf 扩展、可靠事件、operationVersion、CAS 和 Reconciler 完成跨服务最终一致；RAG 以 ingestion head + READY Job 限制可查询版本。
+
+**Tech Stack**：Java 21、Spring Boot 4.1.0、Spring Framework 7、Gradle 9.4.1、gRPC + Protobuf、Spring MVC、Spring Security JOSE、Spring Data JPA/Redis、PostgreSQL 17 + pgvector、Redis Streams、Docker Compose、OpenAPI 3.1。
+
+## 全局实现约束
+
+- 设计事实来源：`docs/superpowers/specs/2026-06-28-dual-api-and-ingestion-lifecycle-design.md`，设计提交 `c7bf91d9`。
+- 执行前先读取 `skill/execute-crag-plan/SKILL.md`、本 Plan、`plan/index/README.md` 及所有受影响约束。
+- Console/Open 无数据库、Entity、Repository、DAO 或业务表；禁止依赖 Access/Knowledge/RAG Service module。
+- 新增 `crag-rag-contracts`；领域 contracts 不依赖 Spring、runtime 或 Service module。
+- 所有 HTTP/gRPC ID 使用十进制字符串；HTTP 时间使用 RFC 3339 UTC，gRPC 时间使用 epoch millis。
+- Access JWT 只进响应体；Refresh Token 只进 HttpOnly Cookie，禁止记录任何完整 Token/API Key。
+- Document 总摄取 attempt 默认上限 3；自动退避 30 秒、120 秒；PENDING/PROCESSING 滞留阈值默认 2/15 分钟。
+- Open API Key 缓存默认 TTL 30 秒、最大 10,000 项，缓存键为完整 Key 的 SHA-256 指纹。
+- Query 长度 1–2000 Unicode 字符；source excerpt 最多 500 Unicode 字符。
+- `Chunk`、Dense/Sparse 索引、Ingestion Job 和 Retrieval 必须同时受 knowledgeBaseId 与当前 READY operationVersion 约束。
+- 自定义持久化更新遵守版本 CAS；Repository 只由同模块 DAO 调用；事务内禁止 gRPC、Sidecar 或 LLM 调用。
+- Smoke 是原服务的 `smoke` Profile，不创建 `*-smoke` Compose 服务。
+- Query 必跑回归使用确定性 LLM Stub；脚本使用唯一 runId，不清表、不删除 Volume、不执行 `docker compose down -v`。
+- Java、HTTP、持久化、Retrieval、包结构、Docker 和测试分别遵守 `constraints/*.md` 对应事实来源。
+
+## 背景与目标
+
+plan18–20 已分别交付 Knowledge、RAG multi-KB 和 Access Provider，但两个正式 API 仍只有 Probe；RAG 没有正式 contracts；Knowledge 不消费 RAG 状态，Document 长期停留 PENDING；API Key 失效事件没有 Open 消费者；Compose 仍复制三套 smoke 服务。
+
+plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成员、建库、上传、观察/恢复摄取、管理 Key；外部调用方可用单 KB Key 查询并取得答案与引用；旧版本、FAILED 或部分索引绝不进入 Retrieval；接口文档可直接交接同仓库后续前端客户端。
+
+## 范围
+
+- Access/Knowledge contracts 兼容扩展与 `crag-rag-contracts`。
+- Access 用户/Tenant/API Key 查询、Refresh Token Logout、EnsureScope 与 KB_CREATED 消费。
+- Knowledge KB_CREATED 生产、摄取状态投影、状态消费、retry 与 Reconciler。
+- RAG operationVersion 索引、ingestion head、状态查询/超时终态化、正式 Query Provider。
+- Console Auth、Tenant、Membership、KB、Document、API Key HTTP。
+- Open API Key 缓存、无持久化幂等失效消费、Query HTTP。
+- 单服务 Smoke Compose、OpenAPI/前端指南、约束同步与 Docker 全链路回归。
+
+## 非目标
+
+- 不实现 KnowledgeBase/Document 删除、下游物理删除和删除补偿；归 router5。
+- 不实现文件下载/修改、PDF/Word/OCR/网页抓取、断点续传。
+- 不新增 Tenant 创建、资料修改、找回密码、MFA、邀请、计费或配额。
+- 不引入 Gateway 数据库、持久化 Saga、Kafka 或单服务迁移框架。
+- 不修改 Prompt、RRF、Rerank 或真实模型供应商协议。
+
+## 前置依赖
+
+- **执行前置 Plan**：`plan_20`
+- plan18 Knowledge、plan19 RAG multi-KB、plan20 Access 均已独立验收完成。
+- 书面设计已由用户复核，提交为 `c7bf91d9`。
+
+## 文件边界
+
+- `settings.gradle.kts`
+- `gradle/libs.versions.toml`
+- `crag-access-contracts/**`
+- `crag-knowledge-contracts/**`
+- `crag-rag-contracts/**`
+- `crag-access-service/**`
+- `crag-knowledge-service/**`
+- `crag-rag-service/**`
+- `crag-console-api/**`
+- `crag-open-api/**`
+- `crag-common/**`
+- `crag-event/**`
+- `docker-compose.yml`
+- `docker/java-service.Dockerfile`
+- `.env.example`
+- `scripts/validate_*.py`
+- `scripts/tests/**`
+- `docs/api/**`
+- `docs/README.md`
+- `README.md`
+- `constraints/api-style.md`
+- `constraints/package-structure.md`
+- `constraints/persistence-style.md`
+- `constraints/retrieval-style.md`
+- `constraints/docker-structure.md`
+- `constraints/test-workflow.md`
+- `plan/plan_21/plan_21.md`
+- `plan/index/README.md`
+
+## 实现文件地图
+
+### Contracts
+
+- `crag-rag-contracts/src/main/proto/crag/rag/v1/query_service.proto`：正式 Query RPC、answer 与 citation。
+- `crag-rag-contracts/src/main/proto/crag/rag/v1/ingestion_status_service.proto`：按 doc/version 查询 Job 与超时终态化。
+- `crag-rag-contracts/src/main/proto/crag/rag/v1/rag_error.proto`：稳定 RAG error detail。
+- Access 三个既有 proto：Profile/Tenant/Logout/Scope/Key 查询兼容新增。
+- Knowledge 两个既有 proto：KB 创建事件所需字段、摄取投影和 retry 兼容新增。
+
+### Provider
+
+- Access `core.identity/membership/session/apikey`：安全投影与新用例；`consumer`：KB_CREATED。
+- Knowledge `core.ingestion`：状态机、retry policy、Reconciler；`consumer`：INGESTION_*；`producer`：KB_CREATED 与重试 DOC_UPLOADED。
+- RAG `ingestion.head`：当前版本；`ingestion.reconcile`：超时终态；`grpc.provider`：Query/Status；Storage/Query 增加版本防线。
+
+### HTTP 入口
+
+- Console `auth / tenant / membership / knowledge / document / apikey`：每个切片包含 Controller、HTTP DTO、gRPC client/adapter。
+- Console `security`：JWT 公钥缓存/验签、Bearer filter、Refresh Cookie、Origin 检查。
+- Open `authcache / consumer / query`：Key 指纹缓存、版本水位、失效消费和 Query。
+- 两个入口各自拥有 `advice/GlobalExceptionHandler`，共享 `crag-common` 的 `ResponseCode/ErrorDetail`。
+
+## 关键决策
+
+- 一个 Plan 覆盖 router4 垂直链路，但使用 13 个依赖有序的独立任务和提交门。
+- 摄取生命周期可靠性前移到 plan21；router5 只负责删除生命周期。
+- 建库 Scope 允许 201 部分成功，并由 KB_CREATED consumer + EnsureScope 双修复。
+- Retry 使用新 operationVersion；RAG head、版本化索引和 READY Job 三重限制召回。
+- Open 失效 handler 天然幂等且缓存临时，不为 Gateway 引入 processed_event 数据库。
+- 原服务固定暴露 Access 8091、Knowledge 8092、RAG 8082；默认无 Smoke Controller。
+
+## 未决问题
+
+无。
+
+## 风险与回滚
+
+- Gateway 变成业务服务：通过无数据库、contracts-only 依赖和架构测试阻止。
+- 迟到 Worker 写入旧索引：通过 head CAS、operationVersion 和 READY join 阻止召回。
+- Retry/Reconciler 并发：Knowledge CAS 只允许一个新版本，RAG head 使用最大版本单调推进。
+- 缓存失效竞态：Key/Scope 版本水位拒绝旧鉴权结果，TTL 限制事件前窗口。
+- 事件 payload 演进：使用显式 payload version；消费者拒绝未知版本并安全 DLQ。
+- OpenAPI 漂移：实现路由清单、Schema 示例和 operationId 校验纳入 check。
+- 回滚按 21.13→21.1 逆序 revert；先停消费者/入口，再回滚 Provider/contracts，最后恢复 Compose。兼容新增列可保留为无读取残余；本计划无不可逆外部操作。
+
+## 测试与验证计划
+
+- 纯单元测试：策略、状态机、JWT、Cookie、缓存、版本水位、错误映射与 DTO。
+- 轻量组件测试：H2/MockMvc/in-process gRPC 验证 DAO、Provider、Controller 和配置；不宣称 PostgreSQL/Redis 保证。
+- 架构测试：contracts、模块依赖、Gateway 无持久化、Provider/Controller/Profile 边界。
+- Docker HTTP：真实 PostgreSQL/pgvector/Redis/Sidecar/五 Java 进程，覆盖 Auth、Membership、Scope、上传、状态、retry、Query、失效和隔离。
+- 最终命令：`./gradlew spotlessCheck test check`、四个 Python 校验器、OpenAPI 校验脚本、plan21 全部 Docker HTTP 脚本。
+
+## 进度追踪
+
+| 编号 | 任务 | 状态 | 提交 | 完成时间 |
+| --- | --- | --- | --- | --- |
+| 21.1 | 建立正式 contracts 与模块边界 | ⏳ 待开始 | — | — |
+| 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待开始 | — | — |
+| 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待开始 | — | — |
+| 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待开始 | — | — |
+| 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待开始 | — | — |
+| 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待开始 | — | — |
+| 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待开始 | — | — |
+| 21.8 | 完成 Console KnowledgeBase 与 Document API | ⏳ 待开始 | — | — |
+| 21.9 | 完成 Console API Key 管理 API | ⏳ 待开始 | — | — |
+| 21.10 | 完成 Open API Key 缓存、失效消费与 Query | ⏳ 待开始 | — | — |
+| 21.11 | 收敛单服务 Smoke 与 Docker 正式拓扑 | ⏳ 待开始 | — | — |
+| 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
+| 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
+
+整体进度：0 / 13（0%）
+
+## 21.1 建立正式 contracts 与模块边界
+
+**目标**：让后续任务只依赖稳定、可生成和可鉴权的领域 RPC。  
+**前置任务**：无  
+**范围**：新增 rag contracts；兼容扩展 Access/Knowledge proto；补 Gradle/Docker/依赖校验。  
+**非目标**：不实现 Provider、HTTP、数据库和事件 handler。  
+**验收标准**：contracts build 通过；字段号不复用；contracts 无 Spring/runtime/Service 依赖；生成的 RPC 覆盖设计全部用例。  
+**验证方式**：`./gradlew :crag-access-contracts:build :crag-knowledge-contracts:build :crag-rag-contracts:build`；依赖校验器。  
+**涉及文件**：`settings.gradle.kts`、`crag-*-contracts/**`、`docker/java-service.Dockerfile`、`scripts/validate_*dependencies.py`、对应测试。
+
+**Interfaces**：
+
+```proto
+service QueryService {
+  rpc Query(QueryRequest) returns (QueryResponse);
+}
+service IngestionStatusService {
+  rpc GetIngestionStatus(GetIngestionStatusRequest) returns (IngestionStatusView);
+  rpc MarkTimedOut(MarkTimedOutRequest) returns (IngestionStatusView);
+}
+message QueryRequest { string knowledge_base_id = 1; string question = 2; string trace_id = 3; }
+message Citation { string reference = 1; string document_id = 2; string excerpt = 3; }
+message QueryResponse { string answer = 1; repeated Citation sources = 2; }
+```
+
+- Access 新增：`GetUserProfile`、`ListUserTenants`、Refresh Token 形式 `Logout`、`EnsureScope`、`GetScope`、`GetApiKey`、`ListApiKeys`。
+- Knowledge `Document` 追加 attempt/job/failure/retry/time 字段，新增 `RetryIngestion`；旧字段号保持不变。
+
+**Implementation steps**：
+
+- [ ] 先写 `*ContractsArchitectureTest` 与 Python validator fixture，断言新模块白名单和禁止依赖；运行后应因模块不存在失败。
+- [ ] 创建 `crag-rag-contracts/build.gradle.kts` 与三个 proto，并对 Access/Knowledge 只追加字段/RPC；代码生成类型必须与 Interfaces 一致。
+- [ ] 更新 settings、通用 Docker build copy、模块/框架依赖校验器；禁止 contracts 引入 Spring BOM。
+- [ ] 运行三模块 build、`./gradlew test --tests '*ContractsArchitectureTest'` 和两个 Python 校验器，预期全部通过。
+- [ ] 提交：`feat(plan_21/21.1): establish router4 contracts`。
+
+## 21.2 补齐 Access 管理查询、Scope 一致性与失效版本
+
+**目标**：让 Console 获得完整管理投影，让 KB Scope 最终可恢复，让 Open 能识别缓存版本。  
+**前置任务**：21.1  
+**范围**：Profile/Tenant/Membership nickname、Refresh Token Logout、Scope ensure/query、Key get/list、Auth 版本字段、KB_CREATED consumer 与 Access processed_event。  
+**非目标**：不实现 Console/Open Controller。  
+**验收标准**：查询分页稳定；Logout 不需 Access JWT；Ensure 幂等且不复活 BLOCKED；事件重复不重复建 Scope；鉴权返回 key/scope version。  
+**验证方式**：Access 单元/组件/Provider/事件测试与 H2 schema 测试。  
+**涉及文件**：`crag-access-service/src/main/**`、`crag-access-service/src/test/**`、`crag-access-contracts/**`。
+
+**Interfaces**：
+
+```java
+public record UserProfileResult(long userId, String nickname) {}
+public record UserTenantResult(long tenantId, String name, MembershipRole role) {}
+public void logout(String rawRefreshToken);
+public ApiKeyScopeResult ensureScope(long actorUserId, long tenantId, long knowledgeBaseId);
+public ApiKeyResult get(long actorUserId, long tenantId, long apiKeyId);
+public List<ApiKeyResult> list(long actorUserId, long tenantId, long knowledgeBaseId, int pageSize, String pageToken);
+public record AuthenticatedApiKey(long apiKeyId, long tenantId, long knowledgeBaseId,
+    long keyVersion, long scopeVersion, Instant expiresAt) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写失败测试：Profile/Tenant/Key 分页、按 Refresh Token 撤销、Ensure 同租户幂等/异租户冲突/BLOCKED 不复活、鉴权版本字段。
+- [ ] 在 DAO 增加批量/分页查询和 token HMAC 定位；Repository 不做权限判断，DAO 处理投影与 CAS 结果。
+- [ ] 按 Interfaces 实现 Core，Membership 列表批量补 nickname，禁止循环查 User。
+- [ ] 新增 `KnowledgeBaseCreatedEventHandler`，仅接受 payload v1，使用 `JdbcProcessedEventDao` 幂等；Access schema 添加 processed_event。
+- [ ] 扩展 Mapper/Provider/ErrorMapper/RpcAuthorizer，Console 可管理，Open 只可 Authenticate/Get keys。
+- [ ] 运行 `./gradlew :crag-access-service:test` 和 `*AccessArchitectureTest`，预期通过且秘密扫描无命中。
+- [ ] 提交：`feat(plan_21/21.2): complete access management contracts`。
+
+## 21.3 建立 Knowledge 摄取投影与状态事件消费
+
+**目标**：让 Document 从 PENDING 正确投影 RAG 当前状态和安全失败信息。  
+**前置任务**：21.1  
+**范围**：Document 新字段、状态机、CAS DAO、INGESTION_* payload parser/handler、KB_CREATED producer。  
+**非目标**：不实现 retry/Reconciler 和 Console HTTP。  
+**验收标准**：PENDING→PROCESSING→终态及 PENDING→终态合法；重复/旧版本 ACK；矛盾终态拒绝覆盖；Tenant/KB/doc 不一致 DLQ；建库同事务写事件。  
+**验证方式**：状态机单测、DAO/consumer/producer 组件测试、事务回滚测试。  
+**涉及文件**：`crag-knowledge-service/src/main/**`、`crag-knowledge-service/src/test/**`、`crag-knowledge-contracts/**`。
+
+**Interfaces**：
+
+```java
+public enum IngestionStatus { PENDING, PROCESSING, READY, FAILED }
+public record IngestionProjection(long operationVersion, int attempt, Long jobId,
+    IngestionStatus status, String failureCategory, String failureMessage,
+    Instant startedAt, Instant completedAt, Instant nextRetryAt) {}
+public IngestionApplyResult applyStatus(IngestionStatusEvent event);
+```
+
+**Implementation steps**：
+
+- [ ] 写状态表驱动测试，逐项断言合法迁移、旧版本、重复终态和矛盾终态。
+- [ ] 用幂等 SQL 增加 Document 投影列和索引；Entity/Result/Mapper 完整映射 nullable 失败字段。
+- [ ] Repository 自定义更新在 WHERE 同时匹配 docId、tenantId、knowledgeBaseId、operationVersion、version；DAO 将 0 rows 转成 `VersionConflictException`。
+- [ ] 实现 `IngestionStatusEventHandler` 与双层安全 message 限长，接入 Knowledge processed_event。
+- [ ] 让 KnowledgeBase create 同事务写 `KNOWLEDGE_BASE_CREATED`，rollback 测试断言业务行与 Outbox 同退。
+- [ ] 运行 Knowledge 全模块测试与 `*KnowledgeArchitectureTest`，预期通过。
+- [ ] 提交：`feat(plan_21/21.3): project ingestion lifecycle in knowledge`。
+
+## 21.4 建立 RAG ingestion head 与 READY 版本查询防线
+
+**目标**：保证只有当前 operationVersion 的 READY 索引可以参与检索，并提供正式 Query/Status Provider。  
+**前置任务**：21.1  
+**范围**：head 表、Chunk/Dense/Sparse operationVersion、Job SUPERSEDED/timeout 支撑、DAO SQL、Query source、gRPC Provider。  
+**非目标**：不实现 Knowledge retry/Reconciler。  
+**验收标准**：旧/FAILED/PROCESSING/部分索引零召回；新 head 单调递增；迟到 Worker不能 READY；citation 为 reference/documentId/excerpt。  
+**验证方式**：DAO/Query/Provider/多版本组件测试和 Retrieval 架构测试。  
+**涉及文件**：`crag-rag-service/src/main/**`、`crag-rag-service/src/test/**`、`crag-rag-contracts/**`、`constraints/retrieval-style.md`。
+
+**Interfaces**：
+
+```java
+public record IngestionHead(long docId, long knowledgeBaseId, long operationVersion, long version) {}
+public HeadAdvanceResult advance(long tenantId, long knowledgeBaseId, long docId, long operationVersion);
+public Optional<IngestionStatusResult> get(long tenantId, long knowledgeBaseId, long docId, long operationVersion);
+public UserQueryResult answer(long knowledgeBaseId, String question);
+public record QuerySource(String reference, long documentId, String excerpt) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写失败测试：v1 READY 后 v2 PENDING 时 v1 不召回；v2 FAILED 不回退 v1；旧 Worker markReady 失败；引用连续且 excerpt 截断 500 字符。
+- [ ] 增加 `document_ingestion_head` 和三类索引 operation_version；更新 Entity/BO/result 与批量写入签名。
+- [ ] 在 DOC_UPLOADED resolve 前单调 advance head；低版本事件直接完成，等版本幂等，高版本将旧活动 Job 标记 SUPERSEDED。
+- [ ] 修改 Sparse/Dense/Parent SQL，先 join head + READY ingestion_job，再按 KB/版本召回；为每条 native SQL 加列映射测试。
+- [ ] 实现 `RagQueryGrpcProvider`、`IngestionStatusGrpcProvider`、mapper/error/authorizer；Open 可 Query，Knowledge 可 Status，其他 caller 拒绝。
+- [ ] 运行 RAG 全模块测试、Retrieval 专项与 contracts 测试，预期通过。
+- [ ] 提交：`feat(plan_21/21.4): isolate retrieval to current ready ingestion`。
+
+## 21.5 完成摄取 retry、超时终态与 Reconciler
+
+**目标**：让可恢复失败自动/手动收敛，滞留任务不会永久无结论。  
+**前置任务**：21.3、21.4  
+**范围**：RetryPolicy、Knowledge CAS retry + Outbox、RAG timeout CAS、Knowledge Reconciler、旧失败索引清理、metrics。  
+**非目标**：不重试确定性文件错误，不实现删除。  
+**验收标准**：attempt 1→3；退避 30/120 秒；并发只建一个版本；滞留先查 RAG；超时先 FAILED 后重试；旧残留不召回。  
+**验证方式**：Clock 驱动单测、并发组件测试、in-process gRPC Reconciler 测试。  
+**涉及文件**：Knowledge/RAG `core.ingestion`、`reconcile`、DAO/schema/config/metrics 与测试。
+
+**Interfaces**：
+
+```java
+public record RetryDecision(boolean retryable, Duration delay, String reason) {}
+public RetryDecision decide(String failureCategory, int currentAttempt);
+public DocumentResult retry(long actorUserId, long tenantId, long knowledgeBaseId, long docId);
+public ReconcileSummary reconcileBatch(int batchSize, Instant now);
+public IngestionStatusResult markTimedOut(long tenantId, long knowledgeBaseId,
+    long docId, long operationVersion, Instant staleBefore);
+```
+
+**Implementation steps**：
+
+- [ ] 写 RetryPolicy 参数化测试，固定四个 retryable 分类、其余不可重试、attempt 3 截止。
+- [ ] 实现 Knowledge retry 事务：锁/读当前 Document，CAS 递增 operationVersion/attempt，清失败字段，同事务写 DOC_UPLOADED。
+- [ ] RAG 新版本开始前按 doc/version 批量清失败残留；旧 head 不执行清理；timeout 使用 status/version CAS。
+- [ ] Reconciler 由 Spring TaskScheduler Bean 驱动，多实例按 Document CAS 抢占；事务外调用 Status RPC，事务内应用结果或创建新版本。
+- [ ] 写并发测试、迟到 READY/FAILED 测试、RAG 不可用测试和 metrics 断言。
+- [ ] 运行 `:crag-knowledge-service:test :crag-rag-service:test` 专项，预期无 skipped/flaky。
+- [ ] 提交：`feat(plan_21/21.5): complete ingestion recovery loop`。
+
+## 21.6 完成 Console 认证、安全与公共 HTTP 基线
+
+**目标**：建立前端可安全使用的 Auth、JWT、Cookie、trace、错误和 gRPC client 基线。  
+**前置任务**：21.1、21.2  
+**范围**：Auth endpoints、JWT key cache/verifier/filter、Cookie/Origin、ResponseCode/ErrorDetail、clients/config/deadline。  
+**非目标**：不实现 Tenant/KB/Document/Key Controller。  
+**验收标准**：Refresh 不进 JSON；Cookie 属性正确；unknown kid 单次刷新；失效 JWT 401；复用清 Cookie；普通验签不在线调用 Access。  
+**验证方式**：纯单元、MockMvc、in-process Access gRPC 与架构测试。  
+**涉及文件**：`crag-console-api/**`、`crag-common/**`、`constraints/api-style.md`。
+
+**Interfaces**：
+
+```java
+public record AuthResponse(String accessToken, Instant accessExpiresAt,
+    UserResponse user, TenantSummaryResponse defaultTenant) {}
+public record ErrorDetail(String message, String traceId,
+    String reason, boolean retryable, List<FieldErrorDetail> fieldErrors) {}
+public record ConsolePrincipal(long userId, long sessionFamilyId) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写 MockMvc 失败测试，锁定 register/login/refresh/logout/me 路由、状态、JSON 字段和 Set-Cookie 属性。
+- [ ] 扩展固定 ResponseCode，新增统一 ErrorDetail/GlobalExceptionHandler；敏感校验错误不回显 rejected value。
+- [ ] 实现 `JwtVerificationKeyCache`、RS256 verifier 和 Bearer filter，严格校验 kid/alg/iss/aud/exp/nbf。
+- [ ] 实现 RefreshCookieService 与 OriginGuard；logout finally 清 Cookie，Access 使用 raw Refresh Token 撤销。
+- [ ] 建立 Access/Knowledge/RAG channel/stub Bean 和 per-use-case deadline；非幂等 RPC 不配置自动重试。
+- [ ] 运行 Console 全模块测试、API/Architecture 测试和日志秘密扫描。
+- [ ] 提交：`feat(plan_21/21.6): establish console authentication boundary`。
+
+## 21.7 完成 Console Tenant 与 Membership API
+
+**目标**：让前端恢复 Tenant 上下文并完成成员管理。  
+**前置任务**：21.6  
+**范围**：Tenant list、Member list/add/role/remove Controller/DTO/client/mapper/error。  
+**非目标**：不创建 Tenant，不修改用户资料。  
+**验收标准**：分页稳定；nickname 可展示；MEMBER 不能管理；最后 OWNER 409；跨租户不可见。  
+**验证方式**：MockMvc + in-process Access Provider 与 Docker Access 回归。  
+**涉及文件**：`crag-console-api/src/main/java/ai/cerbur/crag/console/{tenant,membership}/**` 及测试。
+
+**Interfaces**：
+
+```java
+public record TenantSummaryResponse(String tenantId, String name, String role) {}
+public record MemberResponse(String userId, String nickname, String role,
+    String status, Instant createdAt, Instant updatedAt) {}
+public record AddMemberRequest(String username) {}
+public record ChangeMemberRoleRequest(String role) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写每个 operation 的 MockMvc 正常/校验/401/403/404/409 测试。
+- [ ] 实现 Access client adapter，只传 principal userId，不接受 body actorUserId。
+- [ ] 实现 Controller/DTO mapper；DELETE 返回已变更 REMOVED 投影的 HTTP 200 Response。
+- [ ] 运行切片组件测试和 Console ArchitectureTest，预期 HTTP DTO 不下沉。
+- [ ] 提交：`feat(plan_21/21.7): expose tenant membership console api`。
+
+## 21.8 完成 Console KnowledgeBase 与 Document API
+
+**目标**：完成建库、Scope 部分成功、multipart 上传、状态轮询和手动 retry。  
+**前置任务**：21.5、21.6  
+**范围**：KB list/create/get；Document list/upload/get/retry；双 Provider 编排与 multipart→gRPC streaming。  
+**非目标**：不下载或删除文件。  
+**验收标准**：建库 201 + apiKeyReady；Scope 失败仍返回资源；上传 202；10MiB/类型/UTF-8 错误稳定；状态字段完整；retry 规则一致。  
+**验证方式**：MockMvc、临时文件组件测试、in-process gRPC、Docker 上传/摄取回归。  
+**涉及文件**：Console `knowledge/**`、`document/**`、multipart config 与测试。
+
+**Interfaces**：
+
+```java
+public record KnowledgeBaseResponse(String knowledgeBaseId, String tenantId,
+    String name, boolean apiKeyReady, Instant createdAt, Instant updatedAt) {}
+public record DocumentResponse(String docId, String knowledgeBaseId, String originalFilename,
+    String fileType, long sizeBytes, String ingestionStatus, String operationVersion,
+    int attempt, String failureCategory, String failureMessage, boolean retryable,
+    Instant startedAt, Instant completedAt) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写 KB 部分成功测试：Knowledge create 成功、EnsureScope UNAVAILABLE，断言 201/apiKeyReady=false 且不第二次 create。
+- [ ] 写 multipart 测试：单 txt/md、空文件、双文件、超限、扩展名/MIME/UTF-8；断言 SHA-256 与 chunk 顺序。
+- [ ] 实现 KB orchestrator：Authorize→Create→Ensure；list/get 先 authorize，跨租户统一 not found。
+- [ ] 实现 Document streaming adapter：先计算 size/hash，再 metadata-first 分片；不在数据库事务或日志保留文件内容。
+- [ ] 实现 list/get/retry Controller 与完整摄取投影映射，upload 返回 202，create 返回 201。
+- [ ] 运行 Console 相关测试与 Knowledge/RAG 契约测试。
+- [ ] 提交：`feat(plan_21/21.8): expose knowledge document console api`。
+
+## 21.9 完成 Console API Key 管理 API
+
+**目标**：交付前端可管理且不泄密的单 KB API Key 生命周期。  
+**前置任务**：21.2、21.6、21.8  
+**范围**：Key list/get/create/disable/enable/rotate/revoke；EnsureScope 兜底；一次性秘密 DTO。  
+**非目标**：不显示历史完整 Key，不批量操作。  
+**验收标准**：只有 OWNER；KB 归属先验证；completeKey 仅 create/rotate；列表只 prefix；状态冲突 409。  
+**验证方式**：MockMvc/in-process Access，序列化和秘密扫描测试。  
+**涉及文件**：Console `apikey/**` 与测试。
+
+**Interfaces**：
+
+```java
+public record ApiKeyResponse(String apiKeyId, String knowledgeBaseId, String name,
+    String status, String keyPrefix, Instant createdAt, Instant expiresAt) {}
+public record CreatedApiKeyResponse(String apiKeyId, String knowledgeBaseId,
+    String name, String completeKey, Instant expiresAt) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写七个 operation 的 HTTP 契约测试和 MEMBER/跨 KB/状态冲突负向测试。
+- [ ] 实现 KB ownership check + EnsureScope + Access Key adapter；禁止客户端传 actor/tenant/KB 覆盖路径值。
+- [ ] 将完整秘密限制在 Created DTO，`toString`、日志和 error detail 不包含 completeKey。
+- [ ] 运行 Console Key 测试与 Access API Key 回归，预期通过。
+- [ ] 提交：`feat(plan_21/21.9): expose api key console lifecycle`。
+
+## 21.10 完成 Open API Key 缓存、失效消费与 Query
+
+**目标**：通过单 KB Key 安全查询，并在 Key/Scope 变化时主动失效本地缓存。  
+**前置任务**：21.1、21.2、21.4、21.6  
+**范围**：Bearer parser、SHA-256 cache、版本水位、无 JDBC 幂等 Redis consumer、Query Controller/client/mapper/metrics。  
+**非目标**：不依赖 Knowledge，不持久化缓存或 processed_event。  
+**验收标准**：请求不接受 KB；Key/Scope 事件定向 evict；旧版本不回填；Redis 降级直连 Access；sources 仅 reference/documentId/excerpt。  
+**验证方式**：缓存竞态单测、consumer 测试、MockMvc/in-process gRPC、Docker 失效回归。  
+**涉及文件**：`crag-open-api/**`、`crag-event/**` 及测试。
+
+**Interfaces**：
+
+```java
+public record CachedApiKey(long apiKeyId, long tenantId, long knowledgeBaseId,
+    long keyVersion, long scopeVersion, Instant expiresAt) {}
+public record QueryRequest(String question) {}
+public record QueryResponse(String answer, List<CitationResponse> sources) {}
+public record CitationResponse(String reference, String documentId, String excerpt) {}
+```
+
+**Implementation steps**：
+
+- [ ] 写 cache 测试：TTL、capacity、Key eviction、Scope eviction、event-before-put 水位拒绝、Key 不出现在日志/toString。
+- [ ] 在 crag-event 增加 `EphemeralRedisStreamConsumer`：仅允许声明天然幂等 handler，成功 ACK，retry 留 pending，malformed/nonretry DLQ；不注入 JdbcProcessedEventDao。
+- [ ] 实现 Open handler 和 secondary indexes，重启为空；Redis 异常不阻止 Access 在线鉴权。
+- [ ] 实现 `/api/v1/query`，校验 question 1–2000，Access auth→cache→RAG Query；LLM RPC 不重试。
+- [ ] 实现 HTTP 错误/trace/metrics 和 source 映射，excerpt 再做 500 字符防御截断。
+- [ ] 运行 `:crag-event:test :crag-open-api:test` 与架构测试。
+- [ ] 提交：`feat(plan_21/21.10): expose cached open query api`。
+
+## 21.11 收敛单服务 Smoke 与 Docker 正式拓扑
+
+**目标**：删除重复 smoke 容器，同时保留原服务 Profile 条件诊断能力。  
+**前置任务**：21.5、21.10  
+**范围**：Compose 服务/端口/env/profile、应用配置、既有 smoke 脚本服务名/端口迁移、部署校验。  
+**非目标**：不删除 Smoke Controller，不隐藏本地服务端口。  
+**验收标准**：无 `*-smoke` service；Access 8091、Knowledge 8092、RAG 8082 固定映射；默认 smoke 路由 404；启用 Profile 后同端口可用。  
+**验证方式**：`docker compose config --services`、default/smoke HTTP 脚本、Docker 约束校验。  
+**涉及文件**：`docker-compose.yml`、`.env.example`、三个 service config、`scripts/tests/http/**`、Docker 约束/校验。
+
+**Interfaces**：
+
+```text
+CRAG_SERVICE_PROFILES=""      # 默认，无 Smoke Controller
+CRAG_SERVICE_PROFILES=smoke   # 原服务启用 Smoke Controller
+access-service:8091:8091
+knowledge-service:8092:8092
+rag-service:8082:8082
+```
+
+**Implementation steps**：
+
+- [ ] 先更新 Compose validator 测试，要求恰好五个 Java 服务且禁止 `-smoke` 名称；运行应在旧 Compose 失败。
+- [ ] 合并 smoke 服务的 volume/event/env 配置到原服务，用 `SPRING_PROFILES_ACTIVE=${CRAG_SERVICE_PROFILES:-}` 激活。
+- [ ] 固定三端口映射并删除重复服务；更新 depends_on、healthcheck 和脚本 URL。
+- [ ] 运行 `docker compose config --services`，预期只有 db/redis/model-init/sidecar/access-service/knowledge-service/rag-service/console-api/open-api。
+- [ ] 运行 default-disabled 与 smoke-enabled 脚本，预期原端口分别 404/成功。
+- [ ] 提交：`refactor(plan_21/21.11): consolidate smoke service topology`。
+
+## 21.12 交付 OpenAPI 与前端交接文档
+
+**目标**：让同仓库前端无需阅读后端实现即可生成 Client 并完成联调。  
+**前置任务**：21.7、21.8、21.9、21.10  
+**范围**：两份 OpenAPI 3.1、中文指南、docs 索引、代码 reference、契约校验脚本。  
+**非目标**：不创建前端项目或生成提交客户端代码。  
+**验收标准**：所有正式路由、Schema、Cookie/Header、状态/业务码/示例完整；operationId 唯一；代码链接有效；实现清单一致。  
+**验证方式**：OpenAPI parser/schema/reference/route tests 与 Markdown link check。  
+**涉及文件**：`docs/api/**`、`docs/README.md`、`scripts/validate_openapi.py`、`scripts/tests/test_validate_openapi.py`、`README.md`。
+
+**Interfaces**：
+
+```text
+docs/api/console-api.openapi.yaml
+docs/api/open-api.openapi.yaml
+docs/api/README.md
+docs/README.md
+```
+
+**Implementation steps**：
+
+- [ ] 写 validator 单测 fixture，覆盖 YAML 解析、OpenAPI=3.1、operationId 重复、坏 `$ref`、示例不匹配和路由清单漂移。
+- [ ] 从已实现 Controller/DTO 逐 operation 写两份 YAML，不从设计猜测状态码；ID/时间/错误 Schema 复用 components。
+- [ ] 写中文指南：登录态、Cookie、Tenant、分页、上传/轮询/retry、部分成功、一次性 Key、Query、错误处理。
+- [ ] 为每个切片加入相对源码链接，并新增 docs 索引与根 README 入口。
+- [ ] 运行 OpenAPI validator 和链接检查，预期 0 error。
+- [ ] 提交：`docs(plan_21/21.12): publish frontend api handoff`。
+
+## 21.13 完成全链路回归、约束同步与验收交接
+
+**目标**：以真实 Compose 链路证明 router4 完整行为，并更新全部事实来源后交独立验收。  
+**前置任务**：21.11、21.12  
+**范围**：Docker scripts、全量测试、约束/README/validator、证据、hash 回填、索引和 verifying 交接。  
+**非目标**：不执行最终独立验收，不修复无关 Hotfix。  
+**验收标准**：13 组任务全部自测/提交；全链路和隔离/故障脚本通过；文档与当前事实一致；Plan 进入 verifying。  
+**验证方式**：下列精确命令与脚本，任何必跑 skip/failure 都不能交接。  
+**涉及文件**：`scripts/tests/http/router4_*.sh`、全部受影响约束、README、validators、Plan/index。
+
+**Docker scenarios**：
+
+```text
+router4_auth_test.sh
+router4_membership_test.sh
+router4_scope_recovery_test.sh
+router4_upload_query_test.sh
+router4_ingestion_retry_test.sh
+router4_ingestion_reconcile_test.sh
+router4_api_key_invalidation_test.sh
+router4_multi_tenant_isolation_test.sh
+router4_smoke_profile_test.sh
+```
+
+**Implementation steps**：
+
+- [ ] 逐个编写脚本，使用唯一 runId；每步断言 HTTP status、Response.code、关键字段和最终业务状态。
+- [ ] 用确定性 Stub 启动完整 Compose，按上方顺序运行；保留首次失败证据，禁止无修改重跑当作通过。
+- [ ] 强制运行 `./gradlew spotlessCheck test check`，预期 0 failure/skip；运行四个 Python validator 和 OpenAPI validator，预期 0 error。
+- [ ] 更新 package/api/persistence/retrieval/docker/test 约束、README、docs 索引和校验器当前事实。
+- [ ] 创建各任务实现提交后，用独立交接提交回填真实 hash，将 21.1–21.13 标为待验收、Plan 标为 verifying，并同步索引验收队列。
+- [ ] 明确提示用户启动未参与实现的新 agent session 执行独立验收。
+- [ ] 实现提交主题：`docs(plan_21/21.13): verify router4 delivery`；交接提交主题：`docs(plan_21): hand off implementation`。
+
+## 验收记录
+
+| 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
+| --- | --- | --- | --- | --- |
+
+## 阻塞记录
+
+无。发生阻塞时记录原因、当前进度、解除条件、解除方、恢复步骤与日期。
+
+## 废弃任务记录
+
+无。任务废弃时记录原因、日期及替代任务或决策。
+
+## 变更记录
+
+| 日期 | 变更 | 原因 | 影响 |
+| --- | --- | --- | --- |
+| 2026-06-28 | 创建计划并设为 ready | Router4 设计已确认并完成书面复核 | plan21 进入执行队首；实现前须先提交本 Plan 与索引 |

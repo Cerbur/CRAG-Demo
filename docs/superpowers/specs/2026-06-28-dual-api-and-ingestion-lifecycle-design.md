@@ -2,7 +2,7 @@
 
 日期：2026-06-28
 
-状态：已确认，等待书面规格复核
+状态：已确认并完成书面规格复核
 
 范围：router4 / plan21；Console API、Open API、正式 RAG 契约、摄取生命周期可靠性、API Key 缓存失效与单服务 Smoke 拓扑
 
