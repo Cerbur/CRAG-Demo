@@ -22,6 +22,10 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, Long> {
 
   List<ApiKeyEntity> findByKnowledgeBaseId(long knowledgeBaseId);
 
+  /** 按 KnowledgeBase 游标分页（plan_21/21.2），pageToken 为上一页最后一条 apiKeyId。 */
+  List<ApiKeyEntity> findByKnowledgeBaseIdAndApiKeyIdGreaterThanOrderByApiKeyIdAsc(
+      long knowledgeBaseId, long apiKeyIdAfter);
+
   /** Key 状态版本 CAS 更新；返回 affected rows。 */
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(

@@ -1,6 +1,8 @@
 package ai.cerbur.crag.access.core.identity;
 
+import ai.cerbur.crag.access.core.membership.MembershipRole;
 import ai.cerbur.crag.access.core.membership.TenantRegistrationResult;
+import ai.cerbur.crag.access.core.membership.UserTenantResult;
 import ai.cerbur.crag.access.dao.LoginAccountDao;
 import ai.cerbur.crag.access.dao.PlatformUserDao;
 import ai.cerbur.crag.access.dao.TenantDao;
@@ -13,6 +15,10 @@ import ai.cerbur.crag.access.security.PasswordHasher;
 import ai.cerbur.crag.id.api.CragIdGenerator;
 import ai.cerbur.crag.id.api.IdEntityType;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,6 +101,76 @@ public class IdentityService {
           user.getUserId(), account.getAccountId(), user.getNickname());
     } finally {
       Arrays.fill(pwd, '\0');
+    }
+  }
+
+  /**
+   * 返回当前用户安全投影（plan_21/21.2）。
+   *
+   * @throws IllegalArgumentException 用户不存在
+   */
+  @Transactional(readOnly = true)
+  public UserProfileResult getProfile(long userId) {
+    PlatformUserEntity user =
+        userDao.findById(userId).orElseThrow(() -> new IllegalArgumentException("user not found"));
+    return new UserProfileResult(user.getUserId(), user.getNickname());
+  }
+
+  /** 列出当前用户有效 Tenant 与角色（plan_21/21.2）。批量加载 Tenant 名称，不逐行查询；分页游标为 tenantId。 */
+  @Transactional(readOnly = true)
+  public List<UserTenantResult> listUserTenants(long userId, int pageSize, String pageToken) {
+    return listUserTenantsPage(userId, pageSize, pageToken).items();
+  }
+
+  /** 用户 Tenant 列表分页结果，包含 nextToken（plan_21/21.2）。 */
+  public record UserTenantsPage(List<UserTenantResult> items, String nextPageToken) {
+    public UserTenantsPage {
+      items = items == null ? List.of() : List.copyOf(items);
+    }
+  }
+
+  /** 用户 Tenant 列表带 nextToken 版本，供 gRPC Provider 直接映射分页响应。 */
+  @Transactional(readOnly = true)
+  public UserTenantsPage listUserTenantsPage(long userId, int pageSize, String pageToken) {
+    int limit = pageSize <= 0 ? 20 : Math.min(pageSize, 100);
+    long after = parseTenantPageToken(pageToken);
+    List<TenantMembershipEntity> memberships = membershipDao.listActiveByUser(userId);
+    List<TenantMembershipEntity> page =
+        memberships.stream().filter(m -> m.getTenantId() > after).limit(limit + 1).toList();
+    boolean hasMore = page.size() > limit;
+    List<TenantMembershipEntity> current = page.stream().limit(limit).toList();
+    if (current.isEmpty()) {
+      return new UserTenantsPage(List.of(), null);
+    }
+    Set<Long> tenantIds =
+        current.stream().map(TenantMembershipEntity::getTenantId).collect(Collectors.toSet());
+    Map<Long, String> tenantNames =
+        tenantDao.findAllByIdIn(tenantIds).stream()
+            .collect(Collectors.toMap(TenantEntity::getTenantId, TenantEntity::getName));
+    List<UserTenantResult> results =
+        current.stream()
+            .map(
+                m ->
+                    new UserTenantResult(
+                        m.getTenantId(),
+                        tenantNames.getOrDefault(m.getTenantId(), ""),
+                        MembershipRole.fromEntity(m.getRole())))
+            .toList();
+    String nextToken =
+        hasMore ? Long.toString(current.get(current.size() - 1).getTenantId()) : null;
+    return new UserTenantsPage(results, nextToken);
+  }
+
+  /** 解析 Tenant 分页游标；非法值统一从头开始。 */
+  private static long parseTenantPageToken(String pageToken) {
+    if (pageToken == null || pageToken.isBlank()) {
+      return 0L;
+    }
+    try {
+      long parsed = Long.parseLong(pageToken.trim());
+      return parsed < 0 ? 0L : parsed;
+    } catch (NumberFormatException e) {
+      return 0L;
     }
   }
 

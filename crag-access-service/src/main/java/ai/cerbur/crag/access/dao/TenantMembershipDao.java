@@ -70,4 +70,10 @@ public class TenantMembershipDao {
         .findFirstByUserIdAndStatusOrderByTenantIdAsc(userId, TenantMembershipEntity.STATUS_ACTIVE)
         .map(TenantMembershipEntity::getTenantId);
   }
+
+  /** 列出用户全部有效成员关系，按 tenantId 升序（plan_21/21.2 用户 Tenant 列表）。 */
+  public List<TenantMembershipEntity> listActiveByUser(long userId) {
+    return tenantMembershipRepository.findByUserIdAndStatusOrderByTenantIdAsc(
+        userId, TenantMembershipEntity.STATUS_ACTIVE);
+  }
 }

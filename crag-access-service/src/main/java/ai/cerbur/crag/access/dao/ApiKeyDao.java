@@ -36,6 +36,12 @@ public class ApiKeyDao {
     return apiKeyRepository.findByKnowledgeBaseId(knowledgeBaseId);
   }
 
+  /** 按 KnowledgeBase 游标分页（plan_21/21.2）；调用方按业务校验 actor/tenant 后传入。 */
+  public List<ApiKeyEntity> findByKnowledgeBasePaged(long knowledgeBaseId, long apiKeyIdAfter) {
+    return apiKeyRepository.findByKnowledgeBaseIdAndApiKeyIdGreaterThanOrderByApiKeyIdAsc(
+        knowledgeBaseId, apiKeyIdAfter);
+  }
+
   /**
    * Key 状态版本 CAS 更新。
    *

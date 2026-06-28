@@ -142,3 +142,34 @@ CREATE TABLE IF NOT EXISTS outbox_event (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+
+-- ============================================================
+-- 可靠事件本地表（crag-event 接入宿主，属 Access 本地 schema）。
+-- Access plan_21/21.2 起消费 Knowledge 的 KNOWLEDGE_BASE_CREATED 事件补齐 Scope，
+-- 因此除既有的 outbox_event 外，还需要 processed_event 保证至少一次投递下的消费幂等。
+-- 列结构必须与 crag-event 的 JdbcProcessedEventDao 保持一致。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS processed_event (
+  consumer_name VARCHAR(64) NOT NULL,
+  event_id BIGINT NOT NULL,
+  idempotency_key VARCHAR(256) NOT NULL,
+  event_type VARCHAR(64) NOT NULL,
+  resource_type VARCHAR(64) NOT NULL,
+  resource_id BIGINT NOT NULL,
+  operation_version BIGINT NOT NULL,
+  stream_key VARCHAR(128) NOT NULL,
+  stream_record_id VARCHAR(128) NOT NULL,
+  first_seen_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  processed_at TIMESTAMP WITH TIME ZONE,
+  status VARCHAR(16) NOT NULL,
+  handler_attempt_count INT NOT NULL DEFAULT 0,
+  last_error_code VARCHAR(48),
+  last_error_message VARCHAR(512),
+  CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, idempotency_key)
+);
+
+-- Idempotent migration (H2- and PostgreSQL-portable): ensure the processed_event primary key is on
+-- (consumer_name, idempotency_key). Re-applied each startup; on already-current tables this is a no-op.
+ALTER TABLE processed_event DROP CONSTRAINT IF EXISTS pk_processed_event;
+ALTER TABLE processed_event DROP CONSTRAINT IF EXISTS uq_processed_idempotency;
+ALTER TABLE processed_event ADD CONSTRAINT pk_processed_event PRIMARY KEY (consumer_name, idempotency_key);

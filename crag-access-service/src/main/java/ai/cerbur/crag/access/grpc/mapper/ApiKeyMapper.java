@@ -22,6 +22,8 @@ public final class ApiKeyMapper {
         .setTenantId(Long.toString(result.tenantId()))
         .setStatus(toProtoScopeStatus(result.status()))
         .setVersion(result.version())
+        .setKeyVersion(result.keyVersion())
+        .setScopeVersion(result.scopeVersion())
         .build();
   }
 
@@ -57,7 +59,20 @@ public final class ApiKeyMapper {
         .setTenantId(Long.toString(result.tenantId()))
         .setKnowledgeBaseId(Long.toString(result.knowledgeBaseId()))
         .setExpiresAtEpochMillis(Long.toString(result.expiresAt().toEpochMilli()))
+        .setKeyVersion(result.keyVersion())
+        .setScopeVersion(result.scopeVersion())
         .build();
+  }
+
+  /** router4 新增 ListApiKeys 分页响应映射。 */
+  public static ai.cerbur.crag.contracts.access.v1.ListApiKeysResponse toProto(
+      ai.cerbur.crag.access.core.apikey.ApiKeyListPage page) {
+    var builder = ai.cerbur.crag.contracts.access.v1.ListApiKeysResponse.newBuilder();
+    page.items().forEach(i -> builder.addApiKeys(toProto(i)));
+    if (page.nextPageToken() != null) {
+      builder.setNextPageToken(page.nextPageToken());
+    }
+    return builder.build();
   }
 
   private static ApiKeyScopeStatus toProtoScopeStatus(String status) {

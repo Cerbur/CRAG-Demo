@@ -72,6 +72,16 @@ public class AuthenticationService {
     refreshService.revoke(sessionFamilyId);
   }
 
+  /**
+   * 按完整 Refresh Token 撤销 Session Family（plan_21/21.2 router4 Logout）。
+   *
+   * <p>不需要 Access JWT 或 userId/sessionFamilyId 输入；Console 从 HttpOnly Cookie 读取 Refresh Token 后直接调用。
+   */
+  @Transactional
+  public void logout(String rawRefreshToken) {
+    refreshService.revokeByRawRefreshToken(rawRefreshToken);
+  }
+
   private AuthenticationResult buildResult(
       long userId, String nickname, long tenantId, RefreshSessionService.IssuedRefresh refresh) {
     IssuedJwt jwt = jwtIssuer.issue(userId, refresh.familyId(), Instant.now());

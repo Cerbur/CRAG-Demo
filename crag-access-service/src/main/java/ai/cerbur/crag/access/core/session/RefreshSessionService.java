@@ -101,6 +101,22 @@ public class RefreshSessionService {
     sessionDao.revokeFamily(familyId);
   }
 
+  /**
+   * 按完整 Refresh Token 定位并撤销整个 Family（plan_21/21.2 router4 Logout）。
+   *
+   * <p>不需要 Access JWT：Console 从 HttpOnly Cookie 读取 Refresh Token 后直接调用本方法。Token HMAC 定位会话，
+   * 不存在或已终态统一抛 {@link InvalidRefreshTokenException}，不泄漏存在性。
+   *
+   * @throws InvalidRefreshTokenException Token 无效、已撤销或已过期
+   */
+  @Transactional
+  public void revokeByRawRefreshToken(String rawRefreshToken) {
+    String hmac = refreshHmac.digest(rawRefreshToken);
+    RefreshSessionEntity session =
+        sessionDao.findByTokenHmac(hmac).orElseThrow(InvalidRefreshTokenException::new);
+    sessionDao.revokeFamily(session.getFamilyId());
+  }
+
   /** 写入一条新 ACTIVE Session 并返回 Token 材料。 */
   private IssuedRefresh persist(long familyId, long userId) {
     long sessionId = idGenerator.nextId(IdEntityType.REFRESH_SESSION);

@@ -1,5 +1,6 @@
 package ai.cerbur.crag.access.grpc.provider;
 
+import ai.cerbur.crag.access.core.identity.IdentityService;
 import ai.cerbur.crag.access.core.identity.RegisterIdentityCommand;
 import ai.cerbur.crag.access.core.session.AuthenticationService;
 import ai.cerbur.crag.access.core.session.JwtIssuer;
@@ -8,13 +9,17 @@ import ai.cerbur.crag.access.grpc.mapper.IdentityMapper;
 import ai.cerbur.crag.access.grpc.security.AccessRpcAuthorizer;
 import ai.cerbur.crag.contracts.access.v1.AuthenticationResponse;
 import ai.cerbur.crag.contracts.access.v1.GetJwtVerificationKeysRequest;
+import ai.cerbur.crag.contracts.access.v1.GetUserProfileRequest;
 import ai.cerbur.crag.contracts.access.v1.IdentityServiceGrpc;
 import ai.cerbur.crag.contracts.access.v1.JwtVerificationKeySet;
+import ai.cerbur.crag.contracts.access.v1.ListUserTenantsRequest;
+import ai.cerbur.crag.contracts.access.v1.ListUserTenantsResponse;
 import ai.cerbur.crag.contracts.access.v1.LoginRequest;
 import ai.cerbur.crag.contracts.access.v1.LogoutRequest;
 import ai.cerbur.crag.contracts.access.v1.LogoutResponse;
 import ai.cerbur.crag.contracts.access.v1.RefreshRequest;
 import ai.cerbur.crag.contracts.access.v1.RegisterRequest;
+import ai.cerbur.crag.contracts.access.v1.UserProfile;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -27,6 +32,7 @@ import org.springframework.stereotype.Component;
 public class IdentityGrpcProvider extends IdentityServiceGrpc.IdentityServiceImplBase {
 
   @Autowired private AuthenticationService authenticationService;
+  @Autowired private IdentityService identityService;
   @Autowired private JwtIssuer jwtIssuer;
   @Autowired private AccessRpcAuthorizer authorizer;
 
@@ -95,6 +101,37 @@ public class IdentityGrpcProvider extends IdentityServiceGrpc.IdentityServiceImp
     try {
       authorizer.requireConsoleOrOpenApi();
       responseObserver.onNext(IdentityMapper.toProto(jwtIssuer.verificationKeys()));
+      responseObserver.onCompleted();
+    } catch (RuntimeException e) {
+      responseObserver.onError(AccessErrorMapper.toStatusRuntimeException(e));
+    }
+  }
+
+  @Override
+  public void getUserProfile(
+      GetUserProfileRequest request, StreamObserver<UserProfile> responseObserver) {
+    try {
+      authorizer.requireConsole();
+      var result = identityService.getProfile(DecimalId.parse(request.getUserId(), "user_id"));
+      responseObserver.onNext(IdentityMapper.toProto(result));
+      responseObserver.onCompleted();
+    } catch (RuntimeException e) {
+      responseObserver.onError(AccessErrorMapper.toStatusRuntimeException(e));
+    }
+  }
+
+  @Override
+  public void listUserTenants(
+      ListUserTenantsRequest request, StreamObserver<ListUserTenantsResponse> responseObserver) {
+    try {
+      authorizer.requireConsole();
+      var page =
+          identityService.listUserTenantsPage(
+              DecimalId.parse(request.getUserId(), "user_id"),
+              request.getPageSize(),
+              request.getPageToken().isEmpty() ? null : request.getPageToken());
+      responseObserver.onNext(
+          IdentityMapper.toProtoUserTenants(page.items(), page.nextPageToken()));
       responseObserver.onCompleted();
     } catch (RuntimeException e) {
       responseObserver.onError(AccessErrorMapper.toStatusRuntimeException(e));

@@ -2,6 +2,7 @@ package ai.cerbur.crag.access.grpc.error;
 
 import ai.cerbur.crag.access.core.apikey.ApiKeyStateException;
 import ai.cerbur.crag.access.core.apikey.ScopeBlockedException;
+import ai.cerbur.crag.access.core.apikey.ScopeStateException;
 import ai.cerbur.crag.access.core.identity.InvalidCredentialsException;
 import ai.cerbur.crag.access.core.identity.UsernameConflictException;
 import ai.cerbur.crag.access.core.membership.LastOwnerException;
@@ -41,6 +42,7 @@ public final class AccessErrorMapper {
     }
     if (e instanceof LastOwnerException
         || e instanceof ScopeBlockedException
+        || e instanceof ScopeStateException
         || e instanceof MembershipStateException
         || e instanceof ApiKeyStateException) {
       return Status.FAILED_PRECONDITION.withDescription(safe(e)).asRuntimeException();

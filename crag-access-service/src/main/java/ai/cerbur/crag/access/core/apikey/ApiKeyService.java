@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,56 @@ public class ApiKeyService {
     requirePermission(actorUserId, tenantId, TenantAction.CREATE_KNOWLEDGE_BASE);
     ApiKeyScopeEntity scope = ApiKeyScopeEntity.create(knowledgeBaseId, tenantId);
     return ApiKeyScopeResult.from(scopeDao.insert(scope));
+  }
+
+  /**
+   * 幂等确保 KnowledgeBase 在指定 Tenant 下存在 Scope（plan_21/21.2）。
+   *
+   * <p>语义：
+   *
+   * <ul>
+   *   <li>Scope 不存在 → 校验调用方 {@code CREATE_KNOWLEDGE_BASE} 权限后创建 ACTIVE Scope；
+   *   <li>Scope 存在且同 Tenant → 直接返回现有投影，不递增版本，不复活任何状态；
+   *   <li>Scope 存在但不同 Tenant → 抛 {@link ScopeStateException}，保护租户隔离边界；
+   *   <li>Scope 已 BLOCKED → 返回 BLOCKED 投影，终态不被任何补偿复活。
+   * </ul>
+   *
+   * <p>本方法是 Console 建库部分成功兜底与 {@code KNOWLEDGE_BASE_CREATED} 事件消费的统一恢复入口；调用方 actorUserId 为 0
+   * 时跳过实时权限校验（事件驱动场景），KnowledgeBase 归属由 Knowledge 决定。
+   */
+  @Transactional
+  public ApiKeyScopeResult ensureScope(long actorUserId, long tenantId, long knowledgeBaseId) {
+    // 人为调用（Console 兜底）须实时具备 CREATE_KNOWLEDGE_BASE；事件驱动场景 actorUserId=0 时跳过权限校验，
+    // KnowledgeBase 归属由 Knowledge 决定，Access 只补齐授权投影。
+    if (actorUserId != 0L) {
+      requirePermission(actorUserId, tenantId, TenantAction.CREATE_KNOWLEDGE_BASE);
+    }
+    return scopeDao
+        .findByKnowledgeBase(knowledgeBaseId)
+        .map(
+            existing -> {
+              if (existing.getTenantId() != tenantId) {
+                throw new ScopeStateException("knowledge base scope belongs to a different tenant");
+              }
+              return ApiKeyScopeResult.from(existing);
+            })
+        .orElseGet(
+            () -> {
+              ApiKeyScopeEntity scope = ApiKeyScopeEntity.create(knowledgeBaseId, tenantId);
+              return ApiKeyScopeResult.from(scopeDao.insert(scope));
+            });
+  }
+
+  /** 查询单条 Scope 投影（plan_21/21.2）。调用方须有 {@code MANAGE_API_KEY}；跨 Tenant 不泄漏存在性。 */
+  @Transactional(readOnly = true)
+  public ApiKeyScopeResult getScope(long actorUserId, long tenantId, long knowledgeBaseId) {
+    requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
+    ApiKeyScopeEntity scope =
+        scopeDao
+            .findByKnowledgeBase(knowledgeBaseId)
+            .filter(s -> s.getTenantId() == tenantId)
+            .orElseThrow(ScopeBlockedException::new);
+    return ApiKeyScopeResult.from(scope);
   }
 
   /** 终态阻塞 Scope，同事务禁用其全部有效 Key。 */
@@ -186,7 +237,49 @@ public class ApiKeyService {
         key.getApiKeyId(),
         key.getTenantId(),
         key.getKnowledgeBaseId(),
-        key.getExpiresAt().toInstant(ZoneOffset.UTC));
+        key.getExpiresAt().toInstant(ZoneOffset.UTC),
+        key.getVersion(),
+        scope.getVersion());
+  }
+
+  /** 查询单条 Key 投影（plan_21/21.2）。调用方须有 {@code MANAGE_API_KEY}；跨 Tenant 不泄漏存在性。 */
+  @Transactional(readOnly = true)
+  public ApiKeyResult get(long actorUserId, long tenantId, long apiKeyId) {
+    requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
+    return ApiKeyResult.from(requireKey(tenantId, apiKeyId));
+  }
+
+  /**
+   * 按 KnowledgeBase 分页列出 Key 投影（plan_21/21.2）。调用方须有 {@code MANAGE_API_KEY}；游标分页稳定， pageToken
+   * 为上一页最后一条 apiKeyId 的十进制字符串，为空表示从头开始。
+   */
+  @Transactional(readOnly = true)
+  public ApiKeyListPage list(
+      long actorUserId, long tenantId, long knowledgeBaseId, int pageSize, String pageToken) {
+    requirePermission(actorUserId, tenantId, TenantAction.MANAGE_API_KEY);
+    int limit = pageSize <= 0 ? 20 : Math.min(pageSize, 100);
+    long after = parsePageToken(pageToken);
+    // 多读一行用于判断是否还有下一页；按 tenantId 收敛后截取 limit。
+    List<ApiKeyEntity> rows = apiKeyDao.findByKnowledgeBasePaged(knowledgeBaseId, after);
+    List<ApiKeyResult> tenantRows =
+        rows.stream().filter(k -> k.getTenantId() == tenantId).map(ApiKeyResult::from).toList();
+    boolean hasMore = tenantRows.size() > limit;
+    List<ApiKeyResult> items = tenantRows.stream().limit(limit).toList();
+    String nextToken = hasMore ? Long.toString(items.get(items.size() - 1).apiKeyId()) : null;
+    return new ApiKeyListPage(items, nextToken);
+  }
+
+  /** 解析分页游标；非法值统一视为从头开始，不向调用方泄漏格式错误。 */
+  private static long parsePageToken(String pageToken) {
+    if (pageToken == null || pageToken.isBlank()) {
+      return 0L;
+    }
+    try {
+      long parsed = Long.parseLong(pageToken.trim());
+      return parsed < 0 ? 0L : parsed;
+    } catch (NumberFormatException e) {
+      return 0L;
+    }
   }
 
   /** 生成唯一前缀并写入新 ACTIVE Key。前缀冲突最多重试 3 次。 */
