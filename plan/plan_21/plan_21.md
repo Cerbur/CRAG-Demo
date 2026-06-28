@@ -165,10 +165,10 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.9 | 完成 Console API Key 管理 API | ⏳ 待验收 | 2233c716 | — |
 | 21.10 | 完成 Open API Key 缓存、失效消费与 Query | ⏳ 待验收 | 2308e2ad | — |
 | 21.11 | 收敛单服务 Smoke 与 Docker 正式拓扑 | ⏳ 待验收 | b4a88c8 | — |
-| 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待开始 | — | — |
+| 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待验收 | 37be75d | — |
 | 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待开始 | — | — |
 
-整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4、21.5、21.6、21.7、21.8、21.9、21.10、21.11 已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 21.1、21.2、21.3、21.4、21.5、21.6、21.7、21.8、21.9、21.10、21.11、21.12 已实现并待验收（计入分母，不计入完成数）
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -526,12 +526,12 @@ docs/README.md
 
 **Implementation steps**：
 
-- [ ] 写 validator 单测 fixture，覆盖 YAML 解析、OpenAPI=3.1、operationId 重复、坏 `$ref`、示例不匹配和路由清单漂移。
-- [ ] 从已实现 Controller/DTO 逐 operation 写两份 YAML，不从设计猜测状态码；ID/时间/错误 Schema 复用 components。
-- [ ] 写中文指南：登录态、Cookie、Tenant、分页、上传/轮询/retry、部分成功、一次性 Key、Query、错误处理。
-- [ ] 为每个切片加入相对源码链接，并新增 docs 索引与根 README 入口。
-- [ ] 运行 OpenAPI validator 和链接检查，预期 0 error。
-- [ ] 提交：`docs(plan_21/21.12): publish frontend api handoff`。
+- [x] 写 validator 单测 fixture，覆盖 YAML 解析、OpenAPI=3.1、operationId 重复、坏 `$ref`、示例不匹配和路由清单漂移。
+- [x] 从已实现 Controller/DTO 逐 operation 写两份 YAML，不从设计猜测状态码；ID/时间/错误 Schema 复用 components。
+- [x] 写中文指南：登录态、Cookie、Tenant、分页、上传/轮询/retry、部分成功、一次性 Key、Query、错误处理。
+- [x] 为每个切片加入相对源码链接，并新增 docs 索引与根 README 入口。
+- [x] 运行 OpenAPI validator 和链接检查，预期 0 error。
+- [x] 提交：`docs(plan_21/21.12): publish frontend api handoff`。
 
 ## 21.13 完成全链路回归、约束同步与验收交接
 
@@ -623,6 +623,15 @@ router4_smoke_profile_test.sh
 未执行项与原因：真实容器 HTTP 回归（default-disabled 404 与 smoke-enabled 原端口 200/业务成功）需要完整 Docker Compose 运行环境（`docker compose up -d --build` + 真实 PostgreSQL/Redis/Sidecar/Java 镜像），本执行 session 的 macOS 环境未安装 `docker compose` 子命令（仅有 Docker CLI，`docker compose`/`docker-compose` 均不可用），无法在本任务范围内运行真实容器回归；该回归属于 21.13 全链路验收的 router4_smoke_profile_test.sh 范围，本任务以约束 validator 静态校验 + Compose 顶层 services 静态解析 + 全部脚本 bash 语法检查覆盖配置正确性，不表述为真实容器行为已验证。docker/java-service.Dockerfile 未修改（21.1 已统一通用 Dockerfile），RAG/Access/Knowledge 的 application-smoke.yml 保持不变（继续作为 `smoke` Profile 的测试 RSA Key/Pepper 与事件闭环配置来源，由 `SPRING_PROFILES_ACTIVE=${CRAG_SERVICE_PROFILES:-}` 在原服务激活）。RSA 演示密钥从旧 access-service-smoke 段迁移至 access-service 段，但与既有 docker-compose.yml 中 access-service 已有的密钥字节一致（md5 校验），无新增秘密。 |
 
 | 2026-06-29 | 21.11 待开始 → 进行中 → 待验收 | 完成实现提交（`b4a88c8`）并回填 hash | plan21 仍进行中；21.11 进入待验收，交独立验收 session；21.1–21.11 仍未完成、不递增完成数 |
+
+| 2026-06-29 | macOS（执行 session 自测，非独立验收） | `python3 scripts/validate_openapi.py` | 通过 | 21.12 OpenAPI validator 0 error：解析 console/open 两份 JSON-syntax YAML（JSON 是 YAML 1.2 超集，PyYAML 未安装故 validator 零依赖仅用 stdlib）、openapi=3.1.0 校验、25 个 operationId 跨两文档唯一（Console 24：register/login/refresh/logout/getCurrentUser/listTenants/listMembers/addMember/changeMemberRole/removeMember/listKnowledgeBases/createKnowledgeBase/getKnowledgeBase/listDocuments/uploadDocument/getDocument/retryIngestion/listApiKeys/createApiKey/getApiKey/disableApiKey/enableApiKey/rotateApiKey/revokeApiKey；Open 1：query）、所有 `$ref` 可解析、所有响应示例与 Schema 类型一致（含 nested 属性与 `defaultTenant: null`/`nickname: null` 的 nullable oneOf/type array）、`x-crag-implementation.controller-routes` 清单与真实 Controller 源码的 Spring `@*Mapping` 一一对应（7 个 Controller 全部存在、25 条路由全部命中）、docs/api/README.md 与 docs/README.md 相对链接全部可解析。 |
+| 2026-06-29 | macOS | `python3 -m unittest scripts.tests.test_validate_openapi` | 通过 | 8 个用例全绿：happy-path（真实文档通过）+ 7 项负向（非 3.1 版本、不可解析 JSON、operationId 重复、坏 `$ref`、示例与 Schema 不匹配、route-list 漂移、坏 Markdown 链接）。 |
+| 2026-06-29 | macOS | `python3 -m unittest scripts.tests.test_validate_plans scripts.tests.test_validate_module_dependencies scripts.tests.test_validate_framework_dependencies scripts.tests.test_validate_constraints scripts.tests.test_validate_openapi` | 通过 | 101 个 validator 单测全绿（93 既有 + 8 新增），无回归。 |
+| 2026-06-29 | macOS | `python3 scripts/validate_plans.py` | 通过 | plan_21 状态/进度/索引一致（0 error, 24 historical-v2 warning，均为历史 Plan 残留）。 |
+| 2026-06-29 | macOS | 变更文件秘密扫描（`sk-`/`AKIA`/完整 PEM 私钥模式）+ `completeKey`/真实 Token 泄漏扫描 | 通过 | 8 个 21.12 变更文件无完整 Token、API Key、私钥命中；`completeKey` 示例只使用 `<PLACEHOLDER_COMPLETE_KEY>`/`<PLACEHOLDER_NEW_COMPLETE_KEY>`，Refresh Cookie 示例使用 `<PLACEHOLDER_REFRESH_TOKEN>`，密码示例使用 `<PLACEHOLDER_PASSWORD>`，Access JWT 示例使用 `<PLACEHOLDER_ACCESS_JWT>`。 |
+未执行项与原因：无 Docker/真实运行时验证可执行项（21.12 是文档与契约校验任务，无 Java 代码变更、无运行时行为变更）；Gradle `validateOpenApi` task 已接线进 `check`，但根 `./gradlew check` 全量执行依赖 Docker 镜像构建与 21.13 全链路范围，本任务以 `python3 scripts/validate_openapi.py` + 8 项 validator 单测 + 全部 validator 测试套件覆盖文档契约正确性，不表述为 Gradle 全量 check 已运行。openapi-generator-cli 真实生成 TypeScript 客户端未在本 session 执行（本机未安装 openapi-generator-cli，且 plan 明确不创建前端项目或生成提交客户端代码，属非目标）；OpenAPI 文档为标准 3.1 语法（JSON-superset YAML），任何标准 OpenAPI 3.1 工具均可消费，由 validator 的解析/示例/$ref/operationId 校验保证可消费性。Membership list `nickname=null` 的 proto 缺口如实记录在 docs/api/README.md §4.1，待后续 contracts 增补后由独立验收判定是否补齐。 |
+
+| 2026-06-29 | 21.12 待开始 → 进行中 → 待验收 | 完成实现提交（`37be75d`）并回填 hash | plan21 仍进行中；21.12 进入待验收，交独立验收 session；21.1–21.12 仍未完成、不递增完成数 |
 
 ## 阻塞记录
 
