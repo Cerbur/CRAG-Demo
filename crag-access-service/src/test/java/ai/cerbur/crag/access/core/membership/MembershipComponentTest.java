@@ -50,6 +50,22 @@ class MembershipComponentTest {
   }
 
   @Test
+  @DisplayName("非成员 authorize 抛 MembershipNotFoundException（跨租户/不存在统一 NOT_FOUND 不泄漏）")
+  void authorizeNonMemberThrowsNotFound() {
+    RegisteredIdentity ownerA = register("ownerAuthCrossA", "ownerauthcrossa");
+    RegisteredIdentity ownerB = register("ownerAuthCrossB", "ownerauthcrossb");
+    // ownerA 不是 ownerB 租户的有效成员：authorize 必须抛 MembershipNotFoundException，
+    // 经 AccessErrorMapper 映射为 gRPC NOT_FOUND → Console 统一 404（不泄漏租户/资源存在性）；
+    // 返回 deny 决策会映射成 PERMISSION_DENIED → 403，泄漏存在性（21.8 跨租户缺陷根因）。
+    assertThrows(
+        MembershipNotFoundException.class,
+        () ->
+            membershipService.authorize(
+                new AuthorizationRequest(
+                    ownerA.userId(), ownerB.tenantId(), TenantAction.VIEW_KNOWLEDGE_BASE, null)));
+  }
+
+  @Test
   @DisplayName("按 Username 添加已注册用户为 MEMBER")
   void addByUsernameCreatesMember() {
     RegisteredIdentity owner = register("ownerB", "ownerb");

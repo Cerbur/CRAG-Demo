@@ -32,7 +32,13 @@ public class MembershipService {
   @Autowired private PlatformUserDao userDao;
   @Autowired private CragIdGenerator idGenerator;
 
-  /** 实时权限判断。调用方无有效成员关系或权限不足均返回拒绝决策。 */
+  /**
+   * 实时权限判断。
+   *
+   * <p>调用方不是该 Tenant 的有效成员时抛 {@link MembershipNotFoundException}（经 {@code AccessErrorMapper} 映射为
+   * gRPC {@code NOT_FOUND}，调用方统一 404，不泄漏租户/资源存在性）。调用方是有效成员但缺少具体动作权限时返回 {@code deny} 决策（映射为 {@code
+   * PERMISSION_DENIED} → 403）。非成员语义与 {@link #requireMember} 一致。
+   */
   @Transactional(readOnly = true)
   public AuthorizationDecision authorize(AuthorizationRequest request) {
     return membershipDao
@@ -46,7 +52,7 @@ public class MembershipService {
               return TenantPermissionPolicy.decide(
                   MembershipRole.fromEntity(m.getRole()), request.action(), ownsResource);
             })
-        .orElseGet(() -> AuthorizationDecision.deny(request.action()));
+        .orElseThrow(MembershipNotFoundException::new);
   }
 
   /** OWNER 按规范化 Username 添加已注册用户；REMOVED 行复用为 MEMBER。 */

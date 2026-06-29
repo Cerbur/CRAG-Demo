@@ -185,7 +185,7 @@ class KnowledgeBaseOrchestratorTest {
   }
 
   @Test
-  @DisplayName("list 非成员 → ForbiddenException")
+  @DisplayName("list Authorize 拒绝决策 → ForbiddenException（成员缺权限 → 403）")
   void listForbidden() {
     membershipFake.authorizeAllowed = false;
 
@@ -226,6 +226,21 @@ class KnowledgeBaseOrchestratorTest {
 
     assertThatThrownBy(() -> orchestrator.get(123L, 1L, 999L))
         .isInstanceOf(NotFoundException.class);
+  }
+
+  @Test
+  @DisplayName("跨租户非成员 Authorize NOT_FOUND → NotFoundException（404，不泄漏；21.8 跨租户缺陷回归）")
+  void crossTenantNonMemberAuthorizeMapsToNotFound() {
+    // 真实 Access 在 21.8 修复后：actor 非该 Tenant 有效成员时 authorizeTenantAction 返回 gRPC NOT_FOUND
+    // （MembershipNotFoundException → AccessErrorMapper），而非 deny 决策。Console 须统一映射为 404，
+    // 不泄漏租户/资源存在性。list/get/upload（经 kbOrchestrator.get）共用此 authorize 路径。
+    membershipFake.authorizeStatus = Status.NOT_FOUND;
+
+    assertThatThrownBy(() -> orchestrator.list(123L, 99L, 20, ""))
+        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> orchestrator.get(123L, 99L, 100L))
+        .isInstanceOf(NotFoundException.class);
+    assertThat(kbFake.listCalled).isEqualTo(0);
   }
 
   // ---- helpers / fakes ----
