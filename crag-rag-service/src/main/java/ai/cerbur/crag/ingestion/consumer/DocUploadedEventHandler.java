@@ -14,7 +14,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -39,7 +38,6 @@ import tools.jackson.databind.ObjectMapper;
  * 回归证明（plan_19.7）.
  */
 @Component
-@Profile("smoke")
 public class DocUploadedEventHandler implements EventHandler {
 
   private static final Logger log = LoggerFactory.getLogger(DocUploadedEventHandler.class);
@@ -60,9 +58,9 @@ public class DocUploadedEventHandler implements EventHandler {
       IngestionOrchestrator ingestionOrchestrator,
       IngestionHeadService ingestionHeadService,
       StaleIndexCleaner staleIndexCleaner,
-      @Value("${crag.event.stream-key:crag:event:knowledge}") String streamKey,
-      @Value("${crag.event.group-name:rag-ingestion}") String groupName,
-      @Value("${crag.event.consumer.consumer-name:rag-ingestion-1}") String consumerName) {
+      @Value("${crag.event.knowledge-stream-key:crag:event:knowledge}") String streamKey,
+      @Value("${crag.event.rag-ingestion-group:rag-ingestion}") String groupName,
+      @Value("${crag.event.rag-ingestion-consumer:rag-ingestion-1}") String consumerName) {
     this.objectMapper = objectMapper;
     this.ingestionJobService = ingestionJobService;
     this.ingestionOrchestrator = ingestionOrchestrator;

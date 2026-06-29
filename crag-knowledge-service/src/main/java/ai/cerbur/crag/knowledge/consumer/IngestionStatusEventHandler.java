@@ -10,7 +10,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -41,10 +40,10 @@ import tools.jackson.databind.ObjectMapper;
  * {@link IngestionStatusPayload#FAILURE_MESSAGE_COLUMN_MAX}，列长度由 schema 限定。
  *
  * <p>真实 Redis Streams 的 Pending reclaim / DLQ 与 processed_event 幂等门由 crag-event 的
- * RedisStreamEventConsumer 在 启用 consumer 的环境执行；本 handler 只在 smoke Profile 注册，避免轻量上下文意外启动消费调度。
+ * RedisStreamEventConsumer 在 启用 consumer 的环境执行。本 handler 在所有 Profile 注册；消费调度由 {@code
+ * crag.event.consumer.enabled}（默认 false，生产 Compose 启用）驱动，轻量上下文不启动消费。
  */
 @Component
-@Profile("smoke")
 public class IngestionStatusEventHandler implements EventHandler {
 
   private static final Logger log = LoggerFactory.getLogger(IngestionStatusEventHandler.class);
