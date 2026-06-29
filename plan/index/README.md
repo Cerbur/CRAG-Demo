@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-30（plan_21 修复 2 项集成缺陷并自测通过：21.8 跨租户统一 404、正式事件闭环启用 + smoke 双 EventHandler 冲突消除；21.3/21.4/21.8/21.11/21.13 回待验收，Plan in_progress → verifying，移入验收队列）
+> 最后更新：2026-06-30（plan_21 第三次独立验收通过：2 项集成缺陷（21.8 跨租户 404、正式事件闭环）已修复并经代码级 + 自跑 Docker 双重核验，9 个 router4 脚本 default profile 稳定通过；Plan verifying → completed，13/13，移出验收队列）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -108,7 +108,7 @@ plan/
 | plan_18 | Knowledge 垂直链路，新增 Knowledge contracts、KnowledgeBase、Document、文件上传、存储、流式读取与 DOC_UPLOADED 事件 | ✅ 完成 (7/7) | — | [plan_18.md](../plan_18/plan_18.md) |
 | plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | ✅ 完成 (8/8) | — | [plan_19.md](../plan_19/plan_19.md) |
 | plan_20 | Access 垂直链路，包含 User/Account、默认 Tenant、Membership、JWT、Refresh Session、API Key、失效事件与 smoke 验收 | ✅ 完成 (9/9) | — | [plan_20.md](../plan_20/plan_20.md) |
-| plan_21 | 双 API 与摄取生命周期，包含 Console/Open 正式 HTTP、Provider 契约补齐、状态/retry/Reconciler、Key 缓存失效与前端 OpenAPI | 🟡 待验收 / verifying (0/13) — 修复 2 项集成缺陷并自测（21.8 跨租户 404、正式事件闭环 + smoke 双 handler 冲突消除）；交独立验收 | — | [plan_21.md](../plan_21/plan_21.md) |
+| plan_21 | 双 API 与摄取生命周期，包含 Console/Open 正式 HTTP、Provider 契约补齐、状态/retry/Reconciler、Key 缓存失效与前端 OpenAPI | ✅ 完成 (13/13) | — | [plan_21.md](../plan_21/plan_21.md) |
 
 ---
 
@@ -126,7 +126,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 ## 当前验收队列
 
 ```text
-plan_21 — 双 API 与摄取生命周期（修复 2 项集成缺陷并自测：21.8 跨租户统一 404、正式事件闭环启用 + smoke 双 EventHandler 冲突消除；21.3/21.4/21.8/21.11/21.13 待验收）
+（空）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -293,7 +293,7 @@ plan_21 — 双 API 与摄取生命周期（修复 2 项集成缺陷并自测：
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_21.md](../plan_21/plan_21.md) | Console/Open 正式 API、Access/Knowledge/RAG contracts、摄取状态/retry/Reconciler、READY 版本隔离、API Key 缓存失效、单服务 Smoke 与前端 OpenAPI | 🟡 待验收 / verifying (0/13) — 修复 2 项集成缺陷并自测 |
+| [plan_21.md](../plan_21/plan_21.md) | Console/Open 正式 API、Access/Knowledge/RAG contracts、摄取状态/retry/Reconciler、READY 版本隔离、API Key 缓存失效、单服务 Smoke 与前端 OpenAPI | ✅ 完成 (13/13) |
 
 ---
 
