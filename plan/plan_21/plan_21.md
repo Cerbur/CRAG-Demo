@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_21
 type: main
-status: in_progress
+status: verifying
 created: 2026-06-28
 updated: 2026-06-29
 ---
@@ -158,17 +158,17 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待验收 | 87906344 | — |
 | 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待验收 | 260aed59 | — |
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待验收 | c58be6e0 | — |
-| 21.5 | 完成摄取 retry、超时终态与 Reconciler | 🔄 进行中 | 907c1599 | — |
-| 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待验收 | 013ac49a | — |
-| 21.7 | 完成 Console Tenant 与 Membership API | 🔄 进行中 | 1b089d9c | — |
+| 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待验收 | 907c1599, 345e9a36 | — |
+| 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待验收 | 013ac49a, d5bbef9b | — |
+| 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待验收 | 1b089d9c, 0dc6336c | — |
 | 21.8 | 完成 Console KnowledgeBase 与 Document API | ⏳ 待验收 | 2bc8524d | — |
 | 21.9 | 完成 Console API Key 管理 API | ⏳ 待验收 | 2233c716 | — |
 | 21.10 | 完成 Open API Key 缓存、失效消费与 Query | ⏳ 待验收 | 2308e2ad | — |
-| 21.11 | 收敛单服务 Smoke 与 Docker 正式拓扑 | ⏳ 待验收 | b4a88c8 | — |
+| 21.11 | 收敛单服务 Smoke 与 Docker 正式拓扑 | ⏳ 待验收 | b4a88c8, 8077bd65 | — |
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待验收 | 37be75d | — |
-| 21.13 | 完成全链路回归、约束同步与验收交接 | 🔄 进行中 | f4e18264 | — |
+| 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待验收 | f4e18264, 2300613a | — |
 
-整体进度：0 / 13（0%）— 独立验收失败（2026-06-29）：21.5/21.7/21.13 退回进行中待修复缺陷，21.1/21.2/21.3/21.4/21.6/21.8/21.9/21.10/21.11/21.12 保持待验收；修复后须在 Docker 环境补 router4 全链路回归再重新验收
+整体进度：0 / 13（0%）— 原验收 4 项缺陷已修复（21.5 retryIngestion 接线、21.7 membership nickname、21.13 脚本断言），21.13 Docker 全链路回归首次真实运行并额外修复 21.6 JWT 单位与 21.11 console-api Compose 接线（首次运行才暴露）；全部 13 任务待验收，Plan 转 verifying 交独立验收。**重要：Docker 全链路回归仍发现 2 项超出原 4 项的 plan_21 集成缺陷（见「独立验收交接（2026-06-29 修复后）」），阻塞部分 router4 脚本，需验收 session 判定**
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -672,6 +672,55 @@ router4_smoke_profile_test.sh
 - 补缺陷 4：在具备 `docker compose` 的环境按 21.13 顺序运行 9 个 `router4_*.sh`，保留首次失败证据，禁止无修改重跑当通过。
 - 修复后重新提交实现 hash、回填、转 `verifying`，再由未参与实现的新 agent session 独立验收。
 
+## 独立验收交接（2026-06-29，修复 4 项验收缺陷后）
+
+执行 session 已按 goal 修复原验收判失败的 4 项缺陷，并首次在具备 docker compose 的环境真实运行 router4 全链路回归。**原 4 项缺陷均已修复且经自测验证**；但 Docker 全链路首次真实运行额外暴露了**超出原 4 项的 plan_21 集成缺陷**（此前 Docker 从未运行，未暴露），阻塞部分 router4 脚本。如实记录，交未参与实现的新 agent session 独立验收判定。
+
+### 已修复的原 4 项验收缺陷
+
+1. **21.5 retryIngestion 接线**（`345e9a36`）：`DocumentGrpcProvider` 重写 `retryIngestion`，委托 `IngestionRetryService` 并经 `GrpcErrorMapper`（新增 `RetryNotAllowedException`→FAILED_PRECONDITION、`VersionConflictException`→ALREADY_EXISTS 映射）；新增 `DocumentRetryGrpcProviderTest`（真实 provider 组件测试，非 Fake）覆盖可重试 FAILED→新版本 PENDING/attempt+1、非 FAILED→FAILED_PRECONDITION。
+2. **21.7 membership nickname**（`0dc6336c`）：`Membership` proto 追加 `nickname` 字段 9；`MembershipService.list` 用 `PlatformUserDao.findByIdIn` 批量补齐（非 N+1）；Console `AccessMembershipClient.listMembers` 读取 proto 字段；docs/api 同步。组件/契约/客户端测试全绿。
+3. **21.13 脚本断言**（`2300613a`）：3 个脚本的核心结果 WARN 分支改为明确断言 + 非零退出（受界轮询得确定性结论）。
+
+### 21.13 Docker 全链路首次真实运行（具备 docker compose 环境）
+
+`docker compose up -d --build`（5 Java + db + redis + sidecar + model-init，确定性 LLM Stub 默认启用）。9 个 router4 脚本按序运行，**首次失败证据保留，禁止无修改重跑当通过**：
+
+| 脚本 | 结果 | 说明 |
+| --- | --- | --- |
+| router4_smoke_profile_test.sh (default) | ✅ PASS | 无 *-smoke 容器、smoke 入口 404、固定端口 |
+| router4_auth_test.sh | ✅ PASS（修复后） | register/login/refresh/logout/me 全绿 |
+| router4_membership_test.sh | ✅ PASS（修复后） | list nickname 非空（21.7）、add/change/remove/越权 403 全绿 |
+| router4_scope_recovery_test.sh | ⚠️ 核心通过、1 项失败 | create 201 + apiKeyReady 经 KB_CREATED consumer 补偿为 true（**核心链路通过**）；跨租户 get KB 应 404 实际 403（见新缺陷 ①） |
+| router4_upload_query_test.sh | ❌ FAIL（修复上传后仍失败） | 上传已修复为 202（见 21.11 修复），但 ingestion 未达 READY（见新缺陷 ②） |
+| router4_ingestion_retry_test.sh | ❌ BLOCKED | 上传后 doc 停留 PENDING，无法触发 retry 终态分支（新缺陷 ②）；21.5 retry 接线已由组件测试证明 |
+| router4_ingestion_reconcile_test.sh | ❌ BLOCKED | 同 ②（依赖 ingestion 达终态） |
+| router4_api_key_invalidation_test.sh | ✅ PASS | disable→401、revoke、rotate→旧 Key 401 全绿（Open 缓存失效链路通过） |
+| router4_multi_tenant_isolation_test.sh | ⚠️ 核心通过、1 项失败 | 双 Tenant/KB 隔离、id 不重叠（**核心通过**）；A get B KB 应 404 实际 403（新缺陷 ①） |
+
+### 首次真实运行才暴露、已修复的额外缺陷（plan_21 范围）
+
+- **21.6 JWT iat/nbf/exp 单位**（`d5bbef9b`）：签发器用 epoch millis，验签器按 RFC 7519 用 seconds，导致 nbf(millis)>now(seconds) 恒真 → Access JWT 全被判「not yet valid」→ /me 401。改签发器为 epoch seconds。此前签发器/验签器各自单测一致，跨服务真实链路才暴露。
+- **21.11 console-api Compose 接线**（`8077bd65`）：缺 `allowed-origins`（OriginGuard 空白名单拒绝 refresh/logout）、`cookie.secure=false`（HTTP 下 Secure Cookie 不回传）、`jwt.issuer/audience`（aud 不匹配 401）、`max-deadline-millis` 上限（DeadlineGuardClientInterceptor 拒绝上传 60000ms deadline，client-streaming 表现 `IllegalStateException: Not started`）。
+- **21.13 脚本可运行性**（`2300613a`）：9 脚本 RUN_ID 冗余前缀使 username 超 32 字符；membership/multi_tenant `read` 仅读首行；5 脚本 `defaultTenant` 双 python 提取失败；membership nickname 断言增强；upload_query `$VAR` 后多字节触发 set -u。
+
+### 保留证据、未修复的新缺陷（超出原 4 项，需验收判定 / 后续 plan）
+
+**① 21.8 跨租户 KB get 返回 403（应为 404）**：`KnowledgeBaseOrchestrator.authorize` 在 deny 时抛 `ForbiddenException`（403），但其 Javadoc 与 21.8 验收标准写「跨租户/不存在统一 NOT_FOUND」。影响 scope_recovery step-4、multi_tenant。属 21.8 服务行为（每 action 的 deny→403/404 语义需设计判定），执行 session 未越界修改。
+
+**② plan_21 事件闭环未在正式链路启用（ingestion 无法达 READY）**：`application-smoke.yml` 注释明确「default application.yml leaves publisher/consumer disabled」，默认 profile 下 RAG 不消费 DOC_UPLOADED → doc 永久 PENDING；而启用 `smoke` profile 又触发 `NoUniqueBeanDefinitionException: ... found 2 EventHandler: ingestionStatusEventHandler, knowledgeSmokeEventHandler`（crag-event `EventAutoConfiguration` 每消费者仅支持单 `EventHandler`，Knowledge 正式 consumer 与 legacy smoke consumer 在 smoke profile 共存冲突；crag-event 不在 plan_21 文件边界）。影响 upload_query/ingestion_retry/ingestion_reconcile。属 plan_21/21.11 收敛与 crag-event 架构层面缺陷，需设计性修复（正式 consumer 默认启用 + 解 smoke handler 冲突）。
+
+### 执行 session 自测验证（非独立验收）
+
+- `./gradlew spotlessCheck test check`：BUILD SUCCESSFUL（含新增/更新测试，0 failures；crag-console-api `DownstreamConnectivityHealthIndicatorTest` 偶发 Mockito `UnnecessaryStubbingException` 已知 flaky，单独重跑通过，非本次改动引入）。
+- 5 个 Python validator：plans/module-deps/framework-deps/constraints/openapi 均 0 error（plans 24 historical-v2 warning 为历史残留）。
+- `bash -n scripts/tests/http/router4_*.sh`：9 脚本语法全绿。
+- Docker 全链路：见上表（首次真实运行证据）。
+
+### 交独立验收
+
+全部 13 任务保持待验收，Plan 转 `verifying`。**请未参与本次实现的新 agent session 独立验收**：核验原 4 项缺陷是否修复（21.5/21.7/21.13 + 自测），并判定 2 项新发现的 plan_21 集成缺陷（① 跨租户 403、② 事件闭环）是否阻塞本次验收或归因后续 plan/hotfix。Docker compose 环境已具备（`docker compose version` v5.1.4），栈当前以 default profile 运行（9 容器健康）。
+
 ## 阻塞记录
 
 无。发生阻塞时记录原因、当前进度、解除条件、解除方、恢复步骤与日期。
@@ -696,3 +745,4 @@ router4_smoke_profile_test.sh
 | 2026-06-29 | 21.9 待开始 → 进行中 → 待验收 | 完成实现提交（`2233c716`）并回填 hash | plan21 仍进行中；21.9 进入待验收，交独立验收 session；21.1–21.9 仍未完成、不递增完成数 |
 | 2026-06-29 | 21.13 待开始 → 进行中 → 待验收；Plan in_progress → verifying | 完成实现提交（`f4e18264`）并回填 hash；全 13 任务待验收，交独立验收 | plan21 进入 verifying，移入验收队列；交未参与实现的新 agent session 独立验收 |
 | 2026-06-29 | 21.5/21.7/21.13 待验收 → 进行中；Plan verifying → in_progress | 独立验收失败：21.5 `retryIngestion` 未接线、21.7 membership list `nickname` 缺口、21.13 三份 router4 脚本 WARN 不断言 + router4 全链路 Docker 回归从未运行 | plan21 退出验收队列、回到执行队列队首；交新执行 session 修复缺陷并在 Docker 环境补全链路证据后重新验收；其余任务保持待验收 |
+| 2026-06-29 | 21.5/21.7/21.13 进行中 → 待验收（追加 `345e9a36`/`0dc6336c`/`2300613a`）；21.6 追加 `d5bbef9b`、21.11 追加 `8077bd65`；Plan in_progress → verifying | 修复原 4 项验收缺陷并首次真实运行 Docker 全链路：额外修复 21.6 JWT 单位、21.11 console-api Compose 接线、21.13 脚本可运行性（首次运行才暴露） | plan21 进入 verifying、移入验收队列；4 项原缺陷已修复自测通过；Docker 全链路 4 脚本全绿、2 脚本核心通过，但发现 2 项超出原 4 项的 plan_21 集成缺陷（① 21.8 跨租户 403、② 事件闭环默认未启用 + smoke profile EventHandler 冲突）阻塞部分脚本，如实保留证据交独立验收判定 |
