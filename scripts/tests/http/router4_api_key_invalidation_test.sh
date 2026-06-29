@@ -9,14 +9,14 @@
 #   - rotate 后旧 Key 失效、新 Key 可用
 #
 # 依赖：Compose 中 access-service 失效 Outbox + Redis Streams + open-api Ephemeral consumer。
-# 本机无 docker compose，验收 session 在 Docker 环境中执行。
+# 所有分支对核心结果做明确断言并以非零退出表达失败；最终一致场景用受界轮询得到确定性结论。
 
 set -euo pipefail
 
 CONSOLE_URL="${CONSOLE_API_URL:-http://localhost:8080}"
 OPEN_URL="${OPEN_API_URL:-http://localhost:8081}"
 ORIGIN="${CONSOLE_ORIGIN:-http://localhost:8080}"
-RUN_ID="r4inv-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 TIMEOUT=180
 EVICT_WAIT=45  # 等待缓存失效事件投递与 evict 的最大秒数
 
@@ -52,7 +52,7 @@ raw=$(curl -s -w '\n%{http_code}' -X POST "$CONSOLE_URL/api/v1/auth/register" \
 code=$(http_code "$raw"); body=$(http_body "$raw")
 [ "$code" = "200" ] || { echo "FAIL: register HTTP $code"; exit 1; }
 OWNER_TOKEN=$(json_result_field "$body" accessToken)
-OWNER_TENANT=$(json_result_field "$body" defaultTenant | python3 -c "import sys,json; print(json.load(sys.stdin).get('tenantId',''))" 2>/dev/null || echo "")
+OWNER_TENANT=$(echo "$body" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('defaultTenant',{}).get('tenantId',''))" 2>/dev/null || echo "")
 
 raw=$(curl -s -w '\n%{http_code}' -X POST "$CONSOLE_URL/api/v1/tenants/$OWNER_TENANT/knowledge-bases" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
@@ -114,10 +114,10 @@ for _ in $(seq 1 $((EVICT_WAIT / 2))); do
 done
 
 if [ "$DISABLED_EFFECTIVE" = "1" ]; then
-  echo "PASS: disable 后 Key 鉴权 401（失效消费生效）"
+  echo "PASS: disable 后 Key 鉴权 401（失效消费或 TTL 过期生效）"
 else
-  # 仍 200：可能是失效事件投递延迟或 TTL 未过；记录但不强制失败（验收 session 判定）
-  echo "WARN: disable 后 Key 仍可鉴权（status=$status）；失效事件可能未投递或 TTL 窗口内仍命中，验收 session 检查 Redis Streams + open-api consumer"
+  echo "FAIL: disable 后 Key 在 ${EVICT_WAIT}s 内仍可鉴权（status=$status）；失效事件未投递且 TTL 窗口未结束，检查 Redis Streams + open-api consumer 与缓存 TTL"
+  exit 1
 fi
 
 # --- revoke Key ---
@@ -129,7 +129,11 @@ code=$(http_code "$raw"); body=$(http_body "$raw")
 case "$code" in
   200) echo "PASS: revoke 200" ;;
   409) echo "PASS: revoke 409（DISABLED 不可直接 revoke，状态冲突符合契约）" ;;
-  *) echo "WARN: revoke HTTP $code（验收判定）"; echo "$body" ;;
+  *)
+    echo "FAIL: revoke HTTP $code（期望 200 或 409）"
+    echo "$body"
+    exit 1
+    ;;
 esac
 
 # --- rotate：新 Key 可用、旧 Key 失效 ---
@@ -163,7 +167,12 @@ for _ in $(seq 1 $((EVICT_WAIT / 2))); do
   [ "$status" = "401" ] && { ROT_OLD_INVALID=1; break; }
   sleep 2
 done
-[ "$ROT_OLD_INVALID" = "1" ] || echo "WARN: rotate 旧 Key 仍可鉴权（TTL 窗口或失效延迟，验收判定）"
+if [ "$ROT_OLD_INVALID" = "1" ]; then
+  echo "PASS: rotate 旧 Key 鉴权 401（Access 拒绝旧 secret）"
+else
+  echo "FAIL: rotate 旧 Key 在 ${EVICT_WAIT}s 内仍可鉴权；Access 未拒绝旧 secret 或缓存未清"
+  exit 1
+fi
 
 echo "PASS: router4 API Key Invalidation 全链路（含 TTL 容忍）"
 echo "=== router4 API Key Invalidation Test PASSED ==="

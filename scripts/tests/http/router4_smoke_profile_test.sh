@@ -20,7 +20,7 @@ ACCESS_URL="${ACCESS_SERVICE_URL:-http://localhost:8091}"
 KNOWLEDGE_URL="${KNOWLEDGE_SERVICE_URL:-http://localhost:8092}"
 RAG_URL="${RAG_SERVICE_URL:-http://localhost:8082}"
 TIMEOUT=120
-RUN_ID="r4smoke-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 
 echo "=== router4 Smoke Profile Test (run=$RUN_ID mode=$SMOKE_MODE) ==="
 

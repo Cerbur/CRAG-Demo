@@ -13,7 +13,7 @@ set -euo pipefail
 
 CONSOLE_URL="${CONSOLE_API_URL:-http://localhost:8080}"
 ORIGIN="${CONSOLE_ORIGIN:-http://localhost:8080}"
-RUN_ID="r4iso-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 TIMEOUT=180
 
 echo "=== router4 Multi-Tenant Isolation Test (run=$RUN_ID) ==="
@@ -60,8 +60,8 @@ create_kb() {
 }
 
 # 两个 OWNER
-read A_TOKEN A_TENANT <<< "$(register_owner "r4iso_a_${RUN_ID}")"
-read B_TOKEN B_TENANT <<< "$(register_owner "r4iso_b_${RUN_ID}")"
+{ read A_TOKEN; read A_TENANT; } <<< "$(register_owner "r4iso_a_${RUN_ID}")"
+{ read B_TOKEN; read B_TENANT; } <<< "$(register_owner "r4iso_b_${RUN_ID}")"
 [ -n "$A_TOKEN" ] && [ -n "$B_TOKEN" ] || { echo "FAIL: 注册失败"; exit 1; }
 [ "$A_TENANT" != "$B_TENANT" ] || { echo "FAIL: 两个 OWNER 落到同一 Tenant"; exit 1; }
 echo "PASS: 两个独立 Tenant A=$A_TENANT B=$B_TENANT"

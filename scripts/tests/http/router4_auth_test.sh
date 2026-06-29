@@ -17,7 +17,7 @@ set -euo pipefail
 
 CONSOLE_URL="${CONSOLE_API_URL:-http://localhost:8080}"
 ORIGIN="${CONSOLE_ORIGIN:-http://localhost:8080}"
-RUN_ID="r4auth-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 TIMEOUT=180
 USERNAME="r4auth_${RUN_ID}"
 NICKNAME="Router4 Auth $RUN_ID"

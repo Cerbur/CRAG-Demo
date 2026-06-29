@@ -17,7 +17,7 @@ set -euo pipefail
 CONSOLE_URL="${CONSOLE_API_URL:-http://localhost:8080}"
 OPEN_URL="${OPEN_API_URL:-http://localhost:8081}"
 ORIGIN="${CONSOLE_ORIGIN:-http://localhost:8080}"
-RUN_ID="r4upq-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 TIMEOUT=180
 READY_WAIT=120  # 等待 ingestion READY 的最大秒数
 
@@ -53,7 +53,7 @@ raw=$(curl -s -w '\n%{http_code}' -X POST "$CONSOLE_URL/api/v1/auth/register" \
 code=$(http_code "$raw"); body=$(http_body "$raw")
 [ "$code" = "200" ] || { echo "FAIL: register HTTP $code"; exit 1; }
 OWNER_TOKEN=$(json_result_field "$body" accessToken)
-OWNER_TENANT=$(json_result_field "$body" defaultTenant | python3 -c "import sys,json; print(json.load(sys.stdin).get('tenantId',''))" 2>/dev/null || echo "")
+OWNER_TENANT=$(echo "$body" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('defaultTenant',{}).get('tenantId',''))" 2>/dev/null || echo "")
 [ -n "$OWNER_TOKEN" ] && [ -n "$OWNER_TENANT" ] || { echo "FAIL: 注册失败"; exit 1; }
 
 # create KB
@@ -116,7 +116,7 @@ for _ in $(seq 1 $((READY_WAIT / 2))); do
   sleep 2
 done
 if [ "$FINAL_STATUS" != "READY" ]; then
-  echo "FAIL: ingestion 未就绪 final=$FINAL_STATUS（检查 rag-service 是否启用 LLM Stub 与索引 Cron）"
+  echo "FAIL: ingestion 未就绪 final=${FINAL_STATUS}（检查 rag-service 是否启用 LLM Stub 与索引 Cron）"
   exit 1
 fi
 echo "PASS: ingestion READY"

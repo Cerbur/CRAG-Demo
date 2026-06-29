@@ -3,21 +3,17 @@
 #
 # 范围：通过 console-api 真实链路验证 Tenant/Membership。
 #   - listTenants 返回注册用户的默认 Tenant
-#   - list members 返回成员（nickname 可能为 null，见已知缺口）
+#   - list members 返回成员，nickname 由 Access 批量补齐（非空，plan_21/21.7 修复）
 #   - add member 后再 list 应包含新成员
 #   - change-role 成员后 role 字段变化
 #   - remove 成员后返回 REMOVED 投影（HTTP 200）
 #   - MEMBER 不能管理成员（403）
-#
-# 已知缺口（plan_21/21.7）：Access Membership proto 无 nickname 字段，list members 返回的
-# nickname 暂为 null；本脚本只断言成员存在与 role，不断言 nickname 非空。验收 session 判定
-# "nickname 可展示" 是否阻塞。
 
 set -euo pipefail
 
 CONSOLE_URL="${CONSOLE_API_URL:-http://localhost:8080}"
 ORIGIN="${CONSOLE_ORIGIN:-http://localhost:8080}"
-RUN_ID="r4mbr-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 TIMEOUT=180
 
 echo "=== router4 Console Membership Test (run=$RUN_ID) ==="
@@ -55,7 +51,7 @@ print(r['user']['userId'])
 }
 
 # 注册 OWNER
-read OWNER_TOKEN OWNER_TENANT OWNER_USER <<< "$(register_user "r4mbr_owner_${RUN_ID}")"
+{ read OWNER_TOKEN; read OWNER_TENANT; read OWNER_USER; } <<< "$(register_user "r4mbr_owner_${RUN_ID}")"
 [ -n "$OWNER_TOKEN" ] && [ -n "$OWNER_TENANT" ] && [ -n "$OWNER_USER" ] || { echo "FAIL: 注册 OWNER 失败"; exit 1; }
 echo "PASS: OWNER 注册成功 tenant=$OWNER_TENANT user=$OWNER_USER"
 
@@ -68,7 +64,7 @@ echo "$body" | grep -q "$OWNER_TENANT" || { echo "FAIL: listTenants 未包含默
 echo "PASS: listTenants 包含默认 Tenant"
 
 # --- 2. 注册 MEMBER 并加入 ---
-read MEMBER_TOKEN _ MEMBER_USER <<< "$(register_user "r4mbr_member_${RUN_ID}")"
+{ read MEMBER_TOKEN; read _; read MEMBER_USER; } <<< "$(register_user "r4mbr_member_${RUN_ID}")"
 [ -n "$MEMBER_USER" ] || { echo "FAIL: 注册 MEMBER 失败"; exit 1; }
 echo "PASS: MEMBER 注册成功 user=$MEMBER_USER"
 
@@ -83,16 +79,20 @@ RESP_CODE=$(json_field "$body" code)
 [ "$RESP_CODE" = "0" ] || { echo "FAIL: add member code=$RESP_CODE"; echo "$body"; exit 1; }
 echo "PASS: add member 200"
 
-# --- 4. list members 应包含新成员（nickname 可能 null，已知缺口） ---
+# --- 4. list members 应包含新成员，且 nickname 由 Access 批量补齐（非空） ---
 echo "--- 4. list members ---"
 raw=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $OWNER_TOKEN" \
   "$CONSOLE_URL/api/v1/tenants/$OWNER_TENANT/members" || printf '\n000')
 code=$(http_code "$raw"); body=$(http_body "$raw")
 [ "$code" = "200" ] || { echo "FAIL: list members HTTP $code"; echo "$body"; exit 1; }
 echo "$body" | grep -q "$MEMBER_USER" || { echo "FAIL: list members 未包含 MEMBER"; echo "$body"; exit 1; }
-# nickname 缺口：不断言非空，只断言字段存在
-echo "$body" | grep -q '"nickname"' || { echo "FAIL: list members 无 nickname 字段"; exit 1; }
-echo "PASS: list members 包含 MEMBER（nickname 字段存在，值可能为 null，已知 21.7 缺口）"
+# nickname 由 Access list 批量补齐（plan_21/21.7 修复），必须非空
+echo "$body" | python3 -c "
+import sys, json
+items = json.load(sys.stdin).get('result', {}).get('items', [])
+assert any((i.get('nickname') or '').strip() for i in items), 'no member with non-empty nickname'
+" || { echo "FAIL: list members 无非空 nickname（Access list 未批量补齐 nickname）"; echo "$body"; exit 1; }
+echo "PASS: list members 包含 MEMBER 且 nickname 非空"
 
 # --- 5. MEMBER 不能 add 成员（403） ---
 echo "--- 5. MEMBER 越权 403 ---"

@@ -8,13 +8,13 @@
 #   - create 成功后不第二次 create（KB id 稳定）
 #
 # 注意：本脚本依赖 KB_CREATED 事件链路在 Compose 中可运行（access-service consumer 已接线）。
-# 本机无 docker compose，验收 session 在 Docker 环境中执行。
+# 所有分支对核心结果做明确断言并以非零退出表达失败；最终一致场景用受界轮询得到确定性结论。
 
 set -euo pipefail
 
 CONSOLE_URL="${CONSOLE_API_URL:-http://localhost:8080}"
 ORIGIN="${CONSOLE_ORIGIN:-http://localhost:8080}"
-RUN_ID="r4scope-$(date +%s)-$$"
+RUN_ID="$(date +%s)-$$"
 TIMEOUT=180
 SCOPE_RECOVER_WAIT=60  # 等待 KB_CREATED consumer 补齐 Scope 的最大秒数
 
@@ -42,7 +42,7 @@ raw=$(curl -s -w '\n%{http_code}' -X POST "$CONSOLE_URL/api/v1/auth/register" \
 code=$(http_code "$raw"); body=$(http_body "$raw")
 [ "$code" = "200" ] || { echo "FAIL: register HTTP $code"; exit 1; }
 OWNER_TOKEN=$(json_result_field "$body" accessToken)
-OWNER_TENANT=$(json_result_field "$body" defaultTenant | python3 -c "import sys,json; print(json.load(sys.stdin).get('tenantId',''))" 2>/dev/null || echo "")
+OWNER_TENANT=$(echo "$body" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('defaultTenant',{}).get('tenantId',''))" 2>/dev/null || echo "")
 [ -n "$OWNER_TOKEN" ] && [ -n "$OWNER_TENANT" ] || { echo "FAIL: 注册失败"; echo "$body"; exit 1; }
 echo "PASS: OWNER 注册成功 tenant=$OWNER_TENANT"
 
@@ -70,17 +70,16 @@ for _ in $(seq 1 $((SCOPE_RECOVER_WAIT / 2))); do
   code=$(http_code "$raw"); body=$(http_body "$raw")
   [ "$code" = "200" ] || { sleep 2; continue; }
   FINAL_READY=$(json_result_field "$body" apiKeyReady)
-  [ "$FINAL_READY" = "True" ] && break
+  case "$FINAL_READY" in True|true) break ;; esac
   sleep 2
 done
 
-# apiKeyReady 最终应为 True（True/true/1 均接受；JSON 反序列化为布尔）
+# apiKeyReady 最终必须为 True（KB_CREATED consumer 在受界时间内补齐 Scope）
 case "$FINAL_READY" in
   True|true) echo "PASS: Scope 补偿后 apiKeyReady=true" ;;
   *)
-    # 允许部分成功场景（ApiKeyReady 暂时为 false 但 KB 已创建）；记录但不强制失败，
-    # 因为 consumer 是否立即补齐取决于事件投递时序。验收 session 判定。
-    echo "WARN: apiKeyReady=$FINAL_READY 仍非 true（可能 consumer 尚未补齐或本环境无 Redis Streams）；KB 已 201 创建"
+    echo "FAIL: apiKeyReady=$FINAL_READY 在 ${SCOPE_RECOVER_WAIT}s 内仍未补齐为 true（KB_CREATED consumer 未补偿 Scope）；KB 已 201 创建但 Scope 恢复失败"
+    exit 1
     ;;
 esac
 
