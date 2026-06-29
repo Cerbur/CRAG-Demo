@@ -279,7 +279,12 @@ services:
           "crag.grpc.client.token": "${CONSOLE_API_SERVICE_TOKEN:-console-token-demo}",
           "crag.grpc.probe.targets.access-service": "access-service:9091",
           "crag.grpc.probe.targets.knowledge-service": "knowledge-service:9092",
-          "crag.grpc.probe.targets.rag-service": "rag-service:9093"
+          "crag.grpc.probe.targets.rag-service": "rag-service:9093",
+          "crag.grpc.client.max-deadline-millis": 120000,
+          "crag.console.allowed-origins": ["${CONSOLE_ALLOWED_ORIGINS:-http://localhost:8080}"],
+          "crag.console.cookie.secure": ${CONSOLE_COOKIE_SECURE:-false},
+          "crag.console.jwt.issuer": "${CONSOLE_JWT_ISSUER:-crag-access}",
+          "crag.console.jwt.audience": "${CONSOLE_JWT_AUDIENCE:-crag-services}"
         }
     depends_on:
       access-service:
