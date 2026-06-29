@@ -8,6 +8,7 @@ import ai.cerbur.crag.contracts.knowledge.v1.GetDocumentRequest;
 import ai.cerbur.crag.contracts.knowledge.v1.ListDocumentsRequest;
 import ai.cerbur.crag.contracts.knowledge.v1.ListDocumentsResponse;
 import ai.cerbur.crag.contracts.knowledge.v1.ReadDocumentFileRequest;
+import ai.cerbur.crag.contracts.knowledge.v1.RetryIngestionRequest;
 import ai.cerbur.crag.contracts.knowledge.v1.UploadDocumentMetadata;
 import ai.cerbur.crag.contracts.knowledge.v1.UploadDocumentRequest;
 import ai.cerbur.crag.knowledge.core.document.DocumentQueryService;
@@ -18,6 +19,7 @@ import ai.cerbur.crag.knowledge.core.document.FileType;
 import ai.cerbur.crag.knowledge.core.document.UploadHandle;
 import ai.cerbur.crag.knowledge.core.file.FileRead;
 import ai.cerbur.crag.knowledge.core.file.FileReadService;
+import ai.cerbur.crag.knowledge.core.ingestion.IngestionRetryService;
 import ai.cerbur.crag.knowledge.grpc.error.GrpcErrorMapper;
 import ai.cerbur.crag.knowledge.grpc.mapper.DocumentMapper;
 import com.google.protobuf.ByteString;
@@ -43,6 +45,7 @@ public class DocumentGrpcProvider extends DocumentServiceGrpc.DocumentServiceImp
   @Autowired private DocumentUploadService uploadService;
   @Autowired private DocumentQueryService queryService;
   @Autowired private FileReadService fileReadService;
+  @Autowired private IngestionRetryService retryService;
 
   @Override
   public StreamObserver<UploadDocumentRequest> uploadDocument(
@@ -206,6 +209,22 @@ public class DocumentGrpcProvider extends DocumentServiceGrpc.DocumentServiceImp
     } catch (IOException e) {
       responseObserver.onError(
           Status.INTERNAL.withDescription("failed to read document file").asRuntimeException());
+    }
+  }
+
+  @Override
+  public void retryIngestion(
+      RetryIngestionRequest request, StreamObserver<Document> responseObserver) {
+    try {
+      long actorUserId = DecimalId.parse(request.getActorUserId(), "actor_user_id");
+      long tenantId = DecimalId.parse(request.getTenantId(), "tenant_id");
+      long knowledgeBaseId = DecimalId.parse(request.getKnowledgeBaseId(), "knowledge_base_id");
+      long docId = DecimalId.parse(request.getDocId(), "doc_id");
+      DocumentResult result = retryService.retry(actorUserId, tenantId, knowledgeBaseId, docId);
+      responseObserver.onNext(DocumentMapper.toProto(result));
+      responseObserver.onCompleted();
+    } catch (RuntimeException e) {
+      responseObserver.onError(GrpcErrorMapper.toStatusRuntimeException(e));
     }
   }
 
