@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_21
 type: main
-status: verifying
+status: in_progress
 created: 2026-06-28
 updated: 2026-06-29
 ---
@@ -158,17 +158,17 @@ plan21 将 router4 做成一条完整产品链：浏览器可注册、管理成�
 | 21.2 | 补齐 Access 管理查询、Scope 一致性与失效版本 | ⏳ 待验收 | 87906344 | — |
 | 21.3 | 建立 Knowledge 摄取投影与状态事件消费 | ⏳ 待验收 | 260aed59 | — |
 | 21.4 | 建立 RAG ingestion head 与 READY 版本查询防线 | ⏳ 待验收 | c58be6e0 | — |
-| 21.5 | 完成摄取 retry、超时终态与 Reconciler | ⏳ 待验收 | 907c1599 | — |
+| 21.5 | 完成摄取 retry、超时终态与 Reconciler | 🔄 进行中 | 907c1599 | — |
 | 21.6 | 完成 Console 认证、安全与公共 HTTP 基线 | ⏳ 待验收 | 013ac49a | — |
-| 21.7 | 完成 Console Tenant 与 Membership API | ⏳ 待验收 | 1b089d9c | — |
+| 21.7 | 完成 Console Tenant 与 Membership API | 🔄 进行中 | 1b089d9c | — |
 | 21.8 | 完成 Console KnowledgeBase 与 Document API | ⏳ 待验收 | 2bc8524d | — |
 | 21.9 | 完成 Console API Key 管理 API | ⏳ 待验收 | 2233c716 | — |
 | 21.10 | 完成 Open API Key 缓存、失效消费与 Query | ⏳ 待验收 | 2308e2ad | — |
 | 21.11 | 收敛单服务 Smoke 与 Docker 正式拓扑 | ⏳ 待验收 | b4a88c8 | — |
 | 21.12 | 交付 OpenAPI 与前端交接文档 | ⏳ 待验收 | 37be75d | — |
-| 21.13 | 完成全链路回归、约束同步与验收交接 | ⏳ 待验收 | f4e18264 | — |
+| 21.13 | 完成全链路回归、约束同步与验收交接 | 🔄 进行中 | f4e18264 | — |
 
-整体进度：0 / 13（0%）— 21.1–21.13 全部已实现并待验收（计入分母，不计入完成数）
+整体进度：0 / 13（0%）— 独立验收失败（2026-06-29）：21.5/21.7/21.13 退回进行中待修复缺陷，21.1/21.2/21.3/21.4/21.6/21.8/21.9/21.10/21.11/21.12 保持待验收；修复后须在 Docker 环境补 router4 全链路回归再重新验收
 
 ## 21.1 建立正式 contracts 与模块边界
 
@@ -639,6 +639,39 @@ router4_smoke_profile_test.sh
 | 2026-06-29 | macOS | 变更文件秘密扫描（`crag_`/`sk-`/`AKIA`/完整 PEM 私钥模式） | 通过 | 11 个 21.13 变更文件（9 脚本 + README + test-workflow.md）无完整 Token、API Key 或私钥命中；脚本使用唯一 runId 占位与确定性 LLM Stub 假设。 |
 未执行项与原因：Docker 全链路回归（9 个 router4_*.sh 脚本的真实 Compose 运行）需要完整 Docker Compose 运行环境（`docker compose up -d --build` + 真实 PostgreSQL/pgvector/Redis/Sidecar/五个 Java 进程），本执行 session 的 macOS 环境仅有 Docker CLI v29.5.2，`docker compose` 子命令返回 "unknown command"、`docker-compose` v1 "command not found"，且 Docker daemon 未运行（"Cannot connect to the Docker daemon"）；因此 9 个脚本已正确编写（唯一 runId、真实 HTTP 状态/Response.code/业务字段断言、不清表/不删 volume/不 `docker compose down -v`）但未在本 session 运行，标记为未执行。**独立验收 session 必须在 Docker 环境中按下列顺序运行 9 个 router4 脚本**：router4_smoke_profile_test.sh（先 default 验证 404，再 smoke 验证可达）→ router4_auth_test.sh → router4_membership_test.sh → router4_scope_recovery_test.sh → router4_upload_query_test.sh（需 RAG 启用确定性 LLM Stub）→ router4_ingestion_retry_test.sh → router4_ingestion_reconcile_test.sh → router4_api_key_invalidation_test.sh → router4_multi_tenant_isolation_test.sh。已知跨任务缺口（非 21.13 范围，验收 session 判定是否阻塞或归因后续修复）：(1) **21.5 DocumentGrpcProvider 未重写 retryIngestion**，真实 Compose 中 router4_ingestion_retry_test.sh 的 retry 命令在 provider 接线前会得到 UNIMPLEMENTED（503/500），脚本对该场景记录为 WARN 而非强制 FAIL，验收 session 判定是归因 21.5 后续修复还是阻塞 21.13；(2) **21.1 Access Membership proto 无 nickname 字段**，Console membership list 返回 nickname=null，router4_membership_test.sh 对此只断言 nickname 字段存在（值可能 null），不强制非空，验收 session 判定"nickname 可展示"验收标准是否满足或需 21.1 contracts 补齐。plan_21 不在本 session 标记完成，全部 13 任务保持待验收，由未参与实现的新 agent session 执行独立验收。
 
+## 独立验收结论（2026-06-29，未参与实现的新 agent session）
+
+**结论：验收失败。** 不修改实现代码；将 21.5、21.7、21.13 退回 `in_progress`，Plan `verifying → in_progress`，交新执行 session 修复缺陷并在 Docker 环境补 router4 全链路回归后重新验收。
+
+**已核验通过项（新鲜证据）**：
+
+- `git status --short`：工作区干净，无与验收文件或目标代码重叠的未提交改动。
+- `git log --oneline` + `git show --stat 9af60a5 87906344 260aed59 c58be6e0 907c1599 013ac49a 1b089d9c 2bc8524d 2233c716 2308e2ad b4a88c88 37be75d0 f4e18264`：13 个实现 hash 全部存在，提交范围与对应任务相符，未见跨 Plan 或无关改动混入。
+- `python3 scripts/validate_plans.py`（0 error / 24 historical-v2 warning）、`validate_module_dependencies.py`（0 error）、`validate_framework_dependencies.py`（PASSED）、`validate_constraints.py`（0 error）、`validate_openapi.py`（0 errors）：5 个静态校验器全部通过。
+- 非缺陷层的单元/组件测试状态以执行 session 自测记录（1386 tests, 0 failures, 0 skipped）为准；本验收 session 未重复运行全量 Gradle（因其不覆盖下列缺陷，且决定性证据为代码级事实）。
+
+**阻塞验收的缺陷（逐条对应验收标准，均经代码级核对）**：
+
+1. **21.5 `DocumentGrpcProvider.retryIngestion` 未接线（实现缺陷）**：`crag-knowledge-service/.../grpc/provider/DocumentGrpcProvider.java` 仅重写 `uploadDocument`/`getDocument`/`listDocuments`/`readDocumentFile`；`grep retryIngestion crag-knowledge-service/src/main/java/.../grpc/` 零命中。`RetryIngestion` RPC 已在 21.1 proto 声明、`IngestionRetryService` 已实现并经单元/组件测试，但 RPC 与 provider 未绑定，真实调用继承基类默认实现返回 `UNIMPLEMENTED` → 503/500。直接违反 21.5「可恢复失败自动/手动收敛」「超时先 FAILED 后重试」与 21.8「手动 retry / retry 规则一致」的端到端验收标准。
+
+2. **21.7 Membership list `nickname` 缺口（实现/契约缺陷）**：`crag-access-contracts/.../membership_service.proto` 的 `Membership` 消息无 `nickname` 字段（字段 1–8：membership_id/tenant_id/user_id/role/status/created/updated/version）；`crag-console-api/.../membership/service/AccessMembershipClient.java` 注释（line 38–39、67）明确「list 不解析 nickname（proto 缺口）」，membership list 返回 `MemberResponse.nickname=null`。21.7 验收标准「nickname 可展示」对 list 路径不满足（单成员命令经 `getUserProfile` 可解析，list 不可）。
+
+3. **21.13 router4 回归脚本对核心断言用 WARN 不断言（回归证据缺陷，违反 test-workflow §4）**：
+   - `router4_ingestion_retry_test.sh` line 109/123/129：retryable FAILED retry 返回 503/500（即缺陷 1 的 UNIMPLEMENTED）时打印 `WARN` 并以 `exit 0` 结束，脚本标题印 `PASSED`，无法证明 retry 成功。
+   - `router4_api_key_invalidation_test.sh` line 119–120/132/166：disable/revoke/rotate 后旧 Key 仍可鉴权时打印 `WARN`，无法证明 21.10 API Key 缓存失效。
+   - `router4_scope_recovery_test.sh` line 82–83：`apiKeyReady` 持续非 true 时打印 `WARN`，无法证明 21.2/21.8 Scope 补偿恢复。
+   - test-workflow §4 要求脚本「以非零退出码表达失败、对 HTTP 状态/响应结构/关键业务结果做明确断言」；上述三脚本对各自最关键的业务结果采用软告警，不能作为通过证据。
+
+4. **router4 全链路 Docker HTTP 回归从未运行（必需证据缺失，环境）**：test-workflow §1.4/§4 规定 router4 真实跨服务 gRPC + Redis Streams + RS256 + Cookie + multipart + pgvector 全链路由 9 个 `router4_*.sh` 经完整 Compose 证明；执行 session 与本验收 session 的 macOS 环境均无 `docker compose`（`docker compose` 返回 unknown command、`docker-compose` command not found、daemon 未运行），9 个脚本仅经 `bash -n` 语法检查，无新鲜运行证据。
+
+**修复与重新验收要求（交新执行 session）**：
+
+- 修复缺陷 1：在 `DocumentGrpcProvider` 重写 `retryIngestion`，委托 `IngestionRetryService` 并经错误映射；补 provider 组件测试覆盖真实 RPC（非 Fake）。
+- 修复缺陷 2：在 21.1 contracts 决策（`Membership` proto 增 `nickname` 字段 或 新增 `BatchGetUserProfiles` RPC）并补齐 list 路径 nickname 填充；或经用户确认放宽「nickname 可展示」范围并在 Plan 记录决策。
+- 修复缺陷 3：将三脚本对应分支改为明确断言 + 非零退出（事件最终一致场景须用受界轮询/等待得到确定性结论，不得用无条件 WARN）。
+- 补缺陷 4：在具备 `docker compose` 的环境按 21.13 顺序运行 9 个 `router4_*.sh`，保留首次失败证据，禁止无修改重跑当通过。
+- 修复后重新提交实现 hash、回填、转 `verifying`，再由未参与实现的新 agent session 独立验收。
+
 ## 阻塞记录
 
 无。发生阻塞时记录原因、当前进度、解除条件、解除方、恢复步骤与日期。
@@ -662,3 +695,4 @@ router4_smoke_profile_test.sh
 | 2026-06-29 | 21.8 待开始 → 进行中 → 待验收 | 完成实现提交（`2bc8524d`）并回填 hash | plan21 仍进行中；21.8 进入待验收，交独立验收 session；21.1–21.8 仍未完成、不递增完成数 |
 | 2026-06-29 | 21.9 待开始 → 进行中 → 待验收 | 完成实现提交（`2233c716`）并回填 hash | plan21 仍进行中；21.9 进入待验收，交独立验收 session；21.1–21.9 仍未完成、不递增完成数 |
 | 2026-06-29 | 21.13 待开始 → 进行中 → 待验收；Plan in_progress → verifying | 完成实现提交（`f4e18264`）并回填 hash；全 13 任务待验收，交独立验收 | plan21 进入 verifying，移入验收队列；交未参与实现的新 agent session 独立验收 |
+| 2026-06-29 | 21.5/21.7/21.13 待验收 → 进行中；Plan verifying → in_progress | 独立验收失败：21.5 `retryIngestion` 未接线、21.7 membership list `nickname` 缺口、21.13 三份 router4 脚本 WARN 不断言 + router4 全链路 Docker 回归从未运行 | plan21 退出验收队列、回到执行队列队首；交新执行 session 修复缺陷并在 Docker 环境补全链路证据后重新验收；其余任务保持待验收 |
