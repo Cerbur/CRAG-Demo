@@ -36,8 +36,7 @@ import org.springframework.stereotype.Component;
  * <p>只接受 principal {@code userId}（来自 ConsolePrincipal），从不读取请求体中的 actorUserId，防越权。
  *
  * <p>单成员命令（add/change-role/remove）通过 {@link IdentityServiceGrpc#getUserProfile} 解析 nickname；list
- * 操作因 Membership proto 无 nickname 字段且无批量用户查询 RPC（21.1 契约缺口，21.2 未补齐），暂不填充 nickname，记录为 21.7
- * 残留风险。非幂等变更命令不自动重试。
+ * 操作读取 Access 批量补齐的 proto {@link Membership#getNickname()}（plan_21/21.7 修复）。非幂等变更命令不自动重试。
  */
 @Component
 public class AccessMembershipClient {
@@ -64,7 +63,7 @@ public class AccessMembershipClient {
     this.deadlineMillis = deadlineMillis;
   }
 
-  /** 列出 Tenant 成员。调用方须为有效成员；跨租户 NOT_FOUND 不泄漏。list 不解析 nickname（proto 缺口）。 */
+  /** 列出 Tenant 成员。调用方须为有效成员；跨租户 NOT_FOUND 不泄漏。list nickname 来自 Access 批量补齐的 proto 字段。 */
   public MembersListResponse listMembers(
       long actorUserId, long tenantId, int pageSize, String pageToken) {
     try {
@@ -79,7 +78,8 @@ public class AccessMembershipClient {
                       .build());
       List<MemberResponse> items = new ArrayList<>();
       for (Membership m : resp.getMembershipsList()) {
-        items.add(toMemberResponse(m, null));
+        // nickname 来自 Access list 批量补齐的 proto Membership.nickname（plan_21/21.7 修复）。
+        items.add(toMemberResponse(m, m.getNickname()));
       }
       String next = resp.getNextPageToken();
       return new MembersListResponse(items, next == null || next.isEmpty() ? null : next);

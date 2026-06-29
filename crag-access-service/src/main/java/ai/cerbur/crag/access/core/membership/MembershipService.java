@@ -10,6 +10,9 @@ import ai.cerbur.crag.access.dao.entity.TenantMembershipEntity;
 import ai.cerbur.crag.id.api.CragIdGenerator;
 import ai.cerbur.crag.id.api.IdEntityType;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,16 +136,28 @@ public class MembershipService {
     return MembershipResult.from(requireActiveMember(tenantId, memberUserId));
   }
 
-  /** 列出 Tenant 有效成员；调用方须为有效成员。 */
+  /** 列出 Tenant 有效成员；调用方须为有效成员。批量补齐 nickname（禁止逐行查 User）。 */
   @Transactional(readOnly = true)
   public List<MembershipResult> list(
       long actorUserId, long tenantId, int pageSize, String pageToken) {
     requireMember(actorUserId, tenantId);
     int limit = pageSize <= 0 ? 50 : Math.min(pageSize, 200);
-    return membershipDao.listByTenant(tenantId).stream()
-        .filter(m -> TenantMembershipEntity.STATUS_ACTIVE.equals(m.getStatus()))
-        .limit(limit)
-        .map(MembershipResult::from)
+    List<TenantMembershipEntity> memberships =
+        membershipDao.listByTenant(tenantId).stream()
+            .filter(m -> TenantMembershipEntity.STATUS_ACTIVE.equals(m.getStatus()))
+            .limit(limit)
+            .toList();
+    if (memberships.isEmpty()) {
+      return List.of();
+    }
+    Set<Long> userIds =
+        memberships.stream().map(TenantMembershipEntity::getUserId).collect(Collectors.toSet());
+    Map<Long, String> nicknames =
+        userDao.findByIdIn(userIds).stream()
+            .collect(
+                Collectors.toMap(PlatformUserEntity::getUserId, PlatformUserEntity::getNickname));
+    return memberships.stream()
+        .map(m -> MembershipResult.from(m, nicknames.getOrDefault(m.getUserId(), "")))
         .toList();
   }
 

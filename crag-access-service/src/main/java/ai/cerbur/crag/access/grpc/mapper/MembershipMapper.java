@@ -21,6 +21,7 @@ public final class MembershipMapper {
         .setRole(toProtoRole(result.role()))
         .setStatus(toProtoStatus(result.status()))
         .setVersion(result.version())
+        .setNickname(result.nickname())
         .build();
   }
 

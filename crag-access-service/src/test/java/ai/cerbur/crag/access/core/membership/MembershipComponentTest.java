@@ -147,13 +147,20 @@ class MembershipComponentTest {
   }
 
   @Test
-  @DisplayName("list 返回 Tenant 有效成员")
-  void listReturnsActiveMembers() {
+  @DisplayName("list 返回 Tenant 有效成员，并批量补齐 nickname")
+  void listReturnsActiveMembersWithNickname() {
     RegisteredIdentity owner = register("ownerK", "ownerk");
     addMember(owner, "memberK", "memberk");
+    String ownerNickname = identityService.getProfile(owner.userId()).nickname();
     List<MembershipResult> members =
         membershipService.list(owner.userId(), owner.tenantId(), 50, null);
     assertTrue(members.size() >= 2);
+    // nickname 由批量用户查询补齐（非 N+1），所有返回项都有非空展示名。
+    assertTrue(members.stream().allMatch(m -> m.nickname() != null && !m.nickname().isBlank()));
+    assertTrue(
+        members.stream()
+            .anyMatch(m -> m.userId() == owner.userId() && ownerNickname.equals(m.nickname())));
+    assertTrue(members.stream().anyMatch(m -> "memberK".equals(m.nickname())));
   }
 
   private RegisteredIdentity register(String nickname, String username) {

@@ -252,7 +252,7 @@
         "tags": ["Membership"],
         "operationId": "listMembers",
         "summary": "成员列表",
-        "description": "actor userId 只来自 ConsolePrincipal。nickname 受 Membership proto 缺口限制：list 操作暂返回 nickname=null，单成员命令（add/change-role/remove）通过单用户 GetUserProfile 解析 nickname。MEMBER 不能管理（Access PERMISSION_DENIED → 403）；跨租户不可见（NOT_FOUND → 404，不泄漏）。",
+        "description": "actor userId 只来自 ConsolePrincipal。nickname 来自 Access list 批量补齐的 proto Membership.nickname（plan_21/21.7 已修复）；单成员命令（add/change-role/remove）通过单用户 GetUserProfile 解析 nickname。MEMBER 不能管理（Access PERMISSION_DENIED → 403）；跨租户不可见（NOT_FOUND → 404，不泄漏）。",
         "parameters": [
           { "$ref": "#/components/parameters/AuthorizationHeader" },
           { "$ref": "#/components/parameters/TenantIdPath" },
@@ -261,7 +261,7 @@
         ],
         "responses": {
           "200": {
-            "description": "成员列表分页（list 的 nickname 暂为 null）",
+            "description": "成员列表分页（nickname 来自 Access list 批量补齐的 proto 字段）",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/MembersListResponseEnvelope" },
@@ -272,7 +272,7 @@
                     "items": [
                       {
                         "userId": "1001",
-                        "nickname": null,
+                        "nickname": "alice",
                         "role": "OWNER",
                         "status": "ACTIVE",
                         "createdAt": "2026-06-29T10:00:00Z",
@@ -1492,7 +1492,7 @@
         "required": ["userId", "nickname", "role", "status", "createdAt", "updatedAt"],
         "properties": {
           "userId": { "type": "string", "pattern": "^[0-9]+$" },
-          "nickname": { "type": ["string", "null"], "description": "list 操作可能为 null（Membership proto 缺口）；add/change-role/remove 由单用户 GetUserProfile 解析" },
+          "nickname": { "type": "string", "description": "成员展示名。list 由 Access 批量补齐；add/change-role/remove 由单用户 GetUserProfile 解析" },
           "role": { "type": "string", "enum": ["OWNER", "MEMBER"] },
           "status": { "type": "string", "enum": ["ACTIVE", "REMOVED"] },
           "createdAt": { "type": "string", "format": "date-time" },

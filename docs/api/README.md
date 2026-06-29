@@ -39,9 +39,9 @@ Console 的所有 Tenant/Membership/KnowledgeBase/Document/ApiKey 操作都把 `
 
 参考：[TenantController](../../crag-console-api/src/main/java/ai/cerbur/crag/console/tenant/controller/TenantController.java)、[MembershipController](../../crag-console-api/src/main/java/ai/cerbur/crag/console/membership/controller/MembershipController.java)。
 
-### 4.1 Membership 列表的 nickname 已知限制（如实记录）
+### 4.1 Membership 列表的 nickname
 
-Membership list（`GET /api/v1/tenants/{tenantId}/members`）返回的 `MemberResponse.nickname` 当前为 `null`。根因是 Access Membership proto 缺少 `nickname` 字段：21.2 仅在 `listUserTenants`（租户名）补齐了 nickname，Membership list 没有批量用户查询 RPC。单成员命令（add/change-role/remove）通过单用户 `GetUserProfile` 解析 nickname（每命令 1 次 gRPC，非 N+1）。前端在 list 视图应预留 nickname 缺省占位，不要假定非空。该缺口已记录在 plan_21 验收记录，待后续 contracts 增补（Membership proto 加字段或新增 `BatchGetUserProfiles`）后由独立验收判定是否补齐。
+Membership list（`GET /api/v1/tenants/{tenantId}/members`）返回的 `MemberResponse.nickname` 由 Access 在服务端批量补齐（plan_21/21.7 已修复：`Membership` proto 追加 `nickname` 字段，`MembershipService.list` 用批量用户查询补齐，非 N+1）。单成员命令（add/change-role/remove）通过单用户 `GetUserProfile` 解析 nickname。前端可直接展示 list 返回的 nickname。
 
 ## 5. KnowledgeBase 创建与 Scope 部分成功
 
@@ -147,4 +147,4 @@ python3 -m unittest scripts.tests.test_validate_openapi
 3. **完整 Key 只有一次**：rotate/create 后未保存即丢失，只能再次 rotate/create；前端必须立即落库并隐藏显示。
 4. **上传不是 201**：Document upload 对外契约是 **202**（PENDING），不是 201；底层 Knowledge Document 创建的 201 不暴露给前端。
 5. **Open 请求体不含定位参数**：任何 `tenantId`/`knowledgeBaseId` 字段都会被忽略；定位完全由 API Key 决定。
-6. **List nickname 为 null**：见 §4.1，是已知 proto 缺口，不是 bug。
+6. **List nickname 已补齐**：见 §4.1，list 由 Access 批量补齐 nickname（plan_21/21.7 修复），前端可直接展示。

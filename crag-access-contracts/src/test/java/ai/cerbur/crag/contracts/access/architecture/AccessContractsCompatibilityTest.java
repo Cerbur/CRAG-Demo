@@ -8,6 +8,7 @@ import ai.cerbur.crag.contracts.access.v1.ApiKeyScope;
 import ai.cerbur.crag.contracts.access.v1.ApiKeyServiceGrpc;
 import ai.cerbur.crag.contracts.access.v1.AuthenticatedApiKey;
 import ai.cerbur.crag.contracts.access.v1.IdentityServiceGrpc;
+import ai.cerbur.crag.contracts.access.v1.Membership;
 import ai.cerbur.crag.contracts.access.v1.MembershipServiceGrpc;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -55,6 +56,25 @@ class AccessContractsCompatibilityTest {
     assertTrue(hasRpc(service, "RemoveMember"));
     assertTrue(hasRpc(service, "GetMembership"));
     assertTrue(hasRpc(service, "ListMemberships"));
+  }
+
+  @Test
+  @DisplayName("Membership 追加 nickname 字段（字段号 9），且不与既有字段号冲突")
+  void membershipAppendsNicknameField() {
+    Map<String, FieldDescriptor> fields = fieldMap(Membership.getDescriptor());
+    // 既有字段 1–8 保持稳定。
+    assertEquals(1, fields.get("membership_id").getNumber());
+    assertEquals(2, fields.get("tenant_id").getNumber());
+    assertEquals(3, fields.get("user_id").getNumber());
+    assertEquals(4, fields.get("role").getNumber());
+    assertEquals(5, fields.get("status").getNumber());
+    assertEquals(6, fields.get("created_at_epoch_millis").getNumber());
+    assertEquals(7, fields.get("updated_at_epoch_millis").getNumber());
+    assertEquals(8, fields.get("version").getNumber());
+    // 新增 nickname 必须使用 >= 9 的字段号。
+    FieldDescriptor nickname = fields.get("nickname");
+    assertNotNull(nickname, "缺少 nickname");
+    assertEquals(9, nickname.getNumber(), "nickname 字段号必须为 9");
   }
 
   @Test

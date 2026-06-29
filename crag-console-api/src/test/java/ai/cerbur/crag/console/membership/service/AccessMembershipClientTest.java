@@ -83,22 +83,25 @@ class AccessMembershipClientTest {
                     1L,
                     "2",
                     MembershipRole.MEMBERSHIP_ROLE_MEMBER,
-                    MembershipStatus.MEMBERSHIP_STATUS_ACTIVE))
+                    MembershipStatus.MEMBERSHIP_STATUS_ACTIVE,
+                    "alice"))
             .addMemberships(
                 membershipProto(
                     3L,
                     1L,
                     "3",
                     MembershipRole.MEMBERSHIP_ROLE_OWNER,
-                    MembershipStatus.MEMBERSHIP_STATUS_ACTIVE))
+                    MembershipStatus.MEMBERSHIP_STATUS_ACTIVE,
+                    "carol"))
             .setNextPageToken("3")
             .build();
 
     MembersListResponse resp = client.listMembers(123L, 1L, 50, "");
     assertThat(resp.items()).hasSize(2);
     assertThat(resp.items().get(0).userId()).isEqualTo("2");
-    // nickname 来自单用户 GetUserProfile（proto 无批量字段，list 使用 null，记录在 21.7 缺口）
-    assertThat(resp.items().get(0).nickname()).isNull();
+    // nickname 来自 proto Membership.nickname（Access list 批量补齐），不再为 null。
+    assertThat(resp.items().get(0).nickname()).isEqualTo("alice");
+    assertThat(resp.items().get(1).nickname()).isEqualTo("carol");
     assertThat(resp.items().get(0).role()).isEqualTo("MEMBER");
     assertThat(resp.nextPageToken()).isEqualTo("3");
     // actor 只从 principal，不读 body
@@ -131,7 +134,8 @@ class AccessMembershipClientTest {
             1L,
             "2",
             MembershipRole.MEMBERSHIP_ROLE_MEMBER,
-            MembershipStatus.MEMBERSHIP_STATUS_ACTIVE);
+            MembershipStatus.MEMBERSHIP_STATUS_ACTIVE,
+            "proto-ignored");
     identityFake.profileResponse =
         UserProfile.newBuilder().setUserId("2").setNickname("bob").build();
 
@@ -167,7 +171,8 @@ class AccessMembershipClientTest {
             1L,
             "2",
             MembershipRole.MEMBERSHIP_ROLE_OWNER,
-            MembershipStatus.MEMBERSHIP_STATUS_ACTIVE);
+            MembershipStatus.MEMBERSHIP_STATUS_ACTIVE,
+            "proto-ignored");
     identityFake.profileResponse =
         UserProfile.newBuilder().setUserId("2").setNickname("bob").build();
 
@@ -201,7 +206,8 @@ class AccessMembershipClientTest {
             1L,
             "2",
             MembershipRole.MEMBERSHIP_ROLE_MEMBER,
-            MembershipStatus.MEMBERSHIP_STATUS_REMOVED);
+            MembershipStatus.MEMBERSHIP_STATUS_REMOVED,
+            "proto-ignored");
     identityFake.profileResponse =
         UserProfile.newBuilder().setUserId("2").setNickname("bob").build();
 
@@ -232,13 +238,15 @@ class AccessMembershipClientTest {
       long tenantId,
       String userId,
       MembershipRole role,
-      MembershipStatus status) {
+      MembershipStatus status,
+      String nickname) {
     return Membership.newBuilder()
         .setMembershipId(Long.toString(membershipId))
         .setTenantId(Long.toString(tenantId))
         .setUserId(userId)
         .setRole(role)
         .setStatus(status)
+        .setNickname(nickname)
         .setCreatedAtEpochMillis(Instant.parse("2026-06-29T00:00:00Z").toEpochMilli())
         .setUpdatedAtEpochMillis(Instant.parse("2026-06-29T00:00:00Z").toEpochMilli())
         .setVersion(1L)

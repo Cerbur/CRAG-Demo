@@ -11,6 +11,7 @@ import ai.cerbur.crag.access.dao.entity.TenantMembershipEntity;
  * @param role 角色
  * @param status 状态
  * @param version 版本
+ * @param nickname 成员展示名（plan_21/21.7：list 路径批量补齐，单成员命令亦可填充；永不为 null）
  */
 public record MembershipResult(
     long membershipId,
@@ -18,16 +19,27 @@ public record MembershipResult(
     long userId,
     MembershipRole role,
     String status,
-    long version) {
+    long version,
+    String nickname) {
 
-  /** 从持久化实体投影。 */
+  public MembershipResult {
+    nickname = nickname == null ? "" : nickname;
+  }
+
+  /** 从持久化实体投影（nickname 缺省为空串）。 */
   public static MembershipResult from(TenantMembershipEntity entity) {
+    return from(entity, "");
+  }
+
+  /** 从持久化实体投影并携带展示名（list 路径批量补齐 nickname）。 */
+  public static MembershipResult from(TenantMembershipEntity entity, String nickname) {
     return new MembershipResult(
         entity.getMembershipId(),
         entity.getTenantId(),
         entity.getUserId(),
         MembershipRole.fromEntity(entity.getRole()),
         entity.getStatus(),
-        entity.getVersion());
+        entity.getVersion(),
+        nickname);
   }
 }

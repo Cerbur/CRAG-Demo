@@ -115,4 +115,6 @@ message Membership {
   int64 created_at_epoch_millis = 6;
   int64 updated_at_epoch_millis = 7;
   int64 version = 8;
+  // 成员展示名（plan_21/21.7 修复：list 路径批量补齐 nickname，单成员命令亦可填充）。
+  string nickname = 9;
 }
