@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-29（plan_21 修复原 4 项验收缺陷并首次真实运行 Docker 全链路，转 verifying 进入验收队列；Docker 首次运行额外发现 2 项 plan_21 集成缺陷，如实保留证据交独立验收）
+> 最后更新：2026-06-29（plan_21 重新验收失败：原 4 项缺陷已修复并经核验，但 2 项集成缺陷经代码级 + 自跑 Docker 确认仍存在，21.3/21.4/21.8/21.11/21.13 退回进行中，Plan verifying → in_progress，回执行队列队首）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -108,13 +108,14 @@ plan/
 | plan_18 | Knowledge 垂直链路，新增 Knowledge contracts、KnowledgeBase、Document、文件上传、存储、流式读取与 DOC_UPLOADED 事件 | ✅ 完成 (7/7) | — | [plan_18.md](../plan_18/plan_18.md) |
 | plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | ✅ 完成 (8/8) | — | [plan_19.md](../plan_19/plan_19.md) |
 | plan_20 | Access 垂直链路，包含 User/Account、默认 Tenant、Membership、JWT、Refresh Session、API Key、失效事件与 smoke 验收 | ✅ 完成 (9/9) | — | [plan_20.md](../plan_20/plan_20.md) |
-| plan_21 | 双 API 与摄取生命周期，包含 Console/Open 正式 HTTP、Provider 契约补齐、状态/retry/Reconciler、Key 缓存失效与前端 OpenAPI | 🟢 待验收 / verifying (0/13) — 修复 4 项验收缺陷 + Docker 首次真实运行 | — | [plan_21.md](../plan_21/plan_21.md) |
+| plan_21 | 双 API 与摄取生命周期，包含 Console/Open 正式 HTTP、Provider 契约补齐、状态/retry/Reconciler、Key 缓存失效与前端 OpenAPI | 🔵 进行中 / in_progress (0/13) — 重新验收失败：2 项集成缺陷待修（21.8 跨租户 403、正式事件闭环 smoke-gated + EventHandler 冲突） | — | [plan_21.md](../plan_21/plan_21.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
+plan_21 — 双 API 与摄取生命周期（重新验收失败：原 4 项缺陷已修复，2 项集成缺陷待修——① 21.8 跨租户 KB get 403 非 404、② 正式事件闭环 21.3/21.4 consumer 均 @Profile("smoke") 致 default 无消费 + Knowledge 双 EventHandler 冲突；21.3/21.4/21.8/21.11/21.13 进行中）
 plan_10.hotfix_1 — Docker 回归脚本 wait_for_http_status 计时修正（非优先，闲时修复）
 plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径可达（非优先，测试脚本修复）
 ```
@@ -126,7 +127,7 @@ plan_7.hotfix_1 — query_stub_failure_test.sh 补 seed evidence 使失败路径
 ## 当前验收队列
 
 ```text
-plan_21 — 双 API 与摄取生命周期（修复原 4 项验收缺陷后转 verifying；Docker 首次真实运行额外发现 2 项本计划集成缺陷：①21.8 跨租户 KB get 返回 403、②事件闭环默认未启用 + smoke profile EventHandler 冲突，阻塞 upload_query/ingestion_retry/ingestion_reconcile；交未参与实现的新 agent session 独立验收判定）
+（当前无 verifying Plan/Hotfix）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -293,7 +294,7 @@ plan_21 — 双 API 与摄取生命周期（修复原 4 项验收缺陷后转 ve
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_21.md](../plan_21/plan_21.md) | Console/Open 正式 API、Access/Knowledge/RAG contracts、摄取状态/retry/Reconciler、READY 版本隔离、API Key 缓存失效、单服务 Smoke 与前端 OpenAPI | 🟢 待验收 / verifying (0/13) — 修复 4 项缺陷 + Docker 首次真实运行 |
+| [plan_21.md](../plan_21/plan_21.md) | Console/Open 正式 API、Access/Knowledge/RAG contracts、摄取状态/retry/Reconciler、READY 版本隔离、API Key 缓存失效、单服务 Smoke 与前端 OpenAPI | 🔵 进行中 / in_progress (0/13) — 重新验收失败，2 项集成缺陷待修 |
 
 ---
 
