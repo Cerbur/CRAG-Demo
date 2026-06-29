@@ -43,11 +43,10 @@ class JwtIssuerTest {
     assertEquals("test-issuer", claims.get("iss"));
     assertEquals("test-audience", claims.get("aud"));
     assertNotNull(claims.get("jti"));
-    assertEquals(issuedAt.getEpochSecond(), ((Number) claims.get("iat")).longValue() / 1000);
+    assertEquals(issuedAt.getEpochSecond(), ((Number) claims.get("iat")).longValue());
     assertEquals(claims.get("iat"), claims.get("nbf"));
     assertEquals(
-        ((Number) claims.get("iat")).longValue() + 900_000L,
-        ((Number) claims.get("exp")).longValue());
+        ((Number) claims.get("iat")).longValue() + 900L, ((Number) claims.get("exp")).longValue());
     assertFalse(claims.containsKey("tenantId"), "JWT must not carry tenantId");
     assertFalse(claims.containsKey("role"), "JWT must not carry role");
     assertEquals(issuedAt.plusSeconds(900), issued.expiresAt());

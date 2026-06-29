@@ -43,8 +43,9 @@ public class JwtIssuerImpl implements JwtIssuer {
   public IssuedJwt issue(long userId, long sessionFamilyId, Instant issuedAt) {
     AccessJwtKeyMaterial km = keyMaterial();
     long ttlSeconds = Math.max(1, properties.getJwt().getAccessTtlSeconds());
-    long iatMillis = issuedAt.toEpochMilli();
-    long expMillis = iatMillis + ttlSeconds * 1000L;
+    // iat/nbf/exp 使用 epoch seconds（RFC 7519 NumericDate），与 Console/Open 验签器一致。
+    long iatSeconds = issuedAt.getEpochSecond();
+    long expSeconds = iatSeconds + ttlSeconds;
     String header = toJson(Map.of("alg", ALGORITHM, "typ", "JWT", "kid", km.getKid()));
     Map<String, Object> claims = new LinkedHashMap<>();
     claims.put("sub", Long.toString(userId));
@@ -52,14 +53,14 @@ public class JwtIssuerImpl implements JwtIssuer {
     claims.put("jti", UUID.randomUUID().toString());
     claims.put("iss", km.getIssuer());
     claims.put("aud", km.getAudience());
-    claims.put("iat", iatMillis);
-    claims.put("nbf", iatMillis);
-    claims.put("exp", expMillis);
+    claims.put("iat", iatSeconds);
+    claims.put("nbf", iatSeconds);
+    claims.put("exp", expSeconds);
     String payload = toJson(claims);
     String signingInput = base64Url(header) + "." + base64Url(payload);
     byte[] signature = sign(signingInput, km.getPrivateKey());
     return new IssuedJwt(
-        signingInput + "." + base64Url(signature), Instant.ofEpochMilli(expMillis));
+        signingInput + "." + base64Url(signature), Instant.ofEpochSecond(expSeconds));
   }
 
   @Override
