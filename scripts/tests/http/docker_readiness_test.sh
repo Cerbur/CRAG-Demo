@@ -23,67 +23,10 @@ echo "PROJECT_ROOT=$PROJECT_ROOT"
 
 # ─── 工具函数 ───
 
-# 等待容器健康状态（有上限轮询）
-wait_for_healthy() {
-  local service="$1"
-  local max_wait="${2:-120}"
-  local elapsed=0
-  echo "等待 $service 变为 healthy（最多 ${max_wait}s）..."
-  while [ $elapsed -lt "$max_wait" ]; do
-    local health
-    health=$(docker compose ps --format json "$service" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
-    if [ "$health" = "healthy" ]; then
-      echo "  $service 已 healthy（${elapsed}s）"
-      return 0
-    fi
-    sleep 5
-    elapsed=$((elapsed + 5))
-  done
-  echo "  FAIL: $service 在 ${max_wait}s 内未变为 healthy"
-  return 1
-}
-
-# 等待容器变为 unhealthy
-wait_for_unhealthy() {
-  local service="$1"
-  local max_wait="${2:-60}"
-  local elapsed=0
-  echo "等待 $service 变为 unhealthy（最多 ${max_wait}s）..."
-  while [ $elapsed -lt "$max_wait" ]; do
-    local health
-    health=$(docker compose ps --format json "$service" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
-    if [ "$health" = "unhealthy" ]; then
-      echo "  $service 已 unhealthy（${elapsed}s）"
-      return 0
-    fi
-    sleep 5
-    elapsed=$((elapsed + 5))
-  done
-  echo "  FAIL: $service 在 ${max_wait}s 内未变为 unhealthy"
-  return 1
-}
-
-# 等待 HTTP 端点返回指定状态码（有上限轮询）
-wait_for_http_status() {
-  local url="$1"
-  local expected="$2"
-  local desc="$3"
-  local max_wait="${4:-60}"
-  local elapsed=0
-  echo "等待 $desc 返回 HTTP ${expected}（最多 ${max_wait}s）..."
-  while [ $elapsed -lt "$max_wait" ]; do
-    local status
-    status=$(curl -s -m 35 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null) || status="000"
-    if [ "$status" = "$expected" ]; then
-      echo "  $desc 已返回 HTTP ${expected}（${elapsed}s）"
-      return 0
-    fi
-    sleep 5
-    elapsed=$((elapsed + 5))
-  done
-  echo "  FAIL: $desc 在 ${max_wait}s 内未返回 HTTP ${expected}（最后状态: ${status}）"
-  return 1
-}
+# plan_10.hotfix_1：有上限墙钟轮询提取为 lib/wait_helpers.sh（以绝对 deadline 约束真实墙钟
+# 耗时，避免端点 hang 时 curl timeout 未计入上限导致分钟级放大）。
+# 公开函数：wait_for_healthy / wait_for_unhealthy / wait_for_http_status / wait_for_health_endpoint。
+source "$SCRIPT_DIR/lib/wait_helpers.sh"
 
 # 检查 HTTP 端点状态码
 check_http_status() {
@@ -128,39 +71,6 @@ check_health_endpoint() {
 
   echo "  PASS: $desc → HTTP $status"
   return 0
-}
-
-# 等待健康端点返回指定状态码并验证内容（有上限轮询）
-wait_for_health_endpoint() {
-  local port="$1"
-  local path="$2"
-  local expected_status="$3"
-  local desc="$4"
-  local max_wait="${5:-60}"
-  local curl_timeout="${6:-10}"
-  local elapsed=0
-  echo "等待 $desc 返回 HTTP ${expected_status}（最多 ${max_wait}s）..."
-  while [ $elapsed -lt "$max_wait" ]; do
-    local response status body
-    response=$(curl -s -m "$curl_timeout" -w "\n%{http_code}" "http://localhost:$port$path" 2>/dev/null) || response=$'\n000'
-    status=$(echo "$response" | tail -1)
-    body=$(echo "$response" | sed '$d')
-    if [ "$status" = "$expected_status" ]; then
-      if [ "$expected_status" = "200" ]; then
-        if echo "$body" | grep -q '"status":"UP"'; then
-          echo "  $desc 已返回 HTTP ${expected_status}（${elapsed}s）"
-          return 0
-        fi
-      else
-        echo "  $desc 已返回 HTTP ${expected_status}（${elapsed}s）"
-        return 0
-      fi
-    fi
-    sleep 5
-    elapsed=$((elapsed + 5))
-  done
-  echo "  FAIL: $desc 在 ${max_wait}s 内未返回 HTTP ${expected_status}（最后状态: ${status:-none}）"
-  return 1
 }
 
 # 恢复环境的 trap
