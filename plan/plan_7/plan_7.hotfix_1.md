@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_7.hotfix_1
 type: hotfix
 parent_plan: plan_7
-status: verifying
+status: completed
 created: 2026-06-25
 updated: 2026-06-30
 ---
@@ -86,10 +86,10 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 7.hotfix_1.1 | 迁移 Query Stub success 回归到当前 ingestion READY evidence | ⏳ 待验收 | 114715cd | — |
-| 7.hotfix_1.2 | 在当前 evidence 链路上修复 failure 与恢复验证 | ⏳ 待验收 | af46eda6 | — |
+| 7.hotfix_1.1 | 迁移 Query Stub success 回归到当前 ingestion READY evidence | ✅ 完成 | 114715cd | 2026-06-30 |
+| 7.hotfix_1.2 | 在当前 evidence 链路上修复 failure 与恢复验证 | ✅ 完成 | af46eda6 | 2026-06-30 |
 
-整体进度：0 / 2（0%）
+整体进度：2 / 2（100%）
 
 ## 7.hotfix_1.1 迁移 Query Stub success 回归到当前 ingestion READY evidence
 
@@ -113,7 +113,7 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 
 ## 验收记录
 
-> 待执行 session 完成实现与自测后，由未参与实现的独立验收 session 给出最终判定。
+> 独立验收 session（未参与实现）已于 2026-06-30 完成验收并通过；执行 session 自测证据见前几行，独立验收新鲜证据见末行。
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
@@ -122,6 +122,7 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 | 2026-06-30 | 同上 | `bash scripts/tests/http/query_stub_failure_test.sh` | 通过 | Phase 1：failure Stub 重建 → seed KB=87/doc=75 → READY → Query `HTTP 502 / code=50201 / success=false`（502 自证 evidence 已召回）；Phase 2：success Stub 重建 → re-seed KB=88/doc=76 → READY → Query `code=0`/固定 Stub answer/sources=1 |
 | 2026-06-30 | 同上 | `docker compose ps rag-service` + rag-service 日志敏感词检查 | 通过 | rag-service 恢复 success Stub 且 healthy；日志未输出完整文档、Prompt、Context 或密钥 |
 | 2026-06-30 | 同上 | 执行期根因排查（见变更记录 2026-06-30） | N/A | `spring.sql.init.mode: always` + `schema.sql` 每次 rag-service 启动 `DROP` chunk/ingestion_job 等表；最小复现重建后 `chunk` 2→0、job READY→NONE。`SPRING_SQL_INIT_MODE` 未在 Compose 暴露，无代码/部署改动的同源 workaround 不可达 → 7.hotfix_1.2 改为「先按模式重建 → 再 seed」 |
+| 2026-06-30 | Docker Compose（macOS；独立验收 session，未参与实现；knowledge-service:8092 / rag-service:8082，CRAG_SERVICE_PROFILES=smoke；sidecar 模型已缓存） | `bash -n scripts/tests/http/query_stub_success_test.sh scripts/tests/http/query_stub_failure_test.sh`；`bash scripts/tests/http/query_stub_success_test.sh`；`bash scripts/tests/http/query_stub_failure_test.sh`；`docker compose ps rag-service` + `printenv CRAG_QUERY_LLM_STUB_MODE`；rag-service/knowledge-service 日志敏感词检查 | 通过 | 独立新鲜复跑：success 脚本 exit 0（KB=90/doc=78→ingestion READY→Query `code=0`、固定 Stub answer、sources=1，reference=S1、parentChunkId 十进制、matchedChildIds 非空）；failure 脚本 exit 0（Phase 1 failure Stub 重建→seed KB=91/doc=79→READY→`HTTP 502 / code=50201 / success=false`，自证 evidence 已召回；Phase 2 success Stub 重建→re-seed KB=92/doc=80→READY→`code=0`/固定 Stub answer/sources=1）；退出后 rag-service healthy 且 `CRAG_QUERY_LLM_STUB_MODE=success`；日志未输出完整文档、VERIFICATION_CODE 正文、Prompt、Context 或密钥。`python3 scripts/validate_plans.py --strict --verify-git` 0 error（24 WARNING 均为历史 Plan 非 v3，非本 Hotfix）。两条任务验收标准全部满足 |
 
 ## 阻塞记录
 

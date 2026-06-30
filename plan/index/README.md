@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-30（plan_7.hotfix_1 实现完成并交接独立验收：success/failure 脚本迁移到 Knowledge 上传→ingestion READY→显式 KB Query；执行期发现 schema.sql 冷启动重置使「同 evidence 跨重建复用」不可行，7.hotfix_1.2 改为按目标 Stub 模式重建后 re-seed）
+> 最后更新：2026-06-30（plan_7.hotfix_1 独立验收通过并完成：success/failure 脚本迁移到 Knowledge 上传→ingestion READY→显式 KB Query；执行期发现 schema.sql 冷启动重置使「同 evidence 跨重建复用」不可行，7.hotfix_1.2 改为按目标 Stub 模式重建后 re-seed）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -94,7 +94,7 @@ plan/
 | plan_4 | Sparse 索引写入链路，完成 ingestion 侧 chunk_fts 构建 | ✅ 完成 | — | [plan_4.md](../plan_4/plan_4.md) |
 | plan_5 | Java module 拆分，完成 `ai.cerbur.crag` 包名迁移、multi-module 迁移和启动模块收敛 | ✅ 完成 | — | [plan_5.md](../plan_5/plan_5.md) |
 | plan_6 | Retrieval 查询链路，完成 Sparse/Dense/RRF/Rerank | ✅ 完成 | — | [plan_6.md](../plan_6/plan_6.md) |
-| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | [plan_7.hotfix_1](../plan_7/plan_7.hotfix_1.md) ⏳待验收 (0/2) | [plan_7.md](../plan_7/plan_7.md) |
+| plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | — | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
 | plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | ✅ 完成 (3/3) | — | [plan_10.md](../plan_10/plan_10.md) |
@@ -125,7 +125,7 @@ plan/
 ## 当前验收队列
 
 ```text
-plan_7.hotfix_1 — Query Stub success/failure evidence 链路修正（0/2 待验收；执行期发现 schema.sql 冷启动重置，7.hotfix_1.2 改为按目标 Stub 模式重建后 re-seed）
+（暂无）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -199,7 +199,7 @@ plan_7.hotfix_1 — Query Stub success/failure evidence 链路修正（0/2 待�
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_7.md](../plan_7/plan_7.md) | Query Parent Context、引用、LLM contract/adapter、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化 HTTP 回归 | ✅ 完成 (8/8) |
-| [plan_7.hotfix_1.md](../plan_7/plan_7.hotfix_1.md) | Query Stub success/failure 回归迁移到 Knowledge 上传与 ingestion READY evidence，确保 failure 路径（502）可达 | ⏳ 待验收 (0/2) |
+| [plan_7.hotfix_1.md](../plan_7/plan_7.hotfix_1.md) | Query Stub success/failure 回归迁移到 Knowledge 上传与 ingestion READY evidence，确保 failure 路径（502）可达 | ✅ 完成 (2/2) |
 
 ## Plan_8 明细
 
