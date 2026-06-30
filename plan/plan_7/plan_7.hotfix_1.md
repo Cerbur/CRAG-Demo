@@ -25,7 +25,7 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 ## 范围
 
 - 修改 `query_stub_success_test.sh`：通过 Knowledge Smoke API 创建唯一 KB、上传唯一文本、等待 RAG ingestion job `READY`，再以显式 `knowledgeBaseId` 查询并校验 sources。
-- 修改 `query_stub_failure_test.sh`：在 success Stub 下完成相同 evidence 准备并确认可召回，随后只重建 `rag-service` 为 failure Stub，使用同一 KB/evidence 断言 502/50201；恢复 success Stub 后复用同一 evidence 验证成功。
+- 修改 `query_stub_failure_test.sh`：先以 failure Stub 重建 `rag-service`（schema.sql 冷启动重建会清空旧召回证据），再 seed 唯一 KB 至 `READY` 并断言 502/50201/`success=false`；恢复 success Stub 后重新 seed 唯一 KB 至 `READY` 并断言成功。每个 Phase 在各自 Stub 模式下独立 seed。
 - 当前服务拓扑固定为 `knowledge-service:8092` 与 `rag-service:8082`，通过 `CRAG_SERVICE_PROFILES=smoke` 启用 Smoke Controller。
 
 ## 非目标
@@ -56,11 +56,12 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 ## 关键决策
 
 - seed 必须走当前正式摄取状态机的 Smoke 入口：Knowledge 创建 KB + 上传文件，RAG 消费事件并等待 ingestion job `READY`；禁止继续使用只写 chunk 的旧 AdminRag。
-- success 脚本先迁移并成为 evidence 准备模式的基线；failure 脚本再复用相同顺序和断言口径，但两个脚本默认保持自包含，避免引入难以观察的跨脚本状态。
-- failure 重建**之前**必须在 success Stub 下确认本次 KB 的 sources 命中本次文档；之后只切换 `CRAG_QUERY_LLM_STUB_MODE`，不重建或替换 evidence。
-- 不改 failure 路径断言（仍 502/50201/`success=false`），仅补 evidence 准备，保持脚本回归语义稳定。
-- Phase 2 恢复不能只用无 evidence 查询检查 `code=0`；必须用同一 KB 和 verification code 得到成功响应与非空 sources，证明 LLM Stub 和 Query 链路均已恢复。
+- success 脚本先迁移并成为 evidence 准备模式的基线；failure 脚本复用相同的 seed 顺序和断言口径，但两个脚本默认保持自包含，避免引入难以观察的跨脚本状态。
+- **schema.sql 冷启动重建使「同一 evidence 跨重建复用」不可行**：`application.yml` 设 `spring.sql.init.mode: always`，`schema.sql` 在每次 rag-service 启动时 `DROP` `chunk`/`chunk_embedding`/`chunk_fts`/`ingestion_job`（`document_ingestion_head` 不在此列）。切换 `CRAG_QUERY_LLM_STUB_MODE` 必须重建 rag-service，重建即触发 schema 重置、清空全部召回证据。因此 failure 脚本改为「先按目标模式重建 rag-service → 再 seed evidence → 再查询」：每个 Phase 在各自 Stub 模式下独立 seed 唯一 KB 并等待 `READY`。
+- failure 路径断言不变（仍 502/50201/`success=false`）。Phase 1 的 502 本身即自证 evidence 已被召回（否则 `UserQueryService` 在证据为空时短路返回 `code=0`，不会触达 LLM）。
+- Phase 2 恢复不能只用无 evidence 查询检查 `code=0`；必须在恢复 success Stub 后重新 seed 唯一 KB 并等待 `READY`，再断言 `code=0`、固定 Stub answer 与非空 sources，证明 LLM Stub 和 Query 链路均已恢复。
 - 不引入破坏性清理：临时上传文件必须删除，业务数据沿用唯一 `RUN_ID` 保留，因为当前没有安全精确删除入口。
+- 残留风险（非本 Hotfix 范围）：`spring.sql.init.mode: always` + `DROP TABLE` 使 rag-service 任何重启都清空召回证据，影响所有「seed 后重启」类工作流；建议后续 Hotfix 评估是否改为幂等 `CREATE` 并按需关闭 `mode: always`，本 Hotfix 仅在脚本层规避。
 
 ## 未决问题
 
@@ -69,15 +70,15 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 ## 风险与回滚
 
 - 风险：Knowledge 上传、Redis Event、gRPC 读取和双索引引入更多异步依赖。预防：以 ingestion job `READY` 作为唯一放行条件，遇到 `FAILED` 立即输出 RAG/Knowledge 日志并失败。
-- 风险：failure 重建与 evidence 写入顺序错误会导致 failure 路径仍不可达。预防：固定「先 seed（success）→ 再重建（failure）→ 再查询」顺序，并在注释中标注。
-- 风险：重建 failure Stub 后脚本异常退出，环境残留 failure 模式。预防：failure 脚本使用 trap 恢复 success Stub；最终恢复验证必须命中同一 evidence。回滚：`git revert` 对应脚本实现提交。
-- 风险：两个脚本复制 evidence 准备逻辑后发生漂移。预防：保持步骤、变量命名和断言结构一致；只有重复代码已明显妨碍维护时才提取公共 helper，提取需先更新 Plan 文件边界。
+- 风险：模式重建与 evidence 写入顺序错误会导致 failure 路径仍不可达（重建会清空 evidence）。预防：固定「先按目标模式重建 rag-service → 再 seed → 等待 READY → 再查询」顺序，并在注释中标注；禁止在重建之前 seed 并指望 evidence 存活。
+- 风险：重建 failure Stub 后脚本异常退出，环境残留 failure 模式。预防：failure 脚本使用 trap 恢复 success+smoke Stub；Phase 2 完成恢复后置位，trap 不再重复重建。回滚：`git revert` 对应脚本实现提交。
+- 风险：两个脚本复制 evidence 准备逻辑后发生漂移。预防：failure 脚本用 `seed_and_wait` helper 复用 seed 顺序与断言口径；只有重复代码已明显妨碍维护时才跨脚本提取公共 helper，提取需先更新 Plan 文件边界。
 
 ## 测试与验证计划
 
 - 语法：`bash -n scripts/tests/http/query_stub_success_test.sh scripts/tests/http/query_stub_failure_test.sh`。
 - Success 基线：`bash scripts/tests/http/query_stub_success_test.sh`，确认唯一文档 ingestion READY、显式 KB Query 返回固定 Stub answer 且 sources 命中本次文档。
-- Failure 回归：`bash scripts/tests/http/query_stub_failure_test.sh`，确认 Phase 1 在已有 evidence 下返回 502/50201/`success=false`；Phase 2 恢复后同一 KB Query 返回 `code=0`、固定 Stub answer 与非空 sources。
+- Failure 回归：`bash scripts/tests/http/query_stub_failure_test.sh`，确认 Phase 1 在 failure Stub 下 seed 后返回 502/50201/`success=false`（自证 evidence 已召回）；Phase 2 恢复 success Stub 后重新 seed 并返回 `code=0`、固定 Stub answer 与非空 sources。
 - 运行后检查 `docker compose ps`，确认 `rag-service` 已恢复 success Stub；检查临时文件已删除，未执行 `down -v` 或共享数据清空。
 - 无 Gradle/单元测试变更（纯 shell 脚本）。
 
@@ -102,12 +103,12 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 
 ## 7.hotfix_1.2 在当前 evidence 链路上修复 failure 与恢复验证
 
-**目标**：在已证明可召回的当前 ingestion evidence 上触发 failure Stub，并在退出前恢复 success Stub 与同一 evidence Query。
+**目标**：在可召回的当前 ingestion evidence 上触发 failure Stub 并断言 502/50201/`success=false`，退出前恢复 success Stub 并复验成功链路。
 **前置任务**：7.hotfix_1.1
-**范围**：将任务 7.hotfix_1.1 的 Knowledge 上传、ingestion READY 与显式 KB Query 顺序应用到 failure 脚本；seed 阶段固定 success Stub；确认 sources 命中后以 `CRAG_QUERY_LLM_STUB_MODE=failure CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service` 切换模式；使用同一 `knowledgeBaseId` 和 `VERIFICATION_CODE` 断言 HTTP 502、code 50201、`success=false`；trap 与 Phase 2 都以 success 模式重建 `rag-service`，并用同一 evidence 断言 `code=0`、固定 Stub answer、sources 非空。
-**非目标**：不修改 502/50201 HTTP 契约；不迁移到 Open API；不重建 Knowledge 数据或在 failure 后另 seed evidence；不修改任务 7.hotfix_1.1 之外的脚本。
-**验收标准**：failure 脚本退出码 0；Phase 1 的查询已证明存在 evidence 且返回 502/50201/`success=false`；Phase 2 同一 KB/evidence 返回 success 固定答案与非空 sources；无论中途成功或失败，脚本退出后 `rag-service` 均恢复 success Stub。
-**验证方式**：`bash -n scripts/tests/http/query_stub_failure_test.sh`；`bash scripts/tests/http/query_stub_failure_test.sh`；随后再次运行 `bash scripts/tests/http/query_stub_success_test.sh`；检查 `docker compose ps rag-service` 健康，并确认日志不输出完整文档、Prompt、Context 或密钥。
+**范围**：failure 脚本先以 `CRAG_QUERY_LLM_STUB_MODE=failure CRAG_SERVICE_PROFILES=smoke docker compose up -d --build rag-service` 重建 rag-service（schema.sql 冷启动重建会清空旧 evidence，故必须先重建再 seed），再用 7.hotfix_1.1 的 Knowledge 上传 → ingestion `READY` → 显式 `knowledgeBaseId` Query 顺序 seed 唯一 KB，断言 HTTP 502、code 50201、`success=false`（该 502 自证 evidence 已召回）；随后以 success 模式重建 rag-service，重新 seed 唯一 KB 并断言 `code=0`、固定 Stub answer、sources 非空；trap 与 Phase 2 都以 success+smoke 模式重建 rag-service。
+**非目标**：不修改 502/50201 HTTP 契约；不迁移到 Open API；不修改任务 7.hotfix_1.1 之外的脚本；不改动生产代码、`docker-compose.yml` 或 schema 初始化（schema.sql 冷启动重置作为已知约束在脚本层规避，不在本任务修复）。
+**验收标准**：failure 脚本退出码 0；Phase 1 在 failure Stub 下 seed 至 `READY` 后查询返回 502/50201/`success=false`（证明 failure 路径在已有 evidence 下可达）；Phase 2 恢复 success Stub 后重新 seed 至 `READY` 并返回固定 Stub answer 与非空 sources；无论中途成功或失败，脚本退出后 `rag-service` 均恢复 success+smoke Stub。
+**验证方式**：`bash -n scripts/tests/http/query_stub_failure_test.sh`；`bash scripts/tests/http/query_stub_failure_test.sh`；随后再次运行 `bash scripts/tests/http/query_stub_success_test.sh`；检查 `docker compose ps rag-service` 健康（success Stub），并确认日志不输出完整文档、Prompt、Context 或密钥。
 **涉及文件**：`scripts/tests/http/query_stub_failure_test.sh`
 
 ## 验收记录
@@ -131,3 +132,4 @@ Plan 21.11 又将 `rag-service-smoke:8083` 收口为启用 `CRAG_SERVICE_PROFILE
 | --- | --- | --- | --- |
 | 2026-06-25 | 创建 Hotfix | plan_16 独立验收定位 query_stub_failure_test.sh 因未 seed evidence 导致 failure 路径不可达；缺陷源自 plan_7 任务 7.7 原始测试设计 | 初始范围为单脚本 evidence 准备修复 |
 | 2026-06-30 | 按 Plan 19–21 当前落地校准 | active-version 召回使旧 AdminRag seed 不再可召回；单服务 Smoke 拓扑替代 `rag-service-smoke:8083`；success 脚本存在同源漂移 | 状态保持 ready；扩展为 2 个脚本、2 个任务，改走 Knowledge 上传与 ingestion READY |
+| 2026-06-30 | 执行期发现并校准 7.hotfix_1.2 evidence 策略 | 执行 session 在 Docker 回归中发现 `spring.sql.init.mode: always` + `schema.sql` 每次 rag-service 启动 `DROP` `chunk`/`ingestion_job` 等表，使「切换 Stub 模式重建后复用同一 evidence」不可行（最小复现：重建后 `chunk` 2→0、job READY→NONE）。`SPRING_SQL_INIT_MODE` 未在 Compose `environment` 暴露，无代码/部署改动的同源 workaround 不可达 | 7.hotfix_1.2 改为「先按目标模式重建 → 再 seed 唯一 KB → 等 READY → 查询」：Phase 1 failure 下断言 502/50201/`success=false`（502 自证 evidence 已召回），Phase 2 success 下重新 seed 断言成功；文件边界不变（仅 2 个脚本），502/50201 契约不变；schema.sql 冷启动重置作为残留风险记录，留待后续 Hotfix |
