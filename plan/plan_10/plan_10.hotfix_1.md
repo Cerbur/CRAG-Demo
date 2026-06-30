@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_10.hotfix_1
 type: hotfix
 parent_plan: plan_10
-status: ready
+status: verifying
 created: 2026-06-25
 updated: 2026-06-30
 ---
@@ -92,7 +92,7 @@ Plan 21.11 已将 Smoke 拓扑收口为启用 `CRAG_SERVICE_PROFILES=smoke` 的�
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 10.hotfix_1.1 | 提取 deadline 轮询 helper 并修正 readiness 回归计时 | ⏳ 待开始 | — | — |
+| 10.hotfix_1.1 | 提取 deadline 轮询 helper 并修正 readiness 回归计时 | ⏳ 待验收 | 4f4b535 | — |
 
 整体进度：0 / 1（0%）
 
@@ -111,6 +111,9 @@ Plan 21.11 已将 Smoke 拓扑收口为启用 `CRAG_SERVICE_PROFILES=smoke` 的�
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
 | 2026-06-25 | macOS, Docker | `bash scripts/tests/http/docker_readiness_test.sh`（测试 6） | 缺陷 | 测试 6 卡在 `等待 readiness 503` 约 6 分钟未推进；分析 `wait_for_http_status` 源码确认 `elapsed` 未计入 `curl -m 35` 耗时，实际超时需 ~16 分钟 |
+| 2026-06-30 | macOS, bash | `bash -n scripts/tests/http/docker_readiness_test.sh scripts/tests/http/lib/wait_helpers.sh scripts/tests/test_wait_helpers.sh` | ✅ 通过 | 三份 shell 文件语法均通过 |
+| 2026-06-30 | macOS, bash | `bash scripts/tests/test_wait_helpers.sh` | ✅ 通过 | 本地可控 hang 端点证明 deadline 生效：`wait_for_http_status` 与 `wait_for_health_endpoint` 在 hang 端点下均返回非零，max_wait=8 实际耗时 8s（上限 13s）；原缺陷下同条件约 80s+。正向用例即时返回 200。helper 四函数签名与返回码保持兼容。 |
+| 2026-06-30 | macOS, Docker Compose | `bash scripts/tests/http/docker_readiness_test.sh` | ❌ 受控失败（符合 验证方式 预期的失败场景） | 核心 deadline 修复生效：测试 6 `rag-service readiness 已返回 HTTP 503（31s）`（≤120s 上限，不再卡 ~16 分钟）；liveness 0s 返回 200；db 恢复（5s healthy）、rag-service 恢复（0s）、Compose 清理均完成。三项预存运行时失败不在本 hotfix 范围、断言与 `check_*` 未改：①测试 3 `open-api /actuator/health` 聚合端点 503（其 readiness 为 200）；②测试 6 容器在 150s 内未翻转为 unhealthy；③测试 7 写入文档 down/up 后只读 SQL 查询为 0。建议另行登记为运行时/可观测性缺陷。 |
 
 ## 阻塞记录
 
@@ -126,3 +129,4 @@ Plan 21.11 已将 Smoke 拓扑收口为启用 `CRAG_SERVICE_PROFILES=smoke` 的�
 | --- | --- | --- | --- |
 | 2026-06-25 | 创建 Hotfix | plan_15 第四次独立验收 Docker HTTP 重跑发现 docker_readiness_test.sh 测试 6 因 `wait_for_http_status` 计时 bug 长时间卡住 | 初始范围；状态 ready，非优先闲时修复 |
 | 2026-06-30 | 按当前落地校准实现方案 | Plan 21.11 已调整服务拓扑但保留原计时缺陷；单纯更新 elapsed 仍可能因固定 curl timeout 越过上限 | 状态保持 ready；改为可测试的 deadline helper，明确受控失败不等于完整回归通过 |
+| 2026-06-30 | 实现并交接验收 | deadline helper 提取完成、helper 定向测试通过、完整回归受控失败（核心计时修复已证明） | 实现提交 4f4b535；任务转 待验收，Plan 转 verifying；三项预存运行时失败另行登记 |

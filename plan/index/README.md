@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-06-30（校准 plan_10.hotfix_1 与 plan_7.hotfix_1：deadline 轮询方案对齐真实墙钟上限；Query Stub seed 改走 Knowledge 上传与 ingestion READY，纳入同源漂移的 success 脚本）
+> 最后更新：2026-06-30（plan_10.hotfix_1 实现 deadline-bounded 轮询 helper 并交接验收：核心计时修复已证明，完整回归受控失败，三项预存运行时失败另行登记）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -97,7 +97,7 @@ plan/
 | plan_7 | Query Parent Context、引用、DeepSeek V4 Flash Anthropic API、正式 UserQuery API 和自动化回归 | ✅ 完成 (8/8) | [plan_7.hotfix_1](../plan_7/plan_7.hotfix_1.md) 🟡待开始 (0/2) | [plan_7.md](../plan_7/plan_7.md) |
 | plan_8 | Plan 工作流 v2 工程治理，包含约束、模板、校验器、Gradle 接入与 plan_7 迁移 | ✅ 完成 (6/6) | — | [plan_8.md](../plan_8/plan_8.md) |
 | plan_9 | Java 模块边界收紧，包含 crag-api、公开 API 包、crag-smoke 与 ArchUnit | ✅ 完成 (6/6) | — | [plan_9.md](../plan_9/plan_9.md) |
-| plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | ✅ 完成 (3/3) | [plan_10.hotfix_1](../plan_10/plan_10.hotfix_1.md) 🟡待开始 (0/1) | [plan_10.md](../plan_10/plan_10.md) |
+| plan_10 | Docker 正式健康检查与部署验收，包含 Actuator probes、双 App 并存、故障恢复和持久化回归 | ✅ 完成 (3/3) | [plan_10.hotfix_1](../plan_10/plan_10.hotfix_1.md) ⏳待验收 (0/1) | [plan_10.md](../plan_10/plan_10.md) |
 | plan_11 | 测试分层与回归工作流治理，包含 Component/Architecture 分类、Docker HTTP 回归和验收规则 | ✅ 完成 (4/4) | — | [plan_11.md](../plan_11/plan_11.md) |
 | plan_12 | 约束事实校准与防漂移护栏，包含 Docker 当前事实、受控例外、路由和机械校验 | ✅ 完成 (4/4) | — | [plan_12.md](../plan_12/plan_12.md) |
 | plan_13 | Spring Boot 4.1.0、Spring Framework 7、Spring AI 2.0.0 与集中依赖治理基线升级 | ✅ 完成 (3/3) | — | [plan_13.md](../plan_13/plan_13.md) |
@@ -115,7 +115,6 @@ plan/
 ## 当前执行队列
 
 ```text
-plan_10.hotfix_1 — Docker readiness 轮询 deadline 修正与可控 hang 回归（非优先，闲时修复）
 plan_7.hotfix_1 — Query Stub success/failure 改用当前 ingestion READY evidence（非优先，测试脚本修复）
 ```
 
@@ -126,7 +125,7 @@ plan_7.hotfix_1 — Query Stub success/failure 改用当前 ingestion READY evid
 ## 当前验收队列
 
 ```text
-（空）
+plan_10.hotfix_1 — Docker readiness 轮询 deadline 修正（deadline-bounded polling helper，实现提交 4f4b535）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -227,7 +226,7 @@ plan_7.hotfix_1 — Query Stub success/failure 改用当前 ingestion READY evid
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
 | [plan_10.md](../plan_10/plan_10.md) | Docker 正式健康检查与部署验收，包含 Actuator probes、Compose readiness、默认/Smoke 并存、数据库故障恢复和持久化回归 | ✅ 完成 (3/3) |
-| [plan_10.hotfix_1.md](../plan_10/plan_10.hotfix_1.md) | Docker readiness 四类轮询改用可测试 deadline，消除 `curl` timeout 未计入上限导致的分钟级放大 | 🟡 待开始 (0/1) |
+| [plan_10.hotfix_1.md](../plan_10/plan_10.hotfix_1.md) | Docker readiness 四类轮询改用可测试 deadline，消除 `curl` timeout 未计入上限导致的分钟级放大 | ⏳ 待验收 (0/1) |
 
 ## Plan_11 明细
 
