@@ -3,7 +3,7 @@ workflow_version: 3
 plan_id: plan_10.hotfix_1
 type: hotfix
 parent_plan: plan_10
-status: verifying
+status: completed
 created: 2026-06-25
 updated: 2026-06-30
 ---
@@ -92,9 +92,9 @@ Plan 21.11 已将 Smoke 拓扑收口为启用 `CRAG_SERVICE_PROFILES=smoke` 的�
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 10.hotfix_1.1 | 提取 deadline 轮询 helper 并修正 readiness 回归计时 | ⏳ 待验收 | 4f4b535 | — |
+| 10.hotfix_1.1 | 提取 deadline 轮询 helper 并修正 readiness 回归计时 | ✅ 完成 | 4f4b535 | 2026-06-30 |
 
-整体进度：0 / 1（0%）
+整体进度：1 / 1（100%）
 
 ## 10.hotfix_1.1 提取 deadline 轮询 helper 并修正 readiness 回归计时
 
@@ -114,6 +114,21 @@ Plan 21.11 已将 Smoke 拓扑收口为启用 `CRAG_SERVICE_PROFILES=smoke` 的�
 | 2026-06-30 | macOS, bash | `bash -n scripts/tests/http/docker_readiness_test.sh scripts/tests/http/lib/wait_helpers.sh scripts/tests/test_wait_helpers.sh` | ✅ 通过 | 三份 shell 文件语法均通过 |
 | 2026-06-30 | macOS, bash | `bash scripts/tests/test_wait_helpers.sh` | ✅ 通过 | 本地可控 hang 端点证明 deadline 生效：`wait_for_http_status` 与 `wait_for_health_endpoint` 在 hang 端点下均返回非零，max_wait=8 实际耗时 8s（上限 13s）；原缺陷下同条件约 80s+。正向用例即时返回 200。helper 四函数签名与返回码保持兼容。 |
 | 2026-06-30 | macOS, Docker Compose | `bash scripts/tests/http/docker_readiness_test.sh` | ❌ 受控失败（符合 验证方式 预期的失败场景） | 核心 deadline 修复生效：测试 6 `rag-service readiness 已返回 HTTP 503（31s）`（≤120s 上限，不再卡 ~16 分钟）；liveness 0s 返回 200；db 恢复（5s healthy）、rag-service 恢复（0s）、Compose 清理均完成。三项预存运行时失败不在本 hotfix 范围、断言与 `check_*` 未改：①测试 3 `open-api /actuator/health` 聚合端点 503（其 readiness 为 200）；②测试 6 容器在 150s 内未翻转为 unhealthy；③测试 7 写入文档 down/up 后只读 SQL 查询为 0。建议另行登记为运行时/可观测性缺陷。 |
+| 2026-06-30 | macOS, bash | `bash -n scripts/tests/http/docker_readiness_test.sh scripts/tests/http/lib/wait_helpers.sh scripts/tests/test_wait_helpers.sh` | ✅ 通过 | 独立验收 session 重跑；三份 shell 文件语法均通过 |
+| 2026-06-30 | macOS, bash | `bash scripts/tests/test_wait_helpers.sh` | ✅ 通过 | 独立验收 session 重跑；本地可控 hang 端点证明 deadline 生效：`wait_for_http_status` 与 `wait_for_health_endpoint`（curl_timeout=35）在 hang 端点下均返回非零、max_wait=8 实际耗时 8s（上限 13s），原缺陷下同条件 ~80s+；正向 200 即时返回。四函数签名与返回码保持兼容。 |
+| 2026-06-30 | macOS, Docker 29.5.2 / Compose v5.1.4 | `bash scripts/tests/http/docker_readiness_test.sh`（首次因 Docker Hub registry `Service Unavailable` 拉取 `eclipse-temurin:21-jdk` 于测试 4 中止；registry 恢复后独立重跑全程） | ❌ 受控失败（符合 验证方式 预期的失败场景） | 独立验收 session 重跑确认核心 deadline 修复在真实 Docker 下生效：测试 6 `rag-service readiness 已返回 HTTP 503（30s）`（≤120s 上限，不再卡 ~16 分钟）、liveness 200（0s）；`wait_for_unhealthy` 正确以 150s 为界报告失败未挂起；db 恢复（5s healthy）、rag-service 恢复（0s）、最终 `docker compose down` 清理完成。三项预存运行时失败复现且在本 hotfix 范围外、断言与 `check_*` 未改：①测试 3 `open-api /actuator/health` 聚合端点 503（其 readiness 为 200）；②测试 6 容器在 150s 内未翻转为 unhealthy；③测试 7 写入文档 down/up 后只读 SQL 查询为 0。建议另行登记为运行时/可观测性缺陷。 |
+| 2026-06-30 | macOS | `python3 scripts/validate_plans.py --strict --verify-git` | ✅ 通过 | 独立验收 session 执行；0 error，24 warning 均为历史 Plan 未使用 workflow v3 的 P101（允许），`--verify-git` 未报实现 hash 缺失 |
+
+### 独立验收结论（2026-06-30）
+
+验收 session 未参与实现，从仓库事实重建上下文。任务 10.hotfix_1.1 四项验收标准全部满足：
+
+1. 三份 shell 文件 `bash -n` 通过（独立重跑）。
+2. 定向 helper 测试稳定证明 hang 请求受 deadline 控制（独立重跑 `test_wait_helpers.sh`，hang 端点耗时 8s ≤ 13s 上限，原缺陷 ~80s+）。
+3. 四个函数（`wait_for_healthy`/`wait_for_unhealthy`/`wait_for_http_status`/`wait_for_health_endpoint`）参数顺序与返回码保持兼容，`docker_readiness_test.sh` 四处调用签名匹配，`check_*` 单次函数与测试 1–7 断言未改（代码审查 + `git show --stat 4f4b535` 范围核验，仅涉及声明的三份文件）。
+4. 完整 readiness 回归按 验证方式 预期受控失败：测试 6 readiness 503（30s，≤120s）、db 恢复与 Compose 清理完成，不再卡 ~16 分钟；整体回归失败由三项预存、范围外运行时缺陷导致（open-api 聚合健康 503、容器 unhealthy 翻转时序、down/up 后只读查询为 0），不构成本 hotfix 阻塞项，建议另行登记。
+
+任务标记完成，Hotfix 转为 `completed`。
 
 ## 阻塞记录
 
@@ -130,3 +145,4 @@ Plan 21.11 已将 Smoke 拓扑收口为启用 `CRAG_SERVICE_PROFILES=smoke` 的�
 | 2026-06-25 | 创建 Hotfix | plan_15 第四次独立验收 Docker HTTP 重跑发现 docker_readiness_test.sh 测试 6 因 `wait_for_http_status` 计时 bug 长时间卡住 | 初始范围；状态 ready，非优先闲时修复 |
 | 2026-06-30 | 按当前落地校准实现方案 | Plan 21.11 已调整服务拓扑但保留原计时缺陷；单纯更新 elapsed 仍可能因固定 curl timeout 越过上限 | 状态保持 ready；改为可测试的 deadline helper，明确受控失败不等于完整回归通过 |
 | 2026-06-30 | 实现并交接验收 | deadline helper 提取完成、helper 定向测试通过、完整回归受控失败（核心计时修复已证明） | 实现提交 4f4b535；任务转 待验收，Plan 转 verifying；三项预存运行时失败另行登记 |
+| 2026-06-30 | 独立验收通过 | 验收 session 独立重跑 `bash -n`、`test_wait_helpers.sh`、完整 Docker readiness 回归与 Plan 严格校验，四项验收标准全部满足 | 任务转 完成，Plan 转 completed；同步 plan/index/README.md 索引与验收队列 |
