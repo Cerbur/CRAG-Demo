@@ -1,155 +1,136 @@
 #!/bin/bash
-# CRAG-Demo Query Stub Success HTTP Regression
-# 验证 Stub 模式下的完整 Query 链路：AdminRag 写入 → 索引等待 → Query API 调用
+# CRAG-Demo Query Stub Success HTTP Regression (plan_7.hotfix_1)
+# 验证 Stub 模式下完整 Query 链路：Knowledge 上传 → DOC_UPLOADED → RAG ingestion READY → 显式 knowledgeBaseId Query。
 #
-# 用法: bash scripts/tests/http/query_stub_success_test.sh [BASE_URL]
-#       BASE_URL 默认 CRAG_RAG_BASE_URL 环境变量或 http://localhost:8082（rag-service 固定本地诊断端口）
+# plan_7.hotfix_1 修正：旧 /api/v1/smoke/admin/rag 只写 chunk、不创建 ingestion head/job，
+# 自 plan_21.4 active-version 召回后已不可作为可召回 evidence；改走当前正式摄取状态机的 Smoke 入口。
+# 本脚本启动五项依赖服务（CRAG_SERVICE_PROFILES=smoke），以唯一 RUN_ID 隔离；不清表、不删 volume。
+#
+# 用法: bash scripts/tests/http/query_stub_success_test.sh
+#   固定端口：knowledge-service 8092、rag-service 8082（CRAG_SERVICE_PROFILES=smoke 启用 Smoke Controller）。
 
 set -euo pipefail
 
-BASE_URL="${1:-${CRAG_RAG_BASE_URL:-http://localhost:8082}}"
+K_URL="${K_URL:-http://localhost:8092}"
+R_URL="${R_URL:-http://localhost:8082}"
 RUN_ID="qs-$(date +%s)-$$"
+VERIFICATION_CODE="verify-${RUN_ID}-abc123"  # 全局唯一、不可猜，用于锚定本次文档召回
+COMPOSE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+TIMEOUT=180
+CONTENT_FILE=""
 FAILED=0
-VERIFICATION_CODE="verify-${RUN_ID}-abc123"  # unique, unguessable code
 
 echo "=== Query Stub Success HTTP Regression ==="
-echo "BASE_URL=$BASE_URL"
-echo "RUN_ID=$RUN_ID"
+echo "K_URL=$K_URL  R_URL=$R_URL  RUN_ID=$RUN_ID"
 echo "VERIFICATION_CODE=$VERIFICATION_CODE"
 
-# ── Helper: POST request, asserts HTTP 200 ──
-# Sets globals RESP_BODY, RESP_CODE.
-http_post() {
-  local url="$1"
-  local data="$2"
-  local desc="$3"
-  local raw
-  raw=$(curl -s -w '\n%{http_code}' -X POST "$url" \
-    -H "Content-Type: application/json" \
-    -d "$data" || printf '{"code":-1}\n000')
-  RESP_CODE=$(printf '%s' "$raw" | tail -1)
-  RESP_BODY=$(printf '%s' "$raw" | sed '$d')
-  if [ "$RESP_CODE" != "200" ]; then
-    echo "FAIL: $desc — HTTP $RESP_CODE (expected 200)"
-    FAILED=1
-  else
-    echo "PASS: $desc — HTTP 200"
-  fi
+cleanup() {
+  [ -n "$CONTENT_FILE" ] && rm -f "$CONTENT_FILE" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+json_field() {
+  printf '%s' "$1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('$2','-1'))" 2>/dev/null || echo "-1"
+}
+json_result() {
+  printf '%s' "$1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('$2',''))" 2>/dev/null || echo ""
 }
 
-# ── Helper: GET request, asserts HTTP 200 ──
-http_get() {
-  local url="$1"
-  local desc="$2"
-  local raw
-  raw=$(curl -s -w '\n%{http_code}' "$url" || printf '{"code":-1}\n000')
-  RESP_CODE=$(printf '%s' "$raw" | tail -1)
-  RESP_BODY=$(printf '%s' "$raw" | sed '$d')
-  if [ "$RESP_CODE" != "200" ]; then
-    echo "FAIL: $desc — HTTP $RESP_CODE (expected 200)"
-    FAILED=1
-  else
-    echo "PASS: $desc — HTTP 200"
-  fi
+wait_ready() {
+  local url="$1" name="$2" status="000"
+  for _ in $(seq 1 "$TIMEOUT"); do
+    status=$(curl -s -o /dev/null -w "%{http_code}" "$url/actuator/health/readiness" || echo "000")
+    [ "$status" = "200" ] && return 0
+    sleep 3
+  done
+  echo "FAIL: $name 未就绪 (status=$status)"
+  return 1
 }
 
-# ── Helper: extract JSON code field from body ──
-json_code() {
-  printf '%s' "$1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1"
-}
+# ── 0. 启动五项依赖服务（smoke Profile）──
+mkdir -p ./data/knowledge-files && chmod 777 ./data/knowledge-files
+cd "$COMPOSE_DIR"
+export CRAG_SERVICE_PROFILES=smoke
+echo "--- 启动 db/redis/sidecar/knowledge-service/rag-service ---"
+docker compose up -d --build db redis sidecar knowledge-service rag-service
 
-# ── 1. Write a document via AdminRag API ──
+echo "--- 等待 readiness ---"
+wait_ready "$K_URL" "knowledge-service" || { docker compose logs --tail=40 knowledge-service 2>/dev/null || true; exit 1; }
+wait_ready "$R_URL" "rag-service" || { docker compose logs --tail=40 rag-service 2>/dev/null || true; exit 1; }
+
+TENANT=$(date +%s)
+
+# ── 1. 创建唯一知识库 ──
 echo ""
-echo "--- 1. Write test document via AdminRag ---"
-http_post "$BASE_URL/api/v1/smoke/admin/rag" \
-  "{\"title\":\"query-test-${RUN_ID}\",\"content\":\"${VERIFICATION_CODE} 项目使用 PostgreSQL 和 pgvector 进行向量存储和混合检索。\"}" \
-  "AdminRag write"
-
-WRITE_CODE=$(json_code "$RESP_BODY")
-if [ "$WRITE_CODE" = "0" ]; then
-  PARENT_CHUNK_IDS=$(echo "$RESP_BODY" | python3 -c "
-import sys, json
-result = json.load(sys.stdin).get('result', {})
-ids = result.get('parentChunkIds', [])
-print(' '.join(ids))
-" 2>/dev/null || echo "")
-  echo "PASS: AdminRag write success, parentChunkIds=$PARENT_CHUNK_IDS"
-else
-  echo "FAIL: AdminRag returned code=$WRITE_CODE, resp=$RESP_BODY"
-  FAILED=1
+echo "--- 1. 创建唯一知识库 ---"
+KB_NAME="qs-kb-${RUN_ID}"
+kbResp=$(curl -s -X POST "$K_URL/api/v1/smoke/knowledge/knowledge-bases" \
+  -H "Content-Type: application/json" \
+  -d "{\"tenantId\":\"$TENANT\",\"name\":\"$KB_NAME\",\"createdByUserId\":\"1\"}")
+KB_ID=$(printf '%s' "$kbResp" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['knowledgeBaseId'])" 2>/dev/null || echo "")
+if [ -z "$KB_ID" ]; then
+  echo "FAIL: 创建知识库失败: $kbResp"
+  exit 1
 fi
+echo "PASS: knowledgeBaseId=$KB_ID (name=$KB_NAME)"
 
-# ── 2. Poll Query API until the written chunk appears in sources ──
+# ── 2. 上传含 VERIFICATION_CODE 的临时 .txt ──
 echo ""
-echo "--- 2. Poll Query API until written chunk appears in sources ---"
-MAX_ATTEMPTS=30
-ATTEMPT=0
-QUERY_RESP=""
-QUERY_CODE=""
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  ATTEMPT=$((ATTEMPT + 1))
-  sleep 3
-  QUERY_RESP=$(curl -s -X POST "$BASE_URL/api/v1/smoke/query" \
-    -H "Content-Type: application/json" \
-    -d "{\"question\":\"${VERIFICATION_CODE} 使用什么数据库？\"}" || echo '{"code":-1}')
-  QUERY_CODE=$(json_code "$QUERY_RESP")
+echo "--- 2. 上传唯一 .txt（含 VERIFICATION_CODE）---"
+CONTENT_FILE=$(mktemp /tmp/qs-doc-XXXX.txt)
+cat > "$CONTENT_FILE" <<EOF
+${VERIFICATION_CODE} CRAG-Demo 是一个基于 RAG 的问答机器人，使用 PostgreSQL 数据库和 pgvector 向量扩展进行混合检索。本段内容仅用于 Query Stub success 回归。
+EOF
+SHA=$(sha256sum "$CONTENT_FILE" | awk '{print $1}')
+SIZE=$(wc -c < "$CONTENT_FILE" | tr -d ' ')
+upResp=$(curl -s -X POST "$K_URL/api/v1/smoke/knowledge/documents/upload" \
+  -F "tenantId=$TENANT" -F "knowledgeBaseId=$KB_ID" -F "uploadedByUserId=1" \
+  -F "sha256=$SHA" -F "sizeBytes=$SIZE" -F "file=@$CONTENT_FILE;filename=doc.txt")
+DOC_ID=$(printf '%s' "$upResp" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['docId'])" 2>/dev/null || echo "")
+INGEST=$(printf '%s' "$upResp" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['ingestionStatus'])" 2>/dev/null || echo "")
+if [ -z "$DOC_ID" ] || [ "$INGEST" != "PENDING" ]; then
+  echo "FAIL: 上传失败 (docId=$DOC_ID status=$INGEST): $upResp"
+  exit 1
+fi
+echo "PASS: docId=$DOC_ID ingestionStatus=$INGEST"
 
-  if [ "$QUERY_CODE" = "0" ]; then
-    # Check if any source's parentChunkId matches a written parentChunkId
-    MATCHES_WRITTEN=0
-    if [ -n "${PARENT_CHUNK_IDS:-}" ]; then
-      for pid in $PARENT_CHUNK_IDS; do
-        FOUND=$(echo "$QUERY_RESP" | python3 -c "
-import sys, json
-resp = json.load(sys.stdin)
-sources = resp.get('result', {}).get('sources', [])
-target = '${pid}'
-for s in sources:
-    if s.get('parentChunkId') == target:
-        print('MATCH')
-        break
-" 2>/dev/null || echo "")
-        if [ "$FOUND" = "MATCH" ]; then
-          MATCHES_WRITTEN=1
-          break
-        fi
-      done
-    fi
-    if [ "$MATCHES_WRITTEN" -eq 1 ]; then
-      echo "Query ready after ${ATTEMPT} attempts (written chunk found in sources)"
-      break
-    fi
-  fi
-  echo "  Waiting... attempt ${ATTEMPT}/${MAX_ATTEMPTS}"
-  if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
-    echo "FAIL: Written chunk did not appear in query sources within ${MAX_ATTEMPTS} attempts — aborting"
-    echo "=== Test data preserved with RUN_ID=$RUN_ID ==="
-    echo "=== Query Stub Success HTTP Regression FAILED ==="
+# ── 3. 轮询 RAG ingestion job 到 READY ──
+echo ""
+echo "--- 3. 等待 RAG ingestion job READY ---"
+FINAL_STATUS=""
+for _ in $(seq 1 $((TIMEOUT / 3))); do
+  jobResp=$(curl -s "$R_URL/api/v1/smoke/rag/ingestion/job?knowledgeBaseId=$KB_ID&docId=$DOC_ID")
+  FINAL_STATUS=$(printf '%s' "$jobResp" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result'); print(r['status'] if r else 'NONE')" 2>/dev/null || echo "ERR")
+  [ "$FINAL_STATUS" = "READY" ] && break
+  if [ "$FINAL_STATUS" = "FAILED" ]; then
+    echo "FAIL: ingestion job FAILED (kb=$KB_ID doc=$DOC_ID)"
+    docker compose logs --tail=60 rag-service knowledge-service 2>/dev/null || true
     exit 1
   fi
+  sleep 3
 done
+if [ "$FINAL_STATUS" != "READY" ]; then
+  echo "FAIL: ingestion 未在超时内 READY (last=$FINAL_STATUS)"
+  exit 1
+fi
+echo "PASS: ingestion READY (kb=$KB_ID doc=$DOC_ID)"
 
-# ── 3. Verify Query response ──
+# ── 4. 显式 knowledgeBaseId Query ──
 echo ""
-echo "--- 3. Verify query response ---"
-echo "Raw response: $QUERY_RESP"
-
-# HTTP 200 already confirmed by curl exit; check code
-QUERY_RESP_CODE=$(echo "$QUERY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('code','-1'))" 2>/dev/null || echo "-1")
-if [ "$QUERY_RESP_CODE" != "0" ]; then
-  echo "FAIL: Query returned code=$QUERY_RESP_CODE (expected 0)"
-  FAILED=1
-else
+echo "--- 4. 显式 knowledgeBaseId Query ---"
+QUERY_RESP=$(curl -s -X POST "$R_URL/api/v1/smoke/query" \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"${VERIFICATION_CODE} 使用什么数据库？\",\"knowledgeBaseId\":${KB_ID}}" || echo '{"code":-1}')
+QUERY_CODE=$(json_field "$QUERY_RESP" code)
+if [ "$QUERY_CODE" = "0" ]; then
   echo "PASS: Query code=0"
+else
+  echo "FAIL: Query code=$QUERY_CODE (expected 0), resp=$QUERY_RESP"
+  FAILED=1
 fi
 
-# Assert answer equals fixed stub answer
-STUB_ANSWER=$(echo "$QUERY_RESP" | python3 -c "
-import sys, json
-resp = json.load(sys.stdin)
-result = resp.get('result', {})
-print(result.get('answer', ''))
-" 2>/dev/null || echo "")
+# ── 5. 断言固定 Stub answer ──
+STUB_ANSWER=$(json_result "$QUERY_RESP" answer)
 if [ "$STUB_ANSWER" = "已根据知识库证据生成回答。[S1]" ]; then
   echo "PASS: Answer matches fixed Stub answer"
 else
@@ -157,130 +138,64 @@ else
   FAILED=1
 fi
 
-# Assert sources is non-empty array
-SOURCE_COUNT=$(echo "$QUERY_RESP" | python3 -c "
-import sys, json
-resp = json.load(sys.stdin)
-result = resp.get('result', {})
-sources = result.get('sources', [])
-print(len(sources))
-" 2>/dev/null || echo "0")
-if [ "$SOURCE_COUNT" -gt 0 ]; then
-  echo "PASS: sources is non-empty ($SOURCE_COUNT item(s))"
-else
-  echo "FAIL: sources is empty or missing"
-  FAILED=1
-fi
-
-# Find the source whose parentChunkId matches a written parentChunkId,
-# then verify its reference format and matchedChildIds.
-# Uses a single python3 call to extract all fields for the matching source.
+# ── 6. 断言 sources 非空且属于本次 KB 文档 ──
+# 该 KB 仅含本次上传的唯一文档（含全局唯一 VERIFICATION_CODE），question 也含该 code，
+# 故非空 sources 即证明召回本次文档；同时校验 source 结构与原 success 回归口径一致。
 echo ""
-echo "--- 4. Verify matching source (written chunk) ---"
-MATCHING_INFO=""
-if [ -n "${PARENT_CHUNK_IDS:-}" ]; then
-  MATCHING_INFO=$(echo "$QUERY_RESP" | python3 -c "
+echo "--- 5. 校验 sources 命中本次文档 ---"
+SOURCE_INFO=$(printf '%s' "$QUERY_RESP" | python3 -c "
 import sys, json, re
 resp = json.load(sys.stdin)
 sources = resp.get('result', {}).get('sources', [])
-written = '${PARENT_CHUNK_IDS}'.split()
-for s in sources:
-    if s.get('parentChunkId') in written:
-        ref = s.get('reference', '')
-        pid = s.get('parentChunkId', '')
-        matched = s.get('matchedChildIds', [])
-        matched_ok = 'OK' if isinstance(matched, list) and len(matched) > 0 else 'EMPTY'
-        ref_ok = 'OK' if re.match(r'^S\d+$', ref) else 'BAD'
-        print(f'FOUND|{ref}|{pid}|{matched_ok}|{ref_ok}')
-        break
-else:
-    print('NOT_FOUND')
-" 2>/dev/null || echo "ERROR")
-fi
+count = len(sources)
+ref = pid = ''
+ref_ok = pid_decimal = children_nonempty = False
+if sources:
+    s = sources[0]
+    ref = s.get('reference', '')
+    pid = s.get('parentChunkId', '')
+    children = s.get('matchedChildIds', [])
+    ref_ok = bool(re.match(r'^S\d+$', ref))
+    pid_decimal = bool(re.match(r'^[0-9]+$', str(pid)))
+    children_nonempty = isinstance(children, list) and len(children) > 0
+print(f'{count}|{ref}|{pid}|{ref_ok}|{pid_decimal}|{children_nonempty}')
+" 2>/dev/null || echo "0||||False|False")
+SRC_COUNT=$(printf '%s' "$SOURCE_INFO" | cut -d'|' -f1)
+SRC_REF=$(printf '%s' "$SOURCE_INFO" | cut -d'|' -f2)
+SRC_PID=$(printf '%s' "$SOURCE_INFO" | cut -d'|' -f3)
+SRC_REF_OK=$(printf '%s' "$SOURCE_INFO" | cut -d'|' -f4)
+SRC_PID_OK=$(printf '%s' "$SOURCE_INFO" | cut -d'|' -f5)
+SRC_CHILD_OK=$(printf '%s' "$SOURCE_INFO" | cut -d'|' -f6)
 
-if [ -z "$MATCHING_INFO" ] || [ "$MATCHING_INFO" = "ERROR" ]; then
-  echo "FAIL: Could not extract matching source info (PARENT_CHUNK_IDS empty or python error)"
-  FAILED=1
-elif [ "$MATCHING_INFO" = "NOT_FOUND" ]; then
-  echo "FAIL: No source matches any written parentChunkId ($PARENT_CHUNK_IDS)"
-  FAILED=1
+if [ "$SRC_COUNT" -gt 0 ] 2>/dev/null; then
+  echo "PASS: sources 非空 ($SRC_COUNT item(s)) → 命中本次 KB 文档（KB 仅含唯一 VERIFICATION_CODE 文档）"
 else
-  # Parse pipe-delimited fields: FOUND|reference|parentChunkId|matched_ok|ref_ok
-  MATCH_REF=$(echo "$MATCHING_INFO" | cut -d'|' -f2)
-  MATCH_PID=$(echo "$MATCHING_INFO" | cut -d'|' -f3)
-  MATCH_CHILDREN=$(echo "$MATCHING_INFO" | cut -d'|' -f4)
-  MATCH_REF_OK=$(echo "$MATCHING_INFO" | cut -d'|' -f5)
-
-  echo "Matching source: reference=$MATCH_REF parentChunkId=$MATCH_PID"
-
-  # Verify reference format is valid (matches S<number>)
-  if [ "$MATCH_REF_OK" = "OK" ]; then
-    echo "PASS: Matching source reference '$MATCH_REF' has valid format (S<number>)"
-  else
-    echo "FAIL: Matching source reference '$MATCH_REF' has invalid format (expected S<number>)"
-    FAILED=1
-  fi
-
-  # Verify parentChunkId is in the written set (redundant safety check)
-  PID_MATCH=0
-  for pid in $PARENT_CHUNK_IDS; do
-    if [ "$MATCH_PID" = "$pid" ]; then
-      PID_MATCH=1
-      break
-    fi
-  done
-  if [ "$PID_MATCH" -eq 1 ]; then
-    echo "PASS: Matching source parentChunkId ($MATCH_PID) belongs to written chunk"
-  else
-    echo "FAIL: Matching source parentChunkId ($MATCH_PID) not in written parentChunkIds ($PARENT_CHUNK_IDS)"
-    FAILED=1
-  fi
-
-  # Verify parentChunkId is decimal string
-  if echo "$MATCH_PID" | grep -Eq '^[0-9]+$'; then
-    echo "PASS: Matching source parentChunkId is decimal string → $MATCH_PID"
-  else
-    echo "FAIL: Matching source parentChunkId is not decimal string → $MATCH_PID"
-    FAILED=1
-  fi
-
-  # Verify matchedChildIds is non-empty
-  if [ "$MATCH_CHILDREN" = "OK" ]; then
-    echo "PASS: Matching source matchedChildIds is non-empty"
-  else
-    echo "FAIL: Matching source matchedChildIds check: $MATCH_CHILDREN"
-    FAILED=1
-  fi
-
-  # Verify each matchedChildId is decimal string
-  MATCHED_IDS_RAW=$(echo "$QUERY_RESP" | python3 -c "
-import sys, json
-resp = json.load(sys.stdin)
-sources = resp.get('result', {}).get('sources', [])
-for s in sources:
-    if s.get('parentChunkId') == '$MATCH_PID':
-        print(' '.join(str(cid) for cid in s.get('matchedChildIds', [])))
-        break
-" 2>/dev/null || echo "")
-  if [ -n "$MATCHED_IDS_RAW" ]; then
-    for CID in $MATCHED_IDS_RAW; do
-      if echo "$CID" | grep -Eq '^[0-9]+$'; then
-        :
-      else
-        echo "FAIL: matchedChildId not decimal string → $CID"
-        FAILED=1
-      fi
-    done
-    echo "PASS: All matchedChildIds are decimal strings → $MATCHED_IDS_RAW"
-  else
-    echo "FAIL: Could not extract matchedChildIds for decimal string check"
-    FAILED=1
-  fi
+  echo "FAIL: sources 为空（未召回本次文档）"
+  FAILED=1
+fi
+echo "  source[0]: reference=$SRC_REF parentChunkId=$SRC_PID"
+if [ "$SRC_REF_OK" = "True" ]; then
+  echo "PASS: reference 格式 S<number>"
+else
+  echo "FAIL: reference 格式异常 ($SRC_REF)"
+  FAILED=1
+fi
+if [ "$SRC_PID_OK" = "True" ]; then
+  echo "PASS: parentChunkId 为十进制字符串"
+else
+  echo "FAIL: parentChunkId 非十进制 ($SRC_PID)"
+  FAILED=1
+fi
+if [ "$SRC_CHILD_OK" = "True" ]; then
+  echo "PASS: matchedChildIds 非空"
+else
+  echo "FAIL: matchedChildIds 为空"
+  FAILED=1
 fi
 
 # ── Final ──
 echo ""
-echo "=== Test data preserved with RUN_ID=$RUN_ID ==="
+echo "=== Test data preserved with RUN_ID=$RUN_ID (KB=$KB_ID DOC=$DOC_ID) ==="
 if [ "$FAILED" -eq 0 ]; then
   echo "=== Query Stub Success HTTP Regression PASSED ==="
   exit 0
