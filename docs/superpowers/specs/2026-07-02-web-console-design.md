@@ -178,3 +178,50 @@ pnpm build
 Stitch 输入文档位于 `docs/product/web-console-stitch-prd.md`。该文档定义页面、状态、响应式要求和设计输出格式；本说明定义技术架构和实施边界。两者共同作为后续 Plan 的需求基线。
 
 UI 设计使用 `docs/product/web-console-ui-handoff.md` 跨 Session 交接。Stitch 保存可编辑源文件，`docs/product/ui/` 保存已评审页面的导出快照、Token 和必要标注。每次设计变更必须同步更新源文件版本、页面批准状态、关键决策和变更记录；只有标记为已批准的页面才作为 UI 实现验收基线。
+
+## 12. Docker 部署
+
+Web 必须纳入根目录 `docker-compose.yml`，使 `docker compose up -d --build` 能构建并启动完整 Demo。默认浏览器入口为 `http://localhost:3000`，不要求用户在宿主机单独安装或启动 Node。
+
+### 12.1 镜像与运行方式
+
+`web/Dockerfile` 使用固定 Node 22 Alpine 标签进行多阶段构建：构建阶段安装锁定依赖并生成 `dist/`；运行阶段只保留生产运行依赖、静态产物和轻量 Node Server。容器使用 Node 镜像自带的非 root `node` 用户，以 `npm start` 启动并监听 `0.0.0.0:3000`。
+
+`npm start` 不得使用 `vite preview`。运行时 Server 仅承担部署职责：静态文件服务、SPA 路由回退、同源 API 代理和健康检查，不承载前端业务逻辑。
+
+### 12.2 同源代理
+
+浏览器只访问 Web 容器：
+
+- `/console-api/*` 转发至 `http://console-api:8080/*`。
+- `/open-api/*` 转发至 `http://open-api:8081/*`。
+
+代理必须剥离外部前缀并保留请求方法、查询参数、Authorization、Origin 和上传流。Console API 返回的 Refresh Cookie Path `/api/v1/auth` 必须重写为 `/console-api/api/v1/auth`，确保浏览器后续 refresh/logout 请求携带 HttpOnly Cookie。前端 API Client 使用相对地址，不保存容器服务名或宿主机 API 端口。
+
+Demo Compose 必须将 `http://localhost:3000` 配置为 Console API 的允许 Origin，并为本地 HTTP 显式设置 `crag.console.cookie.secure=false`。该降级只适用于本地与 Demo；HTTPS 部署必须恢复 Secure Cookie，并将允许 Origin 改为实际 Web 地址。
+
+代理错误返回明确的 502/503 响应，不回显 Token、API Key 或下游内部细节。文档上传代理限制不得低于后端允许的 10 MiB，并应保留少量协议开销余量。
+
+### 12.3 Compose 与健康检查
+
+Compose 新增 `web` 服务并映射 `3000:3000`，加入 `crag-net`。`web` 对 Console API 和 Open API 使用健康依赖；运行时 Server 自身提供 `/health`，健康检查验证静态服务进程可响应。
+
+Web 配置通过环境变量注入下游地址，Compose 默认使用服务名 `console-api` 和 `open-api`。镜像不挂载源码、`dist/` 或宿主机配置文件来覆盖构建内容。
+
+实施时必须同步更新：
+
+- `docker-compose.yml`
+- `constraints/docker-structure.md`
+- 根目录 `.dockerignore` 或 `web/.dockerignore`
+- `.env.example`（仅当新增可配置项）
+- 根目录 README 的启动入口与访问地址
+
+### 12.4 部署验收
+
+Docker 验收至少覆盖：
+
+1. 全新环境执行 `docker compose up -d --build` 后 Web 容器健康。
+2. 直接访问深层 SPA 路由不会返回 404。
+3. 通过 Web 入口完成注册、登录、刷新会话和退出。
+4. Console API 文件上传和 Open API Chat 均通过同源代理工作。
+5. 浏览器请求不直接依赖宿主机的 `8080/8081` 端口。
