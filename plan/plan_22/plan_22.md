@@ -29,6 +29,7 @@ updated: 2026-07-02
 - Console/Open API Client 使用相对前缀 `/console-api`、`/open-api`；Open Query 不提交 tenantId 或 knowledgeBaseId。
 - 轮询离开页面后停止；并发 401 只发起一次 refresh，每个失败请求最多重放一次。
 - UI 必须覆盖成功、空、加载和主要失败状态；移动端核心流程不依赖横向滚动。
+- Stitch MCP 是评审期设计编辑源；只在用户确认定稿后将最终 Screen、必要参考 HTML 和 Design System 一次性同步到仓库，执行细节遵守 `docs/product/web-console-ui-handoff.md`。
 - 依赖通过 `pnpm-lock.yaml` 锁定；Node/Vite/React/Ant Design 大版本升级不在本 Plan 内。
 - 代码与验证分别遵守 `web/constraints/*.md`、根目录 Docker/Plan/Test 约束；Web 计划仍只维护在根目录 `plan/`。
 
@@ -115,10 +116,11 @@ updated: 2026-07-02
 - Runtime Server 用 `npm start` 启动，但依赖安装和构建使用 pnpm lock；禁止用 `vite preview`。
 - Web 对外只暴露 3000；同源代理保留现有 8080/8081 直接访问兼容性。
 - 未批准 Stitch 页面可以先实现结构与行为，最终视觉验收必须以 UI 交接清单的 `已批准` 状态为准。
+- 设计调整优先通过 Google Stitch MCP 集中完成；中间 draft 不进入 Git，仓库只保存已批准版本，减少重复 MCP 读取和无意义资产提交。
 
 ## 未决问题
 
-无。Stitch 首版尚未生成不是执行阻塞：任务 22.1–22.7 可按 PRD 完成结构、行为和基础 Ant Design UI；22.8 在设计稿批准后执行，若届时仍无批准稿则按工作流记录为外部阻塞，不降低验收标准。
+无。Stitch 首版已生成但尚未批准，这不阻塞任务 22.1–22.7 按 PRD 完成结构、行为和基础 Ant Design UI；22.8 在设计稿批准后执行，若执行到该任务时仍无批准稿则按工作流记录为外部阻塞，不降低验收标准。
 
 ## 风险与回滚
 
@@ -400,6 +402,8 @@ export function AsyncState(props: AsyncStateProps): JSX.Element;
 **Implementation steps**：
 
 - [ ] 校验 handoff 的 Stitch 链接、版本、批准状态和仓库快照；缺批准稿时记录外部阻塞，不自行宣称视觉完成。
+- [ ] 按 handoff 集中读取一次 Stitch 项目/目标 Screen，通过 MCP 完成功能契约修正、缺失状态和响应式调整；每轮调整写入 MCP 调整记录。
+- [ ] 用户确认定稿后一次性同步最终截图、必要参考 HTML 和 DESIGN.md 到版本目录，并将目标页面标记为已批准。
 - [ ] 写目标 viewport 的失败截图和 axe 测试，固定页面数据与动画。
 - [ ] 实现 ThemeConfig、稳定尺寸公共组件和各页面视觉，禁止依赖 Ant Design 内部 DOM selector。
 - [ ] 逐页验证长文本、空态、加载、错误、modal/drawer、键盘和触控目标；修复重叠与布局跳动。
