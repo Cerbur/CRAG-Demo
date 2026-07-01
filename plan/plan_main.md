@@ -1,13 +1,13 @@
 # CRAG-Demo 总体规划（plan_main）
 
 > 创建时间：2026-06-10
-> 最后更新：2026-06-28（确认 router4 同时闭合正式双 API 与摄取生命周期）
+> 最后更新：2026-07-02（增加 Web Console 与开箱即用全栈 Demo 阶段）
 
 ---
 
 ## 一、项目定位
 
-CRAG-Demo 是一个用于展示完整 RAG（Retrieval-Augmented Generation）链路的后端项目。
+CRAG-Demo 是一个用于展示完整 RAG（Retrieval-Augmented Generation）链路的开箱即用全栈项目。
 
 当前已完成从纯文本入库、Parent/Child Chunk、Dense/Sparse 混合检索、RRF、Rerank、Context 组装到 LLM 回答与引用返回的单进程基线。下一阶段在保留 RAG 链路可理解、可运行、可验证的前提下，将项目演进为支持租户、用户、知识库、文件上传和 API Key 查询的多租户知识平台。
 
@@ -18,6 +18,7 @@ CRAG-Demo 是一个用于展示完整 RAG（Retrieval-Augmented Generation）链
 - `crag-access-service`：身份、租户、成员关系、会话和 API Key。
 - `crag-knowledge-service`：KnowledgeBase、Document 和文件生命周期。
 - `crag-rag-service`：Ingestion、Retrieval 和 Query。
+- `web`：注册登录、Knowledge/Document/API Key 管理与知识检索对话。
 
 核心原则：
 
@@ -80,13 +81,19 @@ KnowledgeBase 必须归 Tenant 所有。用户通过 Membership 访问 Tenant �
 | Embedding / Rerank | Python Sidecar | 继续承载本地模型能力 |
 | LLM | DeepSeek API + Spring AI 2.0.0 | 由 RAG Query 模块调用 |
 | 部署 | Docker + Docker Compose | 本地完整环境和故障验收 |
+| 前端 | React 19 + TypeScript + Ant Design | 管理控制台与知识检索 Chat |
 
 ---
 
 ## 四、目标架构与职责
 
 ```text
-                    HTTP
+                 Browser :3000
+                       │
+                ┌──────▼──────┐
+                │ Web Console │
+                └──────┬──────┘
+                       │ HTTP proxy
         ┌─────────────────────────┐
         │ crag-console-api        │
         │ JWT 验签、管理用例编排   │
@@ -239,6 +246,7 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 | `plan_19` | RAG 多知识库化 | RAG 多知识库隔离、异步索引、Ingestion Job 与状态回传 |
 | `plan_20` | Access 与权限 | User、Account、Tenant、Membership、JWT、Refresh Session 与 API Key |
 | `router4` | 双 API 与摄取生命周期 | Console API、Open API、完整用例编排、摄取状态/重试/Reconciler 与旧混合入口退出 |
+| `plan_22` | Web Console 与开箱即用部署 | 注册登录、Knowledge/Document/API Key 管理、Chat、UI 交接和 Node Docker 入口 |
 | `router5` | 删除生命周期可靠性 | 删除状态机、下游物理清理、补偿、死信、监控、告警与故障恢复 |
 
 每个阶段必须在准备执行时创建独立主 Plan，达到 `ready` 并提交后才能开始实现；完成实现后由未参与实现的新 session 独立验收。不得仅凭本路线表更新执行队列或开始编码。
@@ -253,6 +261,7 @@ RAG 的数据访问方法必须以 `knowledgeBaseId` 为必填参数，禁止先
 ## 八、约束与事实入口
 
 - 多租户平台设计：[`docs/superpowers/specs/2026-06-22-multi-tenant-knowledge-platform-design.md`](../docs/superpowers/specs/2026-06-22-multi-tenant-knowledge-platform-design.md)
+- Web Console 设计：[`docs/superpowers/specs/2026-07-02-web-console-design.md`](../docs/superpowers/specs/2026-07-02-web-console-design.md)
 - Plan 工作流：[`constraints/plan-workflow.md`](../constraints/plan-workflow.md)
 - Java 代码风格：[`constraints/code-style.md`](../constraints/code-style.md)
 - HTTP API：[`constraints/api-style.md`](../constraints/api-style.md)
