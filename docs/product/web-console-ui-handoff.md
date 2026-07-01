@@ -5,7 +5,7 @@
 - 阶段：Stitch 首版评审与调整
 - Stitch 源文件：Google Stitch MCP，项目 `CRAG`
 - Stitch Project ID：`1781302515522825622`
-- 当前设计版本：Stitch draft v1（尚未批准）
+- 当前设计版本：Stitch revised draft v2（尚未批准）
 - 最近更新：2026-07-02
 - 需求输入：`docs/product/web-console-stitch-prd.md`
 - 技术边界：`docs/superpowers/specs/2026-07-02-web-console-design.md`
@@ -39,15 +39,15 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 
 | 页面/组件 | 桌面端 | 移动端 | 交互状态 | 仓库快照 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| 登录 | 待评审 | 待设计 | 待设计 | 未同步 | Stitch Screen `066faedc1fbd41dd963402bd4fc0fb55` |
+| 登录 | 待评审 | 待设计 | 待评审 | 未同步 | Revised `033adef4606b43a79400531fbabc68b7` |
 | 注册 | 待设计 | 待设计 | 待设计 | 无 | 包含字段校验 |
 | 应用 Shell/导航 | 待评审 | 待设计 | 待设计 | 未同步 | 首版桌面稿已有统一 Shell |
-| Knowledge 列表 | 待评审 | 待设计 | 待设计 | 未同步 | Stitch Screen `5ce43c38c14d4d768d5041bd2c5383a8` |
+| Knowledge 列表 | 待评审 | 待设计 | 待评审 | 未同步 | Revised `188148d0bb974e308545f370bdc01bf3` |
 | Knowledge 详情 | 待评审 | 待设计 | 待设计 | 未同步 | 当前只覆盖 Documents 页签 |
-| Documents | 待评审 | 待设计 | 待评审 | 未同步 | Stitch Screen `63a666358c8f4016b009250f156274d5` |
-| API Keys 独立索引 | 待评审 | 非首版必需 | 待设计 | 未同步 | Stitch Screen `ac7f8e5f4e7e4c93838dad3aa0da732d` |
+| Documents | 待评审 | 待设计 | 待评审 | 未同步 | Revised `e23c27c48e584e5a9eb0621e786a1f2e` |
+| API Keys 独立索引 | 待评审 | 非首版必需 | 待评审 | 未同步 | Revised `fdb904c3581547bea7a43695c880d297` |
 | 一次性 API Key 模态框 | 待设计 | 响应式适配 | 待设计 | 无 | 显隐、复制、确认已保存 |
-| Chat | 待评审 | 待设计 | 待评审 | 未同步 | 初始 `495eb38da9294e2a873f8c50c4f3b841`；对话 `57e0c3a192844f48be7d7239d03c7626` |
+| Chat | 待评审 | 待设计 | 待评审 | 未同步 | 初始 Revised `7de26336000d4db89125c822c77ab1db`；对话 Revised `91cb566ab243486098c52de5ec6a895a` |
 
 状态统一使用：`待设计`、`设计中`、`待评审`、`已批准`、`需修改`。只有 `已批准` 的页面才能作为 UI 实现验收基线。
 
@@ -99,6 +99,7 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 日期 | Screen | 调整目的 | 结果 | 定稿 |
 | --- | --- | --- | --- | --- |
 | 2026-07-02 | Project `1781302515522825622` | 建立 MCP 设计源与本地批准快照分工 | 已读取项目与 6 个 Screen 清单 | 否 |
+| 2026-07-02 | Session `637397328441939918` | 按 PRD/OpenAPI 清除首版虚构能力并校准六个桌面 Screen | 生成 6 个 Revised Screen，旧稿保留；等待用户评审 | 否 |
 
 ## 10. 变更记录
 
@@ -106,3 +107,4 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | --- | --- | --- | --- |
 | 2026-07-02 | 需求基线 v1 | 建立 UI 交接机制，等待 Stitch 首版设计稿 | 当前文档提交 |
 | 2026-07-02 | Stitch draft v1 | 记录 MCP 项目、Screen 清单、首版缺口和按定稿同步规则 | 工作流更新 |
+| 2026-07-02 | Stitch revised draft v2 | 集中修正登录、Knowledge、Documents、API Keys 和 Chat 桌面稿 | MCP Session `637397328441939918` |
