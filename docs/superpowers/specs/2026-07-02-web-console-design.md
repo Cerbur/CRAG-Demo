@@ -176,3 +176,5 @@ pnpm build
 ## 11. 设计产物
 
 Stitch 输入文档位于 `docs/product/web-console-stitch-prd.md`。该文档定义页面、状态、响应式要求和设计输出格式；本说明定义技术架构和实施边界。两者共同作为后续 Plan 的需求基线。
+
+UI 设计使用 `docs/product/web-console-ui-handoff.md` 跨 Session 交接。Stitch 保存可编辑源文件，`docs/product/ui/` 保存已评审页面的导出快照、Token 和必要标注。每次设计变更必须同步更新源文件版本、页面批准状态、关键决策和变更记录；只有标记为已批准的页面才作为 UI 实现验收基线。
