@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>API Keys Management - CRAG Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "outline": "#727786",
+                  "on-primary-container": "#fefcff",
+                  "surface-variant": "#e0e2ed",
+                  "on-error-container": "#93000a",
+                  "border-base": "#d9d9d9",
+                  "surface-bright": "#faf9ff",
+                  "tertiary-container": "#c64f00",
+                  "on-tertiary-fixed-variant": "#7c2e00",
+                  "on-secondary": "#ffffff",
+                  "on-primary-fixed": "#001a43",
+                  "surface": "#faf9ff",
+                  "outline-variant": "#c1c6d7",
+                  "inverse-primary": "#afc6ff",
+                  "surface-container": "#ecedf9",
+                  "processing": "#1677ff",
+                  "primary": "#0057c2",
+                  "inverse-surface": "#2d3039",
+                  "secondary-fixed": "#e4e2e2",
+                  "primary-container": "#006ef2",
+                  "primary-fixed-dim": "#afc6ff",
+                  "secondary": "#5e5e5e",
+                  "primary-fixed": "#d9e2ff",
+                  "text-disabled": "#8c8c8c",
+                  "on-tertiary-container": "#fffbff",
+                  "error-container": "#ffdad6",
+                  "surface-dim": "#d8d9e5",
+                  "on-secondary-fixed": "#1b1c1c",
+                  "secondary-container": "#e1dfdf",
+                  "on-secondary-fixed-variant": "#464747",
+                  "background": "#faf9ff",
+                  "on-error": "#ffffff",
+                  "tertiary": "#9e3d00",
+                  "success": "#52c41a",
+                  "on-background": "#181b23",
+                  "surface-container-lowest": "#ffffff",
+                  "on-surface": "#181b23",
+                  "surface-container-low": "#f2f3ff",
+                  "secondary-fixed-dim": "#c7c6c6",
+                  "warning": "#faad14",
+                  "text-primary": "#262626",
+                  "error": "#ff4d4f",
+                  "on-primary-fixed-variant": "#004398",
+                  "on-primary": "#ffffff",
+                  "tertiary-fixed": "#ffdbcc",
+                  "on-secondary-container": "#636262",
+                  "on-surface-variant": "#414755",
+                  "tertiary-fixed-dim": "#ffb695",
+                  "surface-tint": "#0059c7",
+                  "bg-elevated": "#ffffff",
+                  "surface-container-high": "#e6e7f3",
+                  "surface-container-highest": "#e0e2ed",
+                  "on-tertiary": "#ffffff",
+                  "on-tertiary-fixed": "#351000",
+                  "inverse-on-surface": "#eff0fc",
+                  "bg-container": "#f5f5f5"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.125rem",
+                  "lg": "0.25rem",
+                  "xl": "0.5rem",
+                  "full": "0.75rem"
+          },
+          "spacing": {
+                  "padding-compact": "8px",
+                  "gutter": "16px",
+                  "unit": "4px",
+                  "margin-page": "24px",
+                  "container-max-width": "1200px"
+          },
+          "fontFamily": {
+                  "mono-md": [
+                          "JetBrains Mono"
+                  ],
+                  "body-sm": [
+                          "Inter"
+                  ],
+                  "label-sm": [
+                          "Inter"
+                  ],
+                  "headline-lg": [
+                          "Inter"
+                  ],
+                  "body-md": [
+                          "Inter"
+                  ],
+                  "body-lg": [
+                          "Inter"
+                  ],
+                  "headline-sm": [
+                          "Inter"
+                  ],
+                  "headline-md": [
+                          "Inter"
+                  ],
+                  "label-md": [
+                          "Inter"
+                  ]
+          },
+          "fontSize": {
+                  "mono-md": [
+                          "13px",
+                          {
+                                  "lineHeight": "20px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "body-sm": [
+                          "12px",
+                          {
+                                  "lineHeight": "20px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "label-sm": [
+                          "12px",
+                          {
+                                  "lineHeight": "18px",
+                                  "fontWeight": "500"
+                          }
+                  ],
+                  "headline-lg": [
+                          "24px",
+                          {
+                                  "lineHeight": "32px",
+                                  "fontWeight": "600"
+                          }
+                  ],
+                  "body-md": [
+                          "14px",
+                          {
+                                  "lineHeight": "22px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "body-lg": [
+                          "16px",
+                          {
+                                  "lineHeight": "24px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "headline-sm": [
+                          "16px",
+                          {
+                                  "lineHeight": "24px",
+                                  "fontWeight": "600"
+                          }
+                  ],
+                  "headline-md": [
+                          "20px",
+                          {
+                                  "lineHeight": "28px",
+                                  "fontWeight": "600"
+                          }
+                  ],
+                  "label-md": [
+                          "14px",
+                          {
+                                  "lineHeight": "22px",
+                                  "fontWeight": "500"
+                          }
+                  ]
+          }
+  },
+      },
+    }
+  </script>
+</head>
+<body class="bg-bg-container text-text-primary font-body-md h-screen w-screen overflow-hidden flex selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[200px] bg-[#001529] flex flex-col py-4 z-50">
+<div class="px-gutter mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-white mb-1">CRAG Console</h1>
+<p class="font-body-sm text-body-sm text-white/70">Management Dashboard</p>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">database</span>
+<span class="font-label-md text-label-md">Knowledge</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded bg-primary text-white font-bold cursor-pointer transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">key</span>
+<span class="font-label-md text-label-md">API Keys</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">chat_bubble</span>
+<span class="font-label-md text-label-md">Chat</span>
+</a>
+</nav>
+<div class="px-2 mt-auto">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+<span class="font-label-md text-label-md">Account</span>
+</a>
+</div>
+</aside>
+<!-- Main Layout -->
+<div class="flex-1 ml-[200px] flex flex-col h-full bg-bg-container">
+<!-- Header (Custom for this view) -->
+<header class="docked full-width top-0 sticky border-b border-border-base bg-white dark:bg-bg-elevated flex justify-between items-center w-full px-margin-page h-[64px] z-40">
+<h2 class="font-headline-lg text-headline-lg text-text-primary">API Keys</h2>
+<button class="bg-primary hover:bg-primary-container text-white px-4 py-2 rounded transition-colors flex items-center gap-2 font-label-md text-label-md" onclick="document.getElementById('api-modal').classList.remove('hidden')">
+<span class="material-symbols-outlined text-[18px]">add</span>
+        Generate New Key
+      </button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-auto p-margin-page">
+<div class="max-w-container-max-width mx-auto">
+<!-- Table Container -->
+<div class="bg-white rounded-lg border border-border-base overflow-hidden">
+<!-- Controls Row -->
+<div class="p-gutter border-b border-border-base flex justify-between items-center bg-surface-bright">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-disabled text-[18px]">search</span>
+<input class="w-full pl-9 pr-3 py-1.5 border border-border-base rounded text-body-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search keys..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1.5 border border-border-base rounded text-text-secondary hover:text-primary hover:border-primary transition-colors bg-white">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+</button>
+</div>
+</div>
+<!-- The Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#fafafa] border-b border-border-base">
+<th class="px-gutter py-2 font-label-sm text-label-sm text-text-primary">Name</th>
+<th class="px-gutter py-2 font-label-sm text-label-sm text-text-primary">Key Prefix</th>
+<th class="px-gutter py-2 font-label-sm text-label-sm text-text-primary">Status</th>
+<th class="px-gutter py-2 font-label-sm text-label-sm text-text-primary">Knowledge Base</th>
+<th class="px-gutter py-2 font-label-sm text-label-sm text-text-primary">Expiry</th>
+<th class="px-gutter py-2 font-label-sm text-label-sm text-text-primary text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-base">
+<!-- Row 1: Active -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group h-[40px]">
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-primary font-medium">Production Bot Key</td>
+<td class="px-gutter py-1">
+<div class="flex items-center gap-2">
+<span class="font-mono-md text-mono-md text-text-secondary bg-surface-container px-2 py-0.5 rounded border border-border-base">sk-prod-...</span>
+</div>
+</td>
+<td class="px-gutter py-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded border border-success text-success bg-success/10 font-label-sm text-[11px] uppercase tracking-wider">Active</span>
+</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-secondary">Customer Support v2</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-secondary">Never</td>
+<td class="px-gutter py-1 text-right">
+<div class="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-text-secondary hover:text-primary font-label-sm text-label-sm transition-colors">Disable</button>
+<button class="text-text-secondary hover:text-primary font-label-sm text-label-sm transition-colors">Rotate</button>
+<button class="text-error hover:text-error/80 font-label-sm text-label-sm transition-colors">Revoke</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Active -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group h-[40px]">
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-primary font-medium">Staging Integration</td>
+<td class="px-gutter py-1">
+<div class="flex items-center gap-2">
+<span class="font-mono-md text-mono-md text-text-secondary bg-surface-container px-2 py-0.5 rounded border border-border-base">sk-stg-...</span>
+</div>
+</td>
+<td class="px-gutter py-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded border border-success text-success bg-success/10 font-label-sm text-[11px] uppercase tracking-wider">Active</span>
+</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-secondary">Internal Docs Base</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-secondary">Oct 24, 2024</td>
+<td class="px-gutter py-1 text-right">
+<div class="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-text-secondary hover:text-primary font-label-sm text-label-sm transition-colors">Disable</button>
+<button class="text-text-secondary hover:text-primary font-label-sm text-label-sm transition-colors">Rotate</button>
+<button class="text-error hover:text-error/80 font-label-sm text-label-sm transition-colors">Revoke</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Disabled -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group h-[40px] opacity-75">
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-disabled font-medium">Old Marketing Test</td>
+<td class="px-gutter py-1">
+<div class="flex items-center gap-2">
+<span class="font-mono-md text-mono-md text-text-disabled bg-surface-container px-2 py-0.5 rounded border border-border-base">sk-test-...</span>
+</div>
+</td>
+<td class="px-gutter py-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded border border-outline text-outline bg-outline/10 font-label-sm text-[11px] uppercase tracking-wider">Disabled</span>
+</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-disabled">Marketing Fall '23</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-disabled">Expired</td>
+<td class="px-gutter py-1 text-right">
+<div class="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-text-secondary hover:text-primary font-label-sm text-label-sm transition-colors">Enable</button>
+<button class="text-error hover:text-error/80 font-label-sm text-label-sm transition-colors">Revoke</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Revoked -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group h-[40px] bg-error-container/20">
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-disabled font-medium line-through">Compromised Key Q2</td>
+<td class="px-gutter py-1">
+<div class="flex items-center gap-2">
+<span class="font-mono-md text-mono-md text-text-disabled bg-surface-container px-2 py-0.5 rounded border border-border-base line-through">sk-cmp-...</span>
+</div>
+</td>
+<td class="px-gutter py-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded border border-error text-error bg-error/10 font-label-sm text-[11px] uppercase tracking-wider">Revoked</span>
+</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-disabled">All Access</td>
+<td class="px-gutter py-1 font-body-sm text-body-sm text-text-disabled">Revoked May 12</td>
+<td class="px-gutter py-1 text-right">
+<!-- No actions for revoked -->
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="p-gutter border-t border-border-base bg-white flex justify-end items-center gap-2">
+<button class="px-3 py-1 border border-border-base rounded text-body-sm text-text-disabled bg-surface-container-lowest cursor-not-allowed">Previous</button>
+<button class="px-3 py-1 border border-border-base rounded text-body-sm text-text-primary hover:border-primary hover:text-primary transition-colors">Next</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Modal Overlay -->
+<div class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" id="api-modal">
+<div class="bg-white rounded-lg shadow-[0_8px_30px_rgb(0,0,0,0.12)] w-[480px] max-w-[90vw] overflow-hidden flex flex-col">
+<!-- Modal Header -->
+<div class="px-6 py-4 border-b border-border-base flex justify-between items-center">
+<h3 class="font-headline-sm text-headline-sm text-text-primary">Save your API key</h3>
+<button class="text-text-secondary hover:text-text-primary transition-colors" onclick="document.getElementById('api-modal').classList.add('hidden')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-6">
+<div class="mb-4 p-3 bg-warning/10 border border-warning/30 rounded flex items-start gap-3 text-warning">
+<span class="material-symbols-outlined text-[20px] mt-0.5">warning</span>
+<p class="font-body-sm text-body-sm text-text-primary"><strong>This key is shown only once.</strong> Please copy it and store it somewhere safe immediately. You will not be able to view it again.</p>
+</div>
+<div class="mb-6 relative">
+<label class="block font-label-sm text-label-sm text-text-secondary mb-1">Secret Key</label>
+<div class="relative flex items-center">
+<input class="w-full pl-3 pr-20 py-2 border border-border-base rounded bg-[#fafafa] font-mono-md text-mono-md text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" id="new-api-key" readonly="" style="-webkit-text-security: disc;" type="password" value="sk-crag-8f92bd3a49e7102cc59db28409f8c12a"/>
+<div class="absolute right-2 flex items-center gap-1">
+<button class="p-1.5 text-text-secondary hover:text-primary transition-colors rounded" onclick="const input = document.getElementById('new-api-key'); input.style.webkitTextSecurity = input.style.webkitTextSecurity === 'disc' ? 'none' : 'disc';">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="p-1.5 text-text-secondary hover:text-primary transition-colors rounded">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="rounded border-border-base text-primary focus:ring-primary w-4 h-4 cursor-pointer" id="saved-checkbox" onchange="document.getElementById('done-btn').disabled = !this.checked; document.getElementById('done-btn').classList.toggle('opacity-50', !this.checked); document.getElementById('done-btn').classList.toggle('cursor-not-allowed', !this.checked);" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-text-primary group-hover:text-primary transition-colors">I have saved this key.</span>
+</label>
+</div>
+<!-- Modal Footer -->
+<div class="px-6 py-4 border-t border-border-base bg-[#fafafa] flex justify-end">
+<button class="bg-primary hover:bg-primary-container text-white px-6 py-2 rounded transition-colors font-label-md text-label-md opacity-50 cursor-not-allowed" disabled="" id="done-btn" onclick="document.getElementById('api-modal').classList.add('hidden')">
+          Done
+        </button>
+</div>
+</div>
+</div>
+<script>
+    // Initialize masking on load for safety
+    document.getElementById('new-api-key').style.webkitTextSecurity = 'disc';
+  </script>
+</body></html>

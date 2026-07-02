@@ -2,10 +2,10 @@
 
 ## 1. 当前状态
 
-- 阶段：Stitch 首版评审与调整
+- 阶段：本地实现基线已固化
 - Stitch 源文件：Google Stitch MCP，项目 `CRAG`
 - Stitch Project ID：`1781302515522825622`
-- 当前设计版本：Stitch revised draft v2（尚未批准）
+- 当前设计版本：Local baseline `stitch-v4`（视觉批准，契约修正见 manifest）
 - 最近更新：2026-07-02
 - 需求输入：`docs/product/web-console-stitch-prd.md`
 - 技术边界：`docs/superpowers/specs/2026-07-02-web-console-design.md`
@@ -39,17 +39,19 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 
 | 页面/组件 | 桌面端 | 移动端 | 交互状态 | 仓库快照 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| 登录 | 待评审 | 待设计 | 待评审 | 未同步 | Revised `033adef4606b43a79400531fbabc68b7` |
+| 登录 | 已批准 | 待实现适配 | 已批准 | `stitch-v4` | Revised `033adef4606b43a79400531fbabc68b7` |
 | 注册 | 待设计 | 待设计 | 待设计 | 无 | 包含字段校验 |
-| 应用 Shell/导航 | 待评审 | 待设计 | 待设计 | 未同步 | 首版桌面稿已有统一 Shell |
-| Knowledge 列表 | 待评审 | 待设计 | 待评审 | 未同步 | Revised `188148d0bb974e308545f370bdc01bf3` |
-| Knowledge 详情 | 需修改 | 待设计 | 待设计 | 未同步 | 当前只覆盖 Documents，页头仍有无效入口 |
-| Documents | 需修改 | 待设计 | 需修改 | 未同步 | Revised `e23c27c48e584e5a9eb0621e786a1f2e` |
-| API Keys 独立索引 | 需修改 | 非首版必需 | 需修改 | 未同步 | Revised `fdb904c3581547bea7a43695c880d297` |
-| 一次性 API Key 模态框 | 待设计 | 响应式适配 | 待设计 | 无 | 显隐、复制、确认已保存 |
-| Chat | 需修改 | 待设计 | 需修改 | 未同步 | 初始 Revised `7de26336000d4db89125c822c77ab1db`；对话 Revised `91cb566ab243486098c52de5ec6a895a` |
+| 应用 Shell/导航 | 已批准 | 待实现适配 | 已批准 | `stitch-v4` | 移除旧稿无效顶部入口 |
+| Knowledge 列表 | 已批准 | 待实现适配 | 已批准 | `stitch-v4` | Revised `188148d0bb974e308545f370bdc01bf3` |
+| Knowledge 详情 | 已批准 | 待实现适配 | 已批准 | `stitch-v4` | 当前视觉覆盖 Documents 页签 |
+| Documents | 已批准 | 待实现适配 | 已批准 | `stitch-v4` | Final `ac57b38d44a04ffca93f1565f1be6940` |
+| API Keys 独立索引 | 已批准 | 非首版必需 | 已批准 | `stitch-v4` | 必须应用 manifest 契约修正 |
+| 一次性 API Key 模态框 | 已批准 | 响应式适配 | 已批准 | `stitch-v4/MANIFEST.md` | 使用 Ant Design 标准 Modal 实现 PRD 状态 |
+| Chat | 已批准 | 待实现适配 | 已批准 | `stitch-v4` | 必须应用 manifest Sources 与快捷键修正 |
 
-状态统一使用：`待设计`、`设计中`、`待评审`、`已批准`、`需修改`。只有 `已批准` 的页面才能作为 UI 实现验收基线。
+状态统一使用：`待设计`、`设计中`、`待评审`、`已批准`、`需修改`；移动端还可使用 `待实现适配`，表示响应式规则已批准但尚未进入代码实现。只有桌面端标记为 `已批准` 的页面才能作为 UI 实现验收基线。
+
+表中的“待实现适配”表示移动端没有独立 Stitch 稿，但已批准按 `DESIGN.md` 断点规则和 PRD 响应式要求实现，不再等待 Stitch 生成。
 
 ## 5. 已确认设计决策
 
@@ -104,6 +106,7 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 2026-07-02 | Session `9724994324961822981` | 第二轮定向修正 Documents、API Keys、Chat Initial/Active | MCP 生成成功并报告 4 个 Final；项目清单暂未暴露新 Screen，等待 Stitch Canvas 确认与重新导出 | 否 |
 | 2026-07-02 | Final MCP 直接读取复核 | 直接读取 `ac57b38d44a04ffca93f1565f1be6940` 与 `635ba62180b44f809d11ab3820cf9583` | Documents 基本通过；Chat Active 仍缺 Reference/Document ID/Excerpt 标签且保留快捷键提示；另两张 Final 无可发现 ID，不批准导出 | 否 |
 | 2026-07-02 | Session `1082164621295722125` | 最终定向修正 API Keys、Chat Initial/Active | 生成 3 张 Approved Candidate；已知 API Keys `c35ed02907ca4857b45449d6de69434c`、Chat Initial `91a4f411960b4f3fb63a9401e0e97241`；Session 输出尚未挂入 Canvas，等待可发现性与截图复核 | 否 |
+| 2026-07-02 | 本地导出收口 | 结束不稳定的 Stitch 调整循环，建立可执行视觉基线 | 同步 `stitch-v4`；视觉批准，所有协议偏差固化为 manifest 强制修正 | 是 |
 
 ## 10. 变更记录
 
@@ -114,3 +117,4 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 2026-07-02 | Stitch revised draft v2 | 集中修正登录、Knowledge、Documents、API Keys 和 Chat 桌面稿 | MCP Session `637397328441939918` |
 | 2026-07-02 | Stitch final candidate v3 | 第二轮修正 Shell、Key Modal、Chat 字段和裁切问题；等待本地导出复核 | MCP Session `9724994324961822981` |
 | 2026-07-02 | Stitch approved candidate v4 | 补齐一次性 Key Modal、Chat 初始态和 Sources 三字段；候选尚未进入 Canvas | MCP Session `1082164621295722125` |
+| 2026-07-02 | Local baseline stitch-v4 | 保存最终可用截图、参考 HTML、设计系统和契约修正 manifest | 本次基线提交 |

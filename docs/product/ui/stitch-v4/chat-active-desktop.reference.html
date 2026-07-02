@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CRAG Web Console - Chat Verification</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "warning": "#faad14",
+                        "surface-container-highest": "#e0e2ed",
+                        "text-disabled": "#8c8c8c",
+                        "outline-variant": "#c1c6d7",
+                        "outline": "#727786",
+                        "on-secondary-fixed-variant": "#464747",
+                        "on-secondary-container": "#636262",
+                        "text-primary": "#262626",
+                        "surface-container": "#ecedf9",
+                        "surface-container-high": "#e6e7f3",
+                        "success": "#52c41a",
+                        "inverse-on-surface": "#eff0fc",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "processing": "#1677ff",
+                        "surface": "#faf9ff",
+                        "primary-fixed-dim": "#afc6ff",
+                        "surface-dim": "#d8d9e5",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed": "#e4e2e2",
+                        "primary": "#0057c2",
+                        "tertiary-container": "#c64f00",
+                        "primary-fixed": "#d9e2ff",
+                        "bg-elevated": "#ffffff",
+                        "surface-bright": "#faf9ff",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "surface-container-low": "#f2f3ff",
+                        "border-base": "#d9d9d9",
+                        "inverse-primary": "#afc6ff",
+                        "on-surface": "#181b23",
+                        "error": "#ff4d4f",
+                        "on-secondary": "#ffffff",
+                        "bg-container": "#f5f5f5",
+                        "secondary": "#5e5e5e",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-primary-container": "#fefcff",
+                        "surface-variant": "#e0e2ed",
+                        "secondary-container": "#e1dfdf",
+                        "on-tertiary-container": "#fffbff",
+                        "primary-container": "#006ef2",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-primary-fixed-variant": "#004398",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-surface-variant": "#414755",
+                        "on-tertiary-fixed": "#351000",
+                        "on-background": "#181b23",
+                        "surface-tint": "#0059c7",
+                        "background": "#faf9ff",
+                        "tertiary": "#9e3d00",
+                        "on-primary-fixed": "#001a43",
+                        "inverse-surface": "#2d3039"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "padding-compact": "8px",
+                        "gutter": "16px",
+                        "unit": "4px",
+                        "margin-page": "24px",
+                        "container-max-width": "1200px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Inter"],
+                        "mono-md": ["JetBrains Mono"],
+                        "label-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-lg": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f5f5f5; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        /* Custom scrollbar for high-density UI */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+
+        .chat-bubble-assistant {
+            border: 1px solid #d9d9d9;
+            background: #ffffff;
+        }
+        .chat-bubble-user {
+            background: #e6f4ff;
+            border: 1px solid #91caff;
+        }
+    </style>
+</head>
+<body class="bg-bg-container text-text-primary overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[200px] bg-[#001529] flex flex-col py-4 z-50">
+<div class="px-4 mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-white leading-none">CRAG Console</h1>
+<p class="text-[10px] text-white/50 uppercase tracking-widest mt-1">Management Dashboard</p>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">database</span>
+<span>Knowledge</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">key</span>
+<span>API Keys</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary text-white font-bold transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span>Chat</span>
+</a>
+</nav>
+<div class="px-2 mt-auto">
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span>Account</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<div class="ml-[200px] flex flex-col h-screen">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full px-margin-page h-[64px] bg-white border-b border-border-base sticky top-0 z-40">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-sm text-headline-sm font-bold text-text-primary">Chat Verification</h2>
+</div>
+<!-- Empty div to push items if needed, but per request remove bell, gear, avatar, system-online -->
+<div></div>
+</header>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col overflow-hidden relative bg-bg-container">
+<!-- Connection Control Bar (Pinned below header) -->
+<div class="bg-white px-margin-page py-3 border-b border-border-base flex items-center justify-between shadow-sm z-30">
+<div class="flex items-center gap-4 flex-1 max-w-2xl">
+<div class="relative w-full">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-text-disabled">
+<span class="material-symbols-outlined text-[18px]">vpn_key</span>
+</span>
+<input class="block w-full pl-10 pr-3 py-1.5 border border-border-base rounded font-mono-md text-mono-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white" readonly="" type="password" value="sk-proj-••••••••••••••••"/>
+</div>
+<button class="px-4 py-1.5 bg-primary text-white font-label-md text-label-md rounded hover:bg-primary-container transition-colors shrink-0">
+                        Change
+                    </button>
+</div>
+<div class="flex items-center gap-2">
+<div class="px-3 py-1 rounded bg-success/10 border border-success/30 flex items-center gap-2">
+<span class="text-success font-label-sm text-label-sm font-bold uppercase tracking-wider">Connected</span>
+</div>
+</div>
+</div>
+<!-- Chat Display Area -->
+<div class="flex-1 overflow-y-auto p-margin-page space-y-6 flex flex-col" id="chat-container">
+<!-- Chat History -->
+<div class="space-y-6 max-w-[900px] w-full mx-auto pb-32 flex-1" id="chat-history">
+<!-- User Message -->
+<div class="flex justify-end items-start gap-4">
+<div class="chat-bubble-user px-4 py-3 rounded-xl rounded-tr-none shadow-sm max-w-[80%]">
+<p class="font-body-md text-body-md text-text-primary">
+                                Explain the compliance requirements for data privacy as per our internal documents.
+                            </p>
+</div>
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center shrink-0 border border-border-base">
+<span class="material-symbols-outlined text-[18px] text-primary">person</span>
+</div>
+</div>
+<!-- Assistant Message -->
+<div class="flex justify-start items-start gap-4">
+<div class="w-8 h-8 rounded bg-[#001529] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px] text-white">smart_toy</span>
+</div>
+<div class="chat-bubble-assistant px-4 py-3 rounded-xl rounded-tl-none shadow-sm max-w-[85%] w-full">
+<p class="font-body-md text-body-md text-text-primary mb-4 leading-relaxed">
+                                According to the 'internal_memo_draft.md' and 'legal_disclaimer_template.txt', data privacy compliance requires:
+                            </p>
+<ul class="list-disc pl-5 space-y-2 font-body-md text-body-md text-text-primary mb-6">
+<li><strong>Data encryption at rest:</strong> All sensitive user data must be encrypted using industry-standard protocols.</li>
+<li><strong>90-day key rotation:</strong> Cryptographic keys must be rotated every 90 days to minimize exposure risk.</li>
+<li><strong>Explicit user consent:</strong> Consent must be obtained before any data collection or processing activities.</li>
+</ul>
+<!-- Source Citations Area -->
+<div class="mt-6 pt-4 border-t border-border-base bg-surface-container-low/50 -mx-4 px-4 pb-2 rounded-b-xl">
+<h4 class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+                                    Source Citations
+                                </h4>
+<div class="space-y-4">
+<!-- Source 1 -->
+<div class="group">
+<div class="flex items-center mb-1">
+<span class="font-mono-md text-[12px] text-text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">description</span>
+                                                internal_memo_draft.md
+                                            </span>
+</div>
+<p class="text-[11px] text-on-surface-variant italic border-l-2 border-border-base pl-2 mt-1">"...All sensitive user data must be encrypted using industry-standard protocols..."</p>
+</div>
+<!-- Source 2 -->
+<div class="group">
+<div class="flex items-center mb-1">
+<span class="font-mono-md text-[12px] text-text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">description</span>
+                                                legal_disclaimer_template.txt
+                                            </span>
+</div>
+<p class="text-[11px] text-on-surface-variant italic border-l-2 border-border-base pl-2 mt-1">"...Consent must be obtained before any data collection or processing activities..."</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Inline Error State (Failed Message) -->
+<div class="flex justify-end items-start gap-4">
+<div class="flex flex-col items-end gap-1 max-w-[80%]">
+<div class="chat-bubble-user px-4 py-3 rounded-xl rounded-tr-none shadow-sm opacity-60 border-error">
+<p class="font-body-md text-body-md text-text-primary">
+                                    What are the penalties for non-compliance?
+                                </p>
+</div>
+<div class="flex items-center gap-2 text-error text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-[14px]">error</span>
+<span>Message failed to send</span>
+<button class="underline hover:text-on-error-container transition-colors ml-1 font-label-sm">Retry</button>
+</div>
+</div>
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center shrink-0 border border-border-base opacity-60">
+<span class="material-symbols-outlined text-[18px] text-primary">person</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Fixed Input Area (Not floating over content) -->
+<div class="bg-white border-t border-border-base px-margin-page py-4 shrink-0 z-40 relative shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+<div class="max-w-[900px] mx-auto w-full">
+<div class="bg-white border border-border-base rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+<div class="flex items-end p-2 gap-2 bg-white">
+<!-- Removed attach_file button as requested -->
+<textarea class="flex-1 border-none focus:ring-0 font-body-md text-body-md py-2 px-3 resize-none max-h-32 bg-transparent" id="chat-input" placeholder="Ask about your knowledge base..." rows="1"></textarea>
+<button class="p-2 bg-primary text-white rounded hover:bg-primary-container transition-all flex items-center justify-center disabled:bg-text-disabled disabled:cursor-not-allowed shrink-0" id="send-btn">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+<div class="px-4 py-1.5 bg-surface-container-low border-t border-border-base flex items-center justify-end">
+<span class="text-[11px] text-text-disabled">Press Enter to send</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+        const input = document.getElementById('chat-input');
+
+        // Auto-resize textarea
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    </script>
+</body></html>

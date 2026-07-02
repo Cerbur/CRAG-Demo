@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CRAG Console - Knowledge Base Details</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#414755",
+                    "surface-container": "#ecedf9",
+                    "border-base": "#d9d9d9",
+                    "processing": "#1677ff",
+                    "secondary-fixed": "#e4e2e2",
+                    "inverse-primary": "#afc6ff",
+                    "secondary-fixed-dim": "#c7c6c6",
+                    "on-secondary-container": "#636262",
+                    "inverse-surface": "#2d3039",
+                    "outline": "#727786",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "background": "#faf9ff",
+                    "tertiary-container": "#c64f00",
+                    "on-tertiary": "#ffffff",
+                    "warning": "#faad14",
+                    "on-secondary-fixed-variant": "#464747",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "surface-container-high": "#e6e7f3",
+                    "text-primary": "#262626",
+                    "bg-elevated": "#ffffff",
+                    "success": "#52c41a",
+                    "primary-fixed": "#d9e2ff",
+                    "bg-container": "#f5f5f5",
+                    "surface-container-highest": "#e0e2ed",
+                    "surface-dim": "#d8d9e5",
+                    "primary-fixed-dim": "#afc6ff",
+                    "error-container": "#ffdad6",
+                    "on-surface": "#181b23",
+                    "surface-container-low": "#f2f3ff",
+                    "primary-container": "#006ef2",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "on-primary": "#ffffff",
+                    "on-primary-container": "#fefcff",
+                    "text-disabled": "#8c8c8c",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-container": "#fffbff",
+                    "surface-variant": "#e0e2ed",
+                    "on-tertiary-fixed": "#351000",
+                    "secondary-container": "#e1dfdf",
+                    "tertiary": "#9e3d00",
+                    "on-primary-fixed": "#001a43",
+                    "surface": "#faf9ff",
+                    "tertiary-fixed": "#ffdbcc",
+                    "secondary": "#5e5e5e",
+                    "primary": "#0057c2",
+                    "surface-bright": "#faf9ff",
+                    "inverse-on-surface": "#eff0fc",
+                    "surface-container-lowest": "#ffffff",
+                    "outline-variant": "#c1c6d7",
+                    "error": "#ff4d4f",
+                    "on-error": "#ffffff",
+                    "surface-tint": "#0059c7",
+                    "on-primary-fixed-variant": "#004398",
+                    "on-background": "#181b23"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "container-max-width": "1200px",
+                    "margin-page": "24px",
+                    "padding-compact": "8px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "mono-md": ["JetBrains Mono"],
+                    "headline-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "mono-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-sm": ["12px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "22px", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "18px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+
+        .tab-transition { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .upload-dashed { border: 1px dashed #d9d9d9; transition: border-color 0.3s; }
+        .upload-dashed:hover { border-color: #0057c2; background-color: #f0f7ff; }
+
+        /* High density table resets */
+        table { border-collapse: separate; border-spacing: 0; }
+        th, td { border-bottom: 1px solid #f0f0f0; }
+        tr:last-child td { border-bottom: none; }
+    </style>
+</head>
+<body class="bg-bg-container font-body-md text-text-primary antialiased">
+<!-- Sidebar Shell -->
+<aside class="fixed left-0 top-0 h-full w-[200px] bg-[#001529] flex flex-col py-4 z-50">
+<div class="px-4 mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-white tracking-tight">CRAG Console</h1>
+<p class="text-[10px] text-white/50 uppercase tracking-widest mt-1">Management Dashboard</p>
+</div>
+<nav class="flex-1 space-y-1 px-2">
+<!-- Active Tab: Knowledge -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white font-bold transition-all duration-200 cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-body-md text-body-md">Knowledge</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="key">key</span>
+<span class="font-body-md text-body-md">API Keys</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-body-md text-body-md">Chat</span>
+</a>
+</nav>
+<div class="px-2 mt-auto border-t border-white/10 pt-4">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="font-body-md text-body-md">Account</span>
+</a>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="flex justify-between items-center w-full px-margin-page h-[64px] ml-[200px] max-w-[calc(100%-200px)] sticky top-0 bg-white border-b border-border-base z-40">
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-surface-container-low rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="arrow_back">arrow_back</span>
+</button>
+<div class="flex flex-col">
+<h2 class="font-headline-sm text-headline-sm text-text-primary leading-tight flex items-center gap-2">Customer Support v2.1
+    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-warning/30 bg-warning/10 text-warning uppercase">Key Not Ready</span>
+</h2>
+<span class="text-[11px] font-mono-md text-text-disabled uppercase">ID: KB_9928_XF</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[200px] p-margin-page min-h-[calc(100vh-64px)]">
+<div class="max-w-[1200px] mx-auto space-y-6">
+<!-- Warning Banner -->
+<div class="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-3">
+<span class="material-symbols-outlined text-warning" data-icon="warning">warning</span>
+<p class="text-body-sm text-text-primary pt-0.5">API Key not ready. Document uploads allowed, but Key creation is disabled.</p>
+</div>
+<!-- Tabs Navigation -->
+<div class="flex border-b border-border-base gap-8">
+<a class="pb-3 px-1 text-on-surface-variant hover:text-primary font-body-md text-body-md tab-transition" href="#">Overview</a>
+<a class="pb-3 px-1 text-primary font-bold border-b-2 border-primary font-body-md text-body-md tab-transition" href="#">Documents</a>
+<a class="pb-3 px-1 text-on-surface-variant hover:text-primary font-body-md text-body-md tab-transition" href="#">API Keys</a>
+</div>
+<!-- Documents Section Content -->
+<div class="grid grid-cols-1 gap-gutter">
+<!-- Upload Area (Compact) -->
+<section class="bg-bg-elevated border border-border-base rounded-lg overflow-hidden">
+<div class="p-4 flex items-center justify-between border-b border-border-base bg-surface-container-lowest">
+<div>
+<h3 class="font-headline-sm text-headline-sm">Ingest Documents</h3>
+<p class="text-body-sm text-on-surface-variant">Upload raw text or markdown files to the retrieval engine.</p>
+</div>
+<div class="flex gap-2">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-mono-md text-on-secondary-fixed">MAX 10 MiB</span>
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-mono-md text-on-secondary-fixed">.TXT, .MD</span>
+</div>
+</div>
+<div class="p-6">
+<div class="upload-dashed rounded-lg p-10 flex flex-col items-center justify-center cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="cloud_upload">cloud_upload</span>
+</div>
+<p class="text-body-md font-bold mb-1">Click or drag a file to this area to upload</p>
+<p class="text-body-sm text-text-disabled">Support for single file uploading. Strict .txt or .md format only.</p>
+</div>
+</div>
+</section>
+<!-- Documents Table (High Density) -->
+<section class="bg-bg-elevated border border-border-base rounded-lg shadow-sm">
+<div class="p-4 border-b border-border-base flex items-center justify-between">
+<div class="flex items-center gap-3">
+<h3 class="font-headline-sm text-headline-sm">Document List</h3>
+<span class="px-2 py-0.5 bg-surface-container-highest rounded-full text-xs font-bold">14 Documents</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-[#fafafa]">
+<tr>
+<th class="px-4 py-3 text-label-sm uppercase tracking-wider text-on-surface-variant">Filename</th>
+<th class="px-4 py-3 text-label-sm uppercase tracking-wider text-on-surface-variant">Status</th>
+<th class="px-4 py-3 text-label-sm uppercase tracking-wider text-on-surface-variant">Attempt</th>
+<th class="px-4 py-3 text-label-sm uppercase tracking-wider text-on-surface-variant">Updated At</th>
+<th class="px-4 py-3 text-label-sm uppercase tracking-wider text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-base">
+<!-- Row 1: Ready -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group">
+<td class="px-4 py-2.5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-disabled" data-icon="description">description</span>
+<span class="text-body-sm font-medium">billing_faq_q4.md</span>
+</div>
+</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-success/30 bg-success/10 text-success uppercase">
+                                            READY
+                                        </span>
+</td>
+<td class="px-4 py-2.5 font-mono-md text-body-sm text-on-surface-variant">1</td>
+<td class="px-4 py-2.5 text-body-sm text-on-surface-variant">Oct 24, 2023, 14:22</td>
+<td class="px-4 py-2.5 text-right">
+<div class="flex justify-end gap-1">
+</div>
+</td>
+</tr>
+<!-- Row 2: Processing -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group">
+<td class="px-4 py-2.5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-disabled" data-icon="description">description</span>
+<span class="text-body-sm font-medium">product_roadmap_2024.txt</span>
+</div>
+</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-processing/30 bg-processing/10 text-processing uppercase">
+<span class="material-symbols-outlined text-xs animate-spin mr-1" data-icon="sync">sync</span>
+                                            PROCESSING
+                                        </span>
+</td>
+<td class="px-4 py-2.5 font-mono-md text-body-sm text-on-surface-variant">1</td>
+<td class="px-4 py-2.5 text-body-sm text-on-surface-variant">Just now</td>
+<td class="px-4 py-2.5 text-right">
+<div class="flex justify-end gap-1">
+</div>
+</td>
+</tr>
+<!-- Row 3: Failed -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group bg-error/5">
+<td class="px-4 py-2.5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-error" data-icon="error_outline">error_outline</span>
+<span class="text-body-sm font-medium">internal_memo_draft.md</span>
+</div>
+</td>
+<td class="px-4 py-2.5 flex flex-col items-start gap-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-error/30 bg-error/10 text-error uppercase">
+                                            FAILED
+                                        </span>
+<span class="text-[10px] text-error">Timeout error</span>
+</td>
+<td class="px-4 py-2.5 font-mono-md text-body-sm text-on-surface-variant">3</td>
+<td class="px-4 py-2.5 text-body-sm text-on-surface-variant">Oct 24, 2023, 11:05</td>
+<td class="px-4 py-2.5 text-right">
+<div class="flex justify-end gap-1 opacity-100 transition-opacity">
+<button class="p-1 hover:bg-white rounded text-primary" title="Retry Ingestion"><span class="material-symbols-outlined text-lg" data-icon="replay">replay</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Pending -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group">
+<td class="px-4 py-2.5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-disabled" data-icon="description">description</span>
+<span class="text-body-sm font-medium">legal_disclaimer_template.txt</span>
+</div>
+</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-text-disabled/30 bg-secondary-container text-secondary uppercase">
+                                            PENDING
+                                        </span>
+</td>
+<td class="px-4 py-2.5 font-mono-md text-body-sm text-on-surface-variant">1</td>
+<td class="px-4 py-2.5 text-body-sm text-on-surface-variant">Oct 24, 2023, 10:45</td>
+<td class="px-4 py-2.5 text-right">
+<div class="flex justify-end gap-1">
+</div>
+</td>
+</tr>
+<!-- Row 5: Ready -->
+<tr class="hover:bg-[#e6f4ff] transition-colors group">
+<td class="px-4 py-2.5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-disabled" data-icon="description">description</span>
+<span class="text-body-sm font-medium">onboarding_flow_v3.md</span>
+</div>
+</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-success/30 bg-success/10 text-success uppercase">
+                                            READY
+                                        </span>
+</td>
+<td class="px-4 py-2.5 font-mono-md text-body-sm text-on-surface-variant">1</td>
+<td class="px-4 py-2.5 text-body-sm text-on-surface-variant">Oct 23, 2023, 18:30</td>
+<td class="px-4 py-2.5 text-right">
+<div class="flex justify-end gap-1">
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer (Compact) -->
+<div class="p-3 border-t border-border-base flex items-center justify-between bg-surface-container-lowest">
+<span class="text-body-sm text-text-disabled">Showing 1 to 5 of 14 entries</span>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded border border-border-base hover:bg-surface-container-low disabled:opacity-50 text-body-sm" disabled="">
+Previous
+</button>
+<button class="px-3 py-1.5 rounded border border-border-base hover:bg-surface-container-low text-body-sm">
+Next
+</button>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<script>
+        // Simple interactions for demo
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('click', () => {
+                // Prevent trigger if clicking action buttons
+                if (event.target.closest('button')) return;
+                console.log('Document selected:', row.querySelector('span.font-medium').innerText);
+            });
+        });
+
+        // Drag and drop visual feedback
+        const dropzone = document.querySelector('.upload-dashed');
+        if (dropzone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('border-primary', 'bg-primary-fixed/30');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('border-primary', 'bg-primary-fixed/30');
+                }, false);
+            });
+        }
+    </script>
+</body></html>

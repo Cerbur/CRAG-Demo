@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CRAG Web Console - Chat Verification</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-tertiary-fixed-variant": "#7c2e00",
+                "surface": "#faf9ff",
+                "on-primary-container": "#fefcff",
+                "on-background": "#181b23",
+                "on-surface-variant": "#414755",
+                "border-base": "#d9d9d9",
+                "surface-container-highest": "#e0e2ed",
+                "outline": "#727786",
+                "primary-fixed-dim": "#afc6ff",
+                "surface-container-lowest": "#ffffff",
+                "background": "#faf9ff",
+                "tertiary": "#9e3d00",
+                "outline-variant": "#c1c6d7",
+                "on-tertiary-container": "#fffbff",
+                "on-error-container": "#93000a",
+                "inverse-on-surface": "#eff0fc",
+                "secondary": "#5e5e5e",
+                "on-secondary-fixed": "#1b1c1c",
+                "secondary-fixed": "#e4e2e2",
+                "on-primary-fixed-variant": "#004398",
+                "inverse-surface": "#2d3039",
+                "surface-variant": "#e0e2ed",
+                "on-secondary-container": "#636262",
+                "text-disabled": "#8c8c8c",
+                "tertiary-fixed-dim": "#ffb695",
+                "surface-container-low": "#f2f3ff",
+                "error": "#ff4d4f",
+                "processing": "#1677ff",
+                "on-secondary-fixed-variant": "#464747",
+                "on-secondary": "#ffffff",
+                "primary-container": "#006ef2",
+                "surface-dim": "#d8d9e5",
+                "success": "#52c41a",
+                "primary-fixed": "#d9e2ff",
+                "error-container": "#ffdad6",
+                "warning": "#faad14",
+                "text-primary": "#262626",
+                "surface-tint": "#0059c7",
+                "tertiary-container": "#c64f00",
+                "surface-container": "#ecedf9",
+                "secondary-fixed-dim": "#c7c6c6",
+                "on-tertiary": "#ffffff",
+                "on-tertiary-fixed": "#351000",
+                "on-surface": "#181b23",
+                "inverse-primary": "#afc6ff",
+                "surface-bright": "#faf9ff",
+                "primary": "#0057c2",
+                "secondary-container": "#e1dfdf",
+                "on-error": "#ffffff",
+                "bg-elevated": "#ffffff",
+                "surface-container-high": "#e6e7f3",
+                "on-primary-fixed": "#001a43",
+                "tertiary-fixed": "#ffdbcc",
+                "on-primary": "#ffffff",
+                "bg-container": "#f5f5f5"
+            },
+            "borderRadius": {
+                "DEFAULT": "2px",
+                "lg": "4px",
+                "xl": "8px",
+                "full": "9999px"
+            },
+            "spacing": {
+                "padding-compact": "8px",
+                "gutter": "16px",
+                "container-max-width": "1200px",
+                "unit": "4px",
+                "margin-page": "24px"
+            },
+            "fontFamily": {
+                "headline-md": ["Inter"],
+                "headline-lg": ["Inter"],
+                "body-lg": ["Inter"],
+                "mono-md": ["JetBrains Mono"],
+                "label-md": ["Inter"],
+                "body-md": ["Inter"],
+                "body-sm": ["Inter"],
+                "headline-sm": ["Inter"],
+                "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "mono-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "label-md": ["14px", {"lineHeight": "22px", "fontWeight": "500"}],
+                "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                "body-sm": ["12px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "headline-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                "label-sm": ["12px", {"lineHeight": "18px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f5f5f5; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        /* Custom scrollbar for high-density UI */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+
+        .chat-bubble-assistant {
+            border: 1px solid #d9d9d9;
+            background: #ffffff;
+        }
+        .chat-bubble-user {
+            background: #e6f4ff;
+            border: 1px solid #91caff;
+        }
+    </style>
+</head>
+<body class="bg-bg-container text-text-primary">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[200px] bg-[#001529] flex flex-col py-4 z-50">
+<div class="px-4 mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-white leading-none">CRAG Console</h1>
+<p class="text-[10px] text-white/50 uppercase tracking-widest mt-1">Management Dashboard</p>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">database</span>
+<span>Knowledge</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">key</span>
+<span>API Keys</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary text-white font-bold transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span>Chat</span>
+</a>
+</nav>
+<div class="px-2 mt-auto">
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded cursor-pointer font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span>Account</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<div class="ml-[200px] flex flex-col h-screen">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full px-margin-page h-[64px] bg-white border-b border-border-base sticky top-0 z-40">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-sm text-headline-sm font-bold text-text-primary whitespace-nowrap">Chat Verification</h2>
+</div>
+<div class="flex items-center gap-4 flex-1 max-w-2xl ml-8">
+<div class="relative w-full">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-text-disabled">
+<span class="material-symbols-outlined text-[18px]">vpn_key</span>
+</span>
+<input class="block w-full pl-10 pr-3 py-1.5 border border-border-base rounded font-mono-md text-mono-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" placeholder="Enter API Key..." type="password" value=""/>
+</div>
+<button class="px-4 py-1.5 bg-primary text-white font-label-md text-label-md rounded hover:bg-primary-container transition-colors shrink-0">
+                        Apply Key
+                    </button>
+</div>
+<div class="flex items-center gap-2 ml-4">
+<div class="px-3 py-1 rounded bg-secondary/10 border border-secondary/30 flex items-center gap-2 whitespace-nowrap">
+<span class="text-secondary font-label-sm text-label-sm font-bold uppercase tracking-wider">Not Connected</span>
+</div>
+</div>
+</header>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col overflow-hidden relative">
+<!-- Chat Display Area -->
+<div class="flex-1 overflow-y-auto p-margin-page space-y-6" id="chat-container">
+<!-- Empty State (Initially Visible) -->
+<div class="flex flex-col items-center justify-center h-full py-12" id="empty-state">
+<div class="w-20 h-20 bg-surface-container-highest rounded-full flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-[40px] text-outline">forum</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-text-primary mb-2">Knowledge Base Chat</h3>
+<p class="text-on-surface-variant font-body-md text-body-md text-center max-w-md mb-8">
+                        Enter an API Key to start verifying knowledge retrieval.
+                    </p>
+</div>
+<!-- Chat History (Hidden initially) -->
+<div class="hidden space-y-6 max-w-[900px] mx-auto pb-32" id="chat-history">
+<!-- User Message -->
+<div class="flex justify-end items-start gap-4">
+<div class="chat-bubble-user px-4 py-3 rounded-xl rounded-tr-none shadow-sm max-w-[80%]">
+<p class="font-body-md text-body-md text-text-primary">
+                                What are the main security protocols mentioned in the 2024 Infrastructure Manual?
+                            </p>
+</div>
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center shrink-0 border border-border-base">
+<span class="material-symbols-outlined text-[18px] text-primary">person</span>
+</div>
+</div>
+<!-- Assistant Message -->
+<div class="flex justify-start items-start gap-4">
+<div class="w-8 h-8 rounded bg-[#001529] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px] text-white">smart_toy</span>
+</div>
+<div class="chat-bubble-assistant px-4 py-3 rounded-xl rounded-tl-none shadow-sm max-w-[85%]">
+<p class="font-body-md text-body-md text-text-primary mb-4 leading-relaxed">
+                                According to the 2024 Infrastructure Manual, the security protocols are tiered based on data sensitivity. The core components include:
+                            </p>
+<ul class="list-disc pl-5 space-y-2 font-body-md text-body-md text-text-primary mb-6">
+<li><strong>AES-256 Encryption:</strong> Mandatory for all data at rest within the primary database clusters.</li>
+<li><strong>Multi-Factor Authentication (MFA):</strong> Required for all SSH access to production environments.</li>
+<li><strong>Zero Trust Architecture:</strong> Implementation of micro-segmentation across the VPC to isolate critical services.</li>
+</ul>
+<!-- Source Citations Area -->
+<div class="mt-6 pt-4 border-t border-border-base bg-surface-container-low/50 -mx-4 px-4 rounded-b-xl">
+<h4 class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+                                    Source Citations
+                                </h4>
+<div class="space-y-3">
+<!-- Source 1 -->
+<div class="group">
+<div class="flex items-center justify-between mb-1">
+<span class="font-mono-md text-[12px] text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">description</span>
+                                                infrastructure_manual_v4_2024.pdf
+                                            </span>
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-success/10 text-success border border-success/20 rounded">Page 42</span>
+</div>
+<p class="text-body-sm text-on-surface-variant italic line-clamp-2 pl-4 border-l-2 border-border-base group-hover:border-primary transition-colors">
+                                            "...all encryption protocols MUST adhere to the AES-256 standard as defined by NIST. This applies to both production and staging storage volumes..."
+                                        </p>
+</div>
+<!-- Source 2 -->
+<div class="group">
+<div class="flex items-center justify-between mb-1">
+<span class="font-mono-md text-[12px] text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">description</span>
+                                                security_compliance_audit_q1.docx
+                                            </span>
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-success/10 text-success border border-success/20 rounded">Section 2.4</span>
+</div>
+<p class="text-body-sm text-on-surface-variant italic line-clamp-2 pl-4 border-l-2 border-border-base group-hover:border-primary transition-colors">
+                                            "Zero-trust implementation has reduced lateral movement risks by 84%. Perimeter-less security models are now the baseline for the Apollo VPC..."
+                                        </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating Input Area -->
+<div class="absolute bottom-0 left-0 w-full p-margin-page pointer-events-none">
+<div class="max-w-[900px] mx-auto w-full pointer-events-auto">
+<div class="bg-surface border border-border-base shadow-lg rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+<div class="flex items-end p-2 gap-2">
+<textarea class="flex-1 border-none focus:ring-0 font-body-md text-body-md py-2 px-2 resize-none max-h-32 bg-transparent disabled:opacity-50 disabled:cursor-not-allowed" disabled="" id="chat-input" placeholder="Ask about your knowledge base..." rows="1"></textarea>
+<button class="p-2 bg-primary text-white rounded hover:bg-primary-container transition-all flex items-center justify-center disabled:bg-text-disabled disabled:cursor-not-allowed" disabled="" id="send-btn">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+        const input = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const emptyState = document.getElementById('empty-state');
+        const chatHistory = document.getElementById('chat-history');
+        const chatContainer = document.getElementById('chat-container');
+
+        // Auto-resize textarea
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        function simulateChat(text) {
+            emptyState.classList.add('hidden');
+            chatHistory.classList.remove('hidden');
+
+            // In a real app, we'd append the user message here
+            // For the demo, we'll just show the prepared history
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        sendBtn.addEventListener('click', () => {
+            if (input.value.trim()) {
+                simulateChat(input.value);
+                input.value = '';
+                input.style.height = 'auto';
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendBtn.click();
+            }
+        });
+    </script>
+</body></html>
