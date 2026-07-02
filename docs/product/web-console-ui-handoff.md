@@ -101,6 +101,7 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 2026-07-02 | Project `1781302515522825622` | 建立 MCP 设计源与本地批准快照分工 | 已读取项目与 6 个 Screen 清单 | 否 |
 | 2026-07-02 | Session `637397328441939918` | 按 PRD/OpenAPI 清除首版虚构能力并校准六个桌面 Screen | 生成 6 个 Revised Screen，旧稿保留；等待用户评审 | 否 |
 | 2026-07-02 | Revised draft v2 本地导出复核 | 检查六页视觉与契约一致性 | 不通过：详情/API Keys 存在无效入口，缺一次性 Key 弹窗；Chat Active 有虚构状态、附件、快捷键提示、缺 documentId 且布局裁切 | 否 |
+| 2026-07-02 | Session `9724994324961822981` | 第二轮定向修正 Documents、API Keys、Chat Initial/Active | MCP 生成成功并报告 4 个 Final；项目清单暂未暴露新 Screen，等待 Stitch Canvas 确认与重新导出 | 否 |
 
 ## 10. 变更记录
 
@@ -109,3 +110,4 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 2026-07-02 | 需求基线 v1 | 建立 UI 交接机制，等待 Stitch 首版设计稿 | 当前文档提交 |
 | 2026-07-02 | Stitch draft v1 | 记录 MCP 项目、Screen 清单、首版缺口和按定稿同步规则 | 工作流更新 |
 | 2026-07-02 | Stitch revised draft v2 | 集中修正登录、Knowledge、Documents、API Keys 和 Chat 桌面稿 | MCP Session `637397328441939918` |
+| 2026-07-02 | Stitch final candidate v3 | 第二轮修正 Shell、Key Modal、Chat 字段和裁切问题；等待本地导出复核 | MCP Session `9724994324961822981` |
