@@ -118,3 +118,11 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 2026-07-02 | Stitch final candidate v3 | 第二轮修正 Shell、Key Modal、Chat 字段和裁切问题；等待本地导出复核 | MCP Session `9724994324961822981` |
 | 2026-07-02 | Stitch approved candidate v4 | 补齐一次性 Key Modal、Chat 初始态和 Sources 三字段；候选尚未进入 Canvas | MCP Session `1082164621295722125` |
 | 2026-07-02 | Local baseline stitch-v4 | 保存最终可用截图、参考 HTML、设计系统和契约修正 manifest | 本次基线提交 |
+
+## 11. 实现映射
+
+- `stitch-v4/DESIGN.md` Token → `web/src/app/theme.ts`。
+- Shell、桌面/平板/移动断点与触控规则 → `web/src/app/shell.tsx`、`web/src/styles.css`。
+- 公共加载、空态、错误态容器 → `web/src/shared/ui/async-state.tsx`。
+- 登录、Knowledge、Documents、API Keys、Chat 视觉与 Ant Design 6 弃用迁移 → 对应 feature View。
+- `1440×900`、`1024×768`、`390×844` 截图、axe、非空、console error、溢出、Drawer/Modal 焦点与触控目标 → `web/tests/e2e/visual-accessibility.spec.ts`。

@@ -140,7 +140,7 @@ export function ApiKeysIndexView({ viewModel }: ApiKeysIndexViewProps): JSX.Elem
         <Alert
           type="error"
           showIcon
-          message="加载知识库失败"
+          title="加载知识库失败"
           description={viewModel.errorMessage ?? '请稍后重试'}
           action={
             <Button icon={<ReloadOutlined />} onClick={() => void viewModel.refetch()}>
@@ -155,7 +155,7 @@ export function ApiKeysIndexView({ viewModel }: ApiKeysIndexViewProps): JSX.Elem
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message="部分知识库的密钥加载失败"
+              title="部分知识库的密钥加载失败"
               description={
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {failedBuckets.map((b: KbKeyBucket) => (
@@ -193,7 +193,7 @@ export function ApiKeysIndexView({ viewModel }: ApiKeysIndexViewProps): JSX.Elem
                       borderBottom: '1px solid #f0f0f0',
                     }}
                   >
-                    <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                       <Space style={{ justifyContent: 'space-between', width: '100%' }}>
                         <Text strong ellipsis>
                           {item.name}

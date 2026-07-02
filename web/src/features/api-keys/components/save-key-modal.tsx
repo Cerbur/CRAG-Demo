@@ -63,7 +63,7 @@ function SaveKeyModalBody({
       <Alert
         type="warning"
         showIcon
-        message="这是你唯一一次看到完整密钥"
+        title="这是你唯一一次看到完整密钥"
         description="关闭后将无法再次查看。请现在复制并妥善保存。"
         style={{ marginBottom: 16 }}
       />
@@ -73,15 +73,11 @@ function SaveKeyModalBody({
           readOnly
           type={revealed ? 'text' : 'password'}
           aria-label="完整 API Key"
-          addonAfter={
-            <Button
-              type="text"
-              size="small"
-              icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-              onClick={() => setRevealed((v) => !v)}
-              aria-label={revealed ? '隐藏密钥' : '显示密钥'}
-            />
-          }
+        />
+        <Button
+          icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+          onClick={() => setRevealed((v) => !v)}
+          aria-label={revealed ? '隐藏密钥' : '显示密钥'}
         />
         <Button icon={<CopyOutlined />} onClick={() => void handleCopy()} aria-label="复制密钥">
           复制
@@ -112,7 +108,7 @@ export function SaveKeyModal({ open, completeKey, onClose }: SaveKeyModalProps):
       open={open}
       onCancel={onClose}
       destroyOnHidden
-      maskClosable={false}
+      mask={{ closable: false }}
       footer={null}
     >
       {completeKey ? (

@@ -143,9 +143,7 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
                 前缀：<Text code>{item.keyPrefix}</Text>
               </div>
               {action === 'revoke' ? (
-                <div style={{ marginTop: 8 }}>
-                  撤销后该 Key 将立即失效，且无法恢复。
-                </div>
+                <div style={{ marginTop: 8 }}>撤销后该 Key 将立即失效，且无法恢复。</div>
               ) : (
                 <div style={{ marginTop: 8 }}>
                   轮换后旧 Key 将立即失效，并生成新的完整密钥（仅显示一次）。
@@ -268,7 +266,7 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
           type="error"
           showIcon
           style={{ marginBottom: 16 }}
-          message={
+          title={
             viewModel.create.error instanceof Error ? viewModel.create.error.message : '创建失败'
           }
           closable
@@ -283,7 +281,7 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
           type="error"
           showIcon
           style={{ marginBottom: 16 }}
-          message="操作失败"
+          title="操作失败"
           description="请检查 Key 状态或权限后重试。"
           closable
           onClose={() => {
@@ -301,7 +299,7 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
         <Alert
           type="error"
           showIcon
-          message="加载失败"
+          title="加载失败"
           description={viewModel.errorMessage ?? '请稍后重试'}
           action={
             <Button icon={<ReloadOutlined />} onClick={() => void viewModel.refetch()}>
@@ -331,7 +329,7 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
                   borderBottom: '1px solid #f0f0f0',
                 }}
               >
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                   <Space style={{ justifyContent: 'space-between', width: '100%' }}>
                     <Text strong ellipsis>
                       {item.name}
@@ -413,7 +411,12 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
               },
             ]}
           >
-            <InputNumber placeholder="留空使用默认（90 天）" min={0} max={31536000} style={{ width: '100%' }} />
+            <InputNumber
+              placeholder="留空使用默认（90 天）"
+              min={0}
+              max={31536000}
+              style={{ width: '100%' }}
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>

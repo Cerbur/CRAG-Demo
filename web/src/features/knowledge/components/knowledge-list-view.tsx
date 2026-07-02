@@ -50,10 +50,7 @@ function formatDate(iso: string): string {
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-export function KnowledgeListView({
-  viewModel,
-  tenantId,
-}: KnowledgeListViewProps): JSX.Element {
+export function KnowledgeListView({ viewModel, tenantId }: KnowledgeListViewProps): JSX.Element {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const isDesktop = screens.md === true;
@@ -191,7 +188,7 @@ function MobileList({
   readonly onRowClick: (kb: KnowledgeBase) => void;
 }): JSX.Element {
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="small">
+    <Space orientation="vertical" style={{ width: '100%' }} size="small">
       {viewModel.items.map((kb) => (
         <Card
           key={kb.id}
@@ -200,17 +197,13 @@ function MobileList({
           onClick={() => onRowClick(kb)}
           aria-label={`知识库卡片 ${kb.name}`}
         >
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Typography.Text strong>{kb.name}</Typography.Text>
             <Space size={8} wrap>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 {formatDate(kb.createdAt)}
               </Typography.Text>
-              {kb.apiKeyReady ? (
-                <Tag color="success">就绪</Tag>
-              ) : (
-                <Tag color="warning">待就绪</Tag>
-              )}
+              {kb.apiKeyReady ? <Tag color="success">就绪</Tag> : <Tag color="warning">待就绪</Tag>}
             </Space>
           </Space>
         </Card>
@@ -222,10 +215,7 @@ function MobileList({
 function Pagination({ viewModel }: { readonly viewModel: KnowledgeListViewModel }): JSX.Element {
   return (
     <Space style={{ marginTop: 16, justifyContent: 'flex-end', width: '100%' }}>
-      <Button
-        disabled={!viewModel.hasPreviousPage}
-        onClick={() => viewModel.gotoPreviousPage()}
-      >
+      <Button disabled={!viewModel.hasPreviousPage} onClick={() => viewModel.gotoPreviousPage()}>
         上一页
       </Button>
       <Button disabled={!viewModel.hasNextPage} onClick={() => viewModel.gotoNextPage()}>
@@ -237,10 +227,7 @@ function Pagination({ viewModel }: { readonly viewModel: KnowledgeListViewModel 
 
 function EmptyState({ onCreate }: { readonly onCreate: () => void }): JSX.Element {
   return (
-    <Empty
-      description="还没有知识库"
-      image={Empty.PRESENTED_IMAGE_SIMPLE}
-    >
+    <Empty description="还没有知识库" image={Empty.PRESENTED_IMAGE_SIMPLE}>
       <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
         新建知识库
       </Button>
@@ -258,9 +245,9 @@ function ErrorState({
   return (
     <Alert
       type="error"
-      message="加载知识库失败"
+      title="加载知识库失败"
       description={
-        <Space direction="vertical">
+        <Space orientation="vertical">
           <span>{message}</span>
           <Button size="small" onClick={onRetry}>
             重试
@@ -292,22 +279,15 @@ function CreateModal({ open, onClose, tenantId, onCreated }: CreateModalProps): 
       onCreated(kb);
       form.resetFields();
     } catch (err) {
-      const apiError = (
-        err as { readonly apiError?: { readonly message?: string } } | undefined
-      )?.apiError;
+      const apiError = (err as { readonly apiError?: { readonly message?: string } } | undefined)
+        ?.apiError;
       const text = apiError?.message ?? '创建失败';
       void message.error(text);
     }
   };
 
   return (
-    <Modal
-      title="新建知识库"
-      open={open}
-      onCancel={onClose}
-      destroyOnHidden
-      footer={null}
-    >
+    <Modal title="新建知识库" open={open} onCancel={onClose} destroyOnHidden footer={null}>
       <Form<{ name: string }>
         form={form}
         layout="vertical"
@@ -343,4 +323,3 @@ function CreateModal({ open, onClose, tenantId, onCreated }: CreateModalProps): 
 // We must import the hook lazily here only to avoid a circular import cycle
 // warning in some bundler configurations; the import is a normal static import
 // resolved at module load.
-

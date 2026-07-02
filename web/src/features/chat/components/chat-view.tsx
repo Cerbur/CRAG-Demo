@@ -14,15 +14,7 @@
  *    no "Press Enter to send" teaching copy.
  */
 import { type JSX, useEffect, useRef } from 'react';
-import {
-  Alert,
-  Button,
-  Empty,
-  Input,
-  Space,
-  Spin,
-  Typography,
-} from 'antd';
+import { Alert, Button, Empty, Input, Space, Spin, Typography } from 'antd';
 import { SendOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { ChatViewModel } from '@app/chat/use-chat';
 import type { ChatMessage, QuerySource } from '../model/types';
@@ -93,9 +85,7 @@ export function ChatView({ viewModel }: ChatViewProps): JSX.Element {
 
       {/* Composer fixed at bottom. */}
       <div className="chat-composer">
-        {lastError ? (
-          <ErrorBanner viewModel={viewModel} />
-        ) : null}
+        {lastError ? <ErrorBanner viewModel={viewModel} /> : null}
         <Space.Compact style={{ width: '100%' }}>
           <Input.TextArea
             value={question}
@@ -150,7 +140,7 @@ function MessageRow({
         ) : message.status === 'sending' ? (
           <Spin size="small" />
         ) : message.status === 'failed' ? (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Text type="danger">回答失败，请重试。</Text>
             <Button
               size="small"
@@ -164,13 +154,11 @@ function MessageRow({
             </Button>
           </Space>
         ) : (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
               {message.content || '（无答案）'}
             </Paragraph>
-            {message.sources.length > 0 ? (
-              <SourcesBlock sources={message.sources} />
-            ) : null}
+            {message.sources.length > 0 ? <SourcesBlock sources={message.sources} /> : null}
           </Space>
         )}
       </div>
@@ -187,7 +175,7 @@ function SourcesBlock({ sources }: { readonly sources: ReadonlyArray<QuerySource
       <ul className="chat-sources-list">
         {sources.map((s, i) => (
           <li key={`${s.reference}-${i}`} className="chat-source-item">
-            <Space direction="vertical" size={2} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={2} style={{ width: '100%' }}>
               <Space size={8} wrap>
                 <Text strong>{s.reference}</Text>
                 <Text code style={{ fontSize: 12 }}>
@@ -220,9 +208,11 @@ function ErrorBanner({ viewModel }: { readonly viewModel: ChatViewModel }): JSX.
             : err.message;
   return (
     <Alert
-      type={err.kind === 'authentication' ? 'error' : err.kind === 'retryable' ? 'warning' : 'error'}
+      type={
+        err.kind === 'authentication' ? 'error' : err.kind === 'retryable' ? 'warning' : 'error'
+      }
       showIcon
-      message={messageType}
+      title={messageType}
       style={{ marginBottom: 8 }}
     />
   );

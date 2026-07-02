@@ -52,7 +52,7 @@ export function RegisterForm({ viewModel }: RegisterFormProps): JSX.Element {
         {formError ? (
           <Alert
             type="error"
-            message={formError}
+            title={formError}
             showIcon
             style={{ marginBottom: 16 }}
             role="alert"
@@ -89,7 +89,11 @@ export function RegisterForm({ viewModel }: RegisterFormProps): JSX.Element {
             help={viewModel.fieldErrors.password}
             rules={[{ required: true, message: '请输入密码' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="至少 12 位" autoComplete="new-password" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="至少 12 位"
+              autoComplete="new-password"
+            />
           </Form.Item>
           <Form.Item
             label="确认密码"
@@ -98,7 +102,11 @@ export function RegisterForm({ viewModel }: RegisterFormProps): JSX.Element {
             help={viewModel.fieldErrors.confirmPassword}
             rules={[{ required: true, message: '请再次输入密码' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="再次输入密码" autoComplete="new-password" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="再次输入密码"
+              autoComplete="new-password"
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 8 }}>
             <Button type="primary" htmlType="submit" block loading={submitting}>

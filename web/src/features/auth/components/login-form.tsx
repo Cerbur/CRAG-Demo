@@ -56,7 +56,7 @@ export function LoginForm({ viewModel }: LoginFormProps): JSX.Element {
         {formError ? (
           <Alert
             type="error"
-            message={formError}
+            title={formError}
             showIcon
             style={{ marginBottom: 16 }}
             role="alert"
@@ -84,7 +84,11 @@ export function LoginForm({ viewModel }: LoginFormProps): JSX.Element {
             help={viewModel.fieldErrors.password}
             rules={[{ required: true, message: '请输入密码' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="密码" autoComplete="current-password" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="密码"
+              autoComplete="current-password"
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 8 }}>
             <Button type="primary" htmlType="submit" block loading={submitting}>

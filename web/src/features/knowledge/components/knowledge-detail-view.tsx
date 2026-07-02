@@ -10,17 +10,7 @@
  * Covers loading / not-found / error / ready states.
  */
 import { type JSX } from 'react';
-import {
-  Card,
-  Descriptions,
-  Alert,
-  Button,
-  Space,
-  Typography,
-  Skeleton,
-  Result,
-  Tag,
-} from 'antd';
+import { Card, Descriptions, Alert, Button, Space, Typography, Skeleton, Result, Tag } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, WarningFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
 import type { KnowledgeDetailViewModel } from '@app/knowledge/use-knowledge-detail';
@@ -103,7 +93,7 @@ export function KnowledgeDetailView({ viewModel }: KnowledgeDetailViewProps): JS
               type="warning"
               showIcon
               icon={<WarningFilled />}
-              message="API Key 尚未就绪"
+              title="API Key 尚未就绪"
               description="Access Scope 正在初始化。文档仍可上传（22.5），但创建 API Key 暂不可用；页面将在就绪后自动刷新。"
               style={{ marginBottom: 16 }}
             />

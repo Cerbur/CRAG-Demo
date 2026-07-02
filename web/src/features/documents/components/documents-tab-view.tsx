@@ -219,10 +219,8 @@ export function DocumentsTabView({ viewModel }: DocumentsTabViewProps): JSX.Elem
           type="error"
           showIcon
           style={{ marginBottom: 16 }}
-          message={
-            viewModel.upload.error instanceof Error
-              ? viewModel.upload.error.message
-              : '上传失败'
+          title={
+            viewModel.upload.error instanceof Error ? viewModel.upload.error.message : '上传失败'
           }
           closable
           onClose={() => viewModel.upload.reset()}
@@ -234,10 +232,8 @@ export function DocumentsTabView({ viewModel }: DocumentsTabViewProps): JSX.Elem
           type="error"
           showIcon
           style={{ marginBottom: 16 }}
-          message={
-            viewModel.retry.error instanceof Error
-              ? viewModel.retry.error.message
-              : '重试失败'
+          title={
+            viewModel.retry.error instanceof Error ? viewModel.retry.error.message : '重试失败'
           }
           closable
           onClose={() => viewModel.retry.reset()}
@@ -250,7 +246,7 @@ export function DocumentsTabView({ viewModel }: DocumentsTabViewProps): JSX.Elem
         <Alert
           type="error"
           showIcon
-          message="加载失败"
+          title="加载失败"
           description={viewModel.errorMessage ?? '请稍后重试'}
           action={
             <Button
@@ -279,7 +275,10 @@ export function DocumentsTabView({ viewModel }: DocumentsTabViewProps): JSX.Elem
             />
           </div>
           {/* Mobile structured list — shown on small screens. */}
-          <ul className="documents-mobile-list" style={{ display: 'none', padding: 0, listStyle: 'none' }}>
+          <ul
+            className="documents-mobile-list"
+            style={{ display: 'none', padding: 0, listStyle: 'none' }}
+          >
             {viewModel.items.map((d) => (
               <li
                 key={d.id}
@@ -332,7 +331,11 @@ export function DocumentsTabView({ viewModel }: DocumentsTabViewProps): JSX.Elem
  * Render failure detail for a document as safe text (never raw HTML). Exported
  * for potential reuse and for unit coverage of the safe-rendering rule.
  */
-export function DocumentFailureDetail({ item }: { readonly item: DocumentItem }): JSX.Element | null {
+export function DocumentFailureDetail({
+  item,
+}: {
+  readonly item: DocumentItem;
+}): JSX.Element | null {
   if (!item.failureMessage || item.status !== 'FAILED') return null;
   return (
     <Text type="danger" style={{ display: 'block', marginTop: 4 }}>

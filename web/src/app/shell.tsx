@@ -114,6 +114,7 @@ export function AppShell(): JSX.Element {
   const menu = (
     <Menu
       mode="inline"
+      theme="dark"
       selectedKeys={activeKey ? [activeKey] : []}
       items={navItems()}
       onClick={({ key }) => {
@@ -125,15 +126,15 @@ export function AppShell(): JSX.Element {
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="app-shell">
       {isDesktop ? (
-        <Sider breakpoint="md" collapsible={false} width={224} theme="light">
-          <div style={{ padding: '16px 20px' }}>
-            <Title level={4} style={{ margin: 0 }}>
+        <Sider breakpoint="md" collapsible={false} width={200} theme="dark">
+          <div className="app-brand">
+            <Title level={4} className="app-brand-title">
               CRAG Console
             </Title>
           </div>
-          {menu}
+          <div className="app-navigation">{menu}</div>
         </Sider>
       ) : (
         <Drawer
@@ -148,16 +149,7 @@ export function AppShell(): JSX.Element {
       )}
 
       <Layout>
-        <Header
-          style={{
-            background: '#fff',
-            paddingInline: isDesktop ? 24 : 12,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #f0f0f0',
-          }}
-        >
+        <Header className="app-header" style={{ paddingInline: isDesktop ? 24 : 12 }}>
           {isDesktop ? null : (
             <Button
               type="text"
@@ -168,8 +160,10 @@ export function AppShell(): JSX.Element {
           )}
           <div>{AccountMenu()}</div>
         </Header>
-        <Content style={{ padding: isDesktop ? 24 : 12 }}>
-          <Outlet />
+        <Content className="app-content" style={{ padding: isDesktop ? 24 : 12 }}>
+          <div className="app-content-inner">
+            <Outlet />
+          </div>
         </Content>
       </Layout>
     </Layout>
