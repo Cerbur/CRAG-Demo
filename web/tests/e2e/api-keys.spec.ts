@@ -294,13 +294,17 @@ async function mockConsoleApi(page: Page, state: ApiKeyState): Promise<void> {
 }
 
 /** Click a button whose visible label may have Ant Design's CJK auto-spacing. */
-async function clickButton(page: Page, text: string, opts: { force?: boolean } = {}): Promise<void> {
+async function clickButton(page: Page, text: string): Promise<void> {
   const pattern = new RegExp(text.split('').join('\\s*'));
+  // Rely on Playwright auto-waiting. CSS transitions/animations are disabled
+  // app-wide in `test.beforeEach`, so modal/drawer/overlay buttons are always
+  // stable and clickable — no `force:true` mask needed, and the underlying
+  // React handler deterministically fires on every viewport.
   await page
     .getByRole('button')
     .filter({ hasText: pattern })
     .first()
-    .click({ force: opts.force ?? false });
+    .click();
 }
 
 async function loginAndGotoApiKeyTab(page: Page, state: ApiKeyState): Promise<void> {
@@ -358,6 +362,22 @@ async function assertNoCompleteKeyInStorage(page: Page): Promise<void> {
 
 test.describe('api key management', () => {
   test.slow();
+
+  // Deterministic modal transitions: Ant Design Modal/Drawer/Messages use CSS
+  // transitions for open/close. On the narrow mobile viewport a Playwright
+  // click on a modal button that lands during the closing animation is
+  // intercepted by the still-animating overlay/mask, so the React handler
+  // never fires — `force:true` masks the actionability check but does NOT
+  // guarantee the handler runs. Disabling all CSS transitions/animations in
+  // the e2e environment makes open/close instant so no click is ever
+  // intercepted, and we can drop the `force:true` workarounds below and rely
+  // on Playwright auto-waiting on stable locators. App-scoped (covers
+  // `Modal.confirm` imperative dialogs too); runs before each test only.
+  test.beforeEach(async ({ page }) => {
+    await page.addStyleTag({
+      content: `* { transition: none !important; animation: none !important; }`,
+    });
+  });
   test('create, copy, confirm, disable, enable, rotate, revoke + storage scan', async ({ page }) => {
     const state: ApiKeyState = {
       status: 'ACTIVE',
@@ -374,7 +394,7 @@ test.describe('api key management', () => {
     await nameInput.fill('prod-key');
     // Click the submit button. The create POST returns 201 with the one-time
     // completeKey, which triggers setSecret + the save-key modal opens.
-    await clickButton(page, '创建', { force: true });
+    await clickButton(page, '创建');
 
     // The one-time-secret modal should open with the title.
     await expect(page.getByText(/保\s*存\s*你\s*的/).first()).toBeAttached({ timeout: 10_000 });
@@ -382,9 +402,8 @@ test.describe('api key management', () => {
     // STORAGE SCAN after create: no complete key in storage.
     await assertNoCompleteKeyInStorage(page);
 
-    // Copy button should be present and clickable. Force on mobile because the
-    // modal animation keeps the button "unstable" for Playwright's check.
-    await clickButton(page, '复制', { force: true });
+    // Copy button should be present and clickable.
+    await clickButton(page, '复制');
     // Success toast (Ant Design message). CJK auto-spacing may render it as
     // "已 复 制", so we use a tolerant regex.
     await expect(page.getByText(/已\s*复\s*制/).first()).toBeVisible({ timeout: 5_000 });
@@ -394,7 +413,7 @@ test.describe('api key management', () => {
     await expect(doneButton).toBeDisabled();
     await page.getByRole('checkbox').check();
     await expect(doneButton).toBeEnabled();
-    await doneButton.click({ force: true });
+    await doneButton.click();
 
     // After closing, the modal should be gone (completeKey purged from state).
     await expect(page.getByText(/保\s*存\s*你\s*的/)).toHaveCount(0, { timeout: 5_000 });
@@ -416,16 +435,15 @@ test.describe('api key management', () => {
     // --- Rotate: ACTIVE row should have a 轮换 button; triggers danger confirm ---
     await clickButton(page, '轮换');
     // The danger confirm modal should appear. The title is "确认轮换 API Key".
-    // Use toBeAttached (not toBeVisible) because Ant Design modal animation
-    // can momentarily report the title as hidden to Playwright's visibility
-    // check even though it is rendered and interactive.
+    // With CSS transitions disabled, the modal is visible immediately, so we
+    // can use toBeVisible directly.
     const rotateConfirmDialog = page.getByRole('dialog').filter({ hasText: /轮\s*换\s*API\s*Key/ });
-    await expect(rotateConfirmDialog).toBeAttached({ timeout: 5_000 });
+    await expect(rotateConfirmDialog).toBeVisible({ timeout: 5_000 });
     // Click the confirm OK button INSIDE the dialog (not the row button).
     await rotateConfirmDialog
       .getByRole('button')
       .filter({ hasText: /轮\s*换/ })
-      .click({ force: true });
+      .click();
     // The new one-time secret modal opens with the rotated key.
     await expect(page.getByText(/保\s*存\s*你\s*的/).first()).toBeAttached({ timeout: 5_000 });
 
@@ -434,18 +452,18 @@ test.describe('api key management', () => {
 
     // Close the rotated-key modal.
     await page.getByRole('checkbox').check();
-    await page.getByRole('button').filter({ hasText: /完\s*成/ }).first().click({ force: true });
+    await page.getByRole('button').filter({ hasText: /完\s*成/ }).first().click();
     await expect(page.getByText(/保\s*存\s*你\s*的/)).toHaveCount(0, { timeout: 5_000 });
 
     // --- Revoke: triggers danger confirm ---
     await clickButton(page, '撤销');
     // The danger confirm modal title is "确认撤销 API Key".
     const revokeConfirmDialog = page.getByRole('dialog').filter({ hasText: /撤\s*销\s*API\s*Key/ });
-    await expect(revokeConfirmDialog).toBeAttached({ timeout: 5_000 });
+    await expect(revokeConfirmDialog).toBeVisible({ timeout: 5_000 });
     await revokeConfirmDialog
       .getByRole('button')
       .filter({ hasText: /撤\s*销/ })
-      .click({ force: true });
+      .click();
     await expect(page.getByText(/已\s*撤\s*销/).first()).toBeVisible({ timeout: 10_000 });
 
     // FINAL STORAGE SCAN: no complete key anywhere across the whole flow.
