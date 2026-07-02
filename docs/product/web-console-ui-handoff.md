@@ -102,6 +102,7 @@ Stitch 保留可编辑的设计源文件，仓库保留交接信息和可追溯�
 | 2026-07-02 | Session `637397328441939918` | 按 PRD/OpenAPI 清除首版虚构能力并校准六个桌面 Screen | 生成 6 个 Revised Screen，旧稿保留；等待用户评审 | 否 |
 | 2026-07-02 | Revised draft v2 本地导出复核 | 检查六页视觉与契约一致性 | 不通过：详情/API Keys 存在无效入口，缺一次性 Key 弹窗；Chat Active 有虚构状态、附件、快捷键提示、缺 documentId 且布局裁切 | 否 |
 | 2026-07-02 | Session `9724994324961822981` | 第二轮定向修正 Documents、API Keys、Chat Initial/Active | MCP 生成成功并报告 4 个 Final；项目清单暂未暴露新 Screen，等待 Stitch Canvas 确认与重新导出 | 否 |
+| 2026-07-02 | Final MCP 直接读取复核 | 直接读取 `ac57b38d44a04ffca93f1565f1be6940` 与 `635ba62180b44f809d11ab3820cf9583` | Documents 基本通过；Chat Active 仍缺 Reference/Document ID/Excerpt 标签且保留快捷键提示；另两张 Final 无可发现 ID，不批准导出 | 否 |
 
 ## 10. 变更记录
 
