@@ -152,7 +152,7 @@ updated: 2026-07-02
 | 22.5 | 完成 Document 上传与摄取状态 | ⏳ 待验收 | 3e2c2747, 35256a1f | — |
 | 22.6 | 完成 API Key 双视角管理 | ⏳ 待验收 | af064df, f24e598, 45693d0 | — |
 | 22.7 | 完成知识检索 Chat | ⏳ 待验收 | 48a4f27 | — |
-| 22.8 | 按批准设计稿完成视觉与响应式验收 | ⏳ 待开始 | — | — |
+| 22.8 | 按批准设计稿完成视觉与响应式验收 | ⏳ 待验收 | 9320e13 | — |
 | 22.9 | 完成 Node Docker 部署与全链路交接 | ⏳ 待开始 | — | — |
 
 整体进度：0 / 9（0%）
@@ -477,6 +477,11 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.7 实现自测） | `cd web && pnpm test -- src/features/chat` + `app/chat` | ✅ 通过 | 请求体仅 `{question}`（ViewModel 与 e2e 双重断言，禁带 tenantId/knowledgeBaseId）、API Key 仅内存（Query cache 与 storage 双扫描无完整 Key）、消息状态 sending/complete/failed、401/502/503 错误映射、发送中禁重复提交、显式重试无自动重试 |
 | 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/chat.spec.ts --repeat-each=3` | ✅ 通过 | 42/42（14 测试 × 3，桌面+移动）：初始空态、成功查询（body+auth 断言）、禁重复提交、失败保留+重试、无效 Key 401、无结果、clear 清 Key 与消息、刷新清状态、storage 无完整 Key |
 | 2026-07-02 | 同上 | 收尾全门禁 | ✅ 通过 | `pnpm lint`/`pnpm typecheck` 干净；`pnpm test` 全量 276 通过；`pnpm build` 产物生成（非阻塞 chunk 体积警告）；**全量 Playwright 66/66**（app-shell+auth+knowledge+documents+api-keys+chat，桌面+移动）无回归 |
+| 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.8 实现自测） | `cd web && pnpm lint && pnpm typecheck && pnpm test && pnpm build` | ✅ 通过 | ESLint、strict TS、37 文件 281 项 Vitest、生产构建通过；构建保留既有非阻塞 chunk 体积警告 |
+| 2026-07-02 | 同上 | `cd web && pnpm e2e` | ✅ 通过 | 74/74；含 1440×900、1024×768、390×844 截图，WCAG 2 A/AA axe、页面/像素非空、console/page error、横向溢出、Drawer 焦点恢复及 Modal 44px 触控目标检查 |
+| 2026-07-02 | 同上 | Ant Design 6 弃用扫描与相关回归 | ✅ 通过 | 完成 `Alert.message→title`、`Space.direction→orientation`、`Input.addonAfter→Space.Compact`，并清理全量回归发现的 `Modal.maskClosable` 警告；SaveKeyModal 5/5 与 typecheck 通过 |
+| 2026-07-02 | 同上 | `pnpm format:check` / 22.8 变更文件精确 Prettier 检查 | ⚠️ 基线残留 / ✅ 通过 | 全仓仍含前序任务已记录的格式化存量；22.8 的 19 个实现/测试/文档相关文件精确检查全部通过，未扩散格式化 |
+| 2026-07-02 | 同上 | `git show --stat 9320e13`、diff/秘密扫描 | ✅ 通过 | 19 文件均属于 22.8；无密钥、Token 或私钥；未纳入工作区既有 `plan_14` 修改 |
 
 ## 阻塞记录
 
@@ -498,3 +503,4 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 22.5 实现提交 3e2c2747、修复 35256a1f 并转待验收 | 22.5 由独立 SubAgent 完成 Document 上传/摄取/条件 retry；主 Agent 独立复核发现 retry→READY e2e 竞态失败，另起独立 SubAgent 用 systematic-debugging 定位并修复（retry onSuccess 乐观置 PENDING + mock state 真实化） | 自测通过；记录 retry 收敛竞态修复证据 |
 | 2026-07-02 | 22.6 实现提交 af064df、修复 f24e598、45693d0 并转待验收 | 22.6 由独立 SubAgent 完成 API Key 双视角管理（Knowledge tab + 独立聚合页、一次性秘密模态框、worker pool 并发 4、部分失败展示、completeKey 不持久化）；主 Agent 独立复核发现 mobile e2e 一致失败，先后两轮独立 SubAgent 修复（条件渲染补 CSS + e2e 禁用模态动画） | 自测通过；记录 mobile e2e 两轮修复与 `--repeat-each=5` 稳定证据 |
 | 2026-07-02 | 22.7 实现提交 48a4f27 并转待验收；22.1–22.7 全部转待验收 | 22.7 由独立 SubAgent 完成知识检索 Chat（Open Query、内存 API Key、消息 Model/ViewModel、composer、来源区、失败显式重试）；e2e 吸取 22.6 教训预先禁用模态动画 | 22.1–22.7 实现闭环完成；22.8、22.9 仍待开始，Plan 保持 in_progress；下一 Session 从 22.8 开始 |
+| 2026-07-02 | 22.8 实现提交 9320e13 并转待验收 | 按批准的 Local baseline `stitch-v4` 落地 ThemeConfig、公共 AsyncState、统一页面视觉与三视口响应式/axe/截图验收，迁移 Ant Design 6 已知弃用项 | 22.1–22.8 待验收；22.9 仍待开始，Plan 保持 in_progress；下一 Session 从 22.9 开始 |
