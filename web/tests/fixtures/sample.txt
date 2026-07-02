@@ -1,0 +1,2 @@
+Hello CRAG document.
+This is a plain text fixture for upload tests.
