@@ -378,3 +378,134 @@ export function createOpenHandlers(overrides: OpenHandlerOverrides = {}): {
  * entry so feature tests do not import msw internals directly.
  */
 export { http, HttpResponse } from 'msw';
+
+/** KnowledgeBase fixture shape used by the Knowledge handlers below. */
+interface KnowledgeBaseFixture {
+  readonly knowledgeBaseId: string;
+  readonly tenantId: string;
+  readonly name: string;
+  readonly apiKeyReady: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface KnowledgeHandlerOverrides {
+  /** Items returned on the first list page (pageToken=''). */
+  readonly items?: ReadonlyArray<KnowledgeBaseFixture>;
+  /** nextPageToken returned on the first list page. '' = no more pages. */
+  readonly nextPageToken?: string;
+  /** Outcome of POST create. status 201 = success (apiKeyReady per body). */
+  readonly create?: {
+    readonly status?: 201 | 400 | 401 | 403 | 409 | 503;
+    readonly body?: KnowledgeBaseFixture;
+  };
+  /** Outcome of GET /{id}. Default: returns the matching item from `items`. */
+  readonly detail?: {
+    readonly status?: 200 | 401 | 403 | 404 | 503;
+    readonly body?: KnowledgeBaseFixture;
+  };
+}
+
+/**
+ * Create Knowledge handlers (list/create/get) for the Knowledge feature tests
+ * (22.4+). The default state mirrors the OpenAPI examples: one ready KB on page
+ * 1, empty nextPageToken, create returns 201 ready, detail returns the matching
+ * item. Tests override individual outcomes as needed.
+ *
+ * The handlers track call counts so tests can assert paging and polling
+ * deterministically. No secrets are logged.
+ */
+export function createKnowledgeHandlers(
+  tenantId: string,
+  overrides: KnowledgeHandlerOverrides = {},
+): {
+  readonly handlers: ReadonlyArray<HttpHandler>;
+  readonly calls: {
+    readonly list: () => number;
+    readonly create: () => number;
+    readonly detail: () => number;
+  };
+} {
+  let listCalls = 0;
+  let createCalls = 0;
+  let detailCalls = 0;
+
+  const items = overrides.items ?? [
+    {
+      knowledgeBaseId: '3001',
+      tenantId,
+      name: '产品文档',
+      apiKeyReady: true,
+      createdAt: '2026-07-02T09:00:00Z',
+      updatedAt: '2026-07-02T09:00:00Z',
+    },
+  ];
+  const nextPageToken = overrides.nextPageToken ?? '';
+
+  const collectionPath = `*/console-api/api/v1/tenants/${tenantId}/knowledge-bases`;
+  const itemPath = `*/console-api/api/v1/tenants/${tenantId}/knowledge-bases/:kbId`;
+
+  const handlers: HttpHandler[] = [
+    http.get(collectionPath, ({ request }) => {
+      listCalls += 1;
+      const url = new URL(request.url);
+      const token = url.searchParams.get('pageToken') ?? '';
+      // For the first page return the configured items/token; for subsequent
+      // pages return empty by default (tests can override behaviour by
+      // replacing the handler).
+      if (token === '') {
+        return HttpResponse.json(ok({ items, nextPageToken }));
+      }
+      return HttpResponse.json(ok({ items: [], nextPageToken: '' }));
+    }),
+    http.post(collectionPath, async () => {
+      createCalls += 1;
+      const outcome = overrides.create;
+      const status = outcome?.status ?? 201;
+      if (status === 201) {
+        const body =
+          outcome?.body ??
+          ({
+            knowledgeBaseId: '3002',
+            tenantId,
+            name: '新建知识库',
+            apiKeyReady: true,
+            createdAt: '2026-07-02T09:00:00Z',
+            updatedAt: '2026-07-02T09:00:00Z',
+          } as KnowledgeBaseFixture);
+        return HttpResponse.json(ok(body), { status: 201 });
+      }
+      const { code, detail } = errorEnvelope(status);
+      return HttpResponse.json(err(code, detail), { status });
+    }),
+    http.get(itemPath, ({ params }) => {
+      detailCalls += 1;
+      const outcome = overrides.detail;
+      if (outcome?.status && outcome.status !== 200) {
+        const { code, detail } = errorEnvelope(outcome.status);
+        return HttpResponse.json(err(code, detail), { status: outcome.status });
+      }
+      const id = params['kbId'] as string;
+      const match = items.find((i) => i.knowledgeBaseId === id);
+      if (match) {
+        return HttpResponse.json(ok(match));
+      }
+      if (outcome?.body) {
+        return HttpResponse.json(ok(outcome.body));
+      }
+      // Default 404 for unknown ids.
+      const { code, detail } = errorEnvelope(404);
+      return HttpResponse.json(err(code, detail), { status: 404 });
+    }),
+  ];
+
+  return {
+    handlers,
+    calls: {
+      list: () => listCalls,
+      create: () => createCalls,
+      detail: () => detailCalls,
+    },
+  };
+}
+

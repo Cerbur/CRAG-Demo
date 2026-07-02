@@ -1,8 +1,15 @@
 import type { JSX } from 'react';
-import { PagePlaceholder } from './page-placeholder';
+import { KnowledgeListView } from '@features/knowledge/components/knowledge-list-view';
+import { useKnowledgeList } from '@app/knowledge/use-knowledge-list';
+import { useSessionContext } from '@app/session/session-context';
 
+/**
+ * Knowledge list page. Wires the list ViewModel to the list View. The tenant
+ * scope comes from the active AuthSession.
+ */
 export function KnowledgeListPage(): JSX.Element {
-  return (
-    <PagePlaceholder title="知识库" description="知识库列表、分页和创建将在 22.4 实现。" />
-  );
+  const { session } = useSessionContext();
+  const tenantId = session?.tenantId ?? '';
+  const viewModel = useKnowledgeList({ tenantId });
+  return <KnowledgeListView viewModel={viewModel} tenantId={tenantId} />;
 }
