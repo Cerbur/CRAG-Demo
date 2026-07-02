@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_22
 type: main
-status: in_progress
+status: verifying
 created: 2026-07-02
 updated: 2026-07-02
 ---
@@ -153,7 +153,7 @@ updated: 2026-07-02
 | 22.6 | 完成 API Key 双视角管理 | ⏳ 待验收 | af064df, f24e598, 45693d0 | — |
 | 22.7 | 完成知识检索 Chat | ⏳ 待验收 | 48a4f27 | — |
 | 22.8 | 按批准设计稿完成视觉与响应式验收 | ⏳ 待验收 | 9320e13 | — |
-| 22.9 | 完成 Node Docker 部署与全链路交接 | ⏳ 待开始 | — | — |
+| 22.9 | 完成 Node Docker 部署与全链路交接 | ⏳ 待验收 | f215ea8 | — |
 
 整体进度：0 / 9（0%）
 
@@ -482,6 +482,15 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 同上 | Ant Design 6 弃用扫描与相关回归 | ✅ 通过 | 完成 `Alert.message→title`、`Space.direction→orientation`、`Input.addonAfter→Space.Compact`，并清理全量回归发现的 `Modal.maskClosable` 警告；SaveKeyModal 5/5 与 typecheck 通过 |
 | 2026-07-02 | 同上 | `pnpm format:check` / 22.8 变更文件精确 Prettier 检查 | ⚠️ 基线残留 / ✅ 通过 | 全仓仍含前序任务已记录的格式化存量；22.8 的 19 个实现/测试/文档相关文件精确检查全部通过，未扩散格式化 |
 | 2026-07-02 | 同上 | `git show --stat 9320e13`、diff/秘密扫描 | ✅ 通过 | 19 文件均属于 22.8；无密钥、Token 或私钥；未纳入工作区既有 `plan_14` 修改 |
+| 2026-07-02 | macOS, Docker 29.5.2；Node v26.3.1（22.9 实现自测） | `cd web && pnpm test -- tests/server`（Runtime Server 行为） | ✅ 通过 | 12 项：/health、静态、SPA 回退、404、目录穿越、/console-api 代理前缀剥离、Cookie Path=/api/v1/auth→/console-api/api/v1/auth 重写、256KiB 流式上传字节完整、503 passthrough、/open-api 独立上游、502 不可达、SIGTERM `server.close()` |
+| 2026-07-02 | 同上 | `cd web && pnpm lint && pnpm typecheck && pnpm test && pnpm build` | ✅ 通过 | ESLint/strict TS/38 文件 293 项 Vitest/生产构建通过；构建保留既有非阻塞 chunk 体积警告；server.mjs 用 `npm install -g pnpm@10.32.1`（容器内 corepack 无法验证 pnpm 签名） |
+| 2026-07-02 | 同上 | `cd web && pnpm e2e` | ✅ 通过（含 drive-by） | 74/74；首次执行发现 3 项 documents mobile e2e 失败（22.5 引入的 `.first()` 定位 bug，desktop/mobile 双渲染下移动取到隐藏桌面单元格），独立提交 `a58747c` 修复（新增 `visibleText` 用 `:visible` 容器定位）后 74/74；documents `--repeat-each=3` 共 18/18 稳定 |
+| 2026-07-02 | 完整 Compose（9 服务健康，LLM Stub） | `bash scripts/tests/http/web_container_test.sh` | ✅ 通过 | 8/8：/health UP、/ 返回 SPA index.html、深链 SPA 回退、缺失资源 404、/console-api 与 /open-api 代理穿透 readiness、容器非 root（uid=1000）、PID 1 = `node server/server.mjs`（非 vite preview） |
+| 2026-07-02 | 同上 | `bash scripts/tests/http/web_auth_test.sh` | ✅ 通过（经测试脚本修正） | 7/7：register/login/refresh/logout/me 经代理；Set-Cookie `Path=/console-api/api/v1/auth` 重写在原始响应头与 cookie jar 双重验证；refresh 同源 Cookie 回送成功；缺 Origin 403；无 Bearer 401；校验失败 400。首轮测试误用 `Path=` grep cookie jar 格式，改为 `-D` 捕获原始响应头断言 |
+| 2026-07-02 | 同上 | `bash scripts/tests/http/web_upload_chat_test.sh` | ✅ 通过 | 经代理全链路：register→create KB（等 apiKeyReady）→create API Key→upload .txt 202→等 ingestion READY→Open Query 200 answer；body.knowledgeBaseId 被忽略；缺 Bearer 401；question 超长 400 |
+| 2026-07-02 | 同上 | `docker compose ps`（全栈健康） | ✅ 通过 | redis/db/sidecar/access/knowledge/rag/console-api/open-api/web 共 9 服务全部 healthy；web 健康检查 = Node 内置 http 调 /health |
+| 2026-07-02 | macOS | `./gradlew spotlessCheck test check`、`python3 scripts/validate_constraints.py`、`python3 scripts/validate_plans.py`、`python3 scripts/validate_openapi.py` | ✅ 通过 | Gradle BUILD SUCCESSFUL；validate_constraints 0 error；validate_plans 0 error（24 warning 均为历史 v2 plan）；validate_openapi 0 error；Web 变更未触及 Java 代码 |
+| 2026-07-02 | 同上 | `git show --stat f215ea8`、`git show --stat a58747c`、秘密扫描 | ✅ 通过 | feat 15 文件均为 22.9 交付物；documents 修复 1 文件；无密钥/Token/私钥；未纳入工作区既有 `plan_14` 修改 |
 
 ## 阻塞记录
 
@@ -504,3 +513,4 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 22.6 实现提交 af064df、修复 f24e598、45693d0 并转待验收 | 22.6 由独立 SubAgent 完成 API Key 双视角管理（Knowledge tab + 独立聚合页、一次性秘密模态框、worker pool 并发 4、部分失败展示、completeKey 不持久化）；主 Agent 独立复核发现 mobile e2e 一致失败，先后两轮独立 SubAgent 修复（条件渲染补 CSS + e2e 禁用模态动画） | 自测通过；记录 mobile e2e 两轮修复与 `--repeat-each=5` 稳定证据 |
 | 2026-07-02 | 22.7 实现提交 48a4f27 并转待验收；22.1–22.7 全部转待验收 | 22.7 由独立 SubAgent 完成知识检索 Chat（Open Query、内存 API Key、消息 Model/ViewModel、composer、来源区、失败显式重试）；e2e 吸取 22.6 教训预先禁用模态动画 | 22.1–22.7 实现闭环完成；22.8、22.9 仍待开始，Plan 保持 in_progress；下一 Session 从 22.8 开始 |
 | 2026-07-02 | 22.8 实现提交 9320e13 并转待验收 | 按批准的 Local baseline `stitch-v4` 落地 ThemeConfig、公共 AsyncState、统一页面视觉与三视口响应式/axe/截图验收，迁移 Ant Design 6 已知弃用项 | 22.1–22.8 待验收；22.9 仍待开始，Plan 保持 in_progress；下一 Session 从 22.9 开始 |
+| 2026-07-02 | 22.9 实现提交 f215ea8、drive-by 修复 a58747c 并转待验收；Plan → verifying | 22.9 完成 Node Runtime Server（/health、静态、SPA 回退、/console-api 与 /open-api 同源代理、Cookie Path 重写、SIGTERM）、Node 多阶段非 root Dockerfile、Compose `web` 服务（3000，console-api allowed-origins 纳入 3000）、docker-structure 约束 + validator 同步、三个 Docker HTTP 回归脚本；drive-by 修复 22.5 documents e2e mobile `.first()` 定位 bug 以通过 22.9 `pnpm e2e` 门禁 | 22.1–22.9 全部待验收；Plan 转为 `verifying` 待独立验收；执行队列清空、验收队列登记 plan_22 |

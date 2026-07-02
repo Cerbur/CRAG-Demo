@@ -1,6 +1,6 @@
 # Plan Index
 
-> 最后更新：2026-07-02（plan_22 执行中：22.1–22.8 全部转待验收；22.9 待开始。下一 Session 从 22.9 开始）
+> 最后更新：2026-07-02（plan_22 实现闭环完成：22.1–22.9 全部转待验收，Plan 转为 verifying，等待独立验收 session）
 
 本目录维护 CRAG-Demo 的执行计划索引。`plan_main` 只保留总体方向；具体计划、历史小数计划和 hotfix 状态统一从这里进入。
 
@@ -111,14 +111,14 @@ plan/
 | plan_19 | RAG 多知识库化，消费 DOC_UPLOADED、建立 Ingestion Job、按 KnowledgeBase 隔离 Chunk/Dense/Sparse/Retrieval/Query 并发布状态事件 | ✅ 完成 (8/8) | — | [plan_19.md](../plan_19/plan_19.md) |
 | plan_20 | Access 垂直链路，包含 User/Account、默认 Tenant、Membership、JWT、Refresh Session、API Key、失效事件与 smoke 验收 | ✅ 完成 (9/9) | — | [plan_20.md](../plan_20/plan_20.md) |
 | plan_21 | 双 API 与摄取生命周期，包含 Console/Open 正式 HTTP、Provider 契约补齐、状态/retry/Reconciler、Key 缓存失效与前端 OpenAPI | ✅ 完成 (13/13) | — | [plan_21.md](../plan_21/plan_21.md) |
-| plan_22 | Web Console、MVVM 前端、Knowledge/Document/API Key 管理、Chat 与 Node Docker 开箱部署 | 🟡 进行中 (0/9) | — | [plan_22.md](../plan_22/plan_22.md) |
+| plan_22 | Web Console、MVVM 前端、Knowledge/Document/API Key 管理、Chat 与 Node Docker 开箱部署 | ⏳ 待验收 (0/9) | — | [plan_22.md](../plan_22/plan_22.md) |
 
 ---
 
 ## 当前执行队列
 
 ```text
-1. plan_22 — Web Console 与开箱即用部署（in_progress，0/9，22.1–22.8 待验收；下一 Session 从 22.9 开始）
+（暂无）
 ```
 
 - 同一时刻默认只执行队首计划；前置计划完成后才推进下一项。
@@ -128,7 +128,7 @@ plan/
 ## 当前验收队列
 
 ```text
-（暂无）
+1. plan_22 — Web Console 与开箱即用部署（verifying，0/9，22.1–22.9 全部待验收）
 ```
 
 - 仅列出状态为"待验收"的 Plan/Hotfix；验收必须由未参与实现的新 agent session 执行。
@@ -301,7 +301,7 @@ plan/
 
 | 文件 | 主要功能 | 状态 |
 | --- | --- | --- |
-| [plan_22.md](../plan_22/plan_22.md) | React + Ant Design Web Console、MVVM 前端、核心管理/Chat 与 Node Docker 部署 | 🟡 进行中 (0/9) |
+| [plan_22.md](../plan_22/plan_22.md) | React + Ant Design Web Console、MVVM 前端、核心管理/Chat 与 Node Docker 部署 | ⏳ 待验收 (0/9) |
 
 ---
 
