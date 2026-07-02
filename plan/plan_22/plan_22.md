@@ -147,7 +147,7 @@ updated: 2026-07-02
 | --- | --- | --- | --- | --- |
 | 22.1 | 建立 Web 工程治理、脚手架与应用 Shell | ⏳ 待验收 | a1582767 | — |
 | 22.2 | 建立双 API Client、统一错误与认证 Session | ⏳ 待验收 | bafd53aa | — |
-| 22.3 | 完成注册、登录与受保护路由 | ⏳ 待开始 | — | — |
+| 22.3 | 完成注册、登录与受保护路由 | ⏳ 待验收 | 3657150d | — |
 | 22.4 | 完成 Knowledge 管理 | ⏳ 待开始 | — | — |
 | 22.5 | 完成 Document 上传与摄取状态 | ⏳ 待开始 | — | — |
 | 22.6 | 完成 API Key 双视角管理 | ⏳ 待开始 | — | — |
@@ -459,6 +459,10 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 同上 | `cd web && pnpm test`（全量） | ✅ 通过 | 22.1 的 13 项与 22.2 新增测试共存，无回归 |
 | 2026-07-02 | 同上 | 秘密字符串扫描 | ✅ 通过 | 源码与测试快照无真实 JWT / `crag_…` Key / 密码字面量，fixture 使用 `<PLACEHOLDER_*>` |
 | 2026-07-02 | 同上 | `pnpm format:check` | ⚠️ 未通过（非门禁） | 8 个 22.1 期文件未格式化（config/test/README），22.2 自身文件干净；本 Plan 静态门禁与各任务验证方式均未将 prettier 列为门禁，记为残留风险，待后续统一清理 |
+| 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.3 实现自测） | `cd web && pnpm test -- src/features/auth src/app` | ✅ 通过 | 含 mapper/Zod/ViewModel/ProtectedRoute/bootstrap，覆盖 400/401/403；全量 16 文件 119 测试无回归（含 22.1 架构门禁） |
+| 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/auth.spec.ts` | ✅ 通过 | 10/10，桌面+移动：匿名重定向、登录成功进入 Knowledge、失败表单错误、刷新恢复、退出清会话；断言 localStorage/sessionStorage 无 Token |
+| 2026-07-02 | 同上 | `cd web && pnpm typecheck` / `pnpm lint` / `pnpm build` | ✅ 通过 | strict TS 干净；eslint 0 错误；build 产物生成（非阻塞 chunk 体积警告） |
+| 2026-07-02 | 同上 | Ant Design 6 `Alert.message` 弃用警告 | ⚠️ 非阻断 | 失败登录路径触发 `message→title` 弃用 console 警告；不影响 auth.spec 与 app-shell.spec 的断言，留待 22.8 视觉任务迁移 |
 
 ## 阻塞记录
 
@@ -475,3 +479,4 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 创建 plan_22 并进入 ready | Web 产品、架构、UI 交接和 Node Docker 设计已获用户确认 | 新增 9 个有序任务，登记执行队列 |
 | 2026-07-02 | 开始执行：ready → in_progress；22.1 实现提交 a1582767 并转待验收 | 22.1 由独立 SubAgent 完成 Web 工程治理、脚手架与应用 Shell | 执行队列进度更新；自测全门禁通过 |
 | 2026-07-02 | 22.2 实现提交 bafd53aa 并转待验收 | 22.2 由独立 SubAgent 完成双 API Client、统一错误与认证 Session（内存 token、single-flight refresh、Open 隔离、MSW 基建） | 自测通过；记录 prettier 非门禁残留风险 |
+| 2026-07-02 | 22.3 实现提交 3657150d 并转待验收 | 22.3 由独立 SubAgent 完成注册/登录/受保护路由/账户退出；编排层置于 `app/session`，修正 `test/setup.ts` 的 afterEach 来源，consoleClient 增加 skipRefreshPaths | 自测通过；记录 AntD Alert 弃用警告待 22.8 处理 |
