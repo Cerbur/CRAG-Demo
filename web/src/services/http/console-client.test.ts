@@ -275,3 +275,74 @@ describe('ApiErrorException carries ApiError', () => {
     }
   });
 });
+
+describe('skip-refresh auth endpoints', () => {
+  it('login 401 does NOT trigger refresh — credential failure surfaces as-is', async () => {
+    start(
+      http.post('*/console-api/api/v1/auth/login', () =>
+        HttpResponse.json(
+          err(40102, { message: 'Invalid credentials', reason: 'INVALID_CREDENTIALS' }),
+          { status: 401 },
+        ),
+      ),
+      http.post('*/console-api/api/v1/auth/refresh', () => {
+        refreshCalls += 1;
+        return HttpResponse.json(ok(authResponse()));
+      }),
+    );
+    const client = createConsoleClient({ sessionStore });
+    await expect(
+      client.request({
+        method: 'POST',
+        path: '/console-api/api/v1/auth/login',
+        body: { username: 'x', password: 'y' },
+      }),
+    ).rejects.toMatchObject({
+      apiError: { kind: 'authentication', message: 'Invalid credentials' },
+    });
+    expect(refreshCalls, 'login 401 must not trigger refresh').toBe(0);
+  });
+
+  it('register 401 does NOT trigger refresh', async () => {
+    start(
+      http.post('*/console-api/api/v1/auth/register', () =>
+        HttpResponse.json(err(40102, { reason: 'INVALID_CREDENTIALS' }), { status: 401 }),
+      ),
+      http.post('*/console-api/api/v1/auth/refresh', () => {
+        refreshCalls += 1;
+        return HttpResponse.json(ok(authResponse()));
+      }),
+    );
+    const client = createConsoleClient({ sessionStore });
+    await expect(
+      client.request({
+        method: 'POST',
+        path: '/console-api/api/v1/auth/register',
+        body: { nickname: 'a', username: 'a', password: 'a' },
+      }),
+    ).rejects.toMatchObject({ apiError: { kind: 'authentication' } });
+    expect(refreshCalls).toBe(0);
+  });
+
+  it('/auth/me 401 DOES trigger refresh (bootstrap recovery)', async () => {
+    let meCalls = 0;
+    start(
+      http.get('*/console-api/api/v1/auth/me', () => {
+        meCalls += 1;
+        if (meCalls === 1) {
+          return HttpResponse.json(err(40101, { reason: 'UNAUTHENTICATED' }), { status: 401 });
+        }
+        return HttpResponse.json(ok({ userId: '1', nickname: 'a' }));
+      }),
+      http.post('*/console-api/api/v1/auth/refresh', () => {
+        refreshCalls += 1;
+        return HttpResponse.json(ok(authResponse({ accessToken: '<PLACEHOLDER_NEW_JWT>' })));
+      }),
+    );
+    const client = createConsoleClient({ sessionStore });
+    const r = await client.request({ method: 'GET', path: '/console-api/api/v1/auth/me' });
+    expect((r as { userId: string }).userId).toBe('1');
+    expect(refreshCalls).toBe(1);
+    expect(sessionStore.getAccessToken()).toBe('<PLACEHOLDER_NEW_JWT>');
+  });
+});

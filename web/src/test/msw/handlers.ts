@@ -118,6 +118,173 @@ export function createConsoleHandlers(overrides: ConsoleHandlerOverrides = {}): 
   };
 }
 
+/** Outcome shape for auth command (register/login/logout) handlers. */
+export interface AuthOutcome {
+  readonly status: 200 | 400 | 401 | 403 | 503;
+  readonly body?: unknown;
+}
+
+export interface AuthHandlerOverrides {
+  /**
+   * Register outcome. Default: 200 with a placeholder AuthResponse including
+   * the OWNER defaultTenant.
+   */
+  readonly register?: AuthOutcome;
+  /** Login outcome. Default: 200 with placeholder AuthResponse (defaultTenant null). */
+  readonly login?: AuthOutcome;
+  /** Logout outcome. Default: 204 empty. */
+  readonly logout?: AuthOutcome;
+}
+
+function authResponseFor(outcome: AuthOutcome, fallback: unknown): unknown {
+  if (outcome.body !== undefined) return outcome.body;
+  return fallback;
+}
+
+function errorEnvelope(status: number): { code: number; detail: ErrorDetailDto } {
+  // Map status to a representative business code + reason.
+  if (status === 400) {
+    return {
+      code: 40001,
+      detail: {
+        message: 'Validation failed',
+        traceId: FIXED_TRACE_ID,
+        reason: 'VALIDATION_ERROR',
+        retryable: false,
+        fieldErrors: [{ field: 'username', message: 'invalid', rejectedValue: null }],
+      },
+    };
+  }
+  if (status === 401) {
+    return {
+      code: 40102,
+      detail: {
+        message: 'Invalid credentials',
+        traceId: FIXED_TRACE_ID,
+        reason: 'INVALID_CREDENTIALS',
+        retryable: false,
+        fieldErrors: [],
+      },
+    };
+  }
+  if (status === 403) {
+    return {
+      code: 40301,
+      detail: {
+        message: 'Forbidden',
+        traceId: FIXED_TRACE_ID,
+        reason: 'CROSS_SITE_ORIGIN',
+        retryable: false,
+        fieldErrors: [],
+      },
+    };
+  }
+  return {
+    code: 50301,
+    detail: {
+      message: 'Downstream unavailable',
+      traceId: FIXED_TRACE_ID,
+      reason: 'DOWNSTREAM_UNAVAILABLE',
+      retryable: true,
+      fieldErrors: [],
+    },
+  };
+}
+
+function authOutcomeResponse(outcome: AuthOutcome, successBody: unknown) {
+  if (outcome.status === 200) {
+    return HttpResponse.json(ok(authResponseFor(outcome, successBody)));
+  }
+  const { code, detail } = errorEnvelope(outcome.status);
+  return HttpResponse.json(err(code, detail), { status: outcome.status });
+}
+
+/**
+ * Create auth + tenant handlers for the auth feature tests (22.3). The returned
+ * handlers cover register, login, logout, /me, /tenants and refresh so feature
+ * tests can compose a complete server. Call counters let tests assert which
+ * paths were hit.
+ */
+export function createAuthHandlers(overrides: AuthHandlerOverrides = {}): {
+  readonly handlers: ReadonlyArray<HttpHandler>;
+  readonly calls: {
+    readonly register: () => number;
+    readonly login: () => number;
+    readonly logout: () => number;
+    readonly refresh: () => number;
+    readonly me: () => number;
+    readonly tenants: () => number;
+  };
+} {
+  let registerCalls = 0;
+  let loginCalls = 0;
+  let logoutCalls = 0;
+  let refreshCalls = 0;
+  let meCalls = 0;
+  let tenantsCalls = 0;
+
+  const register = overrides.register ?? { status: 200 as const };
+  const login = overrides.login ?? { status: 200 as const };
+  const logout = overrides.logout ?? { status: 200 as const };
+
+  const registerSuccess = authResponse({
+    accessToken: '<PLACEHOLDER_ACCESS_JWT>',
+    defaultTenant: { tenantId: '2001', name: 'alice 的默认租户', role: 'OWNER' },
+  });
+  const loginSuccess = authResponse({
+    accessToken: '<PLACEHOLDER_ACCESS_JWT>',
+    defaultTenant: null,
+  });
+
+  const handlers: HttpHandler[] = [
+    http.post('*/console-api/api/v1/auth/register', () => {
+      registerCalls += 1;
+      return authOutcomeResponse(register, registerSuccess);
+    }),
+    http.post('*/console-api/api/v1/auth/login', () => {
+      loginCalls += 1;
+      return authOutcomeResponse(login, loginSuccess);
+    }),
+    http.post('*/console-api/api/v1/auth/logout', () => {
+      logoutCalls += 1;
+      if (logout.status === 200) return new HttpResponse(null, { status: 204 });
+      const { code, detail } = errorEnvelope(logout.status);
+      return HttpResponse.json(err(code, detail), { status: logout.status });
+    }),
+    http.post('*/console-api/api/v1/auth/refresh', () => {
+      refreshCalls += 1;
+      return HttpResponse.json(
+        ok(authResponse({ accessToken: '<PLACEHOLDER_NEW_JWT>', defaultTenant: null })),
+      );
+    }),
+    http.get('*/console-api/api/v1/auth/me', () => {
+      meCalls += 1;
+      return HttpResponse.json(ok({ userId: '1001', nickname: 'alice' }));
+    }),
+    http.get('*/console-api/api/v1/tenants', () => {
+      tenantsCalls += 1;
+      return HttpResponse.json(
+        ok({
+          items: [{ tenantId: '2001', name: 'alice 的默认租户', role: 'OWNER' }],
+          nextPageToken: '',
+        }),
+      );
+    }),
+  ];
+
+  return {
+    handlers,
+    calls: {
+      register: () => registerCalls,
+      login: () => loginCalls,
+      logout: () => logoutCalls,
+      refresh: () => refreshCalls,
+      me: () => meCalls,
+      tenants: () => tenantsCalls,
+    },
+  };
+}
+
 export interface OpenHandlerOverrides {
   readonly queryStatus?: 200 | 400 | 401 | 404 | 502 | 503;
   readonly queryBody?: unknown;

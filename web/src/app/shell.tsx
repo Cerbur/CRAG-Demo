@@ -1,5 +1,5 @@
 import { useState, type JSX, type ReactNode } from 'react';
-import { Layout, Menu, Grid, Drawer, Button, Typography, Space } from 'antd';
+import { Layout, Menu, Grid, Drawer, Button, Typography, Space, Dropdown, App } from 'antd';
 import { useLocation, useNavigate, Outlet } from 'react-router';
 import {
   BookOutlined,
@@ -7,8 +7,11 @@ import {
   MessageOutlined,
   MenuOutlined,
   UserOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { ROUTE_PATHS } from './routes';
+import { useSessionContext } from './session/session-context';
+import { useLogout } from './session/use-logout';
 
 const { Header, Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -26,13 +29,59 @@ const PRIMARY_NAV: readonly NavItem[] = [
   { key: ROUTE_PATHS.chat, label: 'Chat', icon: <MessageOutlined /> },
 ];
 
-function AccountStub(): ReactNode {
-  // 22.1 stub. 22.3 wires real logout + session info.
+/**
+ * Account menu rendered in the shell header. Reads the current session nickname
+ * and exposes a logout item. Uses Ant Design App.useApp() message (NOT the
+ * static message API per task 22.3) and the Dropdown component for the menu.
+ */
+function AccountMenu(): ReactNode {
+  const { session, status } = useSessionContext();
+  const navigate = useNavigate();
+  const { message } = App.useApp();
+  const logout = useLogout({
+    onLoggedOut: () => {
+      void message.success('已退出登录');
+      navigate(ROUTE_PATHS.login, { replace: true });
+    },
+  });
+
+  if (status !== 'authenticated' || !session) {
+    return (
+      <Space size="small">
+        <UserOutlined />
+        <span>账户</span>
+      </Space>
+    );
+  }
+
+  const handleLogout = (): void => {
+    void logout();
+  };
+
+  const items = [
+    {
+      key: 'nickname',
+      label: session.nickname,
+      disabled: true,
+    },
+    { type: 'divider' as const },
+    {
+      key: 'logout',
+      label: '退出登录',
+      icon: <LogoutOutlined />,
+      onClick: handleLogout,
+    },
+  ];
+
   return (
-    <Space size="small">
-      <UserOutlined />
-      <span>账户</span>
-    </Space>
+    <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
+      <Button type="text" aria-label="账户菜单">
+        <Space size="small">
+          <UserOutlined />
+          <span>{session.nickname}</span>
+        </Space>
+      </Button>
+    </Dropdown>
   );
 }
 
@@ -46,11 +95,12 @@ function navItems() {
 
 /**
  * Desktop: fixed left Sider (Knowledge / API Keys / Chat) + top toolbar with
- * the account stub.
+ * the account menu.
  *
  * Mobile (<768px): Sider collapses into a hamburger Drawer.
  *
- * Placeholder pages render inside <Outlet/>. No API calls happen in 22.1.
+ * Authenticated pages render inside <Outlet/>. The /app/* routes are wrapped
+ * by ProtectedRoute at the router level; the shell itself just renders layout.
  */
 export function AppShell(): JSX.Element {
   const location = useLocation();
@@ -116,7 +166,7 @@ export function AppShell(): JSX.Element {
               onClick={() => setDrawerOpen(true)}
             />
           )}
-          <div>{AccountStub()}</div>
+          <div>{AccountMenu()}</div>
         </Header>
         <Content style={{ padding: isDesktop ? 24 : 12 }}>
           <Outlet />

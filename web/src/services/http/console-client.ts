@@ -58,6 +58,15 @@ export interface ConsoleClientOptions {
   readonly fetch?: FetchLike | undefined;
   readonly sessionStore: SessionStore;
   readonly log?: ((entry: TransportLogEntry) => void) | undefined;
+  /**
+   * Path prefixes whose 401 responses must NOT trigger the single-flight
+   * refresh loop. Defaults to the auth endpoints themselves
+   * (`/console-api/api/v1/auth/register|login|refresh|logout`): a 401 on those
+   * is a real auth outcome the caller must surface, not a recoverable expired
+   * Access JWT. The bootstrap's `/auth/me` 401 still triggers refresh because
+   * it is not in this list.
+   */
+  readonly skipRefreshPaths?: ReadonlyArray<RegExp> | undefined;
 }
 
 /** HTTP client contract consumed by feature ViewModels. */
@@ -77,6 +86,21 @@ function transportOptions(opts: ConsoleClientOptions): TransportOptions {
 const REFRESH_PATH = '/console-api/api/v1/auth/refresh';
 
 /**
+ * Default skip-refresh list: auth endpoints themselves. A 401 on register or
+ * login is a real credential failure (the user is actively authenticating, so
+ * there is no live session to recover); a 401 on refresh/logout has no
+ * meaningful "refresh the refresh" semantics. /auth/me is intentionally NOT
+ * here — its 401 during bootstrap is exactly the signal that triggers the
+ * single-flight refresh loop.
+ */
+const DEFAULT_SKIP_REFRESH: ReadonlyArray<RegExp> = [
+  /^\/console-api\/api\/v1\/auth\/register(?:\?|$)/,
+  /^\/console-api\/api\/v1\/auth\/login(?:\?|$)/,
+  /^\/console-api\/api\/v1\/auth\/refresh(?:\?|$)/,
+  /^\/console-api\/api\/v1\/auth\/logout(?:\?|$)/,
+];
+
+/**
  * Create a Console client. The {@link consoleClient} singleton below uses the
  * default SessionStore; tests construct their own with a fresh store.
  */
@@ -85,7 +109,11 @@ export function createConsoleClient(opts: ConsoleClientOptions): HttpClient & {
   readonly __refreshInFlight?: Promise<RefreshResult>;
 } {
   const transport = transportOptions(opts);
+  const skipRefresh: ReadonlyArray<RegExp> = opts.skipRefreshPaths ?? DEFAULT_SKIP_REFRESH;
   let refreshInFlight: Promise<RefreshResult> | null = null;
+
+  const shouldSkipRefresh = (path: string): boolean =>
+    skipRefresh.some((re) => re.test(path));
 
   const doRefresh = async (): Promise<RefreshResult> => {
     const refreshReq: HttpRequest = {
@@ -128,6 +156,12 @@ export function createConsoleClient(opts: ConsoleClientOptions): HttpClient & {
       return result as T;
     } catch (err) {
       if (!isAuthMarkedError((err as ApiErrorException).apiError)) {
+        throw err;
+      }
+      // Auth endpoints (register/login/refresh/logout): surface the 401 as-is.
+      // There is no live session to recover; a refresh attempt would either
+      // loop or mask the real credential failure.
+      if (shouldSkipRefresh(req.path)) {
         throw err;
       }
       // Already-replayed request: do not loop.

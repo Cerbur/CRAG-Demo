@@ -59,16 +59,19 @@ export default [
     },
   },
   {
-    // Features must not import another feature's internal files.
+    // Features must not import another feature's internal files via the
+    // @features/<feature> alias. The authoritative cross-feature guard lives
+    // in tests/architecture.import-boundaries.test.ts which resolves both
+    // alias and relative imports and only flags true cross-feature violations
+    // (same-feature relative imports like `../model/schema` are allowed).
     files: ['src/features/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
         {
-          selector:
-            "ImportDeclaration[source.value=/^(\\.\\.\\/|@features\\/)(?!\\.\\/)(?!\\.\\.\\/shared)/]",
+          selector: 'ImportDeclaration[source.value=/^@features\\//]',
           message:
-            'Cross-feature internal imports are forbidden. Depend on shared/ or a feature public entry (architecture.md).',
+            'Cross-feature internal imports via @features alias are forbidden. Use shared/ or a feature public entry (architecture.md).',
         },
       ],
     },
