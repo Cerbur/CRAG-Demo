@@ -219,6 +219,19 @@ async function clickButton(page: Page, text: string): Promise<void> {
   await page.getByRole('button').filter({ hasText: pattern }).first().click();
 }
 
+/**
+ * 文档列表在桌面 Table 与移动 structured list 中各渲染一次，由 styles.css 媒体查询
+ * 控制可见性（移动下桌面 Table display:none）。直接用 `.first()` 会按 DOM 顺序取到
+ * 移动下被隐藏的桌面单元格。先用 Playwright 的 `:visible` CSS 扩展定位"当前可见的
+ * 那个容器"，再在其中取文本。
+ */
+function visibleText(page: Page, text: string) {
+  return page
+    .locator('.documents-desktop-table:visible, .documents-mobile-list:visible')
+    .getByText(text)
+    .first();
+}
+
 test.describe('document upload and ingestion lifecycle', () => {
   test('desktop: upload fixture converges PENDING → READY', async ({ page }) => {
     const state: DocState = { status: 'READY', retryable: false };
@@ -228,9 +241,9 @@ test.describe('document upload and ingestion lifecycle', () => {
     await page.setInputFiles('input[type="file"]', FIXTURE_TXT);
 
     // The 202 PENDING document should appear, then polling converges to READY.
-    await expect(page.getByText('sample.txt').first()).toBeVisible({ timeout: 10_000 });
+    await expect(visibleText(page, 'sample.txt')).toBeVisible({ timeout: 10_000 });
     // After upload the mock returns PENDING for the uploaded doc, then READY.
-    await expect(page.getByText('就绪').first()).toBeVisible({ timeout: 15_000 });
+    await expect(visibleText(page, '就绪')).toBeVisible({ timeout: 15_000 });
   });
 
   test('desktop: FAILED retryable document exposes retry and converges', async ({ page }) => {
@@ -238,14 +251,14 @@ test.describe('document upload and ingestion lifecycle', () => {
     await loginAndGotoDocuments(page, state);
 
     // FAILED document with retryable=true shows the failure text and a retry button.
-    await expect(page.getByText('失败').first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('dispatch missing').first()).toBeVisible();
+    await expect(visibleText(page, '失败')).toBeVisible({ timeout: 10_000 });
+    await expect(visibleText(page, 'dispatch missing')).toBeVisible();
 
     // Click retry → mock returns PENDING; flip state to READY for convergence.
     await clickButton(page, '重试');
     state.status = 'READY';
     state.retryable = false;
-    await expect(page.getByText('就绪').first()).toBeVisible({ timeout: 15_000 });
+    await expect(visibleText(page, '就绪')).toBeVisible({ timeout: 15_000 });
   });
 
   test('mobile: documents tab renders without horizontal scroll', async ({ page, browserName }) => {
@@ -254,7 +267,7 @@ test.describe('document upload and ingestion lifecycle', () => {
     await loginAndGotoDocuments(page, state);
 
     await page.setInputFiles('input[type="file"]', FIXTURE_TXT);
-    await expect(page.getByText('sample.txt').first()).toBeVisible({ timeout: 10_000 });
+    await expect(visibleText(page, 'sample.txt')).toBeVisible({ timeout: 10_000 });
     const overflowX = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
