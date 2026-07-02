@@ -9,8 +9,10 @@
  *    and calls clearSecret on close.
  *  - Empty and error states render correctly.
  *
- * Note: the View renders both a desktop table and a mobile structured list
- * (hidden via CSS). Tests use getAllBy* to tolerate the duplicate DOM nodes.
+ * Note: the View conditionally renders either the desktop table (md+ screens)
+ * or the mobile structured list based on `Grid.useBreakpoint()`. In jsdom all
+ * breakpoints report as not matching, so the mobile list is the rendered
+ * branch in these tests.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { type ReactElement } from 'react';

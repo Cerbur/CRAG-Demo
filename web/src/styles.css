@@ -1,0 +1,23 @@
+/**
+ * Global stylesheet for the CRAG Web Console.
+ *
+ * Holds responsive display rules that cannot be expressed as React inline
+ * styles (inline styles cannot carry media queries). Feature components that
+ * still render both layouts and toggle via classnames switch the mobile list
+ * from `display: none` to `display: block` here on small viewports, and hide
+ * the desktop table on the same breakpoint.
+ *
+ * Scope is intentionally narrow: only the api-keys index responsive classnames
+ * live here today. The api-keys *tab* view uses `Grid.useBreakpoint()` and
+ * conditional rendering instead (no duplicate DOM nodes).
+ */
+
+/* API Keys index page: switch table <-> mobile list at 768px. */
+@media (max-width: 768px) {
+  .api-keys-index-desktop-table {
+    display: none !important;
+  }
+  .api-keys-index-mobile-list {
+    display: block !important;
+  }
+}

@@ -24,6 +24,7 @@ import {
   Button,
   Empty,
   Form,
+  Grid,
   Input,
   InputNumber,
   Modal,
@@ -104,10 +105,17 @@ function isDangerous(action: ApiKeyAction): boolean {
   return action === 'revoke' || action === 'rotate';
 }
 
+const { useBreakpoint } = Grid;
+
 export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): JSX.Element {
   const { modal } = App.useApp();
   const [createOpen, setCreateOpen] = useState(false);
   const [form] = Form.useForm<{ name: string; ttlSeconds?: number }>();
+  // Responsive layout: render the table on md+ screens, the structured list on
+  // small screens. Conditional rendering (rather than CSS display:none) avoids
+  // duplicate DOM nodes that confuse assistive tech and E2E text locators.
+  const screens = useBreakpoint();
+  const isDesktop = screens.md === true;
 
   const runAction = useCallback(
     (action: ApiKeyAction, item: ApiKeyItem): void => {
@@ -303,68 +311,62 @@ export function ApiKeysTabView({ viewModel, canCreate }: ApiKeysTabViewProps): J
         />
       ) : viewModel.status === 'empty' ? (
         <Empty description="还没有 API Key" />
+      ) : isDesktop ? (
+        <Table<ApiKeyItem>
+          rowKey="id"
+          columns={columns}
+          dataSource={[...viewModel.items]}
+          pagination={false}
+          size="small"
+        />
       ) : (
-        <>
-          <div className="api-keys-desktop-table">
-            <Table<ApiKeyItem>
-              rowKey="id"
-              columns={columns}
-              dataSource={[...viewModel.items]}
-              pagination={false}
-              size="small"
-            />
-          </div>
-          <ul
-            className="api-keys-mobile-list"
-            style={{ display: 'none', padding: 0, listStyle: 'none' }}
-          >
-            {viewModel.items.map((item) => {
-              const actions = viewModel.allowedActions(item.status);
-              return (
-                <li
-                  key={item.id}
-                  style={{
-                    padding: '12px 0',
-                    borderBottom: '1px solid #f0f0f0',
-                  }}
-                >
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    <Space style={{ justifyContent: 'space-between', width: '100%' }}>
-                      <Text strong ellipsis>
-                        {item.name}
-                      </Text>
-                      <Tag color={statusColour(item.statusForDisplay)}>
-                        {statusLabel(item.statusForDisplay)}
-                      </Tag>
-                    </Space>
-                    <Text code style={{ fontSize: 12 }}>
-                      {item.keyPrefix}
+        <ul style={{ padding: 0, listStyle: 'none' }}>
+          {viewModel.items.map((item) => {
+            const actions = viewModel.allowedActions(item.status);
+            return (
+              <li
+                key={item.id}
+                style={{
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f0f0f0',
+                }}
+              >
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+                    <Text strong ellipsis>
+                      {item.name}
                     </Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      过期：{formatDate(item.expiresAt)}
-                    </Text>
-                    {actions.length > 0 ? (
-                      <Space size={4} wrap>
-                        {actions.map((action) => (
-                          <Button
-                            key={action}
-                            size="small"
-                            danger={action === 'revoke'}
-                            onClick={() => runAction(action, item)}
-                          >
-                            {actionLabel(action)}
-                          </Button>
-                        ))}
-                      </Space>
-                    ) : (
-                      <Text type="secondary">—</Text>
-                    )}
+                    <Tag color={statusColour(item.statusForDisplay)}>
+                      {statusLabel(item.statusForDisplay)}
+                    </Tag>
                   </Space>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+                  <Text code style={{ fontSize: 12 }}>
+                    {item.keyPrefix}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    过期：{formatDate(item.expiresAt)}
+                  </Text>
+                  {actions.length > 0 ? (
+                    <Space size={4} wrap>
+                      {actions.map((action) => (
+                        <Button
+                          key={action}
+                          size="small"
+                          danger={action === 'revoke'}
+                          onClick={() => runAction(action, item)}
+                        >
+                          {actionLabel(action)}
+                        </Button>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Text type="secondary">—</Text>
+                  )}
+                </Space>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <Modal
