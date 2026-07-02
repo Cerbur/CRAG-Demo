@@ -149,7 +149,7 @@ updated: 2026-07-02
 | 22.2 | 建立双 API Client、统一错误与认证 Session | ⏳ 待验收 | bafd53aa | — |
 | 22.3 | 完成注册、登录与受保护路由 | ⏳ 待验收 | 3657150d | — |
 | 22.4 | 完成 Knowledge 管理 | ⏳ 待验收 | d9ca25e4 | — |
-| 22.5 | 完成 Document 上传与摄取状态 | ⏳ 待开始 | — | — |
+| 22.5 | 完成 Document 上传与摄取状态 | ⏳ 待验收 | 3e2c2747, 35256a1f | — |
 | 22.6 | 完成 API Key 双视角管理 | ⏳ 待开始 | — | — |
 | 22.7 | 完成知识检索 Chat | ⏳ 待开始 | — | — |
 | 22.8 | 按批准设计稿完成视觉与响应式验收 | ⏳ 待开始 | — | — |
@@ -467,6 +467,9 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/knowledge.spec.ts` | ✅ 通过 | 10/10，桌面+移动：列表/分页、创建 partial-success 跳详情、就绪轮询警告消失、返回、移动卡片无横向滚动 |
 | 2026-07-02 | 同上 | `cd web && pnpm typecheck` / `pnpm lint` / `pnpm test`（全量 152） | ✅ 通过 | strict TS 干净；eslint 0 错误；无回归；架构 import-boundary 门禁通过（features/knowledge 无 services/http 真实导入） |
 | 2026-07-02 | 同上 | Ant Design 6 弃用警告扩展 | ⚠️ 非阻断 | 除 `Alert.message→title` 外新增 `Space.direction→orientation`；不影响 Playwright 断言，留待 22.8 |
+| 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.5 实现自测） | `cd web && pnpm test -- src/features/documents` + `app/documents` | ✅ 通过 | validateUpload 边界（.txt/.md、≤10MiB）、DTO null 字段、活跃态轮询启停、retry 可见性矩阵、上传 202→list、413/415/409 服务端消息优先 |
+| 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/documents.spec.ts` | ✅ 通过（经修复） | 首次执行 desktop retry 收敛用例失败：retry 仅 invalidate、未乐观置 PENDING，mock list 读 state.status 致快速链路在 state 翻 READY 前完成，缓存停 FAILED、轮询不启动；fix `35256a1f` 双层修复（retry onSuccess 乐观置 PENDING + retry handler 置 state PENDING），6/6 通过，`--repeat-each=3` 共 18/18 稳定 |
+| 2026-07-02 | 同上 | `cd web && pnpm typecheck` / `pnpm lint` / `pnpm test`（全量 194） | ✅ 通过 | strict TS 干净；eslint 0 错误；multipart 经 transport.form 走 FormData，未被 JSON 破坏；架构门禁不受影响 |
 
 ## 阻塞记录
 
@@ -485,3 +488,4 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 22.2 实现提交 bafd53aa 并转待验收 | 22.2 由独立 SubAgent 完成双 API Client、统一错误与认证 Session（内存 token、single-flight refresh、Open 隔离、MSW 基建） | 自测通过；记录 prettier 非门禁残留风险 |
 | 2026-07-02 | 22.3 实现提交 3657150d 并转待验收 | 22.3 由独立 SubAgent 完成注册/登录/受保护路由/账户退出；编排层置于 `app/session`，修正 `test/setup.ts` 的 afterEach 来源，consoleClient 增加 skipRefreshPaths | 自测通过；记录 AntD Alert 弃用警告待 22.8 处理 |
 | 2026-07-02 | 22.4 实现提交 d9ca25e4 并转待验收 | 22.4 由独立 SubAgent 完成 Knowledge 列表/分页/创建/详情/就绪轮询；镜像 22.3 分层（model+View 在 features/knowledge，编排+ViewModel 在 app/knowledge） | 自测通过；Space 弃用警告并入 22.8 |
+| 2026-07-02 | 22.5 实现提交 3e2c2747、修复 35256a1f 并转待验收 | 22.5 由独立 SubAgent 完成 Document 上传/摄取/条件 retry；主 Agent 独立复核发现 retry→READY e2e 竞态失败，另起独立 SubAgent 用 systematic-debugging 定位并修复（retry onSuccess 乐观置 PENDING + mock state 真实化） | 自测通过；记录 retry 收敛竞态修复证据 |
