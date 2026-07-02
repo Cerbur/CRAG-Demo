@@ -150,7 +150,7 @@ updated: 2026-07-02
 | 22.3 | 完成注册、登录与受保护路由 | ⏳ 待验收 | 3657150d | — |
 | 22.4 | 完成 Knowledge 管理 | ⏳ 待验收 | d9ca25e4 | — |
 | 22.5 | 完成 Document 上传与摄取状态 | ⏳ 待验收 | 3e2c2747, 35256a1f | — |
-| 22.6 | 完成 API Key 双视角管理 | ⏳ 待开始 | — | — |
+| 22.6 | 完成 API Key 双视角管理 | ⏳ 待验收 | af064df, f24e598, 45693d0 | — |
 | 22.7 | 完成知识检索 Chat | ⏳ 待开始 | — | — |
 | 22.8 | 按批准设计稿完成视觉与响应式验收 | ⏳ 待开始 | — | — |
 | 22.9 | 完成 Node Docker 部署与全链路交接 | ⏳ 待开始 | — | — |
@@ -470,6 +470,10 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.5 实现自测） | `cd web && pnpm test -- src/features/documents` + `app/documents` | ✅ 通过 | validateUpload 边界（.txt/.md、≤10MiB）、DTO null 字段、活跃态轮询启停、retry 可见性矩阵、上传 202→list、413/415/409 服务端消息优先 |
 | 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/documents.spec.ts` | ✅ 通过（经修复） | 首次执行 desktop retry 收敛用例失败：retry 仅 invalidate、未乐观置 PENDING，mock list 读 state.status 致快速链路在 state 翻 READY 前完成，缓存停 FAILED、轮询不启动；fix `35256a1f` 双层修复（retry onSuccess 乐观置 PENDING + retry handler 置 state PENDING），6/6 通过，`--repeat-each=3` 共 18/18 稳定 |
 | 2026-07-02 | 同上 | `cd web && pnpm typecheck` / `pnpm lint` / `pnpm test`（全量 194） | ✅ 通过 | strict TS 干净；eslint 0 错误；multipart 经 transport.form 走 FormData，未被 JSON 破坏；架构门禁不受影响 |
+| 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.6 实现自测） | `cd web && pnpm test -- src/features/api-keys` + `app/api-keys` | ✅ 通过 | 状态动作矩阵、一次性秘密关闭即清、completeKey 不入 Query cache（缓存扫描断言）、worker pool 并发上限 4、部分 KB 失败仍展示成功数据 |
+| 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/api-keys.spec.ts` | ✅ 通过（经两轮修复） | 主 Agent 独立复核发现 mobile e2e 一致失败（非 flaky）：① 视图同时渲染桌面 Table 与移动列表但缺 CSS 文件，移动端宽表溢出致按钮被遮挡（fix f24e598：改 Grid.useBreakpoint 条件渲染 + 补 styles.css）；② Ant Design 模态动画在窄屏拦截 modal→modal 转场的确认点击（fix 45693d0：e2e 注入 `transition/animation:none` 全局禁用动画并移除 force 变通）。最终 `--repeat-each=5` 共 10/10（桌面+移动各 5/5）稳定 |
+| 2026-07-02 | 同上 | `cd web && pnpm typecheck` / `pnpm lint` / `pnpm test`（全量 247） | ✅ 通过 | strict TS 干净；eslint 0 错误；架构门禁不受影响 |
+| 2026-07-02 | 同上 | Ant Design 6 弃用警告扩展 | ⚠️ 非阻断 | 新增 `Input.addonAfter→Space.Compact`；连同 `Alert.message→title`、`Space.direction→orientation`，留待 22.8 视觉任务统一迁移 |
 
 ## 阻塞记录
 
@@ -489,3 +493,4 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 2026-07-02 | 22.3 实现提交 3657150d 并转待验收 | 22.3 由独立 SubAgent 完成注册/登录/受保护路由/账户退出；编排层置于 `app/session`，修正 `test/setup.ts` 的 afterEach 来源，consoleClient 增加 skipRefreshPaths | 自测通过；记录 AntD Alert 弃用警告待 22.8 处理 |
 | 2026-07-02 | 22.4 实现提交 d9ca25e4 并转待验收 | 22.4 由独立 SubAgent 完成 Knowledge 列表/分页/创建/详情/就绪轮询；镜像 22.3 分层（model+View 在 features/knowledge，编排+ViewModel 在 app/knowledge） | 自测通过；Space 弃用警告并入 22.8 |
 | 2026-07-02 | 22.5 实现提交 3e2c2747、修复 35256a1f 并转待验收 | 22.5 由独立 SubAgent 完成 Document 上传/摄取/条件 retry；主 Agent 独立复核发现 retry→READY e2e 竞态失败，另起独立 SubAgent 用 systematic-debugging 定位并修复（retry onSuccess 乐观置 PENDING + mock state 真实化） | 自测通过；记录 retry 收敛竞态修复证据 |
+| 2026-07-02 | 22.6 实现提交 af064df、修复 f24e598、45693d0 并转待验收 | 22.6 由独立 SubAgent 完成 API Key 双视角管理（Knowledge tab + 独立聚合页、一次性秘密模态框、worker pool 并发 4、部分失败展示、completeKey 不持久化）；主 Agent 独立复核发现 mobile e2e 一致失败，先后两轮独立 SubAgent 修复（条件渲染补 CSS + e2e 禁用模态动画） | 自测通过；记录 mobile e2e 两轮修复与 `--repeat-each=5` 稳定证据 |
