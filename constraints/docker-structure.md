@@ -33,6 +33,7 @@
 | `knowledge-service` | Knowledge 服务组合根，gRPC Server 与 Schema readiness | 禁止 RAG 业务模块依赖；正式 API 不暴露 smoke 事件端点 |
 | `console-api` | Console HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
 | `open-api` | Open HTTP 入口，下游 Probe readiness | 禁止 DataSource、业务 Controller |
+| `web` | Node 同源运行时：托管前端构建产物、SPA 回退、`/health` 与 `/console-api`、`/open-api` 反向代理，并重写 Refresh Cookie 的 Path | 禁止承载业务逻辑、直接访问数据库、缓存完整 Token/API Key 或运行 `vite preview` |
 
 ### 3.2 依赖方向与启动顺序
 
@@ -45,12 +46,14 @@ redis（健康） ─────────── → rag-service（健康）
 sidecar（健康） ───────── → rag-service（健康）
 db + redis + sidecar 健康 → rag-service（健康）
 access / knowledge / rag 健康 → console-api / open-api（健康）
+console-api / open-api 健康 → web（健康）
 ```
 
 - `model-init` 以成功退出作为 `sidecar` 的就绪条件。
 - `db`、`redis` 和 `sidecar` 以健康检查通过作为 `rag-service` 的就绪条件。
 - `db` 以健康检查通过作为 `access-service` 和 `knowledge-service` 的就绪条件。
 - `console-api` 和 `open-api` 以下游 Platform Probe 通过作为就绪条件。
+- `web` 以 `console-api` 与 `open-api` 健康检查通过作为就绪条件；本身不持有数据库或事件依赖。
 - Smoke Controller 是原服务在 `smoke` Profile 下的条件 Bean；启用后原服务的依赖链不变（Access/Knowledge 额外依赖 `redis` 健康，RAG 额外依赖 `sidecar` 健康）。
 
 ### 3.3 健康检查
@@ -106,6 +109,9 @@ sidecar/main.py                       — FastAPI 服务入口（/health、/embe
 sidecar/download_models.py            — ModelScope 模型下载脚本
 sidecar/requirements.txt              — Python 依赖声明
 scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
+web/Dockerfile                        — Node 多阶段非 root 运行时镜像（plan_22/22.9）
+web/.dockerignore                     — Web 镜像构建排除
+web/server/server.mjs                 — Node Runtime Server（静态托管、SPA 回退、/health、同源代理、Cookie Path 重写）
 .env.example                          — 环境变量模板（凭据注释，不提交真实值）
 ```
 
@@ -245,7 +251,24 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 | 健康检查 | `curl http://localhost:8081/actuator/health/readiness` |
 | 网络 | `crag-net` |
 
-### 5.10 网络
+### 5.10 `web` — Web Console Node 运行时
+
+| 属性 | 当前值 |
+| --- | --- |
+| 构建 | `web/Dockerfile`，多阶段 `node:22.12.0-alpine`（builder 安装 pnpm 并 `pnpm build`，runtime 只含 `dist/` 与 `server/`，零生产依赖） |
+| 容器名 | `crag-web` |
+| 端口 | `3000:3000`（浏览器入口；`8080`/`8081` 仍保留宿主机直接访问兼容） |
+| 运行身份 | `node`（非 root，uid 1000，`node:alpine` 自带） |
+| Runtime Server | `node server/server.mjs`；禁止使用 `vite preview` |
+| 静态根 | 镜像内 `/app/dist`（`pnpm build` 产物） |
+| 代理 | `/console-api/<path>` → `console-api:8080/<path>`；`/open-api/<path>` → `open-api:8081/<path>`（剥离同源前缀） |
+| Cookie | 重写 `Set-Cookie Path=/api/v1/auth` → `Path=/console-api/api/v1/auth`，使浏览器在同源前缀下回送 Refresh Cookie |
+| 环境 | `WEB_PORT=3000`、`CONSOLE_API_ORIGIN=http://console-api:8080`、`OPEN_API_ORIGIN=http://open-api:8081` |
+| 就绪条件 | `console-api` 健康 且 `open-api` 健康 |
+| 健康检查 | Node 内置 http 调用 `http://127.0.0.1:3000/health`，间隔 10s，超时 5s，重试 12 次，启动宽限期 20s |
+| 网络 | `crag-net` |
+
+### 5.11 网络
 
 | 属性 | 当前值 |
 | --- | --- |
@@ -254,7 +277,7 @@ scripts/ensure-sidecar-models.sh      — 独立模型下载辅助脚本
 
 ## 六、已知偏差
 
-无。`plan_14` 已完成五进程拓扑、独立 Schema 和通用 Dockerfile；`plan_21/21.11` 已收敛 Smoke 拓扑，删除三个 `*-smoke` Compose 服务，原业务服务固定暴露本地诊断端口。
+无。`plan_14` 已完成五进程拓扑、独立 Schema 和通用 Dockerfile；`plan_21/21.11` 已收敛 Smoke 拓扑，删除三个 `*-smoke` Compose 服务，原业务服务固定暴露本地诊断端口；`plan_22/22.9` 已新增 `web` Node 运行时，遵守非 root 运行、固定标签、多阶段构建与同源代理边界。
 
 ## 七、维护与自动校验
 

@@ -289,7 +289,7 @@ services:
           "crag.grpc.probe.targets.knowledge-service": "knowledge-service:9092",
           "crag.grpc.probe.targets.rag-service": "rag-service:9093",
           "crag.grpc.client.max-deadline-millis": 120000,
-          "crag.console.allowed-origins": ["${CONSOLE_ALLOWED_ORIGINS:-http://localhost:8080}"],
+          "crag.console.allowed-origins": ["http://localhost:3000", "http://localhost:8080"],
           "crag.console.cookie.secure": ${CONSOLE_COOKIE_SECURE:-false},
           "crag.console.jwt.issuer": "${CONSOLE_JWT_ISSUER:-crag-access}",
           "crag.console.jwt.audience": "${CONSOLE_JWT_AUDIENCE:-crag-services}"
@@ -339,6 +339,37 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+    networks:
+      - crag-net
+
+  # --- Web Console ---
+  # 同源运行时：托管前端构建产物并把 /console-api、/open-api 反向代理到对应后端。
+  # 对外只暴露 3000；8080/8081 仍保留宿主机直接访问兼容（非目标：不删除）。
+  # Cookie Path 由 Runtime Server 重写为 /console-api/api/v1/auth，使浏览器在
+  # 同源前缀下回送 Refresh Cookie。
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: crag-web
+    ports:
+      - "3000:3000"
+    environment:
+      WEB_PORT: "3000"
+      CONSOLE_API_ORIGIN: http://console-api:8080
+      OPEN_API_ORIGIN: http://open-api:8081
+    depends_on:
+      console-api:
+        condition: service_healthy
+      open-api:
+        condition: service_healthy
+    healthcheck:
+      # node:alpine 无 curl；用 Node 内置 http 探活，避免额外安装系统包。
+      test: ["CMD", "node", "-e", "const h=require('http');const r=h.get('http://127.0.0.1:3000/health',x=>{process.exit(x.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(3_000,()=>{r.destroy();process.exit(1)});"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     networks:
       - crag-net
 

@@ -2,6 +2,12 @@
 
 CRAG-Demo 的工程文档按主题分布。本页是入口，所有相对链接从这里出发。
 
+## Web Console
+
+- [Web Console UI 交接清单](./product/web-console-ui-handoff.md) — Stitch 设计版本、已批准页面状态、设计决策与实现映射。
+- [Web Console 工程](../web/README.md) — React + Ant Design Web Console，`docker compose up` 后访问 <http://localhost:3000>。
+- 浏览器只访问 3000；Node 同源运行时把 `/console-api`、`/open-api` 代理到对应后端，并重写 Refresh Cookie 的 Path。
+
 ## API 契约与前端交接
 
 - [API 前端交接指南](./api/README.md) — Console / Open 正式 HTTP API 的中文联调指南，含登录态、Cookie、Tenant 上下文、分页、上传/轮询/重试、Scope 部分成功、一次性 API Key、Open Query 与统一错误处理。

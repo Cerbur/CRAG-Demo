@@ -190,6 +190,8 @@ def check_topology_script(root: Path) -> list[Diagnostic]:
 # topology. The design doc §11 explicitly states "原服务固定映射本地端口".
 # No other Java service may expose host ports except console-api (8080) and
 # open-api (8081) which are the public business entry points.
+# plan_22/22.9: web (Node runtime, 3000) is the browser entry point and may
+# expose its host port alongside the Java business entry points.
 ALLOWED_PORT_SERVICES = {
     "sidecar",
     "access-service",
@@ -197,6 +199,7 @@ ALLOWED_PORT_SERVICES = {
     "rag-service",
     "console-api",
     "open-api",
+    "web",
 }
 
 def check_internal_port_exposure(root: Path) -> list[Diagnostic]:
@@ -239,7 +242,7 @@ def check_internal_port_exposure(root: Path) -> list[Diagnostic]:
                     Diagnostic("ERROR", "UNEXPECTED_PORT_EXPOSED",
                                f"Compose 服务 \"{current_service}\" 不应暴露端口到宿主机。"
                                "仅 access-service(8091)、knowledge-service(8092)、rag-service(8082)、"
-                               "console-api(8080)、open-api(8081) 允许本地端口映射。"))
+                               "console-api(8080)、open-api(8081)、web(3000) 允许本地端口映射。"))
                 in_ports = False  # Only report once per service
 
     return diagnostics

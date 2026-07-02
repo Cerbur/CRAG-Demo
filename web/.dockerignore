@@ -1,0 +1,27 @@
+# 构建上下文排除（plan_22/22.9）
+# 依赖与产物在镜像内由多阶段构建重新生成，不带入宿主状态。
+node_modules
+dist
+coverage
+test-results
+playwright-report
+.vite
+
+# 本地环境与缓存
+.env
+.env.*
+*.local
+*.tsbuildinfo
+
+# Git / IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# 文档与约束不参与镜像构建
+AGENTS.md
+CLAUDE.md
+README.md
+constraints
+tests

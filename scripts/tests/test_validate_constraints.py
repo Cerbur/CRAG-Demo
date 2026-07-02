@@ -273,6 +273,23 @@ class TestCheckInternalPortExposure(unittest.TestCase):
             diags = vc.check_internal_port_exposure(root)
             self.assertEqual([], diags)
 
+    def test_pass_web_port_allowed(self):
+        """plan_22/22.9: web (Node runtime) may expose its host port 3000."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "docker-compose.yml").write_text(
+                textwrap.dedent("""\
+                    services:
+                      web:
+                        image: node
+                        ports:
+                          - "3000:3000"
+                """),
+                encoding="utf-8",
+            )
+            diags = vc.check_internal_port_exposure(root)
+            self.assertEqual([], diags)
+
 
 class TestCheckSmokeTopology(unittest.TestCase):
     """plan_21/21.11: consolidated single-service smoke topology checks."""

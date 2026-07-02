@@ -22,7 +22,9 @@ git clone <repo-url> && cd CRAG-Demo
 docker compose up -d --build
 ```
 
-Compose 会启动五个 Java 进程（Console API、Open API、Access、Knowledge、RAG）、PostgreSQL、Redis 和 Python Sidecar。首次启动需要下载嵌入与重排模型，请等待健康检查通过。
+Compose 会启动五个 Java 进程（Console API、Open API、Access、Knowledge、RAG）、Node Web Console、PostgreSQL、Redis 和 Python Sidecar。首次启动需要下载嵌入与重排模型，请等待健康检查通过。
+
+启动完成后访问 **<http://localhost:3000>** 即可使用 Web Console：注册账号 → 创建 KnowledgeBase → 上传文档 → 创建 API Key → 在 Chat 中提问。整套核心流程无需手动 curl。
 
 ### 写入知识 + 发起问答
 
@@ -52,12 +54,15 @@ curl -X POST http://localhost:8082/api/v1/smoke/query \
 
 | 服务 | HTTP | gRPC | 职责 |
 | --- | ---: | ---: | --- |
+| `web` | 3000 | — | 浏览器控制台入口：注册登录、Knowledge/Document/API Key 管理、Chat |
 | `console-api` | 8080 | — | 浏览器管理 API：认证、租户、成员、知识库、文档、API Key |
 | `open-api` | 8081 | — | 外部 API Key 问答入口 |
 | `access-service` | 8091 | 9091 | 身份、会话、Membership、API Key 与 Scope |
 | `knowledge-service` | 8092 | 9092 | KnowledgeBase、Document、文件与摄取状态 |
 | `rag-service` | 8082 | 9093 | 摄取、混合检索、Rerank 与答案生成 |
 | `sidecar` | 8001 | — | `/embed` 与 `/rerank` 模型服务 |
+
+`web` 是同源运行时：浏览器只访问 3000，它把 `/console-api`、`/open-api` 反向代理到对应后端，并重写 Refresh Cookie 的 Path，使登录态在同源前缀下闭环。`8080`/`8081` 仍保留宿主机直接访问兼容。
 
 Access、Knowledge、RAG 的 HTTP 端口默认只暴露 Actuator；设置 `CRAG_SERVICE_PROFILES=smoke` 后，会在原进程、原端口上额外注册 `/api/v1/smoke/**`，不会创建重复容器。
 
@@ -142,6 +147,7 @@ OpenAPI 3.1 解析、`operationId`、`$ref`、示例、路由清单和文档链�
 ├── crag-rag-service/         # 摄取、Storage、Retrieval、Query 与 Smoke Controller
 ├── crag-console-api/         # Console 正式 HTTP 入口
 ├── crag-open-api/            # Open 正式 HTTP 入口
+├── web/                      # React + Ant Design Web Console（同源运行时代理 3000）
 ├── sidecar/                  # Python `/embed` 与 `/rerank`
 ├── docs/                     # API 契约、交接文档与架构图
 ├── constraints/              # 工程与架构约束
