@@ -159,11 +159,18 @@ async function mockConsoleApi(page: Page, state: DocState): Promise<void> {
     });
   });
 
-  // Retry endpoint.
+  // Retry endpoint. A real backend puts the document back into PENDING when
+  // the retry is accepted, so the LIST handler (which reads `state`) must
+  // observe that same transition. Mutating `state` here models reality and
+  // guarantees the next list refetch returns an ACTIVE (PENDING) document, so
+  // polling re-engages regardless of the refetch timing relative to the test's
+  // own `state.status = 'READY'` flip later.
   await page.route(
     '**/console-api/api/v1/tenants/2001/knowledge-bases/3001/documents/4001/ingestion/retry',
-    (route) =>
-      route.fulfill({
+    (route) => {
+      state.status = 'PENDING';
+      state.retryable = false;
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -185,7 +192,8 @@ async function mockConsoleApi(page: Page, state: DocState): Promise<void> {
             completedAt: null,
           },
         }),
-      }),
+      });
+    },
   );
 }
 

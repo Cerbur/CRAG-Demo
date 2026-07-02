@@ -93,6 +93,44 @@ function hasActiveDocuments(items: ReadonlyArray<DocumentItem>): boolean {
 }
 
 /**
+ * Optimistically mark a retried document PENDING in the cached list so polling
+ * engages immediately. A real backend puts the document back into PENDING when
+ * the retry is accepted; without this, polling only restarts after the next
+ * list refetch reads PENDING — and if that refetch races ahead of the server
+ * state flip the list can stay terminal (FAILED) and never poll again. This
+ * also improves UX: the row shows 处理中/待处理 right after the user clicks 重试.
+ *
+ * Mutates the cache in place via {@link QueryClient.setQueryData}; the
+ * subsequent invalidate/refetch reconciles with the authoritative server state.
+ */
+function optimisticallyMarkRetrying(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tenantId: string,
+  knowledgeBaseId: string,
+  retried: DocumentItem,
+): void {
+  const key = consoleKeys.documents.list(tenantId, knowledgeBaseId, '');
+  queryClient.setQueryData<{ items: DocumentItem[]; nextPageToken: string } | undefined>(
+    key,
+    (existing) => {
+      if (!existing) return existing;
+      const items = existing.items.map((d) =>
+        d.id === retried.id
+          ? {
+              ...d,
+              status: 'PENDING' as const,
+              attempt: retried.attempt,
+              retryable: false,
+              failureMessage: null,
+            }
+          : d,
+      );
+      return { ...existing, items };
+    },
+  );
+}
+
+/**
  * Build the Documents ViewModel.
  *
  * @param options.tenantId from AuthSession
@@ -154,7 +192,12 @@ export function useDocuments(options: {
 
   const retryMutation = useMutation({
     mutationFn: (docId: string) => retryDocument(deps, tenantId, knowledgeBaseId, docId),
-    onSuccess: () => {
+    onSuccess: (retried) => {
+      // Optimistically mark the document PENDING so the refetchInterval
+      // re-engages immediately and the user sees the active state without
+      // waiting for the next list refetch. The invalidate that follows
+      // reconciles with the authoritative server projection.
+      optimisticallyMarkRetrying(queryClient, tenantId, knowledgeBaseId, retried);
       void queryClient.invalidateQueries({
         queryKey: consoleKeys.documents.all(),
       });
