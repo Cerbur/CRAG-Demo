@@ -2,7 +2,7 @@
 workflow_version: 3
 plan_id: plan_22
 type: main
-status: ready
+status: in_progress
 created: 2026-07-02
 updated: 2026-07-02
 ---
@@ -145,7 +145,7 @@ updated: 2026-07-02
 
 | 编号 | 任务 | 状态 | 提交 | 完成时间 |
 | --- | --- | --- | --- | --- |
-| 22.1 | 建立 Web 工程治理、脚手架与应用 Shell | ⏳ 待开始 | — | — |
+| 22.1 | 建立 Web 工程治理、脚手架与应用 Shell | ⏳ 待验收 | a1582767 | — |
 | 22.2 | 建立双 API Client、统一错误与认证 Session | ⏳ 待开始 | — | — |
 | 22.3 | 完成注册、登录与受保护路由 | ⏳ 待开始 | — | — |
 | 22.4 | 完成 Knowledge 管理 | ⏳ 待开始 | — | — |
@@ -448,6 +448,12 @@ OPEN_API_ORIGIN=http://open-api:8081
 
 | 日期 | 环境 | 命令或检查 | 结果 | 摘要 |
 | --- | --- | --- | --- | --- |
+| 2026-07-02 | macOS, Node v26.3.1, pnpm 10.32.1（22.1 实现自测） | `cd web && pnpm lint` | ✅ 通过 | eslint . 0 错误 |
+| 2026-07-02 | 同上 | `cd web && pnpm typecheck` | ✅ 通过 | tsc -b --noEmit 干净；strict TS 生效 |
+| 2026-07-02 | 同上 | `cd web && pnpm test` | ✅ 通过 | 4 文件 13 测试，含架构门禁（scripts/strict TS/路由集合/View 禁止 services/http/跨 feature 内部导入/AGENTS 与 CLAUDE 字节一致） |
+| 2026-07-02 | 同上 | `cd web && pnpm build` | ✅ 通过 | dist 产物生成；非阻塞 chunk 体积警告，业务页拆分属后续任务 |
+| 2026-07-02 | 同上 | `cd web && pnpm exec playwright test tests/e2e/app-shell.spec.ts` | ✅ 通过 | 24/24，桌面 1280×720 与移动 390×844 各路由无 console error，404 与动态详情可达 |
+| 2026-07-02 | 同上 | `git show --stat a1582767` | ✅ 通过 | 45 文件全部位于 `web/`；`plan_14` 工作区变更未被纳入 |
 
 ## 阻塞记录
 
@@ -462,3 +468,4 @@ OPEN_API_ORIGIN=http://open-api:8081
 | 日期 | 变更 | 原因 | 影响 |
 | --- | --- | --- | --- |
 | 2026-07-02 | 创建 plan_22 并进入 ready | Web 产品、架构、UI 交接和 Node Docker 设计已获用户确认 | 新增 9 个有序任务，登记执行队列 |
+| 2026-07-02 | 开始执行：ready → in_progress；22.1 实现提交 a1582767 并转待验收 | 22.1 由独立 SubAgent 完成 Web 工程治理、脚手架与应用 Shell | 执行队列进度更新；自测全门禁通过 |
